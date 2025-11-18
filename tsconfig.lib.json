@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "declaration": true,
+    "types": ["node"],
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["jest.config.ts", "jest.integration.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"]
+}

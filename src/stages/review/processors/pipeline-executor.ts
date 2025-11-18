@@ -1,0 +1,142 @@
+import { writeFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+import type { AIProvider } from '../../../ai/providers/provider.ts';
+import { getCurrentSessionPaths } from '../../../shared/runtime/session-context.ts';
+import type { FileInfo, PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config.ts';
+import type { ReviewIssue } from '../../../shared/types/index.ts';
+import { processConcurrently } from '../../../shared/utils/concurrency.ts';
+import { logger } from '../../../shared/utils/logger.ts';
+import { ConfigLoader } from '../loaders/config-loader.ts';
+import { DocDiscovery } from '../loaders/doc-discovery.ts';
+import { FilterMatcher } from '../loaders/filter-matcher.ts';
+import { PromptLoader } from '../loaders/prompt-loader.ts';
+import { TemplateEngine } from '../loaders/template-engine.ts';
+import { DeduplicationResolver } from './dedup-resolver.ts';
+import { FileReviewer } from './file-reviewer.ts';
+import { ValidationResolver } from './validation-resolver.ts';
+
+export class PipelineExecutor {
+  private config: ReviewConfig;
+  private validationResolver: ValidationResolver;
+  private dedupResolver: DeduplicationResolver;
+  private aiProvider: AIProvider;
+  private preValidationDump: Record<string, ReviewIssue[]> = {};
+
+  constructor(aiProvider: AIProvider) {
+    this.config = ConfigLoader.getInstance().load();
+    this.validationResolver = new ValidationResolver(this.config, aiProvider);
+    this.dedupResolver = new DeduplicationResolver(this.config, aiProvider);
+    this.aiProvider = aiProvider;
+  }
+
+  async execute(files: FileInfo[]): Promise<ReviewIssue[]> {
+    logger.info(`[Pipeline] Starting review of ${files.length} files`);
+
+    const allIssues: ReviewIssue[] = [];
+    const enabledJobs = ConfigLoader.getInstance().getEnabledJobs();
+
+    for (const { job, passes } of enabledJobs) {
+      logger.info(`[Pipeline] Executing job: ${job.name} (${passes.length} passes)`);
+      const jobIssues = await this.executeJob(job, passes, files);
+      allIssues.push(...jobIssues);
+      logger.info(`[Pipeline] Job "${job.name}" completed: ${jobIssues.length} issues`);
+    }
+
+    logger.info(`[Pipeline] All jobs completed: ${allIssues.length} total issues`);
+
+    const dumpPath = join(getCurrentSessionPaths().base(), 'issues-before-validation-and-dedup.json');
+    writeFileSync(dumpPath, JSON.stringify(this.preValidationDump, null, 2));
+    logger.info(`[Pipeline] Pre-validation dump saved to ${dumpPath}`);
+
+    return allIssues;
+  }
+
+  private async executeJob(job: PipelineJob, passes: ReviewPass[], files: FileInfo[]): Promise<ReviewIssue[]> {
+    const rawIssues: ReviewIssue[] = [];
+
+    for (const pass of passes) {
+      logger.info(`[Pipeline] Executing pass: ${pass.name}`);
+      const passIssues = await this.executePass(job, pass, files);
+      rawIssues.push(...passIssues);
+      logger.info(`[Pipeline] Pass "${pass.name}" completed: ${passIssues.length} raw issues`);
+    }
+
+    this.preValidationDump[job.name] = rawIssues;
+
+    const validatedIssues = await this.validationResolver.validate(rawIssues, job);
+    logger.info(`[Pipeline] Job "${job.name}" validation: ${validatedIssues.length}/${rawIssues.length} issues passed`);
+
+    const dedupedIssues = await this.dedupResolver.deduplicate(validatedIssues, job);
+    logger.info(
+      `[Pipeline] Job "${job.name}" deduplication: ${dedupedIssues.length}/${validatedIssues.length} issues kept`,
+    );
+
+    return dedupedIssues;
+  }
+
+  private async executePass(job: PipelineJob, pass: ReviewPass, files: FileInfo[]): Promise<ReviewIssue[]> {
+    const filteredFiles = files.filter((file) => FilterMatcher.shouldReview(file, pass));
+
+    if (filteredFiles.length === 0) {
+      logger.info(`[Pipeline] No files match filters for pass "${pass.name}"`);
+      return [];
+    }
+
+    logger.info(`[Pipeline] ${filteredFiles.length} files match filters for pass "${pass.name}"`);
+
+    if (pass.docs) {
+      return await this.executeDocBasedPass(pass, filteredFiles);
+    } else {
+      return await this.executePromptOnlyPass(pass, filteredFiles);
+    }
+  }
+
+  private async executeDocBasedPass(pass: ReviewPass, files: FileInfo[]): Promise<ReviewIssue[]> {
+    const docPaths = await DocDiscovery.discover(pass.docs as string);
+    const { content: promptTemplate } = await PromptLoader.load(pass.prompt);
+    const allIssues: ReviewIssue[] = [];
+
+    for (const [index, docPath] of docPaths.entries()) {
+      logger.info(`[Pipeline] Processing doc split ${index + 1}/${docPaths.length}: ${docPath}`);
+
+      const docContent = await readFile(docPath, 'utf-8');
+      const renderedPrompt = TemplateEngine.render(promptTemplate, {
+        DOCUMENTATION: docContent,
+        MIN_CONFIDENCE: this.config.validation?.minConfidence ?? 7,
+        REVIEW_MIN_CONFIDENCE: this.config.minConfidence ?? 4,
+      });
+      const issues = await this.reviewWithPrompt(renderedPrompt, files, pass);
+
+      allIssues.push(...issues);
+    }
+
+    return allIssues;
+  }
+
+  private async executePromptOnlyPass(pass: ReviewPass, files: FileInfo[]): Promise<ReviewIssue[]> {
+    const { content: promptTemplate } = await PromptLoader.load(pass.prompt);
+    const renderedPrompt = TemplateEngine.render(promptTemplate, {
+      MIN_CONFIDENCE: this.config.validation?.minConfidence ?? 7,
+      REVIEW_MIN_CONFIDENCE: this.config.minConfidence ?? 4,
+    });
+    return await this.reviewWithPrompt(renderedPrompt, files, pass);
+  }
+
+  private async reviewWithPrompt(prompt: string, files: FileInfo[], pass: ReviewPass): Promise<ReviewIssue[]> {
+    logger.debug(`[Pipeline] Review with prompt (${prompt.length} chars) for ${files.length} files`);
+
+    const maxConcurrent = this.config.maxConcurrentFiles || 10;
+    const reviewer = new FileReviewer(this.aiProvider, prompt, pass.name);
+
+    const results = await processConcurrently(files, maxConcurrent, async (file, index) => {
+      logger.info(`[${index + 1}/${files.length}] Reviewing ${file.path} with "${pass.name}"`);
+      const issues = await reviewer.reviewFile(file);
+      logger.info(`[${index + 1}/${files.length}] Found ${issues.length} issues in ${file.path}`);
+      return issues;
+    });
+
+    return results.flat();
+  }
+}

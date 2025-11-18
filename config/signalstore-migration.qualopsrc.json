@@ -1,0 +1,106 @@
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0.1
+    },
+    "fixStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "performance": {
+    "maxFilesPerBatch": 15,
+    "maxConcurrentFiles": 8
+  },
+  "review": {
+    "minConfidence": 7,
+    "maxConcurrentFiles": 8,
+    "validation": {
+      "enabled": true,
+      "minConfidence": 8,
+      "prompt": "signalstore-migration/validation.md"
+    },
+    "deduplication": {
+      "enabled": true,
+      "prompt": "deduplication.md"
+    },
+    "pipeline": [
+      {
+        "name": "signalStoreMigration",
+        "enabled": true,
+        "passes": [
+          {
+            "name": "SignalStore Migration Analysis",
+            "enabled": true,
+            "docs": "ngrx",
+            "prompt": "signalstore-migration/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "createAction\\(",
+                "createReducer\\(",
+                "createEffect\\(",
+                "createFeatureSelector\\(",
+                "createSelector\\(",
+                "EntityState<",
+                "EntityAdapter<",
+                "@ngrx/store",
+                "provideState\\(",
+                "provideEffects\\("
+              ],
+              "filePatterns": [
+                "**/*.actions.ts",
+                "**/*.reducer.ts",
+                "**/*.effects.ts",
+                "**/*.selectors.ts",
+                "**/*.facade.ts",
+                "**/store/**/*.ts"
+              ],
+              "excludePatterns": [
+                "**/*.spec.ts",
+                "**/*.d.ts",
+                "**/*.store.ts",
+                "**/node_modules/**"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "fix": {
+    "enabled": false,
+    "prompt": "fix-system-message.md",
+    "severities": ["high"],
+    "minConfidence": 8,
+    "maxConcurrentFixes": 10
+  },
+  "gitlab": {
+    "enabled": false,
+    "postComments": false,
+    "skipOnDraft": false,
+    "blockPipeline": false
+  },
+  "report": {
+    "includedSeverities": ["critical", "high", "medium"],
+    "enableRootCauseExtraction": false
+  },
+  "logger": {
+    "level": "info",
+    "enableColors": true,
+    "enableTimestamps": true
+  }
+}

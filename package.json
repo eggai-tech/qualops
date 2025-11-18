@@ -1,0 +1,67 @@
+{
+  "name": "qualops",
+  "version": "0.14.0",
+  "type": "module",
+  "description": "AI-powered code quality pipeline for automated reviews and fixes",
+  "keywords": [
+    "code-quality",
+    "ai",
+    "eslint",
+    "code-review",
+    "automation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "bin": {
+    "qualops": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./cli": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "config"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "dev": "node --env-file=.env --experimental-strip-types src/cli.ts",
+    "test": "jest",
+    "test:integration": "jest --config jest.integration.config.ts",
+    "lint": "eslint src",
+    "qualops": "node --env-file=.env --experimental-strip-types src/cli.ts",
+    "qualops:all": "node --env-file=.env --experimental-strip-types src/cli.ts all",
+    "qualops:analyze": "node --env-file=.env --experimental-strip-types src/cli.ts analyze",
+    "qualops:review": "node --env-file=.env --experimental-strip-types src/cli.ts review",
+    "qualops:fix": "node --env-file=.env --experimental-strip-types src/cli.ts fix",
+    "qualops:report": "node --env-file=.env --experimental-strip-types src/cli.ts report",
+    "qualops:judge": "node --env-file=.env --experimental-strip-types src/cli.ts judge",
+    "qualops:docs:download": "node --env-file=.env --experimental-strip-types src/cli.ts docs:download"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.32.1",
+    "@aws-sdk/client-bedrock-runtime": "3.896.0",
+    "@types/commander": "2.12.0",
+    "commander": "14.0.1",
+    "diff": "8.0.2",
+    "dotenv": "16.4.5",
+    "openai": "5.23.1"
+  },
+  "devDependencies": {
+    "@types/diff": "^5.2.3",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.1",
+    "@typescript-eslint/parser": "^8.18.1",
+    "eslint": "^9.16.0",
+    "jest": "^29.7.0",
+    "minimatch": "^10.0.1",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

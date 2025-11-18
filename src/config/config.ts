@@ -1,0 +1,282 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+
+import type { AIStageConfig, Config } from '../shared/types/index.ts';
+import { logger } from '../shared/utils/logger.ts';
+import { sanitizeFilename } from '../shared/utils/security.ts';
+import { envConfig } from './env.ts';
+
+export class ConfigService {
+  private static instance: ConfigService;
+  private config: Config;
+  private rawConfig: Record<string, unknown>;
+  private readonly defaultConfig: Config = {
+    maxFilesPerBatch: 7,
+    maxConcurrency: 3,
+    cacheEnabled: true,
+    cacheTTL: 1000 * 60 * 5,
+    reactReview: envConfig.get('reactReview') === true,
+    multiPassReview: envConfig.get('multiPassReview') !== false,
+    outputFormat: 'html',
+    verbose: false,
+    debug: envConfig.get('debug') || false,
+    maxFileSizeKB: 500,
+    maxTokensPerFile: 1000000,
+    maxReactSteps: 5,
+    skipPatterns: ['node_modules/**', '.git/**', 'dist/**', 'build/**', 'coverage/**'],
+  };
+
+  private constructor() {
+    this.rawConfig = this.loadRawConfig();
+    this.config = this.loadConfig();
+  }
+
+  static getInstance(): ConfigService {
+    if (!ConfigService.instance) {
+      ConfigService.instance = new ConfigService();
+    }
+    return ConfigService.instance;
+  }
+
+  private loadRawConfig(): Record<string, unknown> {
+    const rcPath = join(process.cwd(), '.qualopsrc.json');
+    if (!existsSync(rcPath)) return {};
+    try {
+      return JSON.parse(readFileSync(rcPath, 'utf-8'));
+    } catch (error) {
+      logger.warn(`Failed to parse .qualopsrc.json: ${error instanceof Error ? error.message : String(error)}`);
+      return {};
+    }
+  }
+
+  private loadConfig(): Config {
+    const config = { ...this.defaultConfig };
+
+    if (this.rawConfig.review) {
+      config.review = this.rawConfig.review as Config['review'];
+    }
+    if (this.rawConfig.ai) {
+      config.ai = this.rawConfig.ai as Config['ai'];
+    }
+    if (this.rawConfig.performance) {
+      Object.assign(config, this.rawConfig.performance);
+      if ((this.rawConfig.performance as Record<string, unknown>).throttling) {
+        config.throttling = (this.rawConfig.performance as Record<string, unknown>).throttling as Config['throttling'];
+      }
+    }
+    if (this.rawConfig.filter) {
+      config.filter = this.rawConfig.filter as Config['filter'];
+    }
+    if (this.rawConfig.fix) {
+      config.fix = this.rawConfig.fix as Config['fix'];
+    }
+    if (this.rawConfig.report) {
+      config.report = this.rawConfig.report as Config['report'];
+    }
+
+    const env = envConfig.getAll();
+
+    if (env.maxFiles) {
+      config.maxFilesPerBatch = env.maxFiles;
+    }
+
+    if (env.skipCache) {
+      config.cacheEnabled = false;
+    }
+
+    if (envConfig.get('verbose')) {
+      config.verbose = true;
+    }
+
+    if (env.multiPassReview !== undefined) {
+      config.multiPassReview = env.multiPassReview;
+    }
+
+    if (env.reactReview !== undefined) {
+      config.reactReview = env.reactReview;
+    }
+
+    return config;
+  }
+
+  get<K extends keyof Config>(key: K): Config[K] {
+    return this.config[key];
+  }
+
+  set<K extends keyof Config>(key: K, value: Config[K]): void {
+    this.config[key] = value;
+  }
+
+  getAll(): Config {
+    return { ...this.config };
+  }
+
+  merge(partial: Partial<Config>): void {
+    Object.assign(this.config, partial);
+  }
+
+  reset(): void {
+    this.rawConfig = this.loadRawConfig();
+    this.config = this.loadConfig();
+  }
+
+  isReActReviewEnabled(): boolean {
+    return this.config.reactReview ?? false;
+  }
+
+  isCacheEnabled(): boolean {
+    return this.config.cacheEnabled ?? true;
+  }
+
+  isVerbose(): boolean {
+    return this.config.verbose ?? envConfig.isVerbose();
+  }
+
+  isDebug(): boolean {
+    return this.config.debug ?? envConfig.isDebug();
+  }
+
+  getAIStageConfig(stage: string): AIStageConfig {
+    const stageKey = `${stage}Stage` as keyof NonNullable<Config['ai']>;
+    const stageConfig = this.config.ai?.[stageKey];
+
+    if (!stageConfig) {
+      throw new Error(`AI configuration for stage "${stage}" not found in .qualopsrc.json`);
+    }
+
+    const required = ['provider', 'model', 'inputPerMillion', 'outputPerMillion'];
+    const missing = required.filter((key) => !(key in stageConfig));
+
+    if (missing.length > 0) {
+      throw new Error(`Missing required AI config for stage "${stage}": ${missing.join(', ')}`);
+    }
+
+    return stageConfig;
+  }
+
+  getMaxFileSizeKB(): number {
+    return this.config.maxFileSizeKB ?? 500;
+  }
+
+  getMaxTokensPerFile(): number {
+    return this.config.maxTokensPerFile ?? 1000000;
+  }
+
+  getMaxReactSteps(): number {
+    return this.config.maxReactSteps ?? 5;
+  }
+
+  isIssueMarkdownEnabled(): boolean {
+    return this.config.report?.generateIssueMarkdown ?? false;
+  }
+
+  isRootCauseExtractionEnabled(): boolean {
+    return this.config.report?.enableRootCauseExtraction ?? false;
+  }
+
+  validate(): string[] {
+    const errors: string[] = [];
+
+    if (!this.config.ai) {
+      errors.push('AI configuration is required in .qualopsrc.json');
+    }
+
+    if (this.config.maxFilesPerBatch && this.config.maxFilesPerBatch < 1) {
+      errors.push('maxFilesPerBatch must be at least 1');
+    }
+
+    return errors;
+  }
+
+  getFileNames() {
+    return {
+      ANALYSIS: 'analysis.json',
+      REVIEW_SUMMARY: 'review-summary.json',
+      FIX_SUMMARY: 'fix-suggestions.json',
+      OVERALL_REPORT: 'overall-report.json',
+      ERROR_LOG: 'error-log.json',
+    } as const;
+  }
+
+  getDirectories() {
+    const paths = this.rawConfig.paths as Record<string, unknown> | undefined;
+    return {
+      SESSIONS: (paths?.sessionsDir as string) ?? 'reports/sessions',
+      CACHE: (paths?.cacheDir as string) ?? '.qualops-cache',
+      OUTPUT: (paths?.outputDir as string) ?? 'reports',
+    } as const;
+  }
+
+  getPerformanceLimits() {
+    const perf = this.rawConfig.performance as Record<string, unknown> | undefined;
+    return {
+      maxFileSizeKB: (perf?.maxFileSizeKB as number) ?? this.config.maxFileSizeKB ?? 500,
+      maxFilesPerBatch: (perf?.maxFilesPerBatch as number) ?? this.config.maxFilesPerBatch ?? 10,
+      maxFilesPerProject: (perf?.maxFilesPerProject as number) ?? 10000,
+      timeoutSeconds: (perf?.timeoutSeconds as number) ?? 300,
+      maxTokensPerFile: (perf?.maxTokensPerFile as number) ?? this.config.maxTokensPerFile ?? 1000000,
+      maxRetries: (perf?.maxRetries as number) ?? 2,
+    } as const;
+  }
+
+  getCriticalStages() {
+    return ['analyze', 'report'] as const;
+  }
+
+  getCacheConfig() {
+    return {
+      VERSION: '1.0.0',
+      MAX_ENTRIES: 10000,
+      TTL_DAYS: 7,
+    } as const;
+  }
+
+  buildSessionPath(sessionName: string, reportRoot: string) {
+    // Sanitize sessionName to prevent path traversal
+    const sanitizedSession = sanitizeFilename(sessionName);
+
+    // Validate reportRoot stays within expected directory
+    const resolvedRoot = resolve(reportRoot);
+    const expectedBase = resolve('./reports');
+    if (!resolvedRoot.startsWith(expectedBase)) {
+      throw new Error(`Invalid report root path: ${reportRoot}`);
+    }
+
+    const fileNames = this.getFileNames();
+    const rootDir = reportRoot;
+    const sessionBase = join(rootDir, 'sessions', sanitizedSession);
+    const issuesBase = join(rootDir, 'issues');
+
+    return {
+      base: () => sessionBase,
+      reportRoot: () => rootDir,
+      issuesDir: () => issuesBase,
+      issues: () => issuesBase,
+      analysis: () => join(sessionBase, fileNames.ANALYSIS),
+      reviewSummary: () => join(sessionBase, fileNames.REVIEW_SUMMARY),
+      rootCauseMetadata: () => join(sessionBase, 'root-cause-metadata.json'),
+      fixSummary: () => join(sessionBase, fileNames.FIX_SUMMARY),
+      overallReport: () => join(sessionBase, fileNames.OVERALL_REPORT),
+      judgeDecision: () => join(sessionBase, 'judge-decision.json'),
+      cache: () => join(sessionBase, 'qualops-cache.json'),
+      extractLog: () => join(sessionBase, 'extract-log.json'),
+      diffReport: () => join(sessionBase, 'diff-report.html'),
+      tokenStats: () => join(sessionBase, 'token-stats.json'),
+      metadata: () => join(sessionBase, 'metadata.json'),
+      sessionReport: () => join(sessionBase, 'report.html'),
+      mainReport: () => join(rootDir, 'index.html'),
+      errorLog: (stage: string) => join(sessionBase, `error-${stage}.json`),
+      timingStats: () => join(sessionBase, 'timing-stats.json'),
+    };
+  }
+}
+
+const configService = ConfigService.getInstance();
+
+export const FILE_NAMES = configService.getFileNames();
+export const DIRECTORIES = configService.getDirectories();
+export const PERFORMANCE_LIMITS = configService.getPerformanceLimits();
+export const CRITICAL_STAGES = configService.getCriticalStages();
+export const CACHE_CONFIG = configService.getCacheConfig();
+export const buildSessionPath = (sessionName: string, reportRoot: string) =>
+  configService.buildSessionPath(sessionName, reportRoot);
