@@ -12,6 +12,11 @@
     "lib": ["ES2022"],
     "moduleDetection": "force",
     "isolatedModules": true,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@tests/*": ["tests/*"]
+    }
   }
 }

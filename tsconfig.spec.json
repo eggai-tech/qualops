@@ -5,5 +5,5 @@
     "types": ["jest", "node"],
     "noEmit": true
   },
-  "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.d.ts"]
+  "include": ["tests/**/*.spec.ts", "tests/**/*.test.ts", "tests/**/*.ts", "src/**/*.d.ts"]
 }
