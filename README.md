@@ -225,7 +225,7 @@ Documentation sources:
 
 ## Customizing AI Prompts
 
-QualOps uses markdown files in `config/prompts/` to guide AI behavior at each stage.
+QualOps uses markdown files in `examples/prompts/` to guide AI behavior at each stage.
 You can customize these to adjust review criteria, validation rules, and output formats:
 
 ### Customizable Prompt Files

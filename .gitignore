@@ -17,6 +17,9 @@ coverage/
 .env.local
 .env.*.local
 
+# Local development docs
+CLAUDE.local.md
+
 # IDE
 .vscode/
 .idea/

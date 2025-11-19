@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { PromptConfig } from '../../../shared/types/config.ts';
 import { logger } from '../../../shared/utils/logger.ts';
 
-const PROMPTS_BASE_PATH = join(process.cwd(), 'config/prompts');
+const PROMPTS_BASE_PATH = join(process.cwd(), 'examples/prompts');
 
 interface LoadedPrompt {
   content: string;
