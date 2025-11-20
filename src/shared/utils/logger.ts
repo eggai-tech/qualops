@@ -132,7 +132,6 @@ class Logger {
     this.info(`[GIT] ${message}`, ...args);
   }
 
-
   security(message: string, ...args: unknown[]): void {
     this.warn(`[SECURITY] ${message}`, ...args);
   }

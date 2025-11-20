@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { buildSessionPath } from '../../config/config';
+import { buildSessionPath } from '../../config/buildSessionPath';
 import { logger } from '../utils/logger';
 
 interface StageTokenStats {

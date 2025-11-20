@@ -1,11 +1,13 @@
 import type Anthropic from '@anthropic-ai/sdk';
 
+import { estimateTokens } from '@/ai/shared/token-utils';
+import { ConfigService } from '@/config/config';
+import { envConfig } from '@/config/env';
+import type { AIStageConfig } from '@/shared/types';
+import { logger } from '@/shared/utils/logger';
+
 import { AIProviderType } from './factory';
 import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
-import { envConfig } from '../../config/env';
-import type { AIStageConfig } from '../../shared/types';
-import { logger } from '../../shared/utils/logger';
-import { estimateTokens } from '../shared/token-utils';
 
 export class AnthropicProvider implements AIProvider {
   readonly name = AIProviderType.ANTHROPIC;
@@ -160,7 +162,6 @@ export class AnthropicProvider implements AIProvider {
       const systemMessages = messages.filter((m) => m.role === 'system');
       const nonSystemMessages = messages.filter((m) => m.role !== 'system');
 
-      const { ConfigService } = await import('../../config/config');
       const cacheTTL = ConfigService.getInstance().get('cacheTTL');
       const use1HourCache = cacheTTL && cacheTTL >= 3600000;
 
@@ -233,7 +234,7 @@ export class AnthropicProvider implements AIProvider {
         model: response.model,
       };
     } catch (error) {
-      throw new Error(`Anthropic completion failed: ${error.message}`);
+      throw new Error(`Anthropic completion failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -248,7 +249,7 @@ export class AnthropicProvider implements AIProvider {
       const jsonStr = jsonMatch ? jsonMatch[1] : response.content;
       return JSON.parse(jsonStr) as T;
     } catch (error) {
-      throw new Error(`Failed to parse structured response: ${error.message}`);
+      throw new Error(`Failed to parse structured response: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

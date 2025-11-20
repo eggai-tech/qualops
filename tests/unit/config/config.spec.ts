@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
 
-jest.mock('node:fs');
 interface MockEnvConfig {
   get: jest.Mock<string | boolean | undefined, [string]>;
   getAll: jest.Mock<Record<string, unknown>, []>;
@@ -27,12 +26,13 @@ jest.mock('@/config/env', () => ({
     isDebug: jest.fn(() => false),
   } as MockEnvConfig,
 }));
+jest.mock('node:fs');
 jest.mock('@/shared/utils/logger');
 
 const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
 const mockReadFileSync = readFileSync as jest.MockedFunction<typeof readFileSync>;
 
-import { ConfigService } from '@/config/config';
+import { CACHE_CONFIG, ConfigService, CRITICAL_STAGES, FILE_NAMES } from '@/config/config';
 import { envConfig } from '@/config/env';
 import type { Config } from '@/shared/types';
 
@@ -536,8 +536,7 @@ describe('ConfigService', () => {
 
   describe('getFileNames', () => {
     it('should return file name constants', () => {
-      const instance = ConfigService.getInstance();
-      const fileNames = instance.getFileNames();
+      const fileNames = FILE_NAMES;
       expect(fileNames.ANALYSIS).toBe('analysis.json');
       expect(fileNames.REVIEW_SUMMARY).toBe('review-summary.json');
       expect(fileNames.FIX_SUMMARY).toBe('fix-suggestions.json');
@@ -610,55 +609,17 @@ describe('ConfigService', () => {
 
   describe('getCriticalStages', () => {
     it('should return critical stages', () => {
-      const instance = ConfigService.getInstance();
-      const stages = instance.getCriticalStages();
+      const stages = CRITICAL_STAGES;
       expect(stages).toEqual(['analyze', 'report']);
     });
   });
 
   describe('getCacheConfig', () => {
     it('should return cache configuration', () => {
-      const instance = ConfigService.getInstance();
-      const cacheConfig = instance.getCacheConfig();
+      const cacheConfig = CACHE_CONFIG;
       expect(cacheConfig.VERSION).toBe('1.0.0');
       expect(cacheConfig.MAX_ENTRIES).toBe(10000);
       expect(cacheConfig.TTL_DAYS).toBe(7);
-    });
-  });
-
-  describe('buildSessionPath', () => {
-    it('should build session paths', () => {
-      const instance = ConfigService.getInstance();
-      const sessionPath = instance.buildSessionPath('test-session', 'reports');
-      expect(sessionPath.base()).toContain('test-session');
-      expect(sessionPath.analysis()).toContain('analysis.json');
-      expect(sessionPath.reviewSummary()).toContain('review-summary.json');
-      expect(sessionPath.fixSummary()).toContain('fix-suggestions.json');
-      expect(sessionPath.overallReport()).toContain('overall-report.json');
-      expect(sessionPath.judgeDecision()).toContain('judge-decision.json');
-      expect(sessionPath.cache()).toContain('qualops-cache.json');
-      expect(sessionPath.extractLog()).toContain('extract-log.json');
-      expect(sessionPath.diffReport()).toContain('diff-report.html');
-      expect(sessionPath.tokenStats()).toContain('token-stats.json');
-      expect(sessionPath.metadata()).toContain('metadata.json');
-      expect(sessionPath.sessionReport()).toContain('report.html');
-      expect(sessionPath.errorLog('review')).toContain('error-review.json');
-      expect(sessionPath.timingStats()).toContain('timing-stats.json');
-    });
-
-    it('should use reportRoot parameter for sessions directory', () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        JSON.stringify({
-          paths: {
-            sessionsDir: 'reports/custom-sessions',
-          },
-        }),
-      );
-      const instance = ConfigService.getInstance();
-      const sessionPath = instance.buildSessionPath('test-session', 'reports/custom');
-      expect(sessionPath.base()).toContain('reports/custom/sessions');
-      expect(sessionPath.base()).toContain('test-session');
     });
   });
 
@@ -707,16 +668,6 @@ describe('ConfigService', () => {
       expect(FILE_NAMES.ANALYSIS).toBe('analysis.json');
     });
 
-    it('should export DIRECTORIES constant', () => {
-      const { DIRECTORIES } = require('@/config/config');
-      expect(DIRECTORIES.SESSIONS).toBeDefined();
-    });
-
-    it('should export PERFORMANCE_LIMITS constant', () => {
-      const { PERFORMANCE_LIMITS } = require('@/config/config');
-      expect(PERFORMANCE_LIMITS.maxFileSizeKB).toBeDefined();
-    });
-
     it('should export CRITICAL_STAGES constant', () => {
       const { CRITICAL_STAGES } = require('@/config/config');
       expect(CRITICAL_STAGES).toEqual(['analyze', 'report']);
@@ -725,12 +676,6 @@ describe('ConfigService', () => {
     it('should export CACHE_CONFIG constant', () => {
       const { CACHE_CONFIG } = require('@/config/config');
       expect(CACHE_CONFIG.VERSION).toBe('1.0.0');
-    });
-
-    it('should export buildSessionPath function', () => {
-      const { buildSessionPath } = require('@/config/config');
-      const sessionPath = buildSessionPath('test', 'reports');
-      expect(sessionPath.base()).toContain('test');
     });
   });
 });

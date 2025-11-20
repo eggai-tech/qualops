@@ -3,7 +3,7 @@ import * as path from 'path';
 
 jest.mock('fs');
 jest.mock('path');
-jest.mock('@/config/config', () => ({
+jest.mock('@/config/buildSessionPath', () => ({
   buildSessionPath: jest.fn((sessionName: string, _reportRoot: string) => ({
     base: () => `/reports/sessions/${sessionName}`,
     analysis: () => `/reports/sessions/${sessionName}/analysis.json`,
@@ -28,7 +28,7 @@ const mockReaddirSync = fs.readdirSync as jest.MockedFunction<typeof fs.readdirS
 const mockStatSync = fs.statSync as jest.MockedFunction<typeof fs.statSync>;
 const mockJoin = path.join as jest.MockedFunction<typeof path.join>;
 
-import { buildSessionPath } from '@/config/config';
+import { buildSessionPath } from '@/config/buildSessionPath';
 import {
   addStageTokenStats,
   getCurrentSession,

@@ -84,7 +84,6 @@ export function formatRecommendations(summary: ReportSummary): string {
     recommendations.push(`**GOOD:** No critical or high-priority issues found.`);
   }
 
-
   return recommendations.length > 0
     ? `### Recommendations\n\n${recommendations.map((rec) => `- ${rec}`).join('\n')}`
     : '';
