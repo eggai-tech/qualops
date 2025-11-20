@@ -1,9 +1,9 @@
 import { jest } from '@jest/globals';
 
-import type { AnalysisMetadata, ExtractLog, FixMetadata, ReviewMetadata } from '@/shared/types/index.ts';
-import { collectIncrementalStats, collectMetadata } from '@/stages/report/collectors/metadata-collector.ts';
+import type { AnalysisMetadata, ExtractLog, FixMetadata, ReviewMetadata } from '@/shared/types';
+import { collectIncrementalStats, collectMetadata } from '@/stages/report/collectors/metadata-collector';
 
-jest.mock('@/stages/report/utils/formatters.ts');
+jest.mock('@/stages/report/utils/formatters');
 
 const createAnalysisMetadata = (projects: string[], files: string[]): AnalysisMetadata => ({
   timestamp: '2025-01-01T00:00:00Z',

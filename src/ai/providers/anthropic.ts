@@ -1,11 +1,11 @@
 import type Anthropic from '@anthropic-ai/sdk';
 
-import { envConfig } from '../../config/env.ts';
-import type { AIStageConfig } from '../../shared/types/index.ts';
-import { logger } from '../../shared/utils/logger.ts';
-import { estimateTokens } from '../shared/token-utils.ts';
-import { AIProviderType } from './factory.ts';
-import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider.ts';
+import { AIProviderType } from './factory';
+import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
+import { envConfig } from '../../config/env';
+import type { AIStageConfig } from '../../shared/types';
+import { logger } from '../../shared/utils/logger';
+import { estimateTokens } from '../shared/token-utils';
 
 export class AnthropicProvider implements AIProvider {
   readonly name = AIProviderType.ANTHROPIC;
@@ -160,7 +160,7 @@ export class AnthropicProvider implements AIProvider {
       const systemMessages = messages.filter((m) => m.role === 'system');
       const nonSystemMessages = messages.filter((m) => m.role !== 'system');
 
-      const { ConfigService } = await import('../../config/config.ts');
+      const { ConfigService } = await import('../../config/config');
       const cacheTTL = ConfigService.getInstance().get('cacheTTL');
       const use1HourCache = cacheTTL && cacheTTL >= 3600000;
 

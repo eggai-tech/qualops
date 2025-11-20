@@ -1,5 +1,5 @@
-import type { QualityThresholds, ReportMetadata } from '@/shared/types/index.ts';
-import { judgeQuality } from '@/stages/judge/index.ts';
+import type { QualityThresholds, ReportMetadata } from '@/shared/types';
+import { judgeQuality } from '@/stages/judge';
 
 const mockGetCurrentSessionPaths = jest.fn();
 const mockReadMetadataFile = jest.fn();
@@ -7,11 +7,11 @@ const mockEnvConfig = {
   get: jest.fn(),
 };
 
-jest.mock('@/shared/runtime/session-context.ts', () => ({
+jest.mock('@/shared/runtime/session-context', () => ({
   getCurrentSessionPaths: (...args: unknown[]) => mockGetCurrentSessionPaths(...args),
 }));
 
-jest.mock('@/shared/utils/file-utils.ts', () => {
+jest.mock('@/shared/utils/file-utils', () => {
   const actual = jest.requireActual('../../shared/utils/file-utils.ts');
   return {
     ...actual,
@@ -19,7 +19,7 @@ jest.mock('@/shared/utils/file-utils.ts', () => {
   };
 });
 
-jest.mock('@/config/env.ts', () => ({
+jest.mock('@/config/env', () => ({
   envConfig: {
     get: (...args: unknown[]) => mockEnvConfig.get(...args),
   },

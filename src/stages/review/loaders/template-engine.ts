@@ -1,4 +1,4 @@
-import { logger } from '../../../shared/utils/logger.ts';
+import { logger } from '../../../shared/utils/logger';
 
 type TemplateContext = Record<string, any>;
 

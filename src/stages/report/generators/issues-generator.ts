@@ -1,22 +1,23 @@
-import { diffLines } from 'diff';
 import { readFile } from 'node:fs/promises';
 
-import type { ReviewIssue } from '../../../shared/types/index.ts';
-import { logger } from '../../../shared/utils/logger.ts';
+import { diffLines } from 'diff';
+
+import type { ReviewIssue } from '../../../shared/types';
+import { logger } from '../../../shared/utils/logger';
 import {
   generateCodeSection,
   generateDirectoryHeader,
   generateFileHeader,
   generateIssueCard,
-} from '../templates/components.ts';
+} from '../templates/components';
 import {
   buildFileTree,
   type FixSuggestion,
   generateSafeId,
   groupIssuesByFile,
   sortDirectoriesByIssues,
-} from '../utils/data-transformer.ts';
-import { escapeHtml } from '../utils/formatters.ts';
+} from '../utils/data-transformer';
+import { escapeHtml } from '../utils/formatters';
 
 export async function generateIssuesSection(
   issues: ReviewIssue[],

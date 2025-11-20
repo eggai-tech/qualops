@@ -1,13 +1,13 @@
-import { ConfigService } from '../../config/config.ts';
-import { getCurrentSessionPaths } from '../../shared/runtime/session-context.ts';
-import type { AnalysisMetadata, FixMetadata, ReviewIssue, ReviewMetadata } from '../../shared/types/index.ts';
-import { readMetadataFile } from '../../shared/utils/file-utils.ts';
-import { logger } from '../../shared/utils/logger.ts';
-import { generateIssuesSection } from './generators/issues-generator.ts';
-import { generateSummary } from './generators/summary-generator.ts';
-import { type BaseTemplateData, generateBaseTemplate } from './templates/base-template.ts';
-import { type FilterData, generateFiltersSection } from './templates/components.ts';
-import { aggregateIssues } from './utils/data-transformer.ts';
+import { generateIssuesSection } from './generators/issues-generator';
+import { generateSummary } from './generators/summary-generator';
+import { type BaseTemplateData, generateBaseTemplate } from './templates/base-template';
+import { type FilterData, generateFiltersSection } from './templates/components';
+import { aggregateIssues } from './utils/data-transformer';
+import { ConfigService } from '../../config/config';
+import { getCurrentSessionPaths } from '../../shared/runtime/session-context';
+import type { AnalysisMetadata, FixMetadata, ReviewIssue, ReviewMetadata } from '../../shared/types';
+import { readMetadataFile } from '../../shared/utils/file-utils';
+import { logger } from '../../shared/utils/logger';
 
 function extractKnowledgeSourceFromIssue(issue: ReviewIssue): string {
   if (!issue.knowledge_source || issue.knowledge_source.trim() === '') {

@@ -1,4 +1,4 @@
-import { logger } from '../../../shared/utils/logger.ts';
+import { logger } from '../../../shared/utils/logger';
 
 export interface ParsedResponse<T = unknown> {
   success: boolean;

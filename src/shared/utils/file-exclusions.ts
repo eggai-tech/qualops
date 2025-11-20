@@ -1,6 +1,7 @@
-import { minimatch } from 'minimatch';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+
+import { minimatch } from 'minimatch';
 
 // Use a different name to avoid conflict with Jest's global __dirname
 const moduleDir = typeof __dirname !== 'undefined' ? __dirname : dirname(__filename);

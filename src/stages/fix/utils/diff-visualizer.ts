@@ -4,8 +4,8 @@ import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { FixSuggestion } from '../../../shared/types/index.ts';
-import { logger } from '../../../shared/utils/logger.ts';
+import type { FixSuggestion } from '../../../shared/types';
+import { logger } from '../../../shared/utils/logger';
 
 interface DiffLine {
   type: 'add' | 'remove' | 'context';

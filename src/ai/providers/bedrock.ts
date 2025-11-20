@@ -1,11 +1,11 @@
 import type { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 
-import { envConfig } from '../../config/env.ts';
-import type { AIStageConfig } from '../../shared/types/index.ts';
-import { logger } from '../../shared/utils/logger.ts';
-import { estimateTokens } from '../shared/token-utils.ts';
-import { AIProviderType } from './factory.ts';
-import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider.ts';
+import { AIProviderType } from './factory';
+import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
+import { envConfig } from '../../config/env';
+import type { AIStageConfig } from '../../shared/types';
+import { logger } from '../../shared/utils/logger';
+import { estimateTokens } from '../shared/token-utils';
 
 const ANTHROPIC_VERSION = 'bedrock-2023-05-31';
 

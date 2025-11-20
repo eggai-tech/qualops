@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { FixSuggestion } from '@/shared/types/index';
+import type { FixSuggestion } from '@/shared/types';
 import { generateDiffHTML, generateUnifiedDiff } from '@/stages/fix/utils/diff-visualizer';
 
 jest.mock('node:fs');
@@ -12,8 +12,8 @@ jest.mock('node:fs/promises');
 jest.mock('node:child_process');
 jest.mock('node:os');
 jest.mock('node:path');
-jest.mock('@/shared/utils/file-utils.ts');
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/file-utils');
+jest.mock('@/shared/utils/logger');
 
 const mockMkdtempSync = mkdtempSync as jest.MockedFunction<typeof mkdtempSync>;
 const mockWriteFileSync = writeFileSync as jest.MockedFunction<typeof writeFileSync>;

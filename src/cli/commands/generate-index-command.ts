@@ -1,9 +1,9 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import { logger } from '../../shared/utils/logger.ts';
-import { getDefaultReportRoot } from '../../shared/utils/report-root.ts';
-import { generateDashboardHTML } from './templates/index-dashboard-template.ts';
+import { generateDashboardHTML } from './templates/index-dashboard-template';
+import { logger } from '../../shared/utils/logger';
+import { getDefaultReportRoot } from '../../shared/utils/report-root';
 
 interface IssueStats {
   total: number;

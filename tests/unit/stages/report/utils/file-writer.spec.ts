@@ -12,15 +12,15 @@ import {
   writeMarkdownReport,
   writeMultipleReports,
   writeReportFile,
-} from '@/stages/report/utils/file-writer.ts';
+} from '@/stages/report/utils/file-writer';
 
 jest.mock('node:fs/promises');
-jest.mock('@/shared/runtime/session-context.ts');
-jest.mock('@/shared/utils/file-utils.ts', () => ({
+jest.mock('@/shared/runtime/session-context');
+jest.mock('@/shared/utils/file-utils', () => ({
   validateFilePath: jest.fn(),
   ensureDirectoryExists: jest.fn(),
 }));
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/logger');
 
 const mockWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
 const mockGetCurrentSessionPaths = jest.requireMock('@/shared/runtime/session-context.ts')

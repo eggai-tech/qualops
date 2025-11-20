@@ -1,6 +1,6 @@
-import type { ReviewIssue } from '../../../shared/types/index.ts';
-import { calculateIssueCounts, generateSafeId } from '../utils/data-transformer.ts';
-import { getConfidenceBadge } from '../utils/formatters.ts';
+import type { ReviewIssue } from '../../../shared/types';
+import { calculateIssueCounts, generateSafeId } from '../utils/data-transformer';
+import { getConfidenceBadge } from '../utils/formatters';
 
 export interface FilterData {
   totalIssues: number;

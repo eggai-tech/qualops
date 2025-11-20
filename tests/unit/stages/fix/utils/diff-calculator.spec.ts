@@ -1,4 +1,4 @@
-import type { FixSuggestion } from '@/shared/types/index';
+import type { FixSuggestion } from '@/shared/types';
 import {
   calculateDiff,
   calculateFixDiff,
@@ -10,7 +10,7 @@ import {
   formatUnifiedDiff,
 } from '@/stages/fix/utils/diff-calculator';
 
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/logger');
 
 describe('calculateDiff', () => {
   it('should calculate diff for identical code', () => {

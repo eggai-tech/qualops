@@ -1,6 +1,6 @@
-import type { FrameworkContext, ReviewIssue } from '../../shared/types/index.ts';
+import type { FrameworkContext, ReviewIssue } from '../../shared/types';
 
-export type { FrameworkContext } from '../../shared/types/index.ts';
+export type { FrameworkContext } from '../../shared/types';
 
 export async function createReviewPrompt(
   fileContent: string,
@@ -11,7 +11,7 @@ export async function createReviewPrompt(
     dependencies?: string[];
   },
 ): Promise<string> {
-  const documentation = await import('../../shared/utils/documentation-context.ts');
+  const documentation = await import('../../shared/utils/documentation-context');
   return documentation.enhanceReviewPromptWithDocumentation(fileContent, filePath, frameworkContext);
 }
 

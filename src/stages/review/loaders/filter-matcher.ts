@@ -1,7 +1,7 @@
 import { minimatch } from 'minimatch';
 
-import type { FileInfo, ReviewPass } from '../../../shared/types/config.ts';
-import { logger } from '../../../shared/utils/logger.ts';
+import type { FileInfo, ReviewPass } from '../../../shared/types/config';
+import { logger } from '../../../shared/utils/logger';
 
 export class FilterMatcher {
   static shouldReview(file: FileInfo, pass: ReviewPass): boolean {

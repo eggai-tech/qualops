@@ -1,5 +1,5 @@
 import { getCurrentSessionPaths } from '@/shared/runtime/session-context';
-import type { ReportMetadata } from '@/shared/types/index';
+import type { ReportMetadata } from '@/shared/types';
 import { readMetadataFile } from '@/shared/utils/file-utils';
 import { logger } from '@/shared/utils/logger';
 import { collectAllStageData, getStageResults } from '@/stages/report/collectors/data-collector';

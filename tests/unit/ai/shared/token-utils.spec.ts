@@ -1,4 +1,4 @@
-import type { TokenStats } from '@/ai/providers/index.ts';
+import type { TokenStats } from '@/ai/providers';
 import {
   addTokenStats,
   aggregateTokenStats,

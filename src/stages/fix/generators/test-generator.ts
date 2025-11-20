@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 
-import { getGlobalAIProvider } from '../../../ai/providers/index.ts';
-import type { FixSuggestion } from '../../../shared/types/index.ts';
-import { logger } from '../../../shared/utils/logger.ts';
+import { getGlobalAIProvider } from '../../../ai/providers';
+import type { FixSuggestion } from '../../../shared/types';
+import { logger } from '../../../shared/utils/logger';
 
 export interface GeneratedTest {
   id: string;

@@ -1,6 +1,6 @@
 #!/usr/bin/env node --experimental-strip-types
 
-import { GitLabIntegration } from './gitlab-integration.ts';
+import { GitLabIntegration } from './gitlab-integration';
 
 (async () => {
   try {

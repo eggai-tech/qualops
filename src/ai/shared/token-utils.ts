@@ -1,4 +1,4 @@
-import type { TokenStats } from '../providers/index.ts';
+import type { TokenStats } from '../providers';
 
 export function createEmptyTokenStats(): TokenStats {
   return {

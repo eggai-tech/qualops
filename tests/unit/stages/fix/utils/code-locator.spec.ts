@@ -6,7 +6,7 @@ import {
   smartContextSearch,
 } from '@/stages/fix/utils/code-locator';
 
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/logger');
 
 describe('findContextInFile', () => {
   it('should find exact match context', () => {

@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { logger } from '../../shared/utils/logger.ts';
+import { logger } from '../../shared/utils/logger';
 
 const UNIFIED_DOCS_PATH = join(process.cwd(), '.qualops/unified-docs');
 const SPLIT_DOCS_PATH = join(process.cwd(), '.qualops/docs');

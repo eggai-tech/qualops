@@ -1,4 +1,4 @@
-import type { FrameworkContext, ReviewIssue } from '@/shared/types/index';
+import type { FrameworkContext, ReviewIssue } from '@/shared/types';
 import { createFixPrompt, createReviewPrompt, detectFrameworkContext, validateReviewIssue } from '@/ai/shared/structured-ai';
 
 jest.mock('@/shared/utils/documentation-context', () => ({
@@ -316,7 +316,7 @@ import { Observable } from 'rxjs';`;
     });
 
     it('should handle complex file paths', () => {
-      const path = '/Users/project/src/app/features/auth/services/auth.service.ts';
+      const path = '/Users/project/src/app/features/auth/services/auth.service';
       const context = detectFrameworkContext(path, 'code');
 
       expect(context.fileType).toBe('service');

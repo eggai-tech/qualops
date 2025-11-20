@@ -2,8 +2,8 @@ import { existsSync, readdirSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { ReviewIssue } from '../../shared/types/index.ts';
-import { logger } from '../../shared/utils/logger.ts';
+import type { ReviewIssue } from '../../shared/types';
+import { logger } from '../../shared/utils/logger';
 
 export class IssueManager {
   private issuesDir: string;

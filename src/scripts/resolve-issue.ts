@@ -1,7 +1,8 @@
 #!/usr/bin/env node --env-file=.env --experimental-strip-types
 
 import { readFile, writeFile } from 'fs/promises';
-import { join, resolve } from 'path';
+import { resolve } from 'path';
+
 import Anthropic from '@anthropic-ai/sdk';
 
 interface ParsedIssue {

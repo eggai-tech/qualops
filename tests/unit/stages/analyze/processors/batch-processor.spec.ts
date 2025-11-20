@@ -1,18 +1,18 @@
-import type { ExtractLog } from '@/stages/analyze/utils/extract-log.ts';
-import { processBatchForAnalysis } from '@/stages/analyze/processors/batch-processor.ts';
+import type { ExtractLog } from '@/stages/analyze/utils/extract-log';
+import { processBatchForAnalysis } from '@/stages/analyze/processors/batch-processor';
 
-jest.mock('@/shared/utils/filters.ts');
-jest.mock('@/shared/utils/logger.ts');
-jest.mock('@/stages/analyze/processors/file-processor.ts');
+jest.mock('@/shared/utils/filters');
+jest.mock('@/shared/utils/logger');
+jest.mock('@/stages/analyze/processors/file-processor');
 
 const mockShouldProcessFile = jest.fn();
 const mockPrepareFilesForProcessing = jest.fn();
 
-jest.mock('@/shared/utils/filters.ts', () => ({
+jest.mock('@/shared/utils/filters', () => ({
   shouldProcessFile: (...args: unknown[]) => mockShouldProcessFile(...args),
 }));
 
-jest.mock('@/stages/analyze/processors/file-processor.ts', () => ({
+jest.mock('@/stages/analyze/processors/file-processor', () => ({
   prepareFilesForProcessing: (...args: unknown[]) => mockPrepareFilesForProcessing(...args),
 }));
 

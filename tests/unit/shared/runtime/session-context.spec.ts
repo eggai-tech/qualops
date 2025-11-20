@@ -3,7 +3,7 @@ import * as path from 'path';
 
 jest.mock('fs');
 jest.mock('path');
-jest.mock('@/config/config.ts', () => ({
+jest.mock('@/config/config', () => ({
   buildSessionPath: jest.fn((sessionName: string, _reportRoot: string) => ({
     base: () => `/reports/sessions/${sessionName}`,
     analysis: () => `/reports/sessions/${sessionName}/analysis.json`,
@@ -21,15 +21,15 @@ jest.mock('@/config/config.ts', () => ({
     timingStats: () => `/reports/sessions/${sessionName}/timing-stats.json`,
   })),
 }));
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/logger');
 
 const mockExistsSync = fs.existsSync as jest.MockedFunction<typeof fs.existsSync>;
 const mockReaddirSync = fs.readdirSync as jest.MockedFunction<typeof fs.readdirSync>;
 const mockStatSync = fs.statSync as jest.MockedFunction<typeof fs.statSync>;
 const mockJoin = path.join as jest.MockedFunction<typeof path.join>;
 
-import { buildSessionPath } from '@/config/config.ts';
-import { logger } from '@/shared/utils/logger.ts';
+import { buildSessionPath } from '@/config/config';
+import { logger } from '@/shared/utils/logger';
 import {
   addStageTokenStats,
   getCurrentSession,

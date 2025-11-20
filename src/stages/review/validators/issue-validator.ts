@@ -1,5 +1,5 @@
-import type { ReviewIssue } from '../../../shared/types/index.ts';
-import { logger } from '../../../shared/utils/logger.ts';
+import type { ReviewIssue } from '../../../shared/types';
+import { logger } from '../../../shared/utils/logger';
 
 export class IssueValidator {
   static validateIssue(issue: unknown): issue is ReviewIssue {

@@ -1,7 +1,7 @@
-import { getCurrentSessionPaths } from '../../shared/runtime/session-context.ts';
-import { writeMetadataFile } from '../../shared/utils/file-utils.ts';
-import { generateFixes } from '../../stages/fix/index.ts';
-import type { QualOpsOptions } from '../parsers/option-parser.ts';
+import { getCurrentSessionPaths } from '../../shared/runtime/session-context';
+import { writeMetadataFile } from '../../shared/utils/file-utils';
+import { generateFixes } from '../../stages/fix';
+import type { QualOpsOptions } from '../parsers/option-parser';
 
 export async function executeFixStage(options: QualOpsOptions): Promise<void> {
   const fixResult = await generateFixes({

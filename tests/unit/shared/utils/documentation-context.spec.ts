@@ -306,7 +306,7 @@ describe('enhanceReviewPromptWithDocumentation', () => {
 
   it('should generate review prompt with file path', async () => {
     const fileContent = 'const x = 42;';
-    const filePath = '/path/to/file.ts';
+    const filePath = '/path/to/file';
 
     const prompt = await enhanceReviewPromptWithDocumentation(fileContent, filePath);
 
@@ -315,7 +315,7 @@ describe('enhanceReviewPromptWithDocumentation', () => {
 
   it('should include framework from context', async () => {
     const fileContent = 'const x = 42;';
-    const filePath = '/path/to/file.ts';
+    const filePath = '/path/to/file';
     const frameworkContext = { framework: 'angular' as const, dependencies: [] };
 
     const prompt = await enhanceReviewPromptWithDocumentation(fileContent, filePath, frameworkContext);
@@ -325,7 +325,7 @@ describe('enhanceReviewPromptWithDocumentation', () => {
 
   it('should default to typescript framework', async () => {
     const fileContent = 'const x = 42;';
-    const filePath = '/path/to/file.ts';
+    const filePath = '/path/to/file';
 
     const prompt = await enhanceReviewPromptWithDocumentation(fileContent, filePath);
 
@@ -334,7 +334,7 @@ describe('enhanceReviewPromptWithDocumentation', () => {
 
   it('should include review instructions', async () => {
     const fileContent = 'const x = 42;';
-    const filePath = '/path/to/file.ts';
+    const filePath = '/path/to/file';
 
     const prompt = await enhanceReviewPromptWithDocumentation(fileContent, filePath);
 
@@ -349,7 +349,7 @@ describe('enhanceReviewPromptWithDocumentation', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFile.mockResolvedValue('# Documentation');
     const fileContent = 'const x = 42;';
-    const filePath = '/path/to/file.ts';
+    const filePath = '/path/to/file';
 
     const prompt = await enhanceReviewPromptWithDocumentation(fileContent, filePath);
 
@@ -359,7 +359,7 @@ describe('enhanceReviewPromptWithDocumentation', () => {
 
   it('should include file content', async () => {
     const fileContent = 'const x = 42;';
-    const filePath = '/path/to/file.ts';
+    const filePath = '/path/to/file';
 
     const prompt = await enhanceReviewPromptWithDocumentation(fileContent, filePath);
 
@@ -368,7 +368,7 @@ describe('enhanceReviewPromptWithDocumentation', () => {
 
   it('should request numbered code review', async () => {
     const fileContent = 'const x = 42;';
-    const filePath = '/path/to/file.ts';
+    const filePath = '/path/to/file';
 
     const prompt = await enhanceReviewPromptWithDocumentation(fileContent, filePath);
 

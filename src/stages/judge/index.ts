@@ -1,8 +1,8 @@
-import { envConfig } from '../../config/env.ts';
-import { getCurrentSessionPaths } from '../../shared/runtime/session-context.ts';
-import type { JudgeMetadata, QualityThresholds, ReportMetadata } from '../../shared/types/index.ts';
-import { readMetadataFile } from '../../shared/utils/file-utils.ts';
-import { logger } from '../../shared/utils/logger.ts';
+import { envConfig } from '../../config/env';
+import { getCurrentSessionPaths } from '../../shared/runtime/session-context';
+import type { JudgeMetadata, QualityThresholds, ReportMetadata } from '../../shared/types';
+import { readMetadataFile } from '../../shared/utils/file-utils';
+import { logger } from '../../shared/utils/logger';
 
 const DEFAULT_THRESHOLDS: QualityThresholds = {
   maxCriticalIssues: 0,

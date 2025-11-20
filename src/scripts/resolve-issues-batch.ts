@@ -1,8 +1,8 @@
 #!/usr/bin/env node --env-file=.env --experimental-strip-types
 
+import { exec } from 'child_process';
 import { readdir } from 'fs/promises';
 import { join, resolve } from 'path';
-import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);

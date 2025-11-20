@@ -1,5 +1,5 @@
-import type { ReportMetadata } from '../../../shared/types/index.ts';
-import type { CollectedData } from '../collectors/data-collector.ts';
+import type { ReportMetadata } from '../../../shared/types';
+import type { CollectedData } from '../collectors/data-collector';
 
 export interface JSONReport {
   metadata: {

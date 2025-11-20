@@ -1,7 +1,7 @@
 import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { logger } from '../../../shared/utils/logger.ts';
+import { logger } from '../../../shared/utils/logger';
 
 const DOCS_BASE_PATH = join(process.cwd(), '.qualops/docs');
 

@@ -1,5 +1,5 @@
-import type { ReviewIssue, ReviewMetadata } from '@/shared/types/index.ts';
-import { collectIssues, collectReviewIssues } from '@/stages/report/collectors/issue-collector.ts';
+import type { ReviewIssue, ReviewMetadata } from '@/shared/types';
+import { collectIssues, collectReviewIssues } from '@/stages/report/collectors/issue-collector';
 
 describe('issue-collector', () => {
   describe('collectIssues', () => {

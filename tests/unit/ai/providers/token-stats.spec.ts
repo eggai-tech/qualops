@@ -1,9 +1,9 @@
-import { getGlobalAIProvider } from '@/ai/providers/factory.ts';
-import type { AIProvider, TokenStats } from '@/ai/providers/provider.ts';
-import { getGlobalTokenStats, resetTokenStats } from '@/ai/providers/token-stats.ts';
+import { getGlobalAIProvider } from '@/ai/providers/factory';
+import type { AIProvider, TokenStats } from '@/ai/providers/provider';
+import { getGlobalTokenStats, resetTokenStats } from '@/ai/providers/token-stats';
 
-jest.mock('@/ai/providers/factory.ts');
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/ai/providers/factory');
+jest.mock('@/shared/utils/logger');
 
 const mockGetGlobalAIProvider = getGlobalAIProvider as jest.MockedFunction<typeof getGlobalAIProvider>;
 

@@ -1,16 +1,16 @@
 import { jest } from '@jest/globals';
 
-import type { AnalysisMetadata, FixMetadata, ReviewIssue, ReviewMetadata } from '@/shared/types/index.ts';
-import { generateHTMLReport } from '@/stages/report/html-report.ts';
+import type { AnalysisMetadata, FixMetadata, ReviewIssue, ReviewMetadata } from '@/shared/types';
+import { generateHTMLReport } from '@/stages/report/html-report';
 
-jest.mock('@/config/config.ts');
-jest.mock('@/shared/runtime/session-context.ts');
-jest.mock('@/shared/utils/file-utils.ts');
-jest.mock('@/stages/report/generators/issues-generator.ts');
-jest.mock('@/stages/report/generators/summary-generator.ts');
-jest.mock('@/stages/report/templates/base-template.ts');
-jest.mock('@/stages/report/templates/components.ts');
-jest.mock('@/stages/report/utils/data-transformer.ts');
+jest.mock('@/config/config');
+jest.mock('@/shared/runtime/session-context');
+jest.mock('@/shared/utils/file-utils');
+jest.mock('@/stages/report/generators/issues-generator');
+jest.mock('@/stages/report/generators/summary-generator');
+jest.mock('@/stages/report/templates/base-template');
+jest.mock('@/stages/report/templates/components');
+jest.mock('@/stages/report/utils/data-transformer');
 
 const createMockIssue = (overrides: Partial<ReviewIssue> = {}): ReviewIssue => ({
   id: 'issue1',

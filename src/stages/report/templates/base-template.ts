@@ -1,5 +1,5 @@
-import { JAVASCRIPT_CODE } from './scripts.ts';
-import { CSS_STYLES } from './styles.ts';
+import { JAVASCRIPT_CODE } from './scripts';
+import { CSS_STYLES } from './styles';
 
 export interface BaseTemplateData {
   sessionName: string;

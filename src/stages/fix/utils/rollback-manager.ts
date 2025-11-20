@@ -1,8 +1,8 @@
 import { readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { logger } from '../../../shared/utils/logger.ts';
-import { listBackupsForFile } from '../appliers/backup-manager.ts';
+import { logger } from '../../../shared/utils/logger';
+import { listBackupsForFile } from '../appliers/backup-manager';
 
 export interface RollbackPoint {
   id: string;

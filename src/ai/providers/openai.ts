@@ -1,10 +1,10 @@
 import type OpenAI from 'openai';
 
-import { envConfig } from '../../config/env.ts';
-import type { AIStageConfig } from '../../shared/types/index.ts';
-import { logger } from '../../shared/utils/logger.ts';
-import { estimateTokens } from '../shared/token-utils.ts';
-import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider.ts';
+import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
+import { envConfig } from '../../config/env';
+import type { AIStageConfig } from '../../shared/types';
+import { logger } from '../../shared/utils/logger';
+import { estimateTokens } from '../shared/token-utils';
 
 export class OpenAIProvider implements AIProvider {
   name = 'openai';

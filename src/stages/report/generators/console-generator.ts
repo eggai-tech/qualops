@@ -1,6 +1,6 @@
-import type { ReportMetadata } from '../../../shared/types/index.ts';
-import { logger } from '../../../shared/utils/logger.ts';
-import { getQualityStatus } from '../utils/formatters.ts';
+import type { ReportMetadata } from '../../../shared/types';
+import { logger } from '../../../shared/utils/logger';
+import { getQualityStatus } from '../utils/formatters';
 
 export function generateConsoleOutput(report: ReportMetadata): void {
   const { summary } = report;
