@@ -1,8 +1,8 @@
 import { stat } from 'node:fs/promises';
 
 import { logger } from '@/shared/utils/logger';
-import { calculateFileHash, type ExtractLog } from '@/stages/analyze/utils/extract-log';
 import { prepareFilesForProcessing, processFile } from '@/stages/analyze/processors/file-processor';
+import { calculateFileHash, type ExtractLog } from '@/stages/analyze/utils/extract-log';
 
 jest.mock('node:fs/promises');
 jest.mock('@/shared/utils/logger');

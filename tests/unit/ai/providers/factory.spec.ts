@@ -1,4 +1,3 @@
-import { ConfigService } from '@/config/config';
 import { AnthropicProvider } from '@/ai/providers/anthropic';
 import { BedrockProvider } from '@/ai/providers/bedrock';
 import {
@@ -10,6 +9,7 @@ import {
 } from '@/ai/providers/factory';
 import { OpenAIProvider } from '@/ai/providers/openai';
 import type { AIProvider } from '@/ai/providers/provider';
+import { ConfigService } from '@/config/config';
 
 jest.mock('@/config/config');
 jest.mock('@/ai/providers/anthropic');

@@ -1,5 +1,5 @@
-import type { FrameworkContext, ReviewIssue } from '@/shared/types';
 import { createFixPrompt, createReviewPrompt, detectFrameworkContext, validateReviewIssue } from '@/ai/shared/structured-ai';
+import type { FrameworkContext, ReviewIssue } from '@/shared/types';
 
 jest.mock('@/shared/utils/documentation-context', () => ({
   enhanceReviewPromptWithDocumentation: jest.fn((fileContent, filePath, _frameworkContext) => {

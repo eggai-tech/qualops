@@ -1,5 +1,5 @@
-import type { ExtractLog } from '@/stages/analyze/utils/extract-log';
 import { processBatchForAnalysis } from '@/stages/analyze/processors/batch-processor';
+import type { ExtractLog } from '@/stages/analyze/utils/extract-log';
 
 jest.mock('@/shared/utils/filters');
 jest.mock('@/shared/utils/logger');

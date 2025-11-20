@@ -12,7 +12,7 @@ jest.mock('@/shared/runtime/session-context', () => ({
 }));
 
 jest.mock('@/shared/utils/file-utils', () => {
-  const actual = jest.requireActual('../../shared/utils/file-utils.ts');
+  const actual = jest.requireActual('../../shared/utils/file-utils');
   return {
     ...actual,
     readMetadataFile: (...args: unknown[]) => mockReadMetadataFile(...args),

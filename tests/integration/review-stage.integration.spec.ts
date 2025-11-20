@@ -1,7 +1,7 @@
 import type { ReviewIssue } from '@/shared/types';
 import { reviewProjects } from '@/stages/review';
-import { getOutputDir } from '@tests/setup/integration.setup';
 import { addFile, createMockAIProvider, createTestProject, SAMPLE_COMPONENTS } from '@tests/helpers/test-fixtures';
+import { getOutputDir } from '@tests/setup/integration.setup';
 
 const mockGetCurrentSessionPaths = jest.fn();
 const mockGetCurrentSession = jest.fn();
@@ -23,7 +23,7 @@ jest.mock('@/shared/runtime/session-context', () => ({
 }));
 
 jest.mock('@/shared/utils/file-utils', () => {
-  const actual = jest.requireActual('../../shared/utils/file-utils.ts');
+  const actual = jest.requireActual('../../shared/utils/file-utils');
   return {
     ...actual,
     writeMetadataFile: (...args: unknown[]) => mockWriteMetadataFile(...args),

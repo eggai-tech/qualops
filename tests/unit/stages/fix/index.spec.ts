@@ -4,9 +4,9 @@ import { addStageTokenStats, getCurrentSessionPaths } from '@/shared/runtime/ses
 import type { FixMetadata, ReviewMetadata } from '@/shared/types';
 import { readMetadataFile, writeMetadataFile } from '@/shared/utils/file-utils';
 import { logger } from '@/shared/utils/logger';
+import { generateFixes } from '@/stages/fix';
 import { applySafeFixes } from '@/stages/fix/appliers/fix-applier';
 import { generateFix } from '@/stages/fix/generators/fix-generator';
-import { generateFixes } from '@/stages/fix';
 import { generateDiffHTML } from '@/stages/fix/utils/diff-visualizer';
 import { createFixBatchRollbackPoint } from '@/stages/fix/utils/rollback-manager';
 

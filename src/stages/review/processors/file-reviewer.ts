@@ -1,6 +1,6 @@
 import type { AIProvider } from '../../../ai/providers/provider';
-import type { FileInfo } from '../../../shared/types/config';
 import type { ReviewIssue } from '../../../shared/types';
+import type { FileInfo } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
 import { globalRateLimiter } from '../utils/global-rate-limiter';
 import { addLineNumbers } from '../utils/line-numbered-content';

@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { logger } from '@/shared/utils/logger';
 import { executeDownloadDocsStage } from '@/cli/commands/download-docs-command';
+import { logger } from '@/shared/utils/logger';
 
 jest.mock('node:fs');
 jest.mock('node:path');

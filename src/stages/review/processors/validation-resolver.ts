@@ -1,6 +1,6 @@
 import type { AIProvider } from '../../../ai/providers/provider';
-import type { PipelineJob, PromptConfig, ReviewConfig, ValidationConfig } from '../../../shared/types/config';
 import type { ReviewIssue } from '../../../shared/types';
+import type { PipelineJob, PromptConfig, ReviewConfig, ValidationConfig } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
 import { PromptLoader } from '../loaders/prompt-loader';
 import { TemplateEngine } from '../loaders/template-engine';

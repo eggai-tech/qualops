@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 
-import type { AIStageConfig } from '@/shared/types';
 import { BedrockProvider } from '@/ai/providers/bedrock';
+import type { AIStageConfig } from '@/shared/types';
 
 jest.mock('@/config/env');
 jest.mock('@/config/config');

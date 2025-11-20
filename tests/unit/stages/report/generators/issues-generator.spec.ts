@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 import type { ReviewIssue } from '@/shared/types';
 import { logger } from '@/shared/utils/logger';
+import { generateIssuesSection } from '@/stages/report/generators/issues-generator';
 import {
   generateCodeSection,
   generateDirectoryHeader,
@@ -16,7 +17,6 @@ import {
   sortDirectoriesByIssues,
 } from '@/stages/report/utils/data-transformer';
 import { escapeHtml } from '@/stages/report/utils/formatters';
-import { generateIssuesSection } from '@/stages/report/generators/issues-generator';
 
 jest.mock('node:fs/promises');
 jest.mock('@/shared/utils/file-utils', () => ({

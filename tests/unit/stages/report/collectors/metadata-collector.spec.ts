@@ -101,7 +101,7 @@ describe('metadata-collector', () => {
       emoji: 'PASSED',
     });
 
-    const formatters = await import('@/stages/report/utils/formatters.ts');
+    const formatters = await import('@/stages/report/utils/formatters');
     (formatters.getQualityStatus as any) = mockGetQualityStatus;
   });
 

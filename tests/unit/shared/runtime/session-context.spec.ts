@@ -29,7 +29,6 @@ const mockStatSync = fs.statSync as jest.MockedFunction<typeof fs.statSync>;
 const mockJoin = path.join as jest.MockedFunction<typeof path.join>;
 
 import { buildSessionPath } from '@/config/config';
-import { logger } from '@/shared/utils/logger';
 import {
   addStageTokenStats,
   getCurrentSession,
@@ -40,6 +39,7 @@ import {
   sessionContext,
   setCurrentSession,
 } from '@/shared/runtime/session-context';
+import { logger } from '@/shared/utils/logger';
 
 const mockBuildSessionPath = buildSessionPath as jest.MockedFunction<typeof buildSessionPath>;
 

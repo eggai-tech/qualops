@@ -15,7 +15,10 @@ export default [
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        project: './tsconfig.lib.json',
+        project: [
+          './tsconfig.lib.json',
+          './tsconfig.spec.json',
+        ],
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -29,9 +32,10 @@ export default [
       ],
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-misused-promises': 'error',
       '@typescript-eslint/no-non-null-assertion': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { 
+      '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
       }],
@@ -50,6 +54,11 @@ export default [
           'newlines-between': 'always',
         },
       ],
+    },
+    "settings": {
+      "import/resolver": {
+        "typescript": {}
+      }
     },
   }
 ];

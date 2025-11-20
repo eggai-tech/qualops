@@ -32,9 +32,9 @@ jest.mock('@/shared/utils/logger');
 const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
 const mockReadFileSync = readFileSync as jest.MockedFunction<typeof readFileSync>;
 
-import type { Config } from '@/shared/types';
 import { ConfigService } from '@/config/config';
 import { envConfig } from '@/config/env';
+import type { Config } from '@/shared/types';
 
 const mockEnvConfig = envConfig as jest.Mocked<typeof envConfig>;
 

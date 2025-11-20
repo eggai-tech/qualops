@@ -1,5 +1,5 @@
-import { logger } from '@/shared/utils/logger';
 import { ProgressReporter } from '@/cli/utils/progress-reporter';
+import { logger } from '@/shared/utils/logger';
 
 jest.mock('@/shared/utils/logger');
 

@@ -52,7 +52,7 @@ describe('html-report', () => {
       }),
     };
 
-    const configModule = await import('@/config/config.ts');
+    const configModule = await import('@/config/config');
     (configModule.ConfigService as any) = mockConfigService;
 
     mockGetCurrentSessionPaths = jest.fn().mockReturnValue({
@@ -62,31 +62,31 @@ describe('html-report', () => {
       base: jest.fn().mockReturnValue('/base/path'),
     });
 
-    const sessionContext = await import('@/shared/runtime/session-context.ts');
+    const sessionContext = await import('@/shared/runtime/session-context');
     (sessionContext.getCurrentSessionPaths as any) = mockGetCurrentSessionPaths;
 
     mockReadMetadataFile = jest.fn();
-    const fileUtils = await import('@/shared/utils/file-utils.ts');
+    const fileUtils = await import('@/shared/utils/file-utils');
     (fileUtils.readMetadataFile as any) = mockReadMetadataFile;
 
     mockGenerateIssuesSection = jest.fn();
-    const issuesGenerator = await import('@/stages/report/generators/issues-generator.ts');
+    const issuesGenerator = await import('@/stages/report/generators/issues-generator');
     (issuesGenerator.generateIssuesSection as any) = mockGenerateIssuesSection;
 
     mockGenerateSummary = jest.fn();
-    const summaryGenerator = await import('@/stages/report/generators/summary-generator.ts');
+    const summaryGenerator = await import('@/stages/report/generators/summary-generator');
     (summaryGenerator.generateSummary as any) = mockGenerateSummary;
 
     mockGenerateBaseTemplate = jest.fn();
-    const baseTemplate = await import('@/stages/report/templates/base-template.ts');
+    const baseTemplate = await import('@/stages/report/templates/base-template');
     (baseTemplate.generateBaseTemplate as any) = mockGenerateBaseTemplate;
 
     mockGenerateFiltersSection = jest.fn();
-    const components = await import('@/stages/report/templates/components.ts');
+    const components = await import('@/stages/report/templates/components');
     (components.generateFiltersSection as any) = mockGenerateFiltersSection;
 
     mockAggregateIssues = jest.fn();
-    const dataTransformer = await import('@/stages/report/utils/data-transformer.ts');
+    const dataTransformer = await import('@/stages/report/utils/data-transformer');
     (dataTransformer.aggregateIssues as any) = mockAggregateIssues;
   });
 
