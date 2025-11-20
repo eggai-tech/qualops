@@ -316,7 +316,7 @@ import { Observable } from 'rxjs';`;
     });
 
     it('should handle complex file paths', () => {
-      const path = '/Users/project/src/app/features/auth/services/auth.service';
+      const path = '/Users/project/src/app/features/auth/services/auth.service.ts';
       const context = detectFrameworkContext(path, 'code');
 
       expect(context.fileType).toBe('service');
