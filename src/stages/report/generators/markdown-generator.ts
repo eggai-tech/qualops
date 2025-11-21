@@ -53,7 +53,6 @@ export function generateAnalysisSection(
     };
   }
 
-
   let incrementalProcessing = '';
   const incrementalStats = collectIncrementalStats(extractLog);
   if (incrementalStats) {

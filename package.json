@@ -26,6 +26,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
+    "build:check": "npm run build -- --noEmit",
     "dev": "node --env-file=.env --experimental-strip-types src/cli.ts",
     "test": "jest",
     "test:integration": "jest --config jest.integration.config.ts",

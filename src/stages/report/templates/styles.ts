@@ -38,7 +38,6 @@ export const CSS_STYLES = `
       padding: 24px;
     }
 
-
     .page-header {
       margin-bottom: 32px;
       padding-bottom: 20px;
@@ -447,7 +446,6 @@ export const CSS_STYLES = `
       padding: 4px 0;
     }
 
-
     .code-section {
       margin: 12px 0;
     }
@@ -553,7 +551,6 @@ export const CSS_STYLES = `
       margin-right: 4px;
     }
 
-
     .diff-header {
       background: #1e1e1e;
       color: #d4d4d4;
@@ -569,7 +566,6 @@ export const CSS_STYLES = `
     .diff-content {
       background: #ffffff;
     }
-
 
     .code-header .diff-stats {
       font-size: 10px;

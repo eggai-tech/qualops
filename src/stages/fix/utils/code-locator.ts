@@ -205,7 +205,6 @@ export function extractKeywords(description: string, context?: string): string[]
   return [...new Set(keywords)].sort((a, b) => b.length - a.length);
 }
 
-
 function calculateLocation(content: string, index: number, length: number): Omit<ContextLocation, 'confidence'> {
   const lines = content.substring(0, index).split('\n');
   const startLine = lines.length - 1;

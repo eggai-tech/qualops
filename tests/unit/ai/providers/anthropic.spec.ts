@@ -67,7 +67,7 @@ describe('AnthropicProvider', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    const envConfig = (await import('@/config/env.ts')) as unknown as {
+    const envConfig = (await import('@/config/env')) as unknown as {
       envConfig: MockEnvConfig;
     };
     mockEnvConfig = {
@@ -80,7 +80,7 @@ describe('AnthropicProvider', () => {
     };
     envConfig.envConfig = mockEnvConfig;
 
-    const logger = (await import('@/shared/utils/logger.ts')) as unknown as {
+    const logger = (await import('@/shared/utils/logger')) as unknown as {
       logger: MockLogger;
     };
     mockLogger = {
@@ -91,13 +91,13 @@ describe('AnthropicProvider', () => {
     };
     logger.logger = mockLogger;
 
-    const tokenUtils = (await import('@/ai/shared/token-utils.ts')) as unknown as {
+    const tokenUtils = (await import('@/ai/shared/token-utils')) as unknown as {
       estimateTokens: jest.Mock;
     };
     mockEstimateTokens = jest.fn(() => 100);
     tokenUtils.estimateTokens = mockEstimateTokens;
 
-    const config = (await import('@/config/config.ts')) as unknown as {
+    const config = (await import('@/config/config')) as unknown as {
       ConfigService: { getInstance: jest.Mock };
     };
     mockConfigService = {

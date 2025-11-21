@@ -1,7 +1,7 @@
 import { validateAndProcessStages } from './argument-validator';
 import { parseFilePatterns } from './file-parser';
 import { parseStageOptions, type QualOpsOptions } from './option-parser';
-import { buildSessionPath } from '../../config/config';
+import { buildSessionPath } from '../../config/buildSessionPath';
 import { setCurrentSession } from '../../shared/runtime/session-context';
 import { getDefaultReportRoot } from '../../shared/utils/report-root';
 

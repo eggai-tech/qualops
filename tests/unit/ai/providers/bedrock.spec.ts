@@ -64,7 +64,7 @@ describe('BedrockProvider', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    const envConfig = (await import('@/config/env.ts')) as unknown as { envConfig: MockEnvConfig };
+    const envConfig = (await import('@/config/env')) as unknown as { envConfig: MockEnvConfig };
     mockEnvConfig = {
       get: jest.fn((key: string) => {
         if (key === 'awsRegion') return 'us-east-1';
@@ -76,7 +76,7 @@ describe('BedrockProvider', () => {
     };
     envConfig.envConfig = mockEnvConfig;
 
-    const logger = (await import('@/shared/utils/logger.ts')) as unknown as { logger: MockLogger };
+    const logger = (await import('@/shared/utils/logger')) as unknown as { logger: MockLogger };
     mockLogger = {
       info: jest.fn(),
       debug: jest.fn(),
@@ -85,7 +85,7 @@ describe('BedrockProvider', () => {
     };
     logger.logger = mockLogger;
 
-    const tokenUtils = (await import('@/ai/shared/token-utils.ts')) as unknown as { estimateTokens: jest.Mock };
+    const tokenUtils = (await import('@/ai/shared/token-utils')) as unknown as { estimateTokens: jest.Mock };
     mockEstimateTokens = jest.fn(() => 100);
     tokenUtils.estimateTokens = mockEstimateTokens;
   });
