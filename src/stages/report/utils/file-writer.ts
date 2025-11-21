@@ -1,8 +1,8 @@
 import { writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { getCurrentSessionPaths } from '../../../shared/runtime/session-context.ts';
-import { logger } from '../../../shared/utils/logger.ts';
+import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
+import { logger } from '../../../shared/utils/logger';
 
 export interface FileWriteOptions {
   encoding?: BufferEncoding;

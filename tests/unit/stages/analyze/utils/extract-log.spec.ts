@@ -1,8 +1,8 @@
 import { readFile, stat } from 'node:fs/promises';
 
-import { getCurrentSessionPaths } from '@/shared/runtime/session-context.ts';
-import { writeMetadataFile } from '@/shared/utils/file-utils.ts';
-import { logger } from '@/shared/utils/logger.ts';
+import { getCurrentSessionPaths } from '@/shared/runtime/session-context';
+import { writeMetadataFile } from '@/shared/utils/file-utils';
+import { logger } from '@/shared/utils/logger';
 import {
   type ExtractLog,
   getFilesToProcess,
@@ -11,14 +11,14 @@ import {
   shouldProcessFile,
   updateExtractLog,
   updateFileInExtractLog,
-} from '@/stages/analyze/utils/extract-log.ts';
-import { calculateFileHash } from '@/stages/analyze/utils/hash-calculator.ts';
+} from '@/stages/analyze/utils/extract-log';
+import { calculateFileHash } from '@/stages/analyze/utils/hash-calculator';
 
 jest.mock('node:fs/promises');
-jest.mock('@/shared/runtime/session-context.ts');
-jest.mock('@/shared/utils/file-utils.ts');
-jest.mock('@/shared/utils/logger.ts');
-jest.mock('@/stages/analyze/utils/hash-calculator.ts');
+jest.mock('@/shared/runtime/session-context');
+jest.mock('@/shared/utils/file-utils');
+jest.mock('@/shared/utils/logger');
+jest.mock('@/stages/analyze/utils/hash-calculator');
 
 const mockReadFile = readFile as jest.MockedFunction<typeof readFile>;
 const mockStat = stat as jest.MockedFunction<typeof stat>;

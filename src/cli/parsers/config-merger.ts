@@ -1,9 +1,9 @@
-import { buildSessionPath } from '../../config/config.ts';
-import { setCurrentSession } from '../../shared/runtime/session-context.ts';
-import { getDefaultReportRoot } from '../../shared/utils/report-root.ts';
-import { validateAndProcessStages } from './argument-validator.ts';
-import { parseFilePatterns } from './file-parser.ts';
-import { parseStageOptions, type QualOpsOptions } from './option-parser.ts';
+import { validateAndProcessStages } from './argument-validator';
+import { parseFilePatterns } from './file-parser';
+import { parseStageOptions, type QualOpsOptions } from './option-parser';
+import { buildSessionPath } from '../../config/config';
+import { setCurrentSession } from '../../shared/runtime/session-context';
+import { getDefaultReportRoot } from '../../shared/utils/report-root';
 
 export interface MergedConfig {
   stages: string[];

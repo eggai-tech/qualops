@@ -1,4 +1,4 @@
-import type { ReviewIssue } from '../../../shared/types/index.ts';
+import type { ReviewIssue } from '../../../shared/types';
 
 export function getConfidenceBadge(confidence: number | undefined): string {
   if (confidence === undefined) return '';

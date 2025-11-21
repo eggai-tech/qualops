@@ -1,7 +1,7 @@
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { addFile, createMockAIProvider, createTestProject } from '@tests/helpers/test-fixtures.ts';
+import { addFile, createMockAIProvider, createTestProject } from '@tests/helpers/test-fixtures';
 
 describe('test-fixtures', () => {
   const TEST_DIR = join(__dirname, '../../../test-output/test-fixtures-tests');

@@ -1,6 +1,6 @@
-import { shouldProcessFile } from '../../../shared/utils/filters.ts';
-import { logger } from '../../../shared/utils/logger.ts';
-import { executeGitCommand } from './git-utils.ts';
+import { executeGitCommand } from './git-utils';
+import { shouldProcessFile } from '../../../shared/utils/filters';
+import { logger } from '../../../shared/utils/logger';
 
 export interface FileDiff {
   additions: Set<number>;

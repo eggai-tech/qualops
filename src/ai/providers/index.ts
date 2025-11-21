@@ -3,7 +3,7 @@ export {
   clearGlobalAIProvider,
   getGlobalAIProvider,
   initializeGlobalAIProviderForStage,
-} from './factory.ts';
-export { OpenAIProvider } from './openai.ts';
-export type { AIProvider, TokenStats } from './provider.ts';
-export { getGlobalTokenStats, resetTokenStats } from './token-stats.ts';
+} from './factory';
+export { OpenAIProvider } from './openai';
+export type { AIProvider, TokenStats } from './provider';
+export { getGlobalTokenStats, resetTokenStats } from './token-stats';

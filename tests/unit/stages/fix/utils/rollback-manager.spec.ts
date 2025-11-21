@@ -16,11 +16,11 @@ import {
 
 jest.mock('node:fs/promises');
 jest.mock('node:path');
-jest.mock('@/shared/utils/file-utils.ts', () => ({
+jest.mock('@/shared/utils/file-utils', () => ({
   validateFilePath: jest.fn(),
 }));
-jest.mock('@/shared/utils/logger.ts');
-jest.mock('@/stages/fix/appliers/backup-manager.ts', () => ({
+jest.mock('@/shared/utils/logger');
+jest.mock('@/stages/fix/appliers/backup-manager', () => ({
   listBackupsForFile: jest.fn(),
 }));
 

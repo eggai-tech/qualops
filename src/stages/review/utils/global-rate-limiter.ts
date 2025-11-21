@@ -1,5 +1,5 @@
-import { ConfigService } from '../../../config/config.ts';
-import { logger } from '../../../shared/utils/logger.ts';
+import { ConfigService } from '../../../config/config';
+import { logger } from '../../../shared/utils/logger';
 
 class GlobalRateLimiter {
   private lastApiRequestTime = 0;

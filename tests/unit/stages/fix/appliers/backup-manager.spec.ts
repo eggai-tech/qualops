@@ -15,10 +15,10 @@ import {
 
 jest.mock('node:fs/promises');
 jest.mock('node:path');
-jest.mock('@/shared/utils/file-utils.ts', () => ({
+jest.mock('@/shared/utils/file-utils', () => ({
   validateFilePath: jest.fn(),
 }));
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/logger');
 
 const mockReadFile = readFile as jest.MockedFunction<typeof readFile>;
 const mockWriteFile = writeFile as jest.MockedFunction<typeof writeFile>;
@@ -206,7 +206,7 @@ describe('restoreFromBackup', () => {
 
   it('should use provided target path', async () => {
     const backupPath = '/project/test.ts.qualops-backup-123-abc';
-    const targetPath = '/project/restored.ts';
+    const targetPath = '/project/restored';
 
     await restoreFromBackup(backupPath, targetPath);
 
@@ -706,7 +706,7 @@ describe('edge cases and error handling', () => {
   });
 
   it('should handle very long file paths', async () => {
-    const longPath = '/project/' + 'a'.repeat(200) + '.ts';
+    const longPath = '/project/' + 'a'.repeat(200) + '';
     mockReadFile.mockResolvedValue('content');
     mockWriteFile.mockResolvedValue(undefined);
 

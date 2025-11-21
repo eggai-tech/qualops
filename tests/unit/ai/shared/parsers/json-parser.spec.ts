@@ -1,5 +1,5 @@
-import { logger } from '@/shared/utils/logger';
 import { JsonParser, jsonParser, parseJsonResponse } from '@/ai/shared/parsers/json-parser';
+import { logger } from '@/shared/utils/logger';
 
 jest.mock('@/shared/utils/logger', () => ({
   logger: {

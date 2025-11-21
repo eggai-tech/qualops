@@ -1,7 +1,7 @@
-import { logger } from '@/shared/utils/logger.ts';
 import { ProgressReporter } from '@/cli/utils/progress-reporter';
+import { logger } from '@/shared/utils/logger';
 
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/logger');
 
 const mockLogger = logger as jest.Mocked<typeof logger>;
 

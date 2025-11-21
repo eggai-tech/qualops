@@ -1,5 +1,5 @@
-import type { AnalysisMetadata, ExtractLog, FixMetadata, ReviewMetadata } from '../../../shared/types/index.ts';
-import { getQualityStatus } from '../utils/formatters.ts';
+import type { AnalysisMetadata, ExtractLog, FixMetadata, ReviewMetadata } from '../../../shared/types';
+import { getQualityStatus } from '../utils/formatters';
 
 export interface ReportSummary {
   filesAnalyzed: number;

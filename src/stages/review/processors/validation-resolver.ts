@@ -1,10 +1,10 @@
-import type { AIProvider } from '../../../ai/providers/provider.ts';
-import type { PipelineJob, PromptConfig, ReviewConfig, ValidationConfig } from '../../../shared/types/config.ts';
-import type { ReviewIssue } from '../../../shared/types/index.ts';
-import { logger } from '../../../shared/utils/logger.ts';
-import { PromptLoader } from '../loaders/prompt-loader.ts';
-import { TemplateEngine } from '../loaders/template-engine.ts';
-import { globalRateLimiter } from '../utils/global-rate-limiter.ts';
+import type { AIProvider } from '../../../ai/providers/provider';
+import type { ReviewIssue } from '../../../shared/types';
+import type { PipelineJob, PromptConfig, ReviewConfig, ValidationConfig } from '../../../shared/types/config';
+import { logger } from '../../../shared/utils/logger';
+import { PromptLoader } from '../loaders/prompt-loader';
+import { TemplateEngine } from '../loaders/template-engine';
+import { globalRateLimiter } from '../utils/global-rate-limiter';
 
 const VALIDATION_RESPONSE_SPEC = `
 

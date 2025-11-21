@@ -1,7 +1,7 @@
-import type { ReviewIssue } from '@/shared/types/index.ts';
-import { reviewProjects } from '@/stages/review/index.ts';
-import { getOutputDir } from '@tests/setup/integration.setup.ts';
-import { addFile, createMockAIProvider, createTestProject, SAMPLE_COMPONENTS } from '@tests/helpers/test-fixtures.ts';
+import type { ReviewIssue } from '@/shared/types';
+import { reviewProjects } from '@/stages/review';
+import { addFile, createMockAIProvider, createTestProject, SAMPLE_COMPONENTS } from '@tests/helpers/test-fixtures';
+import { getOutputDir } from '@tests/setup/integration.setup';
 
 const mockGetCurrentSessionPaths = jest.fn();
 const mockGetCurrentSession = jest.fn();
@@ -16,14 +16,14 @@ const mockAIFactory = {
 };
 const mockPipelineExecutor = jest.fn();
 
-jest.mock('@/shared/runtime/session-context.ts', () => ({
+jest.mock('@/shared/runtime/session-context', () => ({
   getCurrentSessionPaths: (...args: unknown[]) => mockGetCurrentSessionPaths(...args),
   getCurrentSession: (...args: unknown[]) => mockGetCurrentSession(...args),
   addStageTokenStats: (...args: unknown[]) => mockAddStageTokenStats(...args),
 }));
 
-jest.mock('@/shared/utils/file-utils.ts', () => {
-  const actual = jest.requireActual('../../shared/utils/file-utils.ts');
+jest.mock('@/shared/utils/file-utils', () => {
+  const actual = jest.requireActual('../../shared/utils/file-utils');
   return {
     ...actual,
     writeMetadataFile: (...args: unknown[]) => mockWriteMetadataFile(...args),
@@ -31,19 +31,19 @@ jest.mock('@/shared/utils/file-utils.ts', () => {
   };
 });
 
-jest.mock('@/stages/analyze/utils/extract-log.ts', () => ({
+jest.mock('@/stages/analyze/utils/extract-log', () => ({
   loadExtractLog: (...args: unknown[]) => mockLoadExtractLog(...args),
   saveExtractLog: (...args: unknown[]) => mockSaveExtractLog(...args),
   updateFileInExtractLog: (...args: unknown[]) => mockUpdateFileInExtractLog(...args),
 }));
 
-jest.mock('@/ai/providers/index.ts', () => ({
+jest.mock('@/ai/providers', () => ({
   AIFactory: {
     createForStage: (...args: unknown[]) => mockAIFactory.createForStage(...args),
   },
 }));
 
-jest.mock('@/stages/review/processors/pipeline-executor.ts', () => ({
+jest.mock('@/stages/review/processors/pipeline-executor', () => ({
   PipelineExecutor: jest.fn().mockImplementation(() => ({
     execute: (...args: unknown[]) => mockPipelineExecutor(...args),
   })),

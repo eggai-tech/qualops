@@ -1,14 +1,14 @@
-import { getGlobalTokenStats } from '@/ai/providers/index.ts';
-import { formatTokenStats } from '@/ai/shared/token-utils.ts';
+import { getGlobalTokenStats } from '@/ai/providers';
+import { formatTokenStats } from '@/ai/shared/token-utils';
 import {
   generateTokenConsoleOutput,
   generateTokenUsageHTML,
   generateTokenUsageJSON,
   generateTokenUsageSection,
-} from '@/stages/report/generators/token-generator.ts';
+} from '@/stages/report/generators/token-generator';
 
-jest.mock('@/ai/providers/index.ts');
-jest.mock('@/ai/shared/token-utils.ts');
+jest.mock('@/ai/providers');
+jest.mock('@/ai/shared/token-utils');
 
 const mockGetGlobalTokenStats = getGlobalTokenStats as jest.MockedFunction<typeof getGlobalTokenStats>;
 const mockFormatTokenStats = formatTokenStats as jest.MockedFunction<typeof formatTokenStats>;

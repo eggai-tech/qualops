@@ -1,23 +1,23 @@
-import { ConfigService } from '../../config/config.ts';
-import { getCurrentSessionPaths } from '../../shared/runtime/session-context.ts';
-import type { ReportMetadata, ReviewMetadata } from '../../shared/types/index.ts';
-import { readMetadataFile, writeMetadataFile } from '../../shared/utils/file-utils.ts';
-import { logger } from '../../shared/utils/logger.ts';
-import { extractRootCauses } from '../root-cause-extract/index.ts';
-import { collectAllStageData, getStageResults } from './collectors/data-collector.ts';
-import { collectMetadata } from './collectors/metadata-collector.ts';
-import { generateConsoleOutput } from './generators/console-generator.ts';
+import { ConfigService } from '../../config/config';
+import { getCurrentSessionPaths } from '../../shared/runtime/session-context';
+import type { ReportMetadata, ReviewMetadata } from '../../shared/types';
+import { readMetadataFile, writeMetadataFile } from '../../shared/utils/file-utils';
+import { logger } from '../../shared/utils/logger';
+import { extractRootCauses } from '../root-cause-extract';
+import { collectAllStageData, getStageResults } from './collectors/data-collector';
+import { collectMetadata } from './collectors/metadata-collector';
+import { generateConsoleOutput } from './generators/console-generator';
 import {
   generateAnalysisSection,
   generateFixSection,
   generateMarkdownSummary,
   generateRecommendations,
   generateReviewSection,
-} from './generators/markdown-generator.ts';
-import { generateTokenUsageSection } from './generators/token-generator.ts';
-import { generateHTMLReport } from './html-report.ts';
-import { IssueManager } from './issue-manager.ts';
-import { writeHTMLReport } from './utils/file-writer.ts';
+} from './generators/markdown-generator';
+import { generateTokenUsageSection } from './generators/token-generator';
+import { generateHTMLReport } from './html-report';
+import { IssueManager } from './issue-manager';
+import { writeHTMLReport } from './utils/file-writer';
 
 export async function generateReport(): Promise<ReportMetadata> {
   const existingReport = await readMetadataFile<ReportMetadata>(getCurrentSessionPaths().overallReport());

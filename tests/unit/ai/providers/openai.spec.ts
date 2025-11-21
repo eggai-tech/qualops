@@ -1,13 +1,13 @@
 import { jest } from '@jest/globals';
 
-import type { AIStageConfig } from '@/shared/types/index.ts';
-import { OpenAIProvider } from '@/ai/providers/openai.ts';
+import { OpenAIProvider } from '@/ai/providers/openai';
+import type { AIStageConfig } from '@/shared/types';
 
-jest.mock('@/config/env.ts');
-jest.mock('@/config/config.ts');
-jest.mock('@/shared/utils/logger.ts');
-jest.mock('@/ai/shared/token-utils.ts');
-jest.mock('@/ai/providers/factory.ts', () => ({
+jest.mock('@/config/env');
+jest.mock('@/config/config');
+jest.mock('@/shared/utils/logger');
+jest.mock('@/ai/shared/token-utils');
+jest.mock('@/ai/providers/factory', () => ({
   AIProviderType: {
     ANTHROPIC: 'anthropic',
     BEDROCK: 'bedrock',
@@ -50,7 +50,7 @@ describe('OpenAIProvider', () => {
     jest.clearAllMocks();
     mockOpenAIClient.chat.completions.create.mockReset();
 
-    const envConfig = await import('@/config/env.ts');
+    const envConfig = await import('@/config/env');
     mockEnvConfig = {
       get: jest.fn((key: string) => {
         if (key === 'openaiApiKey') return validApiKey;
@@ -61,7 +61,7 @@ describe('OpenAIProvider', () => {
     };
     (envConfig as any).envConfig = mockEnvConfig;
 
-    const logger = await import('@/shared/utils/logger.ts');
+    const logger = await import('@/shared/utils/logger');
     mockLogger = {
       info: jest.fn(),
       debug: jest.fn(),
@@ -70,7 +70,7 @@ describe('OpenAIProvider', () => {
     };
     (logger as any).logger = mockLogger;
 
-    const tokenUtils = await import('@/ai/shared/token-utils.ts');
+    const tokenUtils = await import('@/ai/shared/token-utils');
     mockEstimateTokens = jest.fn(() => 100);
     (tokenUtils as any).estimateTokens = mockEstimateTokens;
   });

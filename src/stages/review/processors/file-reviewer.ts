@@ -1,9 +1,9 @@
-import type { AIProvider } from '../../../ai/providers/provider.ts';
-import type { FileInfo } from '../../../shared/types/config.ts';
-import type { ReviewIssue } from '../../../shared/types/index.ts';
-import { logger } from '../../../shared/utils/logger.ts';
-import { globalRateLimiter } from '../utils/global-rate-limiter.ts';
-import { addLineNumbers } from '../utils/line-numbered-content.ts';
+import type { AIProvider } from '../../../ai/providers/provider';
+import type { ReviewIssue } from '../../../shared/types';
+import type { FileInfo } from '../../../shared/types/config';
+import { logger } from '../../../shared/utils/logger';
+import { globalRateLimiter } from '../utils/global-rate-limiter';
+import { addLineNumbers } from '../utils/line-numbered-content';
 
 interface Message {
   role: 'system' | 'user' | 'assistant';

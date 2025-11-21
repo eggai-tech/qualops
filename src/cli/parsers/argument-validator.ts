@@ -1,5 +1,5 @@
-import { logger } from '../../shared/utils/logger.ts';
-import { type Stage, validateStages } from './option-parser.ts';
+import { type Stage, validateStages } from './option-parser';
+import { logger } from '../../shared/utils/logger';
 
 export const STAGE_DEPENDENCIES: Partial<Record<Stage, Stage[]>> = {
   review: ['analyze'],

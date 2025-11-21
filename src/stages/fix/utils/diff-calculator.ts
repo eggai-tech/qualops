@@ -1,5 +1,5 @@
-import type { FixSuggestion } from '../../../shared/types/index.ts';
-import { logger } from '../../../shared/utils/logger.ts';
+import type { FixSuggestion } from '../../../shared/types';
+import { logger } from '../../../shared/utils/logger';
 
 export interface DiffSegment {
   type: 'add' | 'remove' | 'context' | 'modify';

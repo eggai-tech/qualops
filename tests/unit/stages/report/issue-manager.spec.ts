@@ -2,13 +2,13 @@ import { existsSync, readdirSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { ReviewIssue } from '@/shared/types/index.ts';
-import { IssueManager } from '@/stages/report/issue-manager.ts';
+import type { ReviewIssue } from '@/shared/types';
+import { IssueManager } from '@/stages/report/issue-manager';
 
 jest.mock('node:fs');
 jest.mock('node:fs/promises');
 jest.mock('node:path');
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/logger');
 
 const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
 const mockReaddirSync = readdirSync as jest.MockedFunction<typeof readdirSync>;

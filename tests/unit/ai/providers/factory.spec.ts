@@ -1,21 +1,21 @@
-import { ConfigService } from '@/config/config.ts';
-import { AnthropicProvider } from '@/ai/providers/anthropic.ts';
-import { BedrockProvider } from '@/ai/providers/bedrock.ts';
+import { AnthropicProvider } from '@/ai/providers/anthropic';
+import { BedrockProvider } from '@/ai/providers/bedrock';
 import {
   AIFactory,
   AIProviderType,
   clearGlobalAIProvider,
   getGlobalAIProvider,
   initializeGlobalAIProviderForStage,
-} from '@/ai/providers/factory.ts';
-import { OpenAIProvider } from '@/ai/providers/openai.ts';
-import type { AIProvider } from '@/ai/providers/provider.ts';
+} from '@/ai/providers/factory';
+import { OpenAIProvider } from '@/ai/providers/openai';
+import type { AIProvider } from '@/ai/providers/provider';
+import { ConfigService } from '@/config/config';
 
-jest.mock('@/config/config.ts');
-jest.mock('@/ai/providers/anthropic.ts');
-jest.mock('@/ai/providers/bedrock.ts');
-jest.mock('@/ai/providers/openai.ts');
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/config/config');
+jest.mock('@/ai/providers/anthropic');
+jest.mock('@/ai/providers/bedrock');
+jest.mock('@/ai/providers/openai');
+jest.mock('@/shared/utils/logger');
 
 const mockAnthropicProvider = AnthropicProvider as jest.MockedClass<typeof AnthropicProvider>;
 const mockBedrockProvider = BedrockProvider as jest.MockedClass<typeof BedrockProvider>;

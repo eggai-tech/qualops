@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { PromptConfig } from '../../../shared/types/config.ts';
-import { logger } from '../../../shared/utils/logger.ts';
+import type { PromptConfig } from '../../../shared/types/config';
+import { logger } from '../../../shared/utils/logger';
 
 const PROMPTS_BASE_PATH = join(process.cwd(), 'examples/prompts');
 

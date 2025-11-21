@@ -1,5 +1,5 @@
-import { logger } from '@/shared/utils/logger';
 import { enforceStageDependencies, STAGE_DEPENDENCIES, validateAndProcessStages } from '@/cli/parsers/argument-validator';
+import { logger } from '@/shared/utils/logger';
 
 jest.mock('@/shared/utils/logger', () => ({
   logger: {

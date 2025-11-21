@@ -1,12 +1,12 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
-import type { FixSuggestion } from '@/shared/types/index.ts';
+import type { FixSuggestion } from '@/shared/types';
 import { createBackup } from '@/stages/fix/appliers/backup-manager';
 import { applyMultipleFixes, applySafeFixes, applySingleFix, canApplyFix } from '@/stages/fix/appliers/fix-applier';
 
 jest.mock('node:fs/promises');
-jest.mock('@/shared/utils/file-utils.ts');
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/file-utils');
+jest.mock('@/shared/utils/logger');
 jest.mock('@/stages/fix/appliers/backup-manager');
 
 const mockReadFile = readFile as jest.MockedFunction<typeof readFile>;

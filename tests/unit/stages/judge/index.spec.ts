@@ -1,9 +1,9 @@
 import { envConfig } from '@/config/env';
 import { getCurrentSessionPaths } from '@/shared/runtime/session-context';
-import type { JudgeMetadata, QualityThresholds, ReportMetadata } from '@/shared/types/index';
+import type { JudgeMetadata, QualityThresholds, ReportMetadata } from '@/shared/types';
 import { readMetadataFile } from '@/shared/utils/file-utils';
 import { logger } from '@/shared/utils/logger';
-import { judgeQuality } from '@/stages/judge/index';
+import { judgeQuality } from '@/stages/judge';
 
 jest.mock('@/config/env', () => ({
   envConfig: {

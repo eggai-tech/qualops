@@ -1,10 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
-import type { AIStageConfig, Config } from '../shared/types/index.ts';
-import { logger } from '../shared/utils/logger.ts';
-import { sanitizeFilename } from '../shared/utils/security.ts';
-import { envConfig } from './env.ts';
+import { envConfig } from './env';
+import type { AIStageConfig, Config } from '../shared/types';
+import { logger } from '../shared/utils/logger';
+import { sanitizeFilename } from '../shared/utils/security';
 
 export class ConfigService {
   private static instance: ConfigService;

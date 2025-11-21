@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 
-import { logger } from '../../../shared/utils/logger.ts';
+import { logger } from '../../../shared/utils/logger';
 
 export interface BackupMetadata {
   originalFile: string;

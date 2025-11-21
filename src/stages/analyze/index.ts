@@ -1,12 +1,12 @@
-import { getCurrentSessionPaths } from '../../shared/runtime/session-context.ts';
-import type { AnalysisMetadata } from '../../shared/types/index.ts';
-import { readMetadataFile } from '../../shared/utils/file-utils.ts';
-import { logger } from '../../shared/utils/logger.ts';
-import { getChangedFiles } from './git/changed-files.ts';
-import { processBatchForAnalysis } from './processors/batch-processor.ts';
-import { getFilesToProcess, loadExtractLog, saveExtractLog } from './utils/extract-log.ts';
+import { getChangedFiles } from './git/changed-files';
+import { processBatchForAnalysis } from './processors/batch-processor';
+import { getFilesToProcess, loadExtractLog, saveExtractLog } from './utils/extract-log';
+import { getCurrentSessionPaths } from '../../shared/runtime/session-context';
+import type { AnalysisMetadata } from '../../shared/types';
+import { readMetadataFile } from '../../shared/utils/file-utils';
+import { logger } from '../../shared/utils/logger';
 
-export { getChangedFiles } from './git/changed-files.ts';
+export { getChangedFiles } from './git/changed-files';
 
 export async function analyzeProjects(
   base = 'main',

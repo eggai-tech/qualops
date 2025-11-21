@@ -1,15 +1,15 @@
-jest.mock('@/config/config.ts', () => ({
+jest.mock('@/config/config', () => ({
   ConfigService: {
     getInstance: jest.fn().mockReturnValue({
       get: jest.fn().mockReturnValue({ apiCallsPerMinute: 60 }), // High rate to avoid waits in tests
     }),
   },
 }));
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/logger');
 
-import { ConfigService } from '@/config/config.ts';
-import { logger } from '@/shared/utils/logger.ts';
-import { globalRateLimiter } from '@/stages/review/utils/global-rate-limiter.ts';
+import { ConfigService } from '@/config/config';
+import { logger } from '@/shared/utils/logger';
+import { globalRateLimiter } from '@/stages/review/utils/global-rate-limiter';
 
 describe('GlobalRateLimiter', () => {
   let mockConfigService: {

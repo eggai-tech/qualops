@@ -1,8 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
-import type { FixSuggestion } from '../../../shared/types/index.ts';
-import { logger } from '../../../shared/utils/logger.ts';
-import { createBackup } from './backup-manager.ts';
+import { createBackup } from './backup-manager';
+import type { FixSuggestion } from '../../../shared/types';
+import { logger } from '../../../shared/utils/logger';
 
 export interface ApplyResult {
   success: boolean;

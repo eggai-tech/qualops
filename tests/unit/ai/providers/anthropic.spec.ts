@@ -1,17 +1,17 @@
 import { jest } from '@jest/globals';
 
-import type { AIStageConfig } from '@/shared/types/index.ts';
-import { AnthropicProvider } from '@/ai/providers/anthropic.ts';
+import { AnthropicProvider } from '@/ai/providers/anthropic';
+import type { AIStageConfig } from '@/shared/types';
 
-jest.mock('@/config/env.ts');
-jest.mock('@/config/config.ts', () => ({
+jest.mock('@/config/env');
+jest.mock('@/config/config', () => ({
   ConfigService: {
     getInstance: jest.fn(),
   },
 }));
-jest.mock('@/shared/utils/logger.ts');
-jest.mock('@/ai/shared/token-utils.ts');
-jest.mock('@/ai/providers/factory.ts', () => ({
+jest.mock('@/shared/utils/logger');
+jest.mock('@/ai/shared/token-utils');
+jest.mock('@/ai/providers/factory', () => ({
   AIProviderType: {
     ANTHROPIC: 'anthropic',
     BEDROCK: 'bedrock',

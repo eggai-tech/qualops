@@ -1,12 +1,12 @@
-import { ConfigService } from '../../../config/config.ts';
-import type { PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config.ts';
-import { logger } from '../../../shared/utils/logger.ts';
+import { ConfigService } from '../../../config/config';
+import type { PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config';
+import { logger } from '../../../shared/utils/logger';
 
 export class ConfigLoader {
   private static instance: ConfigLoader | null = null;
   private config: ReviewConfig | null = null;
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+   
   private constructor() {}
 
   static getInstance(): ConfigLoader {

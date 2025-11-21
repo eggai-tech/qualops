@@ -1,7 +1,7 @@
-import { CRITICAL_STAGES } from '../../config/config.ts';
-import { getCurrentSessionPaths } from '../runtime/session-context.ts';
-import { writeMetadataFile } from './file-utils.ts';
-import { logger } from './logger.ts';
+import { writeMetadataFile } from './file-utils';
+import { logger } from './logger';
+import { CRITICAL_STAGES } from '../../config/config';
+import { getCurrentSessionPaths } from '../runtime/session-context';
 
 interface ErrorData {
   stage: string;

@@ -1,15 +1,15 @@
-import { AIFactory } from '../../ai/providers/index.ts';
-import type { AIProvider } from '../../ai/providers/provider.ts';
-import { ConfigService } from '../../config/config.ts';
-import { addStageTokenStats, getCurrentSessionPaths } from '../../shared/runtime/session-context.ts';
-import type { FixMetadata, FixSuggestion, ReviewIssue, ReviewMetadata } from '../../shared/types/index.ts';
-import { processConcurrently } from '../../shared/utils/concurrency.ts';
-import { readMetadataFile, writeMetadataFile } from '../../shared/utils/file-utils.ts';
-import { logger } from '../../shared/utils/logger.ts';
-import { applySafeFixes } from './appliers/fix-applier.ts';
-import { generateFix } from './generators/fix-generator.ts';
-import { generateDiffHTML } from './utils/diff-visualizer.ts';
-import { createFixBatchRollbackPoint } from './utils/rollback-manager.ts';
+import { applySafeFixes } from './appliers/fix-applier';
+import { generateFix } from './generators/fix-generator';
+import { generateDiffHTML } from './utils/diff-visualizer';
+import { createFixBatchRollbackPoint } from './utils/rollback-manager';
+import { AIFactory } from '../../ai/providers';
+import type { AIProvider } from '../../ai/providers/provider';
+import { ConfigService } from '../../config/config';
+import { addStageTokenStats, getCurrentSessionPaths } from '../../shared/runtime/session-context';
+import type { FixMetadata, FixSuggestion, ReviewIssue, ReviewMetadata } from '../../shared/types';
+import { processConcurrently } from '../../shared/utils/concurrency';
+import { readMetadataFile, writeMetadataFile } from '../../shared/utils/file-utils';
+import { logger } from '../../shared/utils/logger';
 
 function filterAndPrioritizeIssues(issues: ReviewIssue[], _includeMedium = true): ReviewIssue[] {
   const priorityIssues = issues.filter((i) => {

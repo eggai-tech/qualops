@@ -1,4 +1,4 @@
-import { Issue } from './issue.model.ts';
+import { Issue } from './issue.model';
 
 export const SessionStage = {
   Analyze: 'analyze',

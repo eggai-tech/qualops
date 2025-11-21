@@ -1,5 +1,5 @@
-import type { ReportSummary } from '../collectors/metadata-collector.ts';
-import { getQualityStatus } from '../utils/formatters.ts';
+import type { ReportSummary } from '../collectors/metadata-collector';
+import { getQualityStatus } from '../utils/formatters';
 
 export function formatExecutiveSummary(summary: ReportSummary, executionTime: number): string {
   const qualityStatus = getQualityStatus({

@@ -1,6 +1,6 @@
-export * from './issue.model.ts';
-export * from './pattern.model.ts';
-export * from './session.model.ts';
+export * from './issue.model';
+export * from './pattern.model';
+export * from './session.model';
 
 export type FilePath = string;
 export type SessionId = string;

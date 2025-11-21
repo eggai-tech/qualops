@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
-import type { AIProvider } from '../../../ai/providers/provider.ts';
-import type { FixSuggestion, ReviewIssue } from '../../../shared/types/index.ts';
+import type { AIProvider } from '../../../ai/providers/provider';
+import type { FixSuggestion, ReviewIssue } from '../../../shared/types';
 
 export function getIssueFilePath(issue: ReviewIssue): string {
   return issue.file || (issue.location ? issue.location.split(':')[0] : '');

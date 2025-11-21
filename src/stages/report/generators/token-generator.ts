@@ -1,6 +1,6 @@
-import { getGlobalTokenStats } from '../../../ai/providers/index.ts';
-import { formatTokenStats } from '../../../ai/shared/token-utils.ts';
-import type { ReportSection } from '../../../shared/types/index.ts';
+import { getGlobalTokenStats } from '../../../ai/providers';
+import { formatTokenStats } from '../../../ai/shared/token-utils';
+import type { ReportSection } from '../../../shared/types';
 
 export function generateTokenUsageSection(): ReportSection {
   const tokenStats = getGlobalTokenStats();

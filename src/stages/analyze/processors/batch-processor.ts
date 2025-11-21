@@ -1,7 +1,7 @@
-import { shouldProcessFile } from '../../../shared/utils/filters.ts';
-import { logger } from '../../../shared/utils/logger.ts';
-import type { ExtractLog } from '../utils/extract-log.ts';
-import { prepareFilesForProcessing } from './file-processor.ts';
+import { prepareFilesForProcessing } from './file-processor';
+import { shouldProcessFile } from '../../../shared/utils/filters';
+import { logger } from '../../../shared/utils/logger';
+import type { ExtractLog } from '../utils/extract-log';
 
 export async function processBatchForAnalysis(
   files: string[],

@@ -1,6 +1,6 @@
-import { getCurrentSessionPaths } from '../../../shared/runtime/session-context.ts';
-import type { AnalysisMetadata, ExtractLog, FixMetadata, ReviewMetadata } from '../../../shared/types/index.ts';
-import { readMetadataFile } from '../../../shared/utils/file-utils.ts';
+import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
+import type { AnalysisMetadata, ExtractLog, FixMetadata, ReviewMetadata } from '../../../shared/types';
+import { readMetadataFile } from '../../../shared/utils/file-utils';
 
 export interface CollectedData {
   analysis: AnalysisMetadata | null;

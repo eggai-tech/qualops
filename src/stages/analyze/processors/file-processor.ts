@@ -1,7 +1,7 @@
 import { stat } from 'node:fs/promises';
 
-import { logger } from '../../../shared/utils/logger.ts';
-import { calculateFileHash, type ExtractLog } from '../utils/extract-log.ts';
+import { logger } from '../../../shared/utils/logger';
+import { calculateFileHash, type ExtractLog } from '../utils/extract-log';
 
 export async function processFile(file: string, extractLog: ExtractLog): Promise<boolean> {
   try {

@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 
-import { getCurrentSessionPaths } from '../../../shared/runtime/session-context.ts';
-import { writeMetadataFile } from '../../../shared/utils/file-utils.ts';
-import { logger } from '../../../shared/utils/logger.ts';
-import { calculateFileHash } from './hash-calculator.ts';
+import { calculateFileHash } from './hash-calculator';
+import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
+import { writeMetadataFile } from '../../../shared/utils/file-utils';
+import { logger } from '../../../shared/utils/logger';
 
 export interface ExtractLog {
   timestamp: string;
@@ -19,7 +19,7 @@ export interface ExtractLog {
   [key: string]: unknown;
 }
 
-export { calculateFileHash } from './hash-calculator.ts';
+export { calculateFileHash } from './hash-calculator';
 
 export async function loadExtractLog(): Promise<ExtractLog> {
   try {

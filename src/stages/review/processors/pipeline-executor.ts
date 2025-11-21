@@ -2,20 +2,20 @@ import { writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { AIProvider } from '../../../ai/providers/provider.ts';
-import { getCurrentSessionPaths } from '../../../shared/runtime/session-context.ts';
-import type { FileInfo, PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config.ts';
-import type { ReviewIssue } from '../../../shared/types/index.ts';
-import { processConcurrently } from '../../../shared/utils/concurrency.ts';
-import { logger } from '../../../shared/utils/logger.ts';
-import { ConfigLoader } from '../loaders/config-loader.ts';
-import { DocDiscovery } from '../loaders/doc-discovery.ts';
-import { FilterMatcher } from '../loaders/filter-matcher.ts';
-import { PromptLoader } from '../loaders/prompt-loader.ts';
-import { TemplateEngine } from '../loaders/template-engine.ts';
-import { DeduplicationResolver } from './dedup-resolver.ts';
-import { FileReviewer } from './file-reviewer.ts';
-import { ValidationResolver } from './validation-resolver.ts';
+import { DeduplicationResolver } from './dedup-resolver';
+import { FileReviewer } from './file-reviewer';
+import { ValidationResolver } from './validation-resolver';
+import type { AIProvider } from '../../../ai/providers/provider';
+import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
+import type { ReviewIssue } from '../../../shared/types';
+import type { FileInfo, PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config';
+import { processConcurrently } from '../../../shared/utils/concurrency';
+import { logger } from '../../../shared/utils/logger';
+import { ConfigLoader } from '../loaders/config-loader';
+import { DocDiscovery } from '../loaders/doc-discovery';
+import { FilterMatcher } from '../loaders/filter-matcher';
+import { PromptLoader } from '../loaders/prompt-loader';
+import { TemplateEngine } from '../loaders/template-engine';
 
 export class PipelineExecutor {
   private config: ReviewConfig;

@@ -1,8 +1,8 @@
-import { getCurrentSessionPaths } from '../../shared/runtime/session-context.ts';
-import { writeMetadataFile } from '../../shared/utils/file-utils.ts';
-import { analyzeProjects } from '../../stages/analyze/index.ts';
-import { parseFilePatterns } from '../parsers/file-parser.ts';
-import type { QualOpsOptions } from '../parsers/option-parser.ts';
+import { getCurrentSessionPaths } from '../../shared/runtime/session-context';
+import { writeMetadataFile } from '../../shared/utils/file-utils';
+import { analyzeProjects } from '../../stages/analyze';
+import { parseFilePatterns } from '../parsers/file-parser';
+import type { QualOpsOptions } from '../parsers/option-parser';
 
 export async function executeAnalyzeStage(options: QualOpsOptions): Promise<void> {
   const files = options.files ? await parseFilePatterns(options.files) : undefined;

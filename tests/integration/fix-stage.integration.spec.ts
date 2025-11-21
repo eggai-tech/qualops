@@ -1,7 +1,7 @@
-import type { FixSuggestion, ReviewIssue } from '@/shared/types/index.ts';
-import { generateFixes } from '@/stages/fix/index.ts';
-import { getOutputDir } from '@tests/setup/integration.setup.ts';
-import { addFile, createMockAIProvider, createTestProject, SAMPLE_COMPONENTS } from '@tests/helpers/test-fixtures.ts';
+import type { FixSuggestion, ReviewIssue } from '@/shared/types';
+import { generateFixes } from '@/stages/fix';
+import { addFile, createMockAIProvider, createTestProject, SAMPLE_COMPONENTS } from '@tests/helpers/test-fixtures';
+import { getOutputDir } from '@tests/setup/integration.setup';
 
 const mockGetCurrentSessionPaths = jest.fn();
 const mockWriteMetadataFile = jest.fn();
@@ -14,13 +14,13 @@ const mockCreateFixBatchRollbackPoint = jest.fn();
 const mockGenerateDiffHTML = jest.fn();
 const mockGenerateFix = jest.fn();
 
-jest.mock('@/shared/runtime/session-context.ts', () => ({
+jest.mock('@/shared/runtime/session-context', () => ({
   getCurrentSessionPaths: (...args: unknown[]) => mockGetCurrentSessionPaths(...args),
   addStageTokenStats: (...args: unknown[]) => mockAddStageTokenStats(...args),
 }));
 
-jest.mock('@/shared/utils/file-utils.ts', () => {
-  const actual = jest.requireActual('../../shared/utils/file-utils.ts');
+jest.mock('@/shared/utils/file-utils', () => {
+  const actual = jest.requireActual('../../shared/utils/file-utils');
   return {
     ...actual,
     writeMetadataFile: (...args: unknown[]) => mockWriteMetadataFile(...args),
@@ -28,21 +28,21 @@ jest.mock('@/shared/utils/file-utils.ts', () => {
   };
 });
 
-jest.mock('@/ai/providers/index.ts', () => ({
+jest.mock('@/ai/providers', () => ({
   AIFactory: {
     createForStage: (...args: unknown[]) => mockAIFactory.createForStage(...args),
   },
 }));
 
-jest.mock('@/stages/fix/utils/rollback-manager.ts', () => ({
+jest.mock('@/stages/fix/utils/rollback-manager', () => ({
   createFixBatchRollbackPoint: (...args: unknown[]) => mockCreateFixBatchRollbackPoint(...args),
 }));
 
-jest.mock('@/stages/fix/utils/diff-visualizer.ts', () => ({
+jest.mock('@/stages/fix/utils/diff-visualizer', () => ({
   generateDiffHTML: (...args: unknown[]) => mockGenerateDiffHTML(...args),
 }));
 
-jest.mock('@/stages/fix/generators/fix-generator.ts', () => ({
+jest.mock('@/stages/fix/generators/fix-generator', () => ({
   generateFix: (...args: unknown[]) => mockGenerateFix(...args),
 }));
 

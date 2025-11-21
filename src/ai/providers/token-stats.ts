@@ -1,5 +1,5 @@
-import { getGlobalAIProvider } from './factory.ts';
-import type { TokenStats } from './provider.ts';
+import { getGlobalAIProvider } from './factory';
+import type { TokenStats } from './provider';
 
 export function getGlobalTokenStats(): TokenStats {
   try {

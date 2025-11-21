@@ -3,7 +3,7 @@
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
-import { hasValidUrlScheme, isValidGitSha } from '../shared/utils/security.ts';
+import { hasValidUrlScheme, isValidGitSha } from '../shared/utils/security';
 
 const SEVERITY_EMOJI = {
   critical: '🔴',

@@ -1,4 +1,4 @@
-import type { ReviewIssue, ReviewMetadata } from '@/shared/types/index.ts';
+import type { ReviewIssue, ReviewMetadata } from '@/shared/types';
 import {
   aggregateIssues,
   buildFileTree,
@@ -6,7 +6,7 @@ import {
   generateSafeId,
   groupIssuesByFile,
   sortDirectoriesByIssues,
-} from '@/stages/report/utils/data-transformer.ts';
+} from '@/stages/report/utils/data-transformer';
 
 describe('data-transformer', () => {
   describe('aggregateIssues', () => {

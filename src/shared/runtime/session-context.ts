@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { buildSessionPath } from '../../config/config.ts';
-import { logger } from '../utils/logger.ts';
+import { buildSessionPath } from '../../config/config';
+import { logger } from '../utils/logger';
 
 interface StageTokenStats {
   stage: string;

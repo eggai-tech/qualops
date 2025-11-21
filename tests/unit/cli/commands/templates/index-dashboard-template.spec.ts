@@ -1,4 +1,4 @@
-import { generateDashboardHTML } from '@/cli/commands/templates/index-dashboard-template.ts';
+import { generateDashboardHTML } from '@/cli/commands/templates/index-dashboard-template';
 
 describe('generateDashboardHTML', () => {
   it('should generate HTML dashboard', () => {

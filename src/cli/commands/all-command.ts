@@ -1,17 +1,17 @@
 import { join } from 'node:path';
 
-import { getCurrentSessionPaths, getTotalTokenStats } from '../../shared/runtime/session-context.ts';
-import { ensureDirectory, writeMetadataFile } from '../../shared/utils/file-utils.ts';
-import { logger } from '../../shared/utils/logger.ts';
-import { judgeQuality } from '../../stages/judge/index.ts';
-import { generateReport } from '../../stages/report/main.ts';
-import { reviewProjects } from '../../stages/review/index.ts';
-import { mergeConfiguration } from '../parsers/config-merger.ts';
-import type { QualOpsOptions } from '../parsers/option-parser.ts';
-import { handleStageError } from '../utils/error-handler.ts';
-import { ProgressReporter } from '../utils/progress-reporter.ts';
-import { executeAnalyzeStage } from './analyze-command.ts';
-import { executeFixStage } from './fix-command.ts';
+import { executeAnalyzeStage } from './analyze-command';
+import { executeFixStage } from './fix-command';
+import { getCurrentSessionPaths, getTotalTokenStats } from '../../shared/runtime/session-context';
+import { ensureDirectory, writeMetadataFile } from '../../shared/utils/file-utils';
+import { logger } from '../../shared/utils/logger';
+import { judgeQuality } from '../../stages/judge';
+import { generateReport } from '../../stages/report/main';
+import { reviewProjects } from '../../stages/review';
+import { mergeConfiguration } from '../parsers/config-merger';
+import type { QualOpsOptions } from '../parsers/option-parser';
+import { handleStageError } from '../utils/error-handler';
+import { ProgressReporter } from '../utils/progress-reporter';
 
 export async function executeAllStages(options: QualOpsOptions): Promise<void> {
   const config = await mergeConfiguration(options);

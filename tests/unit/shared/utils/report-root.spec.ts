@@ -1,4 +1,4 @@
-import { getDefaultReportRoot } from '@/shared/utils/report-root.ts';
+import { getDefaultReportRoot } from '@/shared/utils/report-root';
 
 describe('getDefaultReportRoot', () => {
   it('should return the default report root directory name', () => {

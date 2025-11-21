@@ -1,4 +1,4 @@
-import type { ReviewIssue, ReviewMetadata } from '../../../shared/types/index.ts';
+import type { ReviewIssue, ReviewMetadata } from '../../../shared/types';
 
 export interface FixSuggestion {
   issueId: string;

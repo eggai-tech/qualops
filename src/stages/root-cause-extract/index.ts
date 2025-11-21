@@ -1,12 +1,12 @@
 import { mkdir, readdir, readFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { AIFactory } from '../../ai/providers/index.ts';
-import { addStageTokenStats, getCurrentSessionPaths } from '../../shared/runtime/session-context.ts';
-import type { RootCauseMetadata } from '../../shared/types/index.ts';
-import { logger } from '../../shared/utils/logger.ts';
-import { isClassificationResultArray, isPathTraversalSafe } from '../../shared/utils/security.ts';
-import { getRootCauseByKey, getRootCauseKeys, ROOT_CAUSE_TAXONOMY } from './taxonomy.ts';
+import { getRootCauseByKey, getRootCauseKeys, ROOT_CAUSE_TAXONOMY } from './taxonomy';
+import { AIFactory } from '../../ai/providers';
+import { addStageTokenStats, getCurrentSessionPaths } from '../../shared/runtime/session-context';
+import type { RootCauseMetadata } from '../../shared/types';
+import { logger } from '../../shared/utils/logger';
+import { isClassificationResultArray, isPathTraversalSafe } from '../../shared/utils/security';
 
 interface IssueForClassification {
   id: string;

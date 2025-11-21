@@ -1,4 +1,4 @@
-import type { ReviewIssue } from '@/shared/types/index';
+import type { ReviewIssue } from '@/shared/types';
 import { logger } from '@/shared/utils/logger';
 import { IssueValidator } from '@/stages/review/validators/issue-validator';
 

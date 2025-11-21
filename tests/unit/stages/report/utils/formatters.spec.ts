@@ -1,5 +1,5 @@
-import type { ReviewIssue } from '@/shared/types/index.ts';
-import { escapeHtml, extractProblem, formatSource, getConfidenceBadge, getQualityStatus } from '@/stages/report/utils/formatters.ts';
+import type { ReviewIssue } from '@/shared/types';
+import { escapeHtml, extractProblem, formatSource, getConfidenceBadge, getQualityStatus } from '@/stages/report/utils/formatters';
 
 describe('formatters', () => {
   describe('getConfidenceBadge', () => {

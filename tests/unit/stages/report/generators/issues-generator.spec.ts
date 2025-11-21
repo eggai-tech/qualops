@@ -1,31 +1,31 @@
 import { readFile } from 'node:fs/promises';
 
-import type { ReviewIssue } from '@/shared/types/index.ts';
-import { logger } from '@/shared/utils/logger.ts';
+import type { ReviewIssue } from '@/shared/types';
+import { logger } from '@/shared/utils/logger';
+import { generateIssuesSection } from '@/stages/report/generators/issues-generator';
 import {
   generateCodeSection,
   generateDirectoryHeader,
   generateFileHeader,
   generateIssueCard,
-} from '@/stages/report/templates/components.ts';
+} from '@/stages/report/templates/components';
 import {
   buildFileTree,
   type FixSuggestion,
   generateSafeId,
   groupIssuesByFile,
   sortDirectoriesByIssues,
-} from '@/stages/report/utils/data-transformer.ts';
-import { escapeHtml } from '@/stages/report/utils/formatters.ts';
-import { generateIssuesSection } from '@/stages/report/generators/issues-generator.ts';
+} from '@/stages/report/utils/data-transformer';
+import { escapeHtml } from '@/stages/report/utils/formatters';
 
 jest.mock('node:fs/promises');
-jest.mock('@/shared/utils/file-utils.ts', () => ({
+jest.mock('@/shared/utils/file-utils', () => ({
   validateFilePath: jest.fn(),
 }));
-jest.mock('@/shared/utils/logger.ts');
-jest.mock('@/stages/report/templates/components.ts');
-jest.mock('@/stages/report/utils/data-transformer.ts');
-jest.mock('@/stages/report/utils/formatters.ts');
+jest.mock('@/shared/utils/logger');
+jest.mock('@/stages/report/templates/components');
+jest.mock('@/stages/report/utils/data-transformer');
+jest.mock('@/stages/report/utils/formatters');
 
 const mockReadFile = readFile as jest.MockedFunction<typeof readFile>;
 const mockGenerateCodeSection = generateCodeSection as jest.MockedFunction<typeof generateCodeSection>;
@@ -478,7 +478,7 @@ describe('issues-generator', () => {
       });
 
       it('should handle very long file paths', async () => {
-        const longPath = '/very/long/path/with/many/directories/file.ts';
+        const longPath = '/very/long/path/with/many/directories/file';
         const issues = [createMockIssue({ file: longPath })];
         const fileTree = new Map([['/very/long/path/with/many/directories', { files: [longPath], issues }]]);
 

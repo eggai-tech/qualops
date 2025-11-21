@@ -5,9 +5,9 @@ import type {
   ReportMetadata,
   ReportSection,
   ReviewMetadata,
-} from '../../../shared/types/index.ts';
-import { collectIncrementalStats } from '../collectors/metadata-collector.ts';
-import { getQualityStatus } from '../utils/formatters.ts';
+} from '../../../shared/types';
+import { collectIncrementalStats } from '../collectors/metadata-collector';
+import { getQualityStatus } from '../utils/formatters';
 
 export function generateMarkdownSummary(report: ReportMetadata): string {
   const { summary, sections } = report;

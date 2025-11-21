@@ -1,9 +1,10 @@
-import { glob } from 'glob';
 import { existsSync } from 'node:fs';
 
+import { glob } from 'glob';
+
+import { parseFilePatterns } from '@/cli/parsers/file-parser';
 import { ConfigService } from '@/config/config';
 import { logger } from '@/shared/utils/logger';
-import { parseFilePatterns } from '@/cli/parsers/file-parser';
 
 jest.mock('glob');
 jest.mock('node:fs');

@@ -1,36 +1,29 @@
 // Main exports
-export type { ReportMetadata, ReportSection } from '../../shared/types/index.ts';
-export { generateHTMLReport } from './html-report.ts';
-export { generateReport } from './main.ts';
+export type { ReportMetadata, ReportSection } from '../../shared/types';
+export { generateHTMLReport } from './html-report';
+export { generateReport } from './main';
 
 // Collectors
-export { collectAllStageData, getStageResults } from './collectors/data-collector.ts';
-export { collectIssues, collectLintIssues, collectReviewIssues } from './collectors/issue-collector.ts';
-export { collectIncrementalStats, collectMetadata } from './collectors/metadata-collector.ts';
+export { collectAllStageData, getStageResults } from './collectors/data-collector';
+export { collectIssues, collectReviewIssues } from './collectors/issue-collector';
+export { collectIncrementalStats, collectMetadata } from './collectors/metadata-collector';
 
 // Generators
-export { generateConsoleOutput, generateDetailedConsoleOutput, logProgress } from './generators/console-generator.ts';
-export {
-  generateIssuesCSV,
-  generateMetricsCSV,
-  generateProjectBreakdownCSV,
-  generateSummaryCSV,
-} from './generators/csv-generator.ts';
-export { generateCIReport, generateJSONReport } from './generators/json-generator.ts';
+export { generateConsoleOutput, generateDetailedConsoleOutput, logProgress } from './generators/console-generator';
+export { generateCIReport, generateJSONReport } from './generators/json-generator';
 export {
   generateAnalysisSection,
   generateFixSection,
-  generateLintSection,
   generateMarkdownSummary,
   generateRecommendations,
   generateReviewSection,
-} from './generators/markdown-generator.ts';
+} from './generators/markdown-generator';
 export {
   generateTokenConsoleOutput,
   generateTokenUsageHTML,
   generateTokenUsageJSON,
   generateTokenUsageSection,
-} from './generators/token-generator.ts';
+} from './generators/token-generator';
 
 // Formatters
 export {
@@ -40,7 +33,7 @@ export {
   generateSeverityChart,
   generateSparkline,
   generateTypeChart,
-} from './formatters/chart-formatter.ts';
+} from './formatters/chart-formatter';
 export {
   formatExecutiveSummary,
   formatHealthScore,
@@ -48,13 +41,7 @@ export {
   formatMetricsSummary,
   formatQuickStatus,
   formatRecommendations,
-} from './formatters/summary-formatter.ts';
-export {
-  formatIssuesTable,
-  formatProjectTable,
-  formatSummaryTable,
-  formatTable,
-} from './formatters/table-formatter.ts';
+} from './formatters/summary-formatter';
 
 // Utils
 export {
@@ -67,22 +54,13 @@ export {
   writeMarkdownReport,
   writeMultipleReports,
   writeReportFile,
-} from './utils/file-writer.ts';
-export { escapeHtml, extractProblem, formatSource, getConfidenceBadge, getQualityStatus } from './utils/formatters.ts';
-export {
-  defaultTemplateEngine,
-  processTemplate,
-  reportTemplates,
-  TemplateEngine,
-  templateHelpers,
-} from './utils/template-engine.ts';
+} from './utils/file-writer';
+export { escapeHtml, extractProblem, formatSource, getConfidenceBadge, getQualityStatus } from './utils/formatters';
 
 // Types
-export type { CollectedData } from './collectors/data-collector.ts';
-export type { AggregatedIssues } from './collectors/issue-collector.ts';
-export type { ReportSummary } from './collectors/metadata-collector.ts';
-export type { ChartData, ChartOptions } from './formatters/chart-formatter.ts';
-export type { TableColumn, TableOptions } from './formatters/table-formatter.ts';
-export type { JSONReport } from './generators/json-generator.ts';
-export type { FileWriteOptions } from './utils/file-writer.ts';
-export type { TemplateOptions, TemplateVariables } from './utils/template-engine.ts';
+export type { CollectedData } from './collectors/data-collector';
+export type { AggregatedIssues } from './collectors/issue-collector';
+export type { ReportSummary } from './collectors/metadata-collector';
+export type { ChartData, ChartOptions } from './formatters/chart-formatter';
+export type { JSONReport } from './generators/json-generator';
+export type { FileWriteOptions } from './utils/file-writer';

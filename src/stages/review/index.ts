@@ -1,16 +1,16 @@
 import { readFileSync } from 'node:fs';
 
-import { AIFactory } from '../../ai/providers/index.ts';
-import { detectFrameworkContext } from '../../ai/shared/structured-ai.ts';
-import { addStageTokenStats, getCurrentSessionPaths } from '../../shared/runtime/session-context.ts';
-import type { FileInfo } from '../../shared/types/config.ts';
-import type { AnalysisMetadata, ReviewMetadata } from '../../shared/types/index.ts';
-import { readMetadataFile } from '../../shared/utils/file-utils.ts';
-import { logger } from '../../shared/utils/logger.ts';
-import { getFileDiff } from '../analyze/git/changed-files.ts';
-import { loadExtractLog, saveExtractLog, updateFileInExtractLog } from '../analyze/utils/extract-log.ts';
-import { PipelineExecutor } from './processors/pipeline-executor.ts';
-import { IssueValidator } from './validators/issue-validator.ts';
+import { PipelineExecutor } from './processors/pipeline-executor';
+import { IssueValidator } from './validators/issue-validator';
+import { AIFactory } from '../../ai/providers';
+import { detectFrameworkContext } from '../../ai/shared/structured-ai';
+import { addStageTokenStats, getCurrentSessionPaths } from '../../shared/runtime/session-context';
+import type { AnalysisMetadata, ReviewMetadata } from '../../shared/types';
+import type { FileInfo } from '../../shared/types/config';
+import { readMetadataFile } from '../../shared/utils/file-utils';
+import { logger } from '../../shared/utils/logger';
+import { getFileDiff } from '../analyze/git/changed-files';
+import { loadExtractLog, saveExtractLog, updateFileInExtractLog } from '../analyze/utils/extract-log';
 
 export async function reviewProjects(): Promise<ReviewMetadata> {
   const existingReview = await readMetadataFile<ReviewMetadata>(getCurrentSessionPaths().reviewSummary());

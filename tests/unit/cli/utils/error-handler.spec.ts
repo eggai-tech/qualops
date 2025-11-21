@@ -1,7 +1,7 @@
-import { logger } from '@/shared/utils/logger.ts';
 import { handleError, handleStageError, withErrorHandling } from '@/cli/utils/error-handler';
+import { logger } from '@/shared/utils/logger';
 
-jest.mock('@/shared/utils/logger.ts');
+jest.mock('@/shared/utils/logger');
 
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockProcessExit = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
