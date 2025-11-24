@@ -170,20 +170,20 @@ describe('parseFilePatterns', () => {
     expect(result).toEqual(['file1.ts', 'src/file2.ts', 'src/file3.ts']);
   });
 
-  it('should filter out non-TypeScript files and tsx files', async () => {
+  it('should return all files without language-specific filtering', async () => {
     mockGlob.mockResolvedValue(['file.ts', 'file.js', 'file.tsx', 'file.json']);
 
     const result = await parseFilePatterns('*.*');
 
-    expect(result).toEqual(['file.ts']);
+    expect(result).toEqual(['file.ts', 'file.js', 'file.tsx', 'file.json']);
   });
 
-  it('should filter out .d.ts declaration files', async () => {
+  it('should not filter .d.ts declaration files', async () => {
     mockGlob.mockResolvedValue(['file.ts', 'types.d.ts', 'index.d.ts']);
 
     const result = await parseFilePatterns('*.ts');
 
-    expect(result).toEqual(['file.ts']);
+    expect(result).toEqual(['file.ts', 'types.d.ts', 'index.d.ts']);
   });
 
   it('should remove duplicate files', async () => {
@@ -194,13 +194,12 @@ describe('parseFilePatterns', () => {
     expect(result).toEqual(['file1.ts', 'file2.ts', 'file3.ts']);
   });
 
-  it('should log info when filtering reduces file count', async () => {
+  it('should return all matched files without filtering', async () => {
     mockGlob.mockResolvedValue(['file.ts', 'file.js', 'file.d.ts', 'file.json']);
 
     const result = await parseFilePatterns('*.*');
 
-    expect(logger.info).toHaveBeenCalledWith('Filtered to 1 TypeScript files (from 4 total)');
-    expect(result).toEqual(['file.ts']);
+    expect(result).toEqual(['file.ts', 'file.js', 'file.d.ts', 'file.json']);
   });
 
   it('should not log info when no filtering occurs', async () => {
@@ -289,15 +288,15 @@ describe('parseFilePatterns', () => {
 
     const result = await parseFilePatterns('invalid[,file.ts');
 
-    expect(result).toEqual(['file.ts']);
+    expect(result).toEqual(['invalid[', 'file.ts']);
   });
 
-  it('should handle glob pattern returning .d.ts files and filter them', async () => {
+  it('should handle glob pattern returning all matched files', async () => {
     mockGlob.mockResolvedValueOnce(['index.d.ts', 'types.d.ts', 'impl.ts']);
 
     const result = await parseFilePatterns('lib/**/*.ts');
 
-    expect(result).toEqual(['impl.ts']);
+    expect(result).toEqual(['index.d.ts', 'types.d.ts', 'impl.ts']);
   });
 
   it('should handle multiple glob patterns', async () => {
@@ -312,20 +311,20 @@ describe('parseFilePatterns', () => {
     expect(result).toEqual(['src/file1.ts', 'lib/file2.ts', 'test/file3.ts']);
   });
 
-  it('should filter out .tsx files as they are not .ts', async () => {
-    mockGlob.mockResolvedValueOnce(['utils.ts']).mockResolvedValueOnce(['component.tsx']);
+  it('should include all matched file extensions', async () => {
+    mockGlob.mockResolvedValue(['utils.ts', 'component.tsx']);
 
     const result = await parseFilePatterns('*.{ts,tsx}');
 
-    expect(result).toEqual(['utils.ts']);
+    expect(result).toEqual(['utils.ts', 'component.tsx']);
   });
 
-  it('should handle nested .d.ts in path correctly', async () => {
+  it('should handle all files in path correctly', async () => {
     mockGlob.mockResolvedValueOnce(['src/types.d.ts/file.ts', 'src/file.d.ts']);
 
     const result = await parseFilePatterns('other/**/*.ts');
 
-    expect(result).toEqual(['src/types.d.ts/file.ts']);
+    expect(result).toEqual(['src/types.d.ts/file.ts', 'src/file.d.ts']);
   });
 
   it('should maintain file order when no duplicates', async () => {

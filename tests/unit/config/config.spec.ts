@@ -96,19 +96,7 @@ describe('ConfigService', () => {
       expect(skipPatterns).toEqual(['node_modules/**', '.git/**', 'dist/**', 'build/**', 'coverage/**']);
     });
 
-    it('should set reactReview based on environment', () => {
-      mockEnvConfig.get = jest.fn((key: any) => {
-        if (key === 'reactReview') return true;
-        return undefined;
-      }) as any;
-      const instance = ConfigService.getInstance();
-      expect(instance.get('reactReview')).toBe(true);
-    });
 
-    it('should set multiPassReview to true by default', () => {
-      const instance = ConfigService.getInstance();
-      expect(instance.get('multiPassReview')).toBe(true);
-    });
 
     it('should set debug based on environment', () => {
       mockEnvConfig.get = jest.fn((key: any) => {
@@ -126,7 +114,6 @@ describe('ConfigService', () => {
         review: { maxConcurrentFiles: 10 },
         ai: { reviewStage: { provider: 'openai', model: 'gpt-4' } },
         performance: { maxFileSizeKB: 1000 },
-        filter: { minConfidence: 0.8 },
         fix: { maxConcurrentFixes: 5 },
       };
       mockExistsSync.mockReturnValue(true);
@@ -136,7 +123,6 @@ describe('ConfigService', () => {
       expect(instance.get('review')).toEqual(rcConfig.review);
 
       expect(instance.get('ai')).toEqual(rcConfig.ai);
-      expect(instance.get('filter')).toEqual(rcConfig.filter);
       expect(instance.get('fix')).toEqual(rcConfig.fix);
       expect(instance.get('maxFileSizeKB')).toBe(1000);
     });
@@ -191,17 +177,7 @@ describe('ConfigService', () => {
       expect(instance.get('verbose')).toBe(true);
     });
 
-    it('should override multiPassReview from environment', () => {
-      mockEnvConfig.getAll = jest.fn(() => ({ multiPassReview: false }));
-      const instance = ConfigService.getInstance();
-      expect(instance.get('multiPassReview')).toBe(false);
-    });
 
-    it('should override reactReview from environment', () => {
-      mockEnvConfig.getAll = jest.fn(() => ({ reactReview: true }));
-      const instance = ConfigService.getInstance();
-      expect(instance.get('reactReview')).toBe(true);
-    });
   });
 
   describe('get', () => {
@@ -286,26 +262,6 @@ describe('ConfigService', () => {
       mockReadFileSync.mockReturnValue(JSON.stringify({ performance: { maxFileSizeKB: 3000 } }));
       instance.reset();
       expect(instance.get('maxFileSizeKB')).toBe(3000);
-    });
-  });
-
-  describe('isReActReviewEnabled', () => {
-    it('should return true when reactReview is enabled', () => {
-      const instance = ConfigService.getInstance();
-      instance.set('reactReview', true);
-      expect(instance.isReActReviewEnabled()).toBe(true);
-    });
-
-    it('should return false when reactReview is disabled', () => {
-      const instance = ConfigService.getInstance();
-      instance.set('reactReview', false);
-      expect(instance.isReActReviewEnabled()).toBe(false);
-    });
-
-    it('should return false when reactReview is undefined', () => {
-      const instance = ConfigService.getInstance();
-      instance.set('reactReview', undefined);
-      expect(instance.isReActReviewEnabled()).toBe(false);
     });
   });
 
