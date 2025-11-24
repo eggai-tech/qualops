@@ -194,16 +194,22 @@ async function generateCodeOrFixSection(
   }
 }
 
+type Diff = { 
+  type: 'context' | 'removed' | 'added'; 
+  content: string; 
+  lineNumber?: number 
+};
+
 function generateDiff(
   original: string,
   suggested: string,
   startLineNumber = 1,
-): Array<{ type: 'context' | 'removed' | 'added'; content: string; lineNumber?: number }> {
+): Diff[] {
   const originalLines = original.split('\n');
   const suggestedLines = suggested.split('\n');
 
   if (originalLines.length === suggestedLines.length) {
-    const result = [];
+    const result: Diff[] = [];
     for (let i = 0; i < originalLines.length; i++) {
       const lineNum = startLineNumber + i;
       if (originalLines[i] !== suggestedLines[i]) {
@@ -217,7 +223,7 @@ function generateDiff(
   }
 
   const patches = diffLines(original, suggested, { ignoreWhitespace: false });
-  const result = [];
+  const result: Diff[] = [];
   let currentOriginalLine = startLineNumber;
 
   for (const patch of patches) {

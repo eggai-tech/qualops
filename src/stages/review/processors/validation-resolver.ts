@@ -91,7 +91,7 @@ export class ValidationResolver {
     return {
       enabled: job.validation?.enabled ?? this.globalConfig.validation?.enabled ?? true,
       minConfidence: job.validation?.minConfidence ?? this.globalConfig.validation?.minConfidence ?? 7,
-      prompt: job.validation?.prompt ?? this.globalConfig.validation?.prompt,
+      prompt: job.validation?.prompt ?? this.globalConfig.validation?.prompt ?? '',
     };
   }
 

@@ -42,7 +42,16 @@ export class Pattern {
     examples?: string[];
     metadata?: Record<string, unknown>;
   }) {
-    Object.assign(this, data);
+    this.name = data.name;
+    this.type = data.type;
+    this.cleanupRequirement = data.cleanupRequirement;
+    this.regex = data.regex;
+    this.evidence = data.evidence;
+    this.confidence = data.confidence;
+    this.framework = data.framework;
+    this.documentation = data.documentation;
+    this.examples = data.examples;
+    this.metadata = data.metadata;
   }
 
   get requiresCleanup(): boolean {

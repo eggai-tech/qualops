@@ -132,16 +132,16 @@ export class Session {
   }
 
   static fromJSON(data: Record<string, unknown>): Session {
-    const session = new Session(data.id, data.stages, data.metadata);
-    session.status = data.status;
-    session.currentStage = data.currentStage;
-    session.files = data.files || [];
+    const session = new Session(data.id as string, data.stages as SessionStage[], data.metadata as Record<string, unknown>);
+    session.status = data.status as SessionStatus;
+    session.currentStage = data.currentStage as SessionStage | undefined;
+    session.files = (data.files as string[]) || [];
     session.issues = Array.isArray(data.issues)
       ? data.issues.map((i) => Issue.fromJSON(i as Record<string, unknown>))
       : [];
-    session.fixes = data.fixes || [];
+    session.fixes = (data.fixes as unknown[]) || [];
     if (data.endTime) {
-      session.endTime = new Date(data.endTime);
+      session.endTime = new Date(data.endTime as string | number);
     }
     return session;
   }

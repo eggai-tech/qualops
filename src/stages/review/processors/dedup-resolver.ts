@@ -71,7 +71,7 @@ export class DeduplicationResolver {
   private resolveConfig(job: PipelineJob): Required<DeduplicationConfig> {
     return {
       enabled: job.deduplication?.enabled ?? this.globalConfig.deduplication?.enabled ?? true,
-      prompt: job.deduplication?.prompt ?? this.globalConfig.deduplication?.prompt,
+      prompt: job.deduplication?.prompt ?? this.globalConfig.deduplication?.prompt ?? '',
     };
   }
 

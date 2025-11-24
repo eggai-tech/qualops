@@ -154,13 +154,13 @@ function generateBatchStatistics(sessionsByBatch: Record<string, SessionData[]>)
     const issuesByKnowledgeSource: Record<string, number> = {};
 
     for (const session of sessions) {
-      for (const severity of Object.keys(issuesBySeverity)) {
+      for (const severity of Object.keys(issuesBySeverity) as Array<keyof typeof issuesBySeverity>) {
         issuesBySeverity[severity] += session.issues.bySeverity[severity] || 0;
       }
-      for (const type of Object.keys(issuesByType)) {
+      for (const type of Object.keys(issuesByType) as Array<keyof typeof issuesByType>) {
         issuesByType[type] += session.issues.byType[type] || 0;
       }
-      for (const effort of Object.keys(issuesByEffort)) {
+      for (const effort of Object.keys(issuesByEffort) as Array<keyof typeof issuesByEffort>) {
         issuesByEffort[effort] += session.issues.byEffort[effort] || 0;
       }
       for (const [source, count] of Object.entries(session.issues.byKnowledgeSource)) {
@@ -275,13 +275,13 @@ export async function generateIndexCommand(options: { reportRoot?: string; filte
   const overallIssuesByKnowledgeSource: Record<string, number> = {};
 
   for (const session of allSessions) {
-    for (const severity of Object.keys(overallIssuesBySeverity)) {
+    for (const severity of Object.keys(overallIssuesBySeverity) as Array<keyof typeof overallIssuesBySeverity>) {
       overallIssuesBySeverity[severity] += session.issues.bySeverity[severity] || 0;
     }
-    for (const type of Object.keys(overallIssuesByType)) {
+    for (const type of Object.keys(overallIssuesByType) as Array<keyof typeof overallIssuesByType>) {
       overallIssuesByType[type] += session.issues.byType[type] || 0;
     }
-    for (const effort of Object.keys(overallIssuesByEffort)) {
+    for (const effort of Object.keys(overallIssuesByEffort) as Array<keyof typeof overallIssuesByEffort>) {
       overallIssuesByEffort[effort] += session.issues.byEffort[effort] || 0;
     }
     for (const [source, count] of Object.entries(session.issues.byKnowledgeSource)) {

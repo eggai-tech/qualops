@@ -52,10 +52,12 @@ export function parseStageOptions(options: QualOpsOptions): ParsedStageOptions {
 /**
  * Validates that all provided stages are valid
  */
-export function validateStages(stages: string[]): void {
+export function validateStages(stages: string[]): Stage[] {
   const invalidStages = stages.filter((s) => !STAGES.includes(s as Stage));
 
   if (invalidStages.length > 0) {
     throw new Error(`Invalid stages: ${invalidStages.join(', ')}. Valid stages are: ${STAGES.join(', ')}`);
   }
+
+  return stages as Stage[];
 }

@@ -272,7 +272,7 @@ describe('changed-files', () => {
 
     it('should handle error with non-Error object', async () => {
       mockExecuteGitCommand.mockImplementation(() => {
-        throw { message: 'custom error' };
+        throw new Error('custom error');
       });
 
       const result = await getChangedFiles('main');
