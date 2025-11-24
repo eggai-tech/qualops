@@ -2,16 +2,33 @@
   "name": "qualops",
   "version": "0.14.0",
   "type": "module",
-  "description": "AI-powered code quality pipeline for automated reviews and fixes",
+  "description": "AI-powered code quality analysis with GitHub Actions integration - automated PR reviews, checks, and annotations",
   "keywords": [
     "code-quality",
     "ai",
-    "eslint",
     "code-review",
-    "automation"
+    "automation",
+    "github-action",
+    "github-actions",
+    "pr-review",
+    "pull-request",
+    "checks-api",
+    "claude-ai",
+    "anthropic",
+    "static-analysis",
+    "security",
+    "ci-cd"
   ],
-  "author": "",
+  "author": "EggAI Tech",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eggai-tech/qualops.git"
+  },
+  "homepage": "https://github.com/eggai-tech/qualops#readme",
+  "bugs": {
+    "url": "https://github.com/eggai-tech/qualops/issues"
+  },
   "main": "dist/index.js",
   "bin": {
     "qualops": "./dist/cli.js"
