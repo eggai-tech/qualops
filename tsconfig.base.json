@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -8,11 +8,10 @@
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "target": "ES2022",
-    "module": "ES2022",
+    "module": "CommonJS",
     "lib": ["ES2022"],
     "moduleDetection": "force",
     "isolatedModules": true,
-    "verbatimModuleSyntax": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],

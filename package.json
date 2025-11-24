@@ -1,7 +1,6 @@
 {
   "name": "qualops",
   "version": "0.14.0",
-  "type": "module",
   "description": "AI-powered code quality analysis with GitHub Actions integration - automated PR reviews, checks, and annotations",
   "keywords": [
     "code-quality",
