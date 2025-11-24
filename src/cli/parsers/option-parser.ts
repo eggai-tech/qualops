@@ -1,4 +1,5 @@
 export interface QualOpsOptions {
+  config?: string;
   base: string;
   head?: string;
   stages?: string;

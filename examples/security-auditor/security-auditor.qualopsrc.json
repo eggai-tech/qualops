@@ -1,0 +1,167 @@
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0.1
+    },
+    "fixStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "review": {
+    "minConfidence": 9,
+    "maxConcurrentFiles": 5,
+    "validation": {
+      "enabled": true,
+      "minConfidence": 9,
+      "prompt": "security-auditor/validation.md"
+    },
+    "deduplication": {
+      "enabled": true,
+      "prompt": "deduplication.md"
+    },
+    "pipeline": [
+      {
+        "name": "securityAudit",
+        "enabled": true,
+        "validation": {
+          "enabled": true,
+          "minConfidence": 9,
+          "prompt": "security-auditor/validation.md"
+        },
+        "passes": [
+          {
+            "name": "Token & Storage Security",
+            "enabled": true,
+            "prompt": "security-auditor/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "localStorage",
+                "sessionStorage",
+                "token",
+                "Token",
+                "TOKEN",
+                "getItem",
+                "setItem",
+                "JSON\\.parse",
+                "Storage"
+              ],
+              "filePatterns": ["**/*.ts", "**/*.js"],
+              "excludePatterns": ["**/*.spec.ts", "**/*.d.ts", "**/node_modules/**"]
+            }
+          },
+          {
+            "name": "XSS & Injection Vulnerabilities",
+            "enabled": true,
+            "prompt": "security-auditor/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "innerHTML",
+                "dangerouslySetInnerHTML",
+                "eval\\(",
+                "Function\\(",
+                "document\\.write",
+                "insertAdjacentHTML",
+                "outerHTML"
+              ],
+              "filePatterns": ["**/*.ts", "**/*.html", "**/*.js"],
+              "excludePatterns": ["**/*.spec.ts", "**/*.d.ts"]
+            }
+          },
+          {
+            "name": "Authentication & Session Security",
+            "enabled": true,
+            "prompt": "security-auditor/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "auth",
+                "login",
+                "logout",
+                "session",
+                "credential",
+                "password",
+                "authenticate",
+                "keycloak",
+                "jwt"
+              ],
+              "filePatterns": ["**/*.ts"],
+              "excludePatterns": ["**/*.spec.ts", "**/*.d.ts"]
+            }
+          },
+          {
+            "name": "API & Network Security",
+            "enabled": true,
+            "prompt": "security-auditor/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "http",
+                "https",
+                "HttpClient",
+                "apiUrl",
+                "baseUrl",
+                "\\.post\\(",
+                "\\.get\\(",
+                "\\.put\\(",
+                "\\.delete\\("
+              ],
+              "filePatterns": ["**/*.ts"],
+              "excludePatterns": ["**/*.spec.ts", "**/*.d.ts"]
+            }
+          },
+          {
+            "name": "Cryptography & Secrets",
+            "enabled": true,
+            "prompt": "security-auditor/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "crypto",
+                "encrypt",
+                "decrypt",
+                "hash",
+                "secret",
+                "SECRET",
+                "API_KEY",
+                "private.*key",
+                "bcrypt",
+                "pbkdf"
+              ],
+              "filePatterns": ["**/*.ts", "**/*.js"],
+              "excludePatterns": ["**/*.spec.ts", "**/*.d.ts"]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "fix": {
+    "enabled": false,
+    "prompt": "fix-system-message.md",
+    "severities": ["critical"],
+    "minConfidence": 9,
+    "maxConcurrentFixes": 10
+  },
+  "gitlab": {
+    "enabled": false,
+    "postComments": false,
+    "skipOnDraft": false,
+    "blockPipeline": true
+  },
+  "report": {
+    "includedSeverities": ["critical", "high"],
+    "enableRootCauseExtraction": false
+  }
+}

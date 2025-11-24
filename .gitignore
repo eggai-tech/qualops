@@ -1,6 +1,7 @@
 # Runtime and cache
 .qualops/
 reports/
+projects/
 
 # Build output
 dist/

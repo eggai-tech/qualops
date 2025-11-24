@@ -12,8 +12,8 @@ export async function processBatchForAnalysis(
 
   switch (mode) {
     case 'files':
-      filteredFiles = files.filter((file) => file.endsWith('.ts') && shouldProcessFile(file));
-      logger.info(`Analyzing ${filteredFiles.length} TypeScript files`);
+      filteredFiles = files.filter(shouldProcessFile);
+      logger.info(`Analyzing ${filteredFiles.length} files`);
       break;
 
     case 'projects':

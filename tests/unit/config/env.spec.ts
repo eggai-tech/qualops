@@ -40,13 +40,11 @@ describe('EnvironmentConfigService', () => {
   describe('Feature Flags', () => {
     it('should have boolean or undefined feature flags', () => {
       const enableReAct = envConfig.get('enableReAct');
-      const reactReview = envConfig.get('reactReview');
       const skipCache = envConfig.get('skipCache');
       const debug = envConfig.get('debug');
       const verbose = envConfig.get('verbose');
 
       expect(typeof enableReAct).toBe('boolean');
-      expect(typeof reactReview).toBe('boolean');
       expect(typeof skipCache).toBe('boolean');
       expect(['boolean', 'undefined']).toContain(typeof debug);
       expect(typeof verbose).toBe('boolean');

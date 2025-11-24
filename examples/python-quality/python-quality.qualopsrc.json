@@ -1,0 +1,217 @@
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0.1
+    },
+    "fixStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "review": {
+    "minConfidence": 7,
+    "maxConcurrentFiles": 3,
+    "validation": {
+      "enabled": true,
+      "minConfidence": 7,
+      "prompt": "python-quality/validation.md"
+    },
+    "deduplication": {
+      "enabled": true,
+      "prompt": "deduplication.md"
+    },
+    "pipeline": [
+      {
+        "name": "pythonQualityReview",
+        "enabled": true,
+        "validation": {
+          "enabled": true,
+          "minConfidence": 7,
+          "prompt": "python-quality/validation.md"
+        },
+        "passes": [
+          {
+            "name": "Error Handling & Exceptions",
+            "enabled": true,
+            "prompt": "python-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "except",
+                "Exception",
+                "try:",
+                "raise",
+                "finally:",
+                "BaseException",
+                "Error",
+                "logger\\.error",
+                "logger\\.exception"
+              ],
+              "filePatterns": ["**/*.py"],
+              "excludePatterns": ["**/test_*.py", "**/*_test.py", "**/conftest.py"]
+            }
+          },
+          {
+            "name": "Async/Await Patterns",
+            "enabled": true,
+            "prompt": "python-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "async def",
+                "await ",
+                "asyncio",
+                "create_task",
+                "gather\\(",
+                "run_in_executor",
+                "async with",
+                "async for"
+              ],
+              "filePatterns": ["**/*.py"],
+              "excludePatterns": ["**/test_*.py", "**/*_test.py"]
+            }
+          },
+          {
+            "name": "FastAPI & HTTP Endpoints",
+            "enabled": true,
+            "prompt": "python-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "@app\\.",
+                "@router\\.",
+                "FastAPI\\(",
+                "APIRouter\\(",
+                "HTTPException",
+                "status_code",
+                "Response",
+                "Request",
+                "Query\\(",
+                "Path\\(",
+                "Body\\(",
+                "Depends\\("
+              ],
+              "filePatterns": ["**/api/**/*.py", "**/routes/**/*.py", "**/*_router.py", "**/main.py"],
+              "excludePatterns": ["**/test_*.py"]
+            }
+          },
+          {
+            "name": "Type Hints & Validation",
+            "enabled": true,
+            "prompt": "python-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "def ",
+                "-> ",
+                ": ",
+                "BaseModel",
+                "Field\\(",
+                "validator",
+                "TypeVar",
+                "Generic",
+                "Protocol",
+                "Optional",
+                "Union"
+              ],
+              "filePatterns": ["**/*.py"],
+              "excludePatterns": ["**/test_*.py", "**/__init__.py"]
+            }
+          },
+          {
+            "name": "Logging & Debugging",
+            "enabled": true,
+            "prompt": "python-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "logger\\.",
+                "logging\\.",
+                "print\\(",
+                "pprint",
+                "debug",
+                "getLogger",
+                "basicConfig",
+                "StreamHandler",
+                "FileHandler"
+              ],
+              "filePatterns": ["**/*.py"],
+              "excludePatterns": ["**/test_*.py"]
+            }
+          },
+          {
+            "name": "Database & Persistence",
+            "enabled": true,
+            "prompt": "python-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "execute\\(",
+                "executemany\\(",
+                "query\\(",
+                "session\\.",
+                "SELECT",
+                "INSERT",
+                "UPDATE",
+                "DELETE",
+                "WHERE",
+                "connection",
+                "cursor",
+                "commit\\(",
+                "rollback\\("
+              ],
+              "filePatterns": ["**/repository/**/*.py", "**/persistence/**/*.py", "**/database/**/*.py", "**/models/**/*.py"],
+              "excludePatterns": ["**/test_*.py", "**/migrations/**"]
+            }
+          },
+          {
+            "name": "Configuration & Settings",
+            "enabled": true,
+            "prompt": "python-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "os\\.environ",
+                "getenv",
+                "settings",
+                "config",
+                "BaseSettings",
+                "env_file",
+                "SECRET",
+                "API_KEY",
+                "PASSWORD",
+                "TOKEN"
+              ],
+              "filePatterns": ["**/config/**/*.py", "**/settings/**/*.py", "**/*config.py", "**/*settings.py"],
+              "excludePatterns": ["**/test_*.py"]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "fix": {
+    "enabled": true,
+    "prompt": "fix-system-message.md",
+    "severities": ["high", "medium"],
+    "minConfidence": 8,
+    "maxConcurrentFixes": 5
+  },
+  "gitlab": {
+    "enabled": false,
+    "postComments": false,
+    "skipOnDraft": false,
+    "blockPipeline": false
+  },
+  "report": {
+    "includedSeverities": ["critical", "high", "medium"],
+    "enableRootCauseExtraction": false
+  }
+}

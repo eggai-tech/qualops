@@ -31,14 +31,14 @@ export async function reviewProjects(): Promise<ReviewMetadata> {
   }
 
   const extractLog = await loadExtractLog();
-  const tsFiles = analysisData.filePaths.filter((file) => file.endsWith('.ts') && !file.endsWith('.spec.ts'));
+  const filesToReview = analysisData.filePaths;
 
-  logger.info(`Found ${tsFiles.length} TypeScript files to review`);
+  logger.info(`Found ${filesToReview.length} files to review`);
 
   logger.info('Preparing files for review...');
   const files: FileInfo[] = [];
 
-  for (const filePath of tsFiles) {
+  for (const filePath of filesToReview) {
     try {
       const content = readFileSync(filePath, 'utf-8');
       const frameworkContext = detectFrameworkContext(filePath, content);
@@ -109,7 +109,7 @@ export async function reviewProjects(): Promise<ReviewMetadata> {
   );
 
   logger.info('\n[RESULTS] Review Summary:');
-  logger.info(`  - Files reviewed: ${tsFiles.length}`);
+  logger.info(`  - Files reviewed: ${filesToReview.length}`);
   logger.info(`  - Total issues: ${summary.totalIssues}`);
   logger.info(`  - Critical: ${summary.critical}`);
   logger.info(`  - High: ${summary.high}`);
@@ -118,7 +118,7 @@ export async function reviewProjects(): Promise<ReviewMetadata> {
 
   const metadata: ReviewMetadata = {
     timestamp: new Date().toISOString(),
-    filesReviewed: tsFiles.length,
+    filesReviewed: filesToReview.length,
     projectsReviewed: 0,
     issues: sortedIssues,
     summary,

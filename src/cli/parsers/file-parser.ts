@@ -1,9 +1,11 @@
 import { existsSync } from 'node:fs';
 
-import { glob } from 'glob';
+import globPkg from 'glob';
 
 import { ConfigService } from '../../config/config';
 import { logger } from '../../shared/utils/logger';
+
+const { glob } = globPkg;
 
 export async function parseFilePatterns(fileOption: string): Promise<string[]> {
   if (!fileOption || fileOption.trim() === '') {
@@ -45,12 +47,5 @@ export async function parseFilePatterns(fileOption: string): Promise<string[]> {
     }
   }
 
-  const uniqueFiles = [...new Set(allFiles)];
-  const tsFiles = uniqueFiles.filter((file) => file.endsWith('.ts') && !file.endsWith('.d.ts'));
-
-  if (uniqueFiles.length !== tsFiles.length) {
-    logger.info(`Filtered to ${tsFiles.length} TypeScript files (from ${uniqueFiles.length} total)`);
-  }
-
-  return tsFiles;
+  return [...new Set(allFiles)];
 }
