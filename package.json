@@ -27,7 +27,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
     "build:check": "npm run build -- --noEmit",
-    "dev": "node --env-file=.env --experimental-strip-types src/cli.ts",
+    "dev": "tsx --env-file=.env src/cli.ts",
     "test": "jest",
     "test:integration": "jest --config jest.integration.config.ts",
     "lint": "eslint src tests",
@@ -63,6 +63,7 @@
     "prettier": "3.6.2",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.47.0"
   },

@@ -1,9 +1,11 @@
 import { existsSync } from 'node:fs';
 
-import { glob } from 'glob';
+import globPkg from 'glob';
 
 import { ConfigService } from '../../config/config';
 import { logger } from '../../shared/utils/logger';
+
+const { glob } = globPkg;
 
 export async function parseFilePatterns(fileOption: string): Promise<string[]> {
   if (!fileOption || fileOption.trim() === '') {

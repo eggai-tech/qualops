@@ -1,4 +1,4 @@
-#!/usr/bin/env node --experimental-strip-types
+#!/usr/bin/env node
 import { Command } from 'commander';
 
 import { executeAllStages } from './cli/commands/all-command';
