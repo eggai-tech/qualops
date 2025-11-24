@@ -1,0 +1,126 @@
+name: 'QualOps Code Quality Analysis'
+description: 'AI-powered code quality analysis with PR comments and GitHub Checks integration'
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+
+inputs:
+  anthropic-api-key:
+    description: 'Anthropic API key for Claude AI'
+    required: true
+  github-token:
+    description: 'GitHub token for API access'
+    required: false
+    default: ${{ github.token }}
+  config-path:
+    description: 'Path to .qualopsrc.json config file'
+    required: false
+    default: '.qualopsrc.json'
+  stages:
+    description: 'Comma-separated list of stages to run (analyze,review,fix,report,judge)'
+    required: false
+    default: 'analyze,review,judge,report'
+  base-ref:
+    description: 'Base branch or commit for comparison'
+    required: false
+    default: ''
+  files:
+    description: 'Specific files or patterns to analyze (comma-separated)'
+    required: false
+    default: ''
+
+outputs:
+  total-issues:
+    description: 'Total number of issues found'
+  critical-issues:
+    description: 'Number of critical severity issues'
+  high-issues:
+    description: 'Number of high severity issues'
+  quality-passed:
+    description: 'Whether quality thresholds were met (true/false)'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: '${{ github.action_path }}/package-lock.json'
+
+    - name: Install QualOps
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}"
+        npm ci --production
+
+    - name: Run QualOps Analysis
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        cd "$GITHUB_WORKSPACE"
+
+        ARGS="--config=${{ inputs.config-path }}"
+
+        if [ -n "${{ inputs.base-ref }}" ]; then
+          ARGS="$ARGS --base=${{ inputs.base-ref }}"
+        elif [ -n "${{ github.base_ref }}" ]; then
+          ARGS="$ARGS --base=${{ github.base_ref }}"
+        fi
+
+        if [ -n "${{ github.sha }}" ]; then
+          ARGS="$ARGS --head=${{ github.sha }}"
+        fi
+
+        if [ -n "${{ inputs.files }}" ]; then
+          ARGS="$ARGS --files=${{ inputs.files }}"
+        fi
+
+        if [ -n "${{ inputs.stages }}" ]; then
+          ARGS="$ARGS --stages=${{ inputs.stages }}"
+        fi
+
+        node "${{ github.action_path }}/dist/cli.js" $ARGS
+
+    - name: Post GitHub Integration
+      if: always()
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: |
+        cd "$GITHUB_WORKSPACE"
+        node "${{ github.action_path }}/dist/github/run-integration.js"
+
+    - name: Upload QualOps Reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: qualops-reports
+        path: reports/
+        retention-days: 30
+
+    - name: Set Outputs
+      if: always()
+      shell: bash
+      run: |
+        cd "$GITHUB_WORKSPACE"
+
+        if [ -f "reports/sessions/*/overall-report.json" ]; then
+          REPORT=$(ls -t reports/sessions/*/overall-report.json | head -1)
+          TOTAL=$(jq -r '.totalIssues // 0' "$REPORT")
+          CRITICAL=$(jq -r '.issuesBySeverity.critical // 0' "$REPORT")
+          HIGH=$(jq -r '.issuesBySeverity.high // 0' "$REPORT")
+
+          echo "total-issues=$TOTAL" >> $GITHUB_OUTPUT
+          echo "critical-issues=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high-issues=$HIGH" >> $GITHUB_OUTPUT
+        fi
+
+        if [ -f "reports/sessions/*/judge-decision.json" ]; then
+          JUDGE=$(ls -t reports/sessions/*/judge-decision.json | head -1)
+          PASSED=$(jq -r '.passed // false' "$JUDGE")
+          echo "quality-passed=$PASSED" >> $GITHUB_OUTPUT
+        fi
