@@ -52,7 +52,20 @@ export class Issue {
     ruleId?: string;
     metadata?: Record<string, unknown>;
   }) {
-    Object.assign(this, data);
+    this.file = data.file;
+    this.line = data.line;
+    this.message = data.message;
+    this.severity = data.severity;
+    this.category = data.category;
+    this.column = data.column;
+    this.endLine = data.endLine;
+    this.endColumn = data.endColumn;
+    this.suggestion = data.suggestion;
+    this.pattern = data.pattern;
+    this.evidence = data.evidence;
+    this.confidence = data.confidence;
+    this.ruleId = data.ruleId;
+    this.metadata = data.metadata;
   }
 
   get id(): string {

@@ -119,34 +119,6 @@ export class AnthropicProvider implements AIProvider {
     this.tokenStats.estimatedCost += regularInputCost + cacheWriteCost + cacheReadCost + outputCost;
   }
 
-  private logTokenUsage(): void {
-    const stats = this.tokenStats;
-    const runtime = (Date.now() - stats.startTime.getTime()) / 1000 / 60;
-
-    if (envConfig.isDevelopment() || envConfig.get('nodeEnv') === 'test') {
-      logger.info(`\n[TOKEN USAGE] AI Provider Statistics:`);
-      logger.info(`   Model: ${this.stageConfig.model}`);
-      logger.info(`   Invocations: ${stats.invocationCount}`);
-      logger.info(`   Input tokens: ${stats.totalInputTokens.toLocaleString()}`);
-      logger.info(`   Output tokens: ${stats.totalOutputTokens.toLocaleString()}`);
-      logger.info(`   Total tokens: ${stats.totalTokens.toLocaleString()}`);
-
-      if (this.cacheReadTokens > 0 || this.cacheCreationTokens > 0) {
-        const cacheHitRate = ((this.cacheHits / stats.invocationCount) * 100).toFixed(1);
-        const cacheReadSavings = (this.cacheReadTokens / 1_000_000) * (this.stageConfig.inputPerMillion * 0.9);
-        logger.info(`   Cache creation tokens: ${this.cacheCreationTokens.toLocaleString()}`);
-        logger.info(`   Cache read tokens: ${this.cacheReadTokens.toLocaleString()} (${cacheHitRate}% cache hit rate)`);
-        logger.info(`   Cache savings: $${cacheReadSavings.toFixed(4)} (90% discount on reads)`);
-      }
-
-      logger.info(`   Estimated cost: $${stats.estimatedCost.toFixed(4)}`);
-      logger.info(`   Runtime: ${runtime.toFixed(1)} minutes`);
-      logger.info(
-        `   Avg tokens/call: ${Math.round(stats.invocationCount > 0 ? stats.totalTokens / stats.invocationCount : 0)}`,
-      );
-    }
-  }
-
   async complete(options: AICompletionOptions): Promise<AIResponse> {
     await this.initialize();
 
@@ -158,12 +130,16 @@ export class AnthropicProvider implements AIProvider {
       systemPrompt,
     } = options;
 
+    if (!this.client) {
+      throw new Error('Anthropic client not initialized');
+    }
+
     try {
       const systemMessages = messages.filter((m) => m.role === 'system');
       const nonSystemMessages = messages.filter((m) => m.role !== 'system');
 
       const cacheTTL = ConfigService.getInstance().get('cacheTTL');
-      const use1HourCache = cacheTTL && cacheTTL >= 3600000;
+      const use1HourCache = Boolean(cacheTTL && cacheTTL >= 3600000);
 
       const systemContent = systemPrompt
         ? [
@@ -180,20 +156,21 @@ export class AnthropicProvider implements AIProvider {
               type: 'text' as const,
               text: m.content,
 
-              ...('cache_control' in m && m.cache_control && { cache_control: m.cache_control }),
+              ...('cache_control' in m && m.cache_control ? { cache_control: m.cache_control } : {}),
             }))
           : undefined;
 
-      const response = (await this.client.messages.create({
+      const response = await this.client.messages.create({
         model,
         max_tokens: maxTokens,
         temperature,
         system: systemContent,
         messages: nonSystemMessages.map((m) => ({
-          role: m.role,
+          role: m.role === 'user' ? 'user' : 'assistant',
           content: m.content,
         })),
-      } as Anthropic.Messages.MessageCreateParams)) as Anthropic.Messages.Message;
+        stream: false,
+      })
 
       const firstBlock = response.content[0];
       const content = firstBlock && 'text' in firstBlock ? firstBlock.text : '';

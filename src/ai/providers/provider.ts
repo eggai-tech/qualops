@@ -42,7 +42,7 @@ export interface AIProvider {
 
   getTemperature(): number;
 
-  getTokenStats?(): TokenStats;
+  getTokenStats(): TokenStats;
 
   resetTokenStats?(): void;
 }

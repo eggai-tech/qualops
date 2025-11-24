@@ -40,7 +40,7 @@ export async function getFileDiff(filePath: string, base = 'main', head = 'HEAD'
       }
     }
   } catch (error) {
-    logger.warn(`Could not get diff for ${filePath}:`, error.message);
+    logger.warn(`Could not get diff for ${filePath}:`, error instanceof Error ? error.message : String(error));
   }
 
   return diff;
@@ -79,7 +79,7 @@ export async function getChangedFiles(base = 'main', head = 'HEAD'): Promise<str
     logger.git(`Found ${files.length} changed TypeScript files`);
     return files;
   } catch (error) {
-    logger.error('Error getting changed files:', error.message);
+    logger.error('Error getting changed files:', error instanceof Error ? error.message : String(error));
     return [];
   }
 }
