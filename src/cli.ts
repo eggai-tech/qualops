@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 
-import { executeAllStages } from './cli/commands/all-command';
-import { executeDownloadDocsStage } from './cli/commands/download-docs-command';
-import { generateIndexCommand } from './cli/commands/generate-index-command';
-import { withErrorHandling } from './cli/utils/error-handler';
-import { formatHelpText } from './cli/utils/help-formatter';
+import { executeAllStages } from './cli/commands/all-command.js';
+import { executeDownloadDocsStage } from './cli/commands/download-docs-command.js';
+import { generateIndexCommand } from './cli/commands/generate-index-command.js';
+import { withErrorHandling } from './cli/utils/error-handler.js';
+import { formatHelpText } from './cli/utils/help-formatter.js';
 
 const runQualOps = withErrorHandling(executeAllStages, 'qualops');
 

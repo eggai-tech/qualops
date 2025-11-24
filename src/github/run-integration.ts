@@ -1,6 +1,6 @@
 #!/usr/bin/env node --experimental-strip-types
 
-import { GitHubIntegration } from './github-integration';
+import { GitHubIntegration } from './github-integration.js';
 
 (async () => {
   try {
