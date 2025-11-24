@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
 import { GitHubAPIClient } from './github-api-client';
+import { GitHubChecksService } from './github-checks';
 
 const SEVERITY_EMOJI = {
   critical: '🔴',
@@ -83,12 +84,14 @@ interface PullRequestEvent {
 export class GitHubIntegration {
   private env: GitHubEnv;
   private api: GitHubAPIClient;
+  private checksService: GitHubChecksService;
   private config: GitHubConfig;
   private inlineCommentSeverities: string[];
 
   constructor() {
     this.env = process.env as GitHubEnv;
     this.api = new GitHubAPIClient();
+    this.checksService = new GitHubChecksService(this.api);
 
     const { github, includedSeverities } = this.loadConfig();
     this.config = github;
@@ -396,6 +399,17 @@ export class GitHubIntegration {
         console.log('Successfully posted PR comment');
       } catch (error) {
         console.error('Failed to post PR comment:', error);
+      }
+    }
+
+    const headSha = this.env.GITHUB_SHA;
+    if (headSha) {
+      try {
+        const maxAnnotations = this.config.maxInlineComments || 50;
+        await this.checksService.createCheckRun(headSha, results.summary, results.issues, maxAnnotations);
+        console.log('Successfully created GitHub check run');
+      } catch (error) {
+        console.error('Failed to create GitHub check run:', error);
       }
     }
 
