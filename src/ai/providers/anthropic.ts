@@ -169,8 +169,7 @@ export class AnthropicProvider implements AIProvider {
           role: m.role === 'user' ? 'user' : 'assistant',
           content: m.content,
         })),
-        stream: false,
-      })
+      });
 
       const firstBlock = response.content[0];
       const content = firstBlock && 'text' in firstBlock ? firstBlock.text : '';
