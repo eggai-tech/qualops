@@ -2,6 +2,7 @@ import { join } from 'node:path';
 
 import { executeAnalyzeStage } from './analyze-command';
 import { executeFixStage } from './fix-command';
+import { ConfigService } from '../../config/config';
 import { getCurrentSessionPaths, getTotalTokenStats } from '../../shared/runtime/session-context';
 import { ensureDirectory, writeMetadataFile } from '../../shared/utils/file-utils';
 import { logger } from '../../shared/utils/logger';
@@ -12,7 +13,6 @@ import { mergeConfiguration } from '../parsers/config-merger';
 import type { QualOpsOptions } from '../parsers/option-parser';
 import { handleStageError } from '../utils/error-handler';
 import { ProgressReporter } from '../utils/progress-reporter';
-import { ConfigService } from '../../config/config';
 
 export async function executeAllStages(options: QualOpsOptions): Promise<void> {
   ConfigService.setConfigPath(options.config ?? '.qualopsrc.json');

@@ -147,7 +147,7 @@ Do NOT report issues in unchanged code unless they are directly related to the c
         estimatedEffort: issue.effort || 'medium',
         tags: this.generateTags(issue, filePath),
       }));
-    } catch (error) {
+    } catch {
       logger.warn(`[FileReviewer] No valid JSON found in response for ${filePath}`);
       return [];
     }
