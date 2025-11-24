@@ -17,34 +17,32 @@ interface Message {
 const JSON_RESPONSE_SPEC = `
 
 <response_format>
-Return issues as a JSON array with this schema:
+Return VALID JSON ONLY - a single JSON array. Do not include markdown code fences or any text before/after the JSON.
 
+CRITICAL: All strings must use proper JSON escaping:
+- Newlines: \\n (not actual line breaks)
+- Quotes: \\"
+- Backslashes: \\\\
+- Tabs: \\t
+
+Schema:
 [
   {
     "type": "security|performance|bug|maintainability",
     "severity": "critical|high|medium|low",
-    "description": "Brief description of the ACTUAL issue found in the code",
+    "description": "Brief description of issue",
     "location": "line:42",
-    "reasoning": "Why this SPECIFIC CODE is problematic (reference actual code patterns)",
-    "context": "EXACT code snippet from the file (must match line numbers exactly)",
-    "suggestion": "Concrete fix based on the actual code structure",
+    "reasoning": "Why this specific code is problematic",
+    "context": "Code snippet with proper JSON escaping - use \\n for newlines",
+    "suggestion": "Concrete fix",
     "confidence": 8,
-    "impact": "What happens if exploited? What NEW capability does attacker gain?",
-    "cwe": "CWE-79 (for security issues only, otherwise omit)",
-    "threat_model": "What access does attacker need? Do they already have it?"
+    "impact": "Attack impact",
+    "cwe": "CWE-79",
+    "threat_model": "Required attacker access"
   }
 ]
 
-Field Requirements:
-- "description": Brief summary of the ACTUAL issue found
-- "location": Exact line number(s) where issue exists (e.g., "line:42" or "lines:42-45")
-- "reasoning": Explain why THIS SPECIFIC CODE is problematic, not theoretical concerns
-- "context": Copy the EXACT problematic code from the file (2-5 lines showing the issue)
-- "suggestion": Concrete fix applicable to this specific code
-- "confidence": Numerical confidence score (1-10) based on certainty and severity guidelines
-- "impact": What happens if this is exploited? What NEW capability beyond current access?
-- "cwe": CWE identifier for security issues (e.g., "CWE-79", "CWE-89") - security issues ONLY
-- "threat_model": Describe required attacker access and whether they already have it
+If no issues found, return: []
 </response_format>
 `;
 
@@ -150,7 +148,7 @@ Do NOT report issues in unchanged code unless they are directly related to the c
         tags: this.generateTags(issue, filePath),
       }));
     } catch (error) {
-      logger.error(`[FileReviewer] Failed to parse issues for ${filePath}:`, error);
+      logger.warn(`[FileReviewer] No valid JSON found in response for ${filePath}`);
       return [];
     }
   }
