@@ -1,0 +1,1342 @@
+# QualOps Custom Pipeline Creation Guide
+# For LLM Agents assisting users in creating specialized review configurations
+
+## PURPOSE
+This guide enables LLM agents to help users create custom QualOps review pipelines for specific purposes:
+- Security-focused reviews
+- Performance audits
+- Architecture validation
+- Framework-specific checks
+- Team-specific coding standards
+- Migration verification
+
+## OVERVIEW OF QUALOPS CONFIGURATION SYSTEM
+
+### Configuration Hierarchy
+1. **Main Config**: `.qualopsrc.json` (monorepo root) - Default configuration
+2. **Custom Configs**: `tools/qualops/config/<name>.qualopsrc.json` - Specialized configurations
+3. **Prompts**: `tools/qualops/config/prompts/<name>/` - Custom prompt files
+
+### Config Inheritance Model
+Custom configs inherit from main `.qualopsrc.json`:
+- Unspecified fields use main config defaults
+- Specified fields override main config
+- Deep merge for nested objects (ai, review, fix, etc.)
+
+### Usage
+```bash
+# Default config
+npm run qualops
+
+# Custom config
+npm run qualops -- --config tools/qualops/config/security-reviewer.qualopsrc.json
+```
+
+## CRITICAL WARNINGS - COMMON MISTAKES
+
+### ⚠️ MISTAKE 1: Missing "ai" Section
+**Problem**: Custom configs do NOT inherit the "ai" section from main config.
+**Error**: "AI configuration for stage 'review' not found in .qualopsrc.json"
+**Solution**: ALWAYS include complete "ai" section with reviewStage, fixStage, judgeStage configs.
+
+```json
+// ❌ WRONG - Will fail
+{
+  "review": { ... }  // Missing "ai" section
+}
+
+// ✅ CORRECT - Always include
+{
+  "ai": {
+    "reviewStage": { "provider": "anthropic", "model": "...", ... },
+    "fixStage": { ... },
+    "judgeStage": { ... }
+  },
+  "review": { ... }
+}
+```
+
+### ⚠️ MISTAKE 2: Wrong Prompt Paths
+**Problem**: Prompt paths should be relative to `prompts/` directory, NOT include "prompts/" prefix.
+**Error**: "Failed to load prompt: prompts/prompts/security-auditor/validation.md"
+**Solution**: Use `"<name>/file.md"` format, not `"prompts/<name>/file.md"`
+
+```json
+// ❌ WRONG - Duplicates "prompts/" in path
+{
+  "validation": {
+    "prompt": "prompts/security-auditor/validation.md"  // Will look for prompts/prompts/...
+  }
+}
+
+// ✅ CORRECT - Relative to prompts/ directory
+{
+  "validation": {
+    "prompt": "security-auditor/validation.md"  // System adds prompts/ prefix
+  }
+}
+```
+
+**Path Resolution:**
+- Standard prompts: Just filename (e.g., `"validation.md"` → `prompts/validation.md`)
+- Custom prompts: Subdirectory + filename (e.g., `"security-auditor/validation.md"` → `prompts/security-auditor/validation.md`)
+
+### ⚠️ MISTAKE 3: Response Format in Custom Prompts
+**Problem**: Including `<response_format>` or OUTPUT sections in custom prompts causes parsing failures.
+**Error**: "No JSON array found in AI response"
+**Solution**: NEVER include response format. System auto-appends it.
+
+```markdown
+<!-- ❌ WRONG - Will break validation -->
+## OUTPUT
+
+Return validation results as:
+```json
+{ "action": "keep", "confidence": 9 }
+```
+
+<!-- ✅ CORRECT - Let system handle response format -->
+## CONFIDENCE ADJUSTMENT
+
+Raise confidence if: [criteria]
+Lower confidence if: [criteria]
+```
+
+**Apply to:**
+- Review prompts: NO `<response_format>` section
+- Validation prompts: NO OUTPUT or response format
+- Deduplication prompts: NO response format
+- Fix prompts: NO response format
+
+The system automatically appends the correct response specification for each stage.
+
+### ⚠️ MISTAKE 4: Missing Taxonomy with Root Cause Extraction
+**Problem**: Enabling root cause extraction without defining taxonomy array.
+**Error**: "Root cause taxonomy not configured. Please add 'report.taxonomy' array to .qualopsrc.json"
+**Solution**: Define taxonomy array in config if `enableRootCauseExtraction: true`
+
+```json
+// ❌ WRONG - Extraction enabled but no taxonomy
+{
+  "report": {
+    "enableRootCauseExtraction": true
+    // Missing taxonomy!
+  }
+}
+
+// ✅ CORRECT - Extraction disabled (no taxonomy needed)
+{
+  "report": {
+    "enableRootCauseExtraction": false
+  }
+}
+
+// ✅ CORRECT - Extraction enabled with taxonomy
+{
+  "report": {
+    "enableRootCauseExtraction": true,
+    "taxonomy": [
+      { "key": "security_issues", "label": "Security", ... }
+    ]
+  }
+}
+```
+
+**Inheritance:**
+- If custom config omits `report.taxonomy`, inherits from main config
+- If main config also missing, extraction will fail
+- Always safer to explicitly define taxonomy in custom configs
+
+## INTERACTIVE SETUP PROCESS
+
+When a user asks to create a custom QualOps pipeline, follow these steps:
+
+### Step 1: Gather Requirements
+
+Ask the user these questions:
+
+**1.1 Initiative Name**
+```
+Q: What should we name this review pipeline?
+   Examples: security-reviewer, performance-audit, migration-validator
+A: [user provides name] → Use for: <name>.qualopsrc.json
+```
+
+**1.2 Review Scope**
+```
+Q: What is the primary focus of this review?
+   Options:
+   - Security vulnerabilities
+   - Performance issues
+   - Architecture patterns
+   - Code quality
+   - Framework-specific patterns (Angular, React, Node.js)
+   - Migration validation (e.g., AngularJS to Angular)
+   - Custom team standards
+A: [user describes scope]
+```
+
+**1.3 Severity Focus**
+```
+Q: Which severity levels should this review focus on?
+   Options:
+   - Critical only (most strict)
+   - Critical + High (recommended for security)
+   - All levels (comprehensive)
+A: [user selects] → Use for: review.minConfidence, report.includedSeverities
+```
+
+**1.4 Fix Stage**
+```
+Q: Should the fix stage be enabled to auto-generate fixes?
+   - Yes: Generates code fixes for found issues
+   - No: Review-only mode (recommended for audits)
+A: [yes/no] → Use for: fix.enabled
+
+If YES, ask:
+Q: Which severities should trigger fix generation?
+   Options:
+   - Critical only
+   - Critical + High
+   - Custom list
+A: [user selects] → Use for: fix.severities
+
+Q: Minimum confidence for fix generation? (1-10)
+   Recommended: 8+ for production code
+A: [number] → Use for: fix.minConfidence
+```
+
+**1.5 Validation & Deduplication**
+```
+Q: Enable strict validation to reduce false positives?
+   - Yes: Uses AI to validate issues (slower, more accurate)
+   - No: All issues reported (faster, may have false positives)
+A: [yes/no] → Use for: review.validation.enabled
+
+If YES, ask:
+Q: Minimum confidence for validated issues? (1-10)
+   Recommended: 8+ for strict validation
+A: [number] → Use for: review.validation.minConfidence
+
+Q: Enable deduplication to remove duplicate issues?
+   - Yes: Uses AI to deduplicate (recommended)
+   - No: May report same issue multiple times
+A: [yes/no] → Use for: review.deduplication.enabled
+```
+
+**1.6 Documentation Context**
+```
+Q: Does this review need framework/library documentation?
+   Options:
+   - Yes, use existing docs (Angular, NgRx, RxJS, ADR)
+   - Yes, I'll provide custom documentation
+   - No, use only the review principles
+A: [user selects]
+
+If "use existing docs":
+Q: Which documentation contexts?
+   Available: adr-context, angular, ngrx, rxjs
+A: [user selects] → Use for: review.pipeline[].passes[].docs
+
+If "custom documentation":
+Q: Please provide:
+   1. Documentation topic name (e.g., "company-standards")
+   2. Documentation content or file path
+A: [user provides] → Create in: .qualops/unified-docs/<topic>.md
+```
+
+**1.7 File Patterns**
+```
+Q: Which files should be reviewed?
+   Common patterns:
+   - All TypeScript: ["**/*.ts"]
+   - Source only: ["src/**/*.ts"]
+   - Specific modules: ["src/modules/security/**/*.ts"]
+   - All JS/TS: ["**/*.ts", "**/*.js"]
+A: [user provides] → Use for: review.pipeline[].passes[].filters.filePatterns
+
+Q: Which files should be excluded?
+   Common exclusions: ["**/*.spec.ts", "**/*.d.ts", "**/node_modules/**"]
+A: [user provides] → Use for: review.pipeline[].passes[].filters.excludePatterns
+```
+
+**1.8 Detection Triggers (Optional)**
+```
+Q: Should this review only trigger for files containing specific patterns?
+   Examples:
+   - Security: ["crypto", "password", "jwt", "session"]
+   - Performance: ["for (", "while (", "setTimeout", "setInterval"]
+   - Framework: ["@Component\\(", "@Injectable\\("]
+   - None: Review all matched files
+A: [user provides or skips] → Use for: review.pipeline[].passes[].filters.detectionTriggers
+```
+
+**1.9 Root Cause Extraction**
+```
+Q: Should the report include AI-powered root cause classification?
+   - Yes: Organizes issues by root cause, uses AI to classify patterns (default)
+   - No: Simple flat issue list without categorization
+A: [yes/no] → Use for: report.enableRootCauseExtraction
+
+If YES, ask:
+Q: Do you need a custom taxonomy for categorizing issues?
+   Options:
+   - Use default: Standard categories (memory leaks, race conditions, security, etc.)
+   - Custom taxonomy: Specialized categories for your review focus
+A: [default/custom]
+
+If CUSTOM, ask:
+Q: Define your taxonomy categories. Each category needs:
+   - key: Unique identifier (e.g., "security_token_handling")
+   - label: Display name (e.g., "Security - Token Handling")
+   - description: What this category covers
+   - patterns: Keywords to match (e.g., ["token", "localStorage", "credential"])
+A: [user defines] → Use for: report.taxonomy
+```
+
+**CRITICAL Notes on Taxonomy:**
+- **REQUIRED**: If `enableRootCauseExtraction: true`, you MUST define `taxonomy` array in config
+- There is NO default/fallback taxonomy - it's configuration-driven only
+- The "other" category is ALWAYS available (AI uses it autonomously when unsure)
+- You do NOT need to include "other" in your taxonomy array - it's implicit
+- Taxonomy is ALWAYS saved in root-cause-metadata.json
+- If enableRootCauseExtraction is false, taxonomy is not required
+
+### Step 2: Create Custom Prompt
+
+**2.1 Ask about prompt customization**
+```
+Q: Do you need a custom review prompt, or use the standard one?
+   - Standard: Uses review-system-message.md (recommended)
+   - Custom: Create specialized prompt for this review
+A: [standard/custom]
+
+If CUSTOM, ask:
+Q: Describe the specific review principles for this pipeline.
+   What should the AI focus on? What should it avoid?
+A: [user describes principles]
+```
+
+**2.2 Prompt Structure**
+
+Custom prompts MUST follow this structure:
+
+```markdown
+<role>
+Brief description of the reviewer's role and expertise.
+</role>
+
+<review_principles>
+## CARDINAL RULES
+
+Core principles that override everything else.
+
+## FOCUS AREAS
+
+Specific patterns, issues, or concerns to look for.
+
+## AVOID REPORTING
+
+What NOT to flag (false positives, normal patterns).
+
+## SEVERITY GUIDELINES
+
+When to use critical/high/medium/low for THIS review type.
+
+## CONTEXT AWARENESS
+
+Framework-specific or domain-specific context.
+</review_principles>
+```
+
+**DO NOT** include `<response_format>` - this is auto-appended by the system.
+
+**2.3 Prompt Path Format (CRITICAL)**
+
+When referencing prompts in configuration:
+
+**Standard Prompts** (use existing prompts):
+- `"prompt": "review-system-message.md"`
+- `"prompt": "validation.md"`
+- `"prompt": "deduplication.md"`
+- `"prompt": "fix-system-message.md"`
+
+**Custom Prompts** (your new prompts):
+- `"prompt": "<name>/review-system-message.md"` (e.g., `"security-auditor/review-system-message.md"`)
+- `"prompt": "<name>/validation.md"` (e.g., `"security-auditor/validation.md"`)
+- `"prompt": "<name>/deduplication.md"` (e.g., `"security-auditor/deduplication.md"`)
+
+**Path Resolution Logic:**
+```
+Config value: "security-auditor/validation.md"
+System resolves to: tools/qualops/config/prompts/security-auditor/validation.md
+                                              ^^^^^^^^^^^^^^^
+                                              System adds this prefix automatically
+```
+
+**❌ NEVER include "prompts/" in the config:**
+```json
+"prompt": "prompts/security-auditor/validation.md"  // WRONG - creates prompts/prompts/...
+```
+
+**✅ ALWAYS use relative path from prompts/ directory:**
+```json
+"prompt": "security-auditor/validation.md"  // CORRECT
+```
+
+### Step 3: Generate Configuration Files
+
+Create two files:
+
+**3.1 Configuration File**
+Path: `tools/qualops/config/<name>.qualopsrc.json`
+
+**3.2 Prompt Directory (if custom prompt)**
+Path: `tools/qualops/config/prompts/<name>/`
+Files: `review-system-message.md`, `validation.md` (optional), `deduplication.md` (optional)
+
+## FILE TEMPLATES
+
+### Template: Configuration File
+
+```json
+{
+  "ai": {
+    // REQUIRED: AI provider configuration for each stage
+    // Custom configs do NOT inherit this from main config
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0.1
+    },
+    "fixStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "performance": {
+    // OPTIONAL: Override main config performance settings
+    // Only specify if different from main config
+    "maxFilesPerBatch": 10,
+    "maxConcurrentFiles": 5
+  },
+  "review": {
+    // REQUIRED: Review stage configuration
+    "minConfidence": 8,                    // 1-10, higher = stricter
+    "maxConcurrentFiles": 5,               // Parallel file processing
+    "validation": {
+      "enabled": true,                     // Validate issues with AI
+      "minConfidence": 9,                  // 1-10 for validated issues
+      "prompt": "validation.md"            // Standard: "validation.md" | Custom: "<name>/validation.md"
+    },
+    "deduplication": {
+      "enabled": true,                     // Deduplicate issues with AI
+      "prompt": "deduplication.md"         // Standard: "deduplication.md" | Custom: "<name>/deduplication.md"
+    },
+    "pipeline": [
+      {
+        "name": "<pipelineName>",          // e.g., "securityReview"
+        "enabled": true,
+        "validation": {
+          // OPTIONAL: Override global validation per pipeline
+          "enabled": true,
+          "minConfidence": 9,
+          "prompt": "<name>/validation.md"  // Custom validation for this pipeline
+        },
+        "passes": [
+          {
+            "name": "<passName>",          // e.g., "Security Audit"
+            "enabled": true,
+            "docs": "security",            // Optional: Documentation context
+            "prompt": "<name>/review-system-message.md",  // Custom: "<name>/file.md" | Standard: "review-system-message.md"
+            "filters": {
+              "detectionTriggers": [       // OPTIONAL: Trigger patterns
+                "crypto", "password", "jwt"
+              ],
+              "filePatterns": [            // REQUIRED: Files to review
+                "**/*.ts"
+              ],
+              "excludePatterns": [         // REQUIRED: Files to skip
+                "**/*.spec.ts", "**/*.d.ts"
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "fix": {
+    // REQUIRED: Fix stage configuration
+    "enabled": false,                      // true/false
+    "prompt": "fix-system-message.md",     // Standard: "fix-system-message.md" | Custom: "<name>/fix.md"
+    "severities": ["critical"],            // Which severities to fix
+    "minConfidence": 9,                    // 1-10 for fix generation
+    "maxConcurrentFixes": 10
+  },
+  "gitlab": {
+    // OPTIONAL: GitLab CI integration
+    "enabled": false,                      // Usually false for custom configs
+    "postComments": false,
+    "skipOnDraft": false,
+    "blockPipeline": true
+  },
+  "report": {
+    // REQUIRED: Report configuration
+    "includedSeverities": ["critical", "high"],  // Which severities in reports
+    "enableRootCauseExtraction": true,  // Enable AI-powered root cause classification (default: true)
+    "taxonomy": [  // REQUIRED if enableRootCauseExtraction is true
+      // CRITICAL: If extraction enabled, you MUST define taxonomy array
+      // If not specified, inherits from main config (if available)
+      // "other" category is ALWAYS available (AI uses it autonomously - don't need to define it)
+      {
+        "key": "custom_category",
+        "label": "Custom Category",
+        "description": "Description of this category",
+        "patterns": ["pattern1", "pattern2", "pattern3"]
+      }
+    ]
+  },
+  "logger": {
+    // OPTIONAL: Inherit from main config if not specified
+    "level": "info",
+    "enableColors": true,
+    "enableTimestamps": true
+  },
+  "paths": {
+    // OPTIONAL: Inherit from main config if not specified
+    "sessionsDir": "reports/sessions",
+    "cacheDir": ".qualops-cache",
+    "outputDir": "reports"
+  }
+}
+```
+
+### Template: Custom Review Prompt
+
+Path: `tools/qualops/config/prompts/<name>/review-system-message.md`
+
+```markdown
+<role>
+You are a [DOMAIN] expert reviewing code for [SPECIFIC PURPOSE].
+Your expertise: [LIST KEY AREAS OF EXPERTISE].
+</role>
+
+<review_principles>
+## CARDINAL RULES
+
+[HIGHEST PRIORITY RULES THAT OVERRIDE EVERYTHING]
+
+Examples:
+- Only report ACTUAL security vulnerabilities with exploit paths
+- Focus on [SPECIFIC PATTERN] violations
+- Ignore [COMMON FALSE POSITIVE]
+
+## FOCUS AREAS
+
+### [Category 1]
+[Description of what to look for]
+
+Examples of issues:
+- [Pattern 1]: [Why it's a problem]
+- [Pattern 2]: [Why it's a problem]
+
+### [Category 2]
+[Description of what to look for]
+
+## AVOID REPORTING
+
+DO NOT flag these patterns:
+- [Normal pattern 1]: [Why it's okay]
+- [Normal pattern 2]: [Why it's okay]
+
+## SEVERITY GUIDELINES
+
+### Critical - [Description for this review type]
+- [Specific criteria]
+
+### High - [Description for this review type]
+- [Specific criteria]
+
+### Medium - [Description for this review type]
+- [Specific criteria]
+
+### Low - [Description for this review type]
+- [Specific criteria]
+
+## CONTEXT AWARENESS
+
+### [Framework/Domain Context]
+[Specific knowledge about the framework or domain]
+
+### [Common Patterns]
+[What's normal vs what's problematic]
+
+## VERIFICATION CHECKLIST
+
+Before reporting an issue:
+- [ ] Can you quote the exact code proving the issue?
+- [ ] Is there a clear exploit path or impact?
+- [ ] Is this a real issue or just a preference?
+- [ ] Have you checked for existing mitigations?
+</review_principles>
+```
+
+**CRITICAL**: Do NOT include `<response_format>` in custom prompts. The system automatically appends the standard response format.
+
+### Template: Custom Validation Prompt (Optional)
+
+Path: `tools/qualops/config/prompts/<name>/validation.md`
+
+**CRITICAL**: Do NOT include response format in validation prompts. The system automatically appends the validation response specification.
+
+```markdown
+# Validation Rules for [REVIEW NAME]
+
+You are validating issues found by the [REVIEW NAME] review.
+
+## VALIDATION CRITERIA
+
+An issue is VALID if:
+1. [Criteria specific to this review]
+2. [Additional criteria]
+
+An issue is INVALID (false positive) if:
+- [Common false positive pattern 1]
+- [Common false positive pattern 2]
+
+## CONFIDENCE ADJUSTMENT
+
+Lower confidence if:
+- [Uncertainty factor 1]
+- [Uncertainty factor 2]
+
+Raise confidence if:
+- [High certainty factor 1]
+- [High certainty factor 2]
+
+**CRITICAL**: Do NOT include OUTPUT or RESPONSE FORMAT sections. The system handles response formatting automatically.
+```
+
+### Template: Custom Deduplication Prompt (Optional)
+
+Path: `tools/qualops/config/prompts/<name>/deduplication.md`
+
+Usually the standard deduplication.md is sufficient. Only create custom if you have domain-specific deduplication logic.
+
+## COMPLETE EXAMPLES
+
+### Example 1: Security Auditor
+
+**Name**: security-auditor
+**Purpose**: Deep security vulnerability detection
+**Scope**: All TypeScript files except tests
+**Focus**: High/Critical security issues only
+
+**Configuration**: `tools/qualops/config/security-auditor.qualopsrc.json`
+```json
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0.1
+    },
+    "fixStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "review": {
+    "minConfidence": 9,
+    "maxConcurrentFiles": 5,
+    "validation": {
+      "enabled": true,
+      "minConfidence": 9,
+      "prompt": "security-auditor/validation.md"
+    },
+    "deduplication": {
+      "enabled": true,
+      "prompt": "deduplication.md"
+    },
+    "pipeline": [
+      {
+        "name": "securityAudit",
+        "enabled": true,
+        "passes": [
+          {
+            "name": "Security Vulnerability Scan",
+            "enabled": true,
+            "prompt": "security-auditor/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "crypto", "password", "jwt", "session", "auth",
+                "eval\\(", "innerHTML", "dangerouslySetInnerHTML"
+              ],
+              "filePatterns": ["**/*.ts", "**/*.js"],
+              "excludePatterns": ["**/*.spec.ts", "**/*.d.ts"]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "fix": {
+    "enabled": false,
+    "prompt": "fix-system-message.md",
+    "severities": ["critical"],
+    "minConfidence": 9,
+    "maxConcurrentFixes": 10
+  },
+  "report": {
+    "includedSeverities": ["critical", "high"],
+    "enableRootCauseExtraction": false
+  }
+}
+```
+
+**Prompt**: `tools/qualops/config/prompts/security-auditor/review-system-message.md`
+```markdown
+<role>
+You are a security expert performing vulnerability assessment on production code.
+</role>
+
+<review_principles>
+## CARDINAL RULES
+
+1. ONLY report exploitable vulnerabilities with demonstrated attack paths
+2. Provide CWE classifications for all security issues
+3. Explain what ADDITIONAL capability the attacker gains
+
+## FOCUS AREAS
+
+### Authentication & Authorization
+- Broken authentication flows
+- Missing authorization checks
+- Session management issues
+- JWT vulnerabilities
+
+### Injection Vulnerabilities
+- SQL injection (ORM misuse)
+- XSS (innerHTML, dangerouslySetInnerHTML)
+- Command injection
+- Path traversal
+
+### Cryptographic Issues
+- Weak algorithms (MD5, SHA1 for security)
+- Hardcoded secrets
+- Insecure random number generation
+- Certificate validation bypass
+
+### Data Exposure
+- Sensitive data in logs
+- Unencrypted sensitive data
+- Information disclosure in errors
+
+## AVOID REPORTING
+
+DO NOT flag:
+- Framework-provided escaping (already safe)
+- Type-safe operations (TypeScript types provide safety)
+- Theoretical issues without exploit paths
+- Security utilities that are never used
+
+## SEVERITY GUIDELINES
+
+### Critical
+- Authentication bypass
+- SQL injection with data access
+- Remote code execution
+- Hardcoded credentials in production
+
+### High
+- XSS with session access
+- Missing authorization checks
+- Cryptographic misuse exposing data
+- Path traversal with file access
+
+### Medium
+- Insecure configurations (fixable)
+- Weak validation (exploitable in specific scenarios)
+- Information disclosure (non-sensitive)
+
+### Low
+- Security-relevant improvements
+- Defense-in-depth additions
+
+## CONTEXT AWARENESS
+
+### CLI Tools
+- User already has shell access
+- Don't flag path traversal or command execution
+- ONLY flag privilege escalation or data exposure to other users
+
+### Internal Services
+- Different threat model than public-facing
+- Consider who has access
+
+### Public Web Applications
+- Strict security requirements
+- All XSS/injection must be flagged
+</review_principles>
+```
+
+### Example 2: Performance Auditor
+
+**Name**: performance-auditor
+**Purpose**: Identify performance bottlenecks and anti-patterns
+**Scope**: All source files
+**Focus**: Performance issues
+
+**Configuration**: `tools/qualops/config/performance-auditor.qualopsrc.json`
+```json
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0.1
+    },
+    "fixStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "review": {
+    "minConfidence": 7,
+    "maxConcurrentFiles": 10,
+    "validation": {
+      "enabled": true,
+      "minConfidence": 8,
+      "prompt": "validation.md"
+    },
+    "deduplication": {
+      "enabled": true,
+      "prompt": "deduplication.md"
+    },
+    "pipeline": [
+      {
+        "name": "performanceAudit",
+        "enabled": true,
+        "passes": [
+          {
+            "name": "Performance Analysis",
+            "enabled": true,
+            "docs": "rxjs",
+            "prompt": "performance-auditor/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "for \\(", "while \\(", "Observable", "subscribe",
+                "setTimeout", "setInterval", "map\\(", "filter\\("
+              ],
+              "filePatterns": ["src/**/*.ts"],
+              "excludePatterns": ["**/*.spec.ts", "**/*.d.ts"]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "fix": {
+    "enabled": true,
+    "prompt": "fix-system-message.md",
+    "severities": ["high"],
+    "minConfidence": 8,
+    "maxConcurrentFixes": 20
+  },
+  "report": {
+    "includedSeverities": ["critical", "high", "medium"],
+    "enableRootCauseExtraction": true
+  }
+}
+```
+
+**Prompt**: `tools/qualops/config/prompts/performance-auditor/review-system-message.md`
+```markdown
+<role>
+You are a performance optimization expert analyzing code for bottlenecks and anti-patterns.
+</role>
+
+<review_principles>
+## CARDINAL RULES
+
+1. ONLY flag measurable performance issues (>10% impact)
+2. Provide specific optimization recommendations with expected gains
+3. Consider actual usage patterns, not theoretical concerns
+
+## FOCUS AREAS
+
+### Observable/RxJS Performance
+- Unnecessary subscriptions (use async pipe)
+- Missing unsubscriptions (memory leaks)
+- Inefficient operators (nested subscribes)
+- Missing shareReplay/share on hot observables
+
+### Loop Performance
+- O(n²) or worse complexity in hot paths
+- Unnecessary array copies (.slice(), spread in loops)
+- String concatenation in loops (use array.join())
+- Large array operations that could be optimized
+
+### Synchronous Blocking
+- Synchronous file I/O on critical path
+- CPU-intensive operations blocking event loop
+- Large synchronous parsing operations
+
+### Memory Issues
+- Growing arrays never cleared
+- Closures capturing large contexts
+- Unnecessary object retention
+
+## AVOID REPORTING
+
+DO NOT flag:
+- Premature optimizations
+- Micro-optimizations (<1% gain)
+- Code clarity over marginal performance
+- One-time initialization code
+
+## SEVERITY GUIDELINES
+
+### Critical
+- Memory leaks in production
+- O(n²) in frequently called functions
+- Blocking operations on hot path
+
+### High
+- Observable subscription leaks
+- Inefficient algorithms (>50% slower)
+- Unnecessary API calls in loops
+
+### Medium
+- Missing async pipe causing subscriptions
+- Suboptimal operators (10-50% slower)
+- Unnecessary data transformations
+
+### Low
+- Minor optimizations (<10% gain)
+- Future performance considerations
+</review_principles>
+```
+
+### Example 3: Migration Validator
+
+**Name**: angularjs-migration-validator
+**Purpose**: Validate AngularJS to Angular migration
+**Scope**: Migration-specific files
+**Focus**: Migration correctness
+
+**Configuration**: `tools/qualops/config/angularjs-migration-validator.qualopsrc.json`
+```json
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0.1
+    },
+    "fixStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "review": {
+    "minConfidence": 8,
+    "maxConcurrentFiles": 10,
+    "validation": {
+      "enabled": true,
+      "minConfidence": 8,
+      "prompt": "validation.md"
+    },
+    "deduplication": {
+      "enabled": true,
+      "prompt": "deduplication.md"
+    },
+    "pipeline": [
+      {
+        "name": "migrationValidation",
+        "enabled": true,
+        "passes": [
+          {
+            "name": "AngularJS Pattern Detection",
+            "enabled": true,
+            "docs": "angular",
+            "prompt": "angularjs-migration/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "\\$scope", "\\$rootScope", "\\$http", "\\$q",
+                "angular\\.module", "controller\\(", "\\.directive\\("
+              ],
+              "filePatterns": ["src/**/*.ts", "src/**/*.js"],
+              "excludePatterns": ["**/*.spec.ts", "**/*.d.ts", "**/legacy/**"]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "fix": {
+    "enabled": false,
+    "prompt": "fix-system-message.md",
+    "severities": ["critical"],
+    "minConfidence": 9,
+    "maxConcurrentFixes": 10
+  },
+  "report": {
+    "includedSeverities": ["critical", "high", "medium"],
+    "enableRootCauseExtraction": true
+  }
+}
+```
+
+## ROOT CAUSE EXTRACTION CONFIGURATION
+
+### Purpose
+Root cause extraction uses AI to automatically categorize issues into meaningful groups based on their underlying cause. This helps prioritize fixes and identify systemic problems.
+
+### How It Works
+1. After review stage completes, issues are written as markdown files
+2. AI analyzes each issue's description, reasoning, and severity
+3. Issues are classified into taxonomy categories (e.g., "security_input_validation", "memory_leaks_cleanup")
+4. Issues are moved into subfolders by root cause
+5. Root cause distribution is reported
+
+### Configuration Options
+
+**Enable/Disable:**
+```json
+{
+  "report": {
+    "enableRootCauseExtraction": true  // true (default) or false
+  }
+}
+```
+
+**Custom Taxonomy:**
+```json
+{
+  "report": {
+    "enableRootCauseExtraction": true,
+    "taxonomy": [
+      {
+        "key": "security_token_handling",
+        "label": "Security - Token Handling",
+        "description": "Issues related to authentication token storage and handling",
+        "patterns": ["token in localStorage", "plaintext token", "token synchronization", "JWT storage"]
+      },
+      {
+        "key": "security_xss",
+        "label": "Security - Cross-Site Scripting",
+        "description": "XSS vulnerabilities and injection attacks",
+        "patterns": ["innerHTML", "XSS", "script injection", "unsanitized HTML"]
+      }
+    ]
+  }
+}
+```
+
+**CRITICAL Notes:**
+- **REQUIRED**: If `enableRootCauseExtraction: true`, you MUST define `taxonomy` array
+- The `"other"` category is ALWAYS available (AI uses it autonomously - no need to define it)
+- Taxonomy is ALWAYS saved in `root-cause-metadata.json` (even if extraction disabled)
+- Each category's `patterns` help AI classify issues correctly
+- There is NO default taxonomy - it's configuration-driven only
+- Custom configs inherit `taxonomy` from main config if not specified
+
+### Example Taxonomy Categories
+
+Main config (`tools/qualops/config/.qualopsrc.json`) includes standard categories:
+- `memory_leaks_cleanup`: Resource cleanup issues
+- `race_conditions_async`: Async timing problems
+- `null_undefined_safety`: Null/undefined handling
+- `rxjs_operator_misuse`: RxJS usage issues
+- `security_input_validation`: Input validation and injection
+- `security_authorization`: Access control and permissions
+- `architecture_violations`: ADR violations
+- `performance`: Performance bottlenecks
+- `code_quality`: General code quality
+
+**Note**: These are in the main config, NOT hardcoded. Custom configs can override with different taxonomy.
+
+### When to Disable
+
+Disable `enableRootCauseExtraction` when:
+- Running quick security audits (saves time and cost)
+- Only care about specific issue types (use filtering instead)
+- Want simple flat list of issues
+- Running on very few files (categorization not needed)
+
+Typically disabled for:
+- Security audits (focus on vulnerabilities, not organization)
+- Quick scans
+- Single-file analysis
+
+### Output Structure
+
+**With extraction enabled:**
+```
+reports/sessions/<name>/
+├── issues/
+│   ├── security_input_validation/
+│   │   ├── ISSUE-001-xss-vulnerability.md
+│   │   └── ISSUE-003-json-parsing.md
+│   ├── security_authorization/
+│   │   └── ISSUE-002-missing-check.md
+│   └── other/
+│       └── ISSUE-004-misc.md
+└── root-cause-metadata.json
+```
+
+**With extraction disabled:**
+```
+reports/sessions/<name>/
+└── issues/
+    ├── ISSUE-001-xss-vulnerability.md
+    ├── ISSUE-002-missing-check.md
+    ├── ISSUE-003-json-parsing.md
+    └── ISSUE-004-misc.md
+```
+
+## VALIDATION AND TESTING
+
+After creating the custom configuration, test it:
+
+```bash
+# 1. Validate JSON syntax
+cat tools/qualops/config/<name>.qualopsrc.json | jq .
+
+# 2. Test on a single file
+npm run qualops -- --config tools/qualops/config/<name>.qualopsrc.json --files src/some-file.ts
+
+# 3. Test on a small project
+npm run qualops -- --config tools/qualops/config/<name>.qualopsrc.json --projects small-project
+
+# 4. Review session output
+cat reports/sessions/<session>/review-summary.json | jq '.summary'
+```
+
+## COMMON PATTERNS
+
+### High Confidence + Strict Validation (Security/Critical Reviews)
+```json
+{
+  "review": {
+    "minConfidence": 9,
+    "validation": {
+      "enabled": true,
+      "minConfidence": 9
+    }
+  },
+  "fix": { "enabled": false },
+  "report": { "includedSeverities": ["critical", "high"] }
+}
+```
+
+### Medium Confidence + Fix Generation (Code Quality)
+```json
+{
+  "review": {
+    "minConfidence": 7,
+    "validation": { "enabled": true, "minConfidence": 8 }
+  },
+  "fix": {
+    "enabled": true,
+    "severities": ["high"],
+    "minConfidence": 8
+  },
+  "report": { "includedSeverities": ["critical", "high", "medium"] }
+}
+```
+
+### Low Confidence + Comprehensive (Exploration/Learning)
+```json
+{
+  "review": {
+    "minConfidence": 5,
+    "validation": { "enabled": false }
+  },
+  "fix": { "enabled": false },
+  "report": { "includedSeverities": ["critical", "high", "medium", "low"] }
+}
+```
+
+## DOCUMENTATION INJECTION
+
+### Using Existing Documentation
+Available documentation contexts (in .qualops/unified-docs/):
+- `adr-context`: Architecture Decision Records
+- `angular`: Angular framework patterns
+- `ngrx`: NgRx state management
+- `rxjs`: RxJS reactive programming
+- `security`: Security best practices
+
+Specify in pipeline pass:
+```json
+{
+  "name": "Angular Review",
+  "docs": "angular",
+  "prompt": "review-system-message.md"
+}
+```
+
+### Creating Custom Documentation
+1. Ask user for documentation content
+2. Create file: `.qualops/unified-docs/<topic>.md`
+3. Reference in config: `"docs": "<topic>"`
+
+Example custom documentation:
+```markdown
+# Company Coding Standards
+
+## Naming Conventions
+- Components: PascalCase with suffix (UserProfileComponent)
+- Services: PascalCase with Service suffix (AuthService)
+- Observables: camelCase with $ suffix (user$)
+
+## Architecture Rules
+- Services must be in src/services/
+- Components must be in src/components/
+- Max file size: 300 lines
+- Max function complexity: 10
+
+## Forbidden Patterns
+- Direct DOM manipulation (use Renderer2)
+- Accessing localStorage directly (use StorageService)
+- Hardcoded URLs (use environment config)
+```
+
+## TIPS FOR PROMPT ENGINEERING
+
+### Be Specific About Scope
+❌ Bad: "Review for security issues"
+✅ Good: "Only flag authentication bypasses, SQL injection via ORM, XSS in innerHTML, and hardcoded secrets"
+
+### Provide Examples
+Include real examples of what TO flag and what NOT to flag in the prompt.
+
+### Define Severity Precisely
+Don't use generic severity definitions. Define them for THIS specific review type.
+
+### Address False Positives
+List common false positives and explain why they're okay.
+
+### Consider Context
+CLI tools vs web apps, internal vs public-facing, development vs production.
+
+### Use Detection Triggers
+Narrow down files to review by using detection triggers for specific patterns.
+
+## FILE ORGANIZATION
+
+```
+tools/qualops/config/
+├── .qualopsrc.json                          # Main config (DO NOT MODIFY)
+├── security-auditor.qualopsrc.json          # Custom config example
+├── performance-auditor.qualopsrc.json       # Custom config example
+└── prompts/
+    ├── security-auditor/
+    │   ├── review-system-message.md
+    │   └── validation.md
+    ├── performance-auditor/
+    │   └── review-system-message.md
+    └── <custom-initiative>/
+        ├── review-system-message.md
+        ├── validation.md                    # Optional
+        └── deduplication.md                 # Optional
+```
+
+## CHECKLIST
+
+Before finalizing a custom configuration:
+
+### CRITICAL Requirements (Must be correct or config will fail):
+- [ ] **"ai" section included** with reviewStage, fixStage, judgeStage configs
+- [ ] **Prompt paths correct** (use `"<name>/file.md"`, NOT `"prompts/<name>/file.md"`)
+- [ ] **No response formats** in custom prompts (system auto-appends)
+
+### Configuration Requirements:
+- [ ] Configuration file created in `tools/qualops/config/<name>.qualopsrc.json`
+- [ ] Custom prompts (if any) in `tools/qualops/config/prompts/<name>/`
+- [ ] All JSON files are valid (test with `jq`)
+- [ ] Prompts use XML-like tags: `<role>`, `<review_principles>`
+- [ ] File patterns cover intended scope
+- [ ] Exclude patterns avoid tests and type definitions
+- [ ] Confidence levels appropriate for review type
+- [ ] Fix stage configured appropriately (enabled/disabled)
+- [ ] Validation/deduplication settings match needs
+
+### Testing Requirements:
+- [ ] Validated JSON syntax with `cat config.json | jq .`
+- [ ] Tested on sample files/projects
+- [ ] Verified issues-before-validation-and-dedup.json contains expected findings
+- [ ] Documentation provided to user on how to run:
+  ```bash
+  npm run qualops -- --config tools/qualops/config/<name>.qualopsrc.json
+  ```
+
+## SUMMARY
+
+This guide enables you to help users create specialized QualOps review pipelines by:
+1. Asking the right questions about their needs
+2. Creating properly structured configuration files
+3. Writing effective custom prompts with XML-like tags
+4. Organizing files in the correct directory structure
+5. Testing and validating the configuration
+
+### FOUR CRITICAL RULES (Never forget):
+
+1. **ALWAYS include "ai" section** in custom configs (reviewStage, fixStage, judgeStage)
+2. **NEVER include "prompts/" prefix** in prompt paths (use `"<name>/file.md"`, not `"prompts/<name>/file.md"`)
+3. **NEVER include response format** in custom prompts (system auto-appends `<response_format>`)
+4. **ALWAYS define "taxonomy" array** if `enableRootCauseExtraction: true` (no defaults, config-driven only)
+
+These four mistakes will cause the pipeline to fail. Everything else is negotiable.
+
+Remember: Custom configs inherit from main config, so only specify what needs to be different.

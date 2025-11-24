@@ -8,7 +8,6 @@ interface EnvironmentConfig {
 
   // Feature Flags
   enableReAct?: boolean;
-  reactReview?: boolean;
   skipCache?: boolean;
   debug?: boolean;
   verbose?: boolean;
@@ -37,7 +36,6 @@ interface EnvironmentConfig {
   // Additional configuration
   qualopsAiTemperature?: number;
   qualopsBaseBranch?: string;
-  multiPassReview?: boolean;
   useConsolidatedReview?: boolean;
 }
 
@@ -71,7 +69,6 @@ class EnvironmentConfigService {
 
       // Feature Flags
       enableReAct: process.env.QUALOPS_ENABLE_REACT === 'true',
-      reactReview: process.env.REACT_REVIEW === 'true',
       skipCache: process.env.QUALOPS_SKIP_CACHE === 'true',
       debug: process.env.DEBUG === 'true' || process.env.DEBUG?.includes('qualops'),
       verbose: process.env.VERBOSE === 'true' || process.env.QUALOPS_VERBOSE === 'true',
@@ -106,7 +103,6 @@ class EnvironmentConfigService {
         ? parseFloat(process.env.QUALOPS_AI_TEMPERATURE)
         : undefined,
       qualopsBaseBranch: process.env.QUALOPS_BASE_BRANCH,
-      multiPassReview: process.env.MULTI_PASS_REVIEW === 'true',
       useConsolidatedReview: process.env.USE_CONSOLIDATED_REVIEW !== 'false',
     };
 

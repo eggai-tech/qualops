@@ -50,26 +50,13 @@ export type Config = {
     reviewStage?: AIStageConfig;
     fixStage?: AIStageConfig;
     judgeStage?: AIStageConfig;
-    filterStage?: AIStageConfig;
   };
   review?: {
     maxConcurrentFiles: number;
     minConfidence?: number;
-    sessionBased?: boolean;
-    reactReview?: boolean;
-    maxFilesBeforeReset?: number;
-    maxContextTokens?: number;
-  };
-  filter?: {
-    maxConcurrentBatches: number;
-    minConfidence: number;
   };
   fix?: {
     maxConcurrentFixes: number;
-    maxTokensPerIssue?: number;
-    timeoutSeconds?: number;
-    maxRetries?: number;
-    maxIssuesWithMedium?: number;
   };
   report?: {
     generateIssueMarkdown?: boolean;
@@ -79,9 +66,6 @@ export type Config = {
   maxConcurrency?: number;
   cacheEnabled?: boolean;
   cacheTTL?: number;
-  reactReview?: boolean;
-  multiPassReview?: boolean;
-  filterEnabled?: boolean;
   skipPatterns?: string[];
   includePatterns?: string[];
   outputFormat?: 'json' | 'html' | 'markdown';
@@ -91,8 +75,6 @@ export type Config = {
   maxFileSizeKB?: number;
   maxTokensPerFile?: number;
   maxReactSteps?: number;
-  maxFilesBeforeReset?: number;
-  maxContextTokens?: number;
   throttling?: {
     apiCallsPerMinute: number;
   };

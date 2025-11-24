@@ -26,6 +26,7 @@ export const CACHE_CONFIG = {
 
 export class ConfigService {
   private static instance: ConfigService;
+  private static configPath = '.qualopsrc.json';
   private config: Config;
   private rawConfig: Record<string, unknown>;
   private readonly defaultConfig: Config = {
@@ -33,8 +34,6 @@ export class ConfigService {
     maxConcurrency: 3,
     cacheEnabled: true,
     cacheTTL: 1000 * 60 * 5,
-    reactReview: envConfig.get('reactReview') === true,
-    multiPassReview: envConfig.get('multiPassReview') !== false,
     outputFormat: 'html',
     verbose: false,
     debug: envConfig.get('debug') || false,
@@ -49,6 +48,13 @@ export class ConfigService {
     this.config = this.loadConfig();
   }
 
+  static setConfigPath(path: string): void {
+    ConfigService.configPath = path;
+    if (ConfigService.instance) {
+      ConfigService.instance = undefined as any;
+    }
+  }
+
   static getInstance(): ConfigService {
     if (!ConfigService.instance) {
       ConfigService.instance = new ConfigService();
@@ -57,14 +63,17 @@ export class ConfigService {
   }
 
   private loadRawConfig(): Record<string, unknown> {
-    const rcPath = join(process.cwd(), '.qualopsrc.json');
+    const rcPath = join(process.cwd(), ConfigService.configPath);
     if (!existsSync(rcPath)) {
+      logger.warn(`Config file not found: ${rcPath}`);
       return {};
     }
     try {
-      return JSON.parse(readFileSync(rcPath, 'utf-8'));
+      const content = readFileSync(rcPath, 'utf-8');
+      logger.info(`Loaded config from: ${rcPath}`);
+      return JSON.parse(content);
     } catch (error) {
-      logger.warn(`Failed to parse .qualopsrc.json: ${error instanceof Error ? error.message : String(error)}`);
+      logger.warn(`Failed to parse ${rcPath}: ${error instanceof Error ? error.message : String(error)}`);
       return {};
     }
   }
@@ -83,9 +92,6 @@ export class ConfigService {
       if ((this.rawConfig.performance as Record<string, unknown>).throttling) {
         config.throttling = (this.rawConfig.performance as Record<string, unknown>).throttling as Config['throttling'];
       }
-    }
-    if (this.rawConfig.filter) {
-      config.filter = this.rawConfig.filter as Config['filter'];
     }
     if (this.rawConfig.fix) {
       config.fix = this.rawConfig.fix as Config['fix'];
@@ -106,14 +112,6 @@ export class ConfigService {
 
     if (envConfig.get('verbose')) {
       config.verbose = true;
-    }
-
-    if (env.multiPassReview !== undefined) {
-      config.multiPassReview = env.multiPassReview;
-    }
-
-    if (env.reactReview !== undefined) {
-      config.reactReview = env.reactReview;
     }
 
     return config;
@@ -138,10 +136,6 @@ export class ConfigService {
   reset(): void {
     this.rawConfig = this.loadRawConfig();
     this.config = this.loadConfig();
-  }
-
-  isReActReviewEnabled(): boolean {
-    return this.config.reactReview ?? false;
   }
 
   isCacheEnabled(): boolean {
