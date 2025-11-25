@@ -42,7 +42,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && tsc-alias -p tsconfig.lib.json",
-    "build:check": "npm run build -- --noEmit",
+    "build:check": "tsc -p tsconfig.lib.json --noEmit",
     "dev": "tsx --env-file=.env src/cli.ts",
     "test": "LC_ALL=en_US jest",
     "test:integration": "jest --config jest.integration.config.ts",
