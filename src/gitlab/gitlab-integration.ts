@@ -655,7 +655,8 @@ class GitLabIntegration {
         return false;
       }
 
-      const mr = (await response.json()) as { iid: number; title: string };
+      const body = await response.json();
+      const mr = body as { iid: number; title: string };
       console.log(`  ✓ Successfully accessed MR #${mr.iid}: "${mr.title}"`);
       return true;
     } catch (error) {

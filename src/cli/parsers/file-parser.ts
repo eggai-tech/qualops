@@ -1,11 +1,9 @@
 import { existsSync } from 'node:fs';
 
-import globPkg from 'glob';
+import { glob } from 'glob';
 
 import { ConfigService } from '../../config/config';
 import { logger } from '../../shared/utils/logger';
-
-const { glob } = globPkg;
 
 export async function parseFilePatterns(fileOption: string): Promise<string[]> {
   if (!fileOption || fileOption.trim() === '') {
@@ -36,7 +34,7 @@ export async function parseFilePatterns(fileOption: string): Promise<string[]> {
           allFiles.push(...matches);
         }
       } catch (error) {
-        logger.warn(`Invalid glob pattern '${pattern}': ${error.message}`);
+        logger.warn(`Invalid glob pattern '${pattern}': ${error instanceof Error ? error.message : String(error)}`);
       }
     } else {
       if (existsSync(pattern)) {

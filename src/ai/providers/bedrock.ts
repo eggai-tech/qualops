@@ -238,7 +238,7 @@ export class BedrockProvider implements AIProvider {
     }
 
     const response = await this.client.send(command);
-    return this.parseResponse(response);
+    return this.parseResponse(response as BedrockSdkResponse);
   }
 
   private parseResponse(response: BedrockSdkResponse): BedrockResponse {

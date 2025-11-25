@@ -82,7 +82,7 @@ function evaluateQuality(
     reasons.push(`Found ${summary.high} high severity issues (max allowed: ${thresholds.maxHighIssues})`);
   }
 
-  if (summary.medium > thresholds.maxMediumIssues) {
+  if (thresholds.maxMediumIssues !== undefined && summary.medium > thresholds.maxMediumIssues) {
     if (thresholds.failOnMedium) {
       passed = false;
       reasons.push(`Found ${summary.medium} medium severity issues (max allowed: ${thresholds.maxMediumIssues})`);
@@ -91,7 +91,7 @@ function evaluateQuality(
     }
   }
 
-  if (summary.low > thresholds.maxLowIssues) {
+  if (thresholds.maxLowIssues !== undefined && summary.low > thresholds.maxLowIssues) {
     if (thresholds.failOnLow) {
       passed = false;
       reasons.push(`Found ${summary.low} low severity issues (max allowed: ${thresholds.maxLowIssues})`);
@@ -176,7 +176,7 @@ function generateJudgeReport(
         output += '   - Focus on null reference and error handling\n\n';
       }
 
-      if (report.summary.medium > thresholds.maxMediumIssues) {
+      if (thresholds.maxMediumIssues !== undefined && report.summary.medium > thresholds.maxMediumIssues) {
         output += '3. **Reduce medium severity issues**\n';
         output += `   - Current: ${report.summary.medium}, Target: ${thresholds.maxMediumIssues}\n`;
         output += '   - Apply suggested fixes and improve error handling\n\n';

@@ -60,7 +60,7 @@ export class JsonParser {
     } catch (error) {
       return {
         success: false,
-        error: `Failed to parse JSON: ${error.message}`,
+        error: `Failed to parse JSON: ${error instanceof Error ? error.message : String(error)}`,
         rawResponse: response,
       };
     }

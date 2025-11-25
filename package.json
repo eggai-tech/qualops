@@ -66,10 +66,12 @@
     "commander": "14.0.1",
     "diff": "8.0.2",
     "dotenv": "16.4.5",
+    "glob": "13.0.0",
     "openai": "5.23.1"
   },
   "devDependencies": {
     "@types/diff": "^5.2.3",
+    "@types/glob": "8.1.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.0.0",
     "eslint": "^9.39.1",

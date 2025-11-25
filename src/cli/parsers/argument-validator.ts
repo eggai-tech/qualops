@@ -8,21 +8,23 @@ export const STAGE_DEPENDENCIES: Partial<Record<Stage, Stage[]>> = {
   judge: ['report', 'fix'],
 };
 
-export function enforceStageDependencies(stages: string[]): string[] {
+export function enforceStageDependencies(stages: Stage[]): Stage[] {
   const stageSet = new Set(stages);
-  const result: string[] = [];
-  const visited = new Set<string>();
-  const visiting = new Set<string>();
+  const result: Stage[] = [];
+  const visited = new Set<Stage>();
+  const visiting = new Set<Stage>();
 
-  function visit(stage: string): void {
-    if (visited.has(stage)) return;
+  function visit(stage: Stage): void {
+    if (visited.has(stage)) {
+      return;
+    }
     if (visiting.has(stage)) {
       throw new Error(`Circular dependency detected involving stage: ${stage}`);
     }
 
     visiting.add(stage);
 
-    const dependencies = STAGE_DEPENDENCIES[stage] || [];
+    const dependencies = STAGE_DEPENDENCIES[stage] ?? [];
     for (const dep of dependencies) {
       if (stageSet.has(dep)) {
         visit(dep);
@@ -52,7 +54,7 @@ export function enforceStageDependencies(stages: string[]): string[] {
   return result;
 }
 
-export function validateAndProcessStages(stages: string[]): string[] {
-  validateStages(stages);
+export function validateAndProcessStages(rawStages: string[]): Stage[] {
+  const stages = validateStages(rawStages);
   return enforceStageDependencies(stages);
 }

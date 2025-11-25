@@ -63,7 +63,7 @@ export class OpenAIProvider implements AIProvider {
       });
       this.initialized = true;
     } catch (error) {
-      throw new Error(`Failed to initialize OpenAI provider: ${error.message}`);
+      throw new Error(`Failed to initialize OpenAI provider: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -139,6 +139,10 @@ export class OpenAIProvider implements AIProvider {
       systemPrompt,
     } = options;
 
+    if (!this.client) {
+      throw new Error('OpenAI client not initialized');
+    }
+
     try {
       const openaiMessages = messages.map((m) => ({
         role: m.role,
@@ -202,7 +206,7 @@ export class OpenAIProvider implements AIProvider {
       const jsonStr = jsonMatch ? jsonMatch[1] : response.content;
       return JSON.parse(jsonStr) as T;
     } catch (error) {
-      throw new Error(`Failed to parse structured response: ${error.message}`);
+      throw new Error(`Failed to parse structured response: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
