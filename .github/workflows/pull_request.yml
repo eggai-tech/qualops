@@ -59,7 +59,10 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node dist/cli.js all --stages analyze,review,judge,report
+          node dist/cli.js all \
+            --base origin/${{ github.base_ref }} \
+            --head ${{ github.event.pull_request.head.sha }} \
+            --stages analyze,review,report
 
       - name: Post GitHub Integration
         if: always()
