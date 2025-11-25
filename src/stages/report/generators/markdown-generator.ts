@@ -69,10 +69,7 @@ export function generateAnalysisSection(
     }`;
   }
 
-  const content = `### Affected Projects
-${projectsList}
-
-### Files to Analyze
+  const content = `### Files to Analyze
 Total: ${analysis.filePaths.length} TypeScript files${incrementalProcessing}`;
 
   return {
