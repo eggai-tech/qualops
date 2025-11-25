@@ -6,13 +6,6 @@ import { join } from 'path';
 import { GitHubAPIClient } from './github-api-client';
 import { GitHubChecksService } from './github-checks';
 
-const SEVERITY_EMOJI = {
-  critical: '🔴',
-  high: '🟠',
-  medium: '🟡',
-  low: '🟢',
-} as const;
-
 const QUALOPS_COMMENT_MARKER = '<!-- qualops-analysis-comment -->';
 
 interface GitHubConfig {

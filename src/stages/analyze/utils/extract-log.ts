@@ -56,7 +56,7 @@ export async function shouldProcessFile(filePath: string, extractLog: Readonly<E
 const updateQueue = new Map<string, Promise<void>>();
 export async function updateExtractLog(filePath: string, hash: string, size: number): Promise<void> {
   const logPath = getCurrentSessionPaths().extractLog();
-  const previous = updateQueue.get(logPath) || Promise.resolve();
+  const previous = updateQueue.get(logPath) ?? Promise.resolve();
   const update = previous
     .then(async () => {
       const log = await loadExtractLog();
