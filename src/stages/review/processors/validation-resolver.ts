@@ -178,7 +178,8 @@ export class ValidationResolver {
     }
 
     try {
-      const parsed = JSON.parse(jsonString);
+      const fixedJson = this.fixMalformedJson(jsonString);
+      const parsed = JSON.parse(fixedJson);
       if (!Array.isArray(parsed)) {
         logger.warn('[Validation] Response is not an array');
         logger.warn(`[Validation] Parsed value: ${JSON.stringify(parsed).slice(0, 200)}`);
@@ -199,5 +200,51 @@ export class ValidationResolver {
       logger.warn(`[Validation] JSON preview: ${jsonString.slice(0, 300)}...`);
       return [];
     }
+  }
+
+  private fixMalformedJson(json: string): string {
+    let inString = false;
+    let escaped = false;
+    let result = '';
+
+    for (let i = 0; i < json.length; i++) {
+      const char = json[i];
+
+      if (escaped) {
+        result += char;
+        escaped = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escaped = true;
+        result += char;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        result += char;
+        continue;
+      }
+
+      if (inString && char === '\n') {
+        result += '\\n';
+        continue;
+      }
+
+      if (inString && char === '\r') {
+        continue;
+      }
+
+      if (inString && char === '\t') {
+        result += '\\t';
+        continue;
+      }
+
+      result += char;
+    }
+
+    return result;
   }
 }
