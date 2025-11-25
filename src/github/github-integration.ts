@@ -150,14 +150,22 @@ export class GitHubIntegration {
   }
 
   private getPullRequestNumber(): number | null {
+    const event = this.loadEvent();
+    return event?.pull_request?.number || null;
+  }
+
+  private getPullRequestHeadSha(): string | null {
+    const event = this.loadEvent();
+    return event?.pull_request?.head?.sha || null;
+  }
+
+  private loadEvent(): PullRequestEvent | null {
     try {
       const eventPath = this.env.GITHUB_EVENT_PATH;
       if (!eventPath || !existsSync(eventPath)) {
         return null;
       }
-
-      const event: PullRequestEvent = JSON.parse(readFileSync(eventPath, 'utf8'));
-      return event.pull_request?.number || null;
+      return JSON.parse(readFileSync(eventPath, 'utf8'));
     } catch (error) {
       console.warn('Failed to parse GitHub event:', error);
       return null;
@@ -395,12 +403,12 @@ export class GitHubIntegration {
       }
     }
 
-    const headSha = this.env.GITHUB_SHA;
+    const headSha = this.getPullRequestHeadSha() || this.env.GITHUB_SHA;
     if (headSha) {
       try {
         const maxAnnotations = this.config.maxInlineComments || 50;
         await this.checksService.createCheckRun(headSha, results.summary, results.issues, maxAnnotations);
-        console.log('Successfully created GitHub check run');
+        console.log(`Created GitHub check run with ${results.issues.length} annotations`);
       } catch (error) {
         console.error('Failed to create GitHub check run:', error);
       }
