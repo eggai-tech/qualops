@@ -6,6 +6,15 @@ import { PromptLoader } from '../loaders/prompt-loader';
 import { TemplateEngine } from '../loaders/template-engine';
 import { globalRateLimiter } from '../utils/global-rate-limiter';
 
+const ISSUES_SECTION = `
+
+## Issues to Validate
+
+Below are the issues found during code review. Validate each one and return a JSON array with your validation results.
+
+{{ISSUES_LIST}}
+`;
+
 const VALIDATION_RESPONSE_SPEC = `
 
 <response_format>
@@ -116,7 +125,8 @@ export class ValidationResolver {
       2,
     );
 
-    const prompt = TemplateEngine.render(content + VALIDATION_RESPONSE_SPEC, {
+    const fullPrompt = content + ISSUES_SECTION + VALIDATION_RESPONSE_SPEC;
+    const prompt = TemplateEngine.render(fullPrompt, {
       ISSUES_LIST: issuesJson,
       MIN_CONFIDENCE: this.globalConfig.validation?.minConfidence ?? 7,
       REVIEW_MIN_CONFIDENCE: this.globalConfig.minConfidence ?? 4,

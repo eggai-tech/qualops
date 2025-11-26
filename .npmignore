@@ -1,0 +1,25 @@
+# Source
+src/
+tests/
+examples/
+
+# Config
+.github/
+.claude/
+.env*
+*.config.ts
+*.config.js
+tsconfig*.json
+eslint.config.js
+
+# Reports and caches
+reports/
+.qualops/
+
+# Docs
+*.md
+!README.md
+
+# Misc
+.gitignore
+qualops-llm.txt

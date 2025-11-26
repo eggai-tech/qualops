@@ -2,12 +2,6 @@
 
 You are a deduplication specialist analyzing code review issues. Your task is to identify and remove duplicate issues that represent the same underlying problem.
 
-## Variables
-
-- **{{ISSUES_LIST}}**: JSON array of issues to deduplicate
-- **{{MIN_CONFIDENCE}}**: Minimum confidence threshold for keeping issues
-- **{{REVIEW_MIN_CONFIDENCE}}**: Overall review confidence threshold
-
 ## Deduplication Rules
 
 ### What Constitutes a Duplicate
@@ -125,8 +119,6 @@ When choosing which duplicate to keep:
 ```
 
 ## Your Task
-
-Given the issues list in {{ISSUES_LIST}}:
 
 1. Group issues by similarity (location, type, description)
 2. Identify duplicates within each group

@@ -13,9 +13,21 @@ This guide enables LLM agents to help users create custom QualOps review pipelin
 ## OVERVIEW OF QUALOPS CONFIGURATION SYSTEM
 
 ### Configuration Hierarchy
-1. **Main Config**: `.qualopsrc.json` (monorepo root) - Default configuration
-2. **Custom Configs**: `tools/qualops/config/<name>.qualopsrc.json` - Specialized configurations
-3. **Prompts**: `tools/qualops/config/prompts/<name>/` - Custom prompt files
+1. **Main Config**: `.qualopsrc.json` (project root) - Default configuration
+2. **Custom Configs**: `<name>.qualopsrc.json` - Specialized configurations (location is flexible)
+3. **Prompts**: `prompts/<name>/` directory - Custom prompt files
+
+**Recommended directory structure** (adapt to your project):
+```
+your-project/
+├── .qualopsrc.json                          # Main config
+├── .github/workflows/qualops.yml            # GitHub Actions (if using GitHub)
+├── .gitlab-ci.yml                           # GitLab CI (if using GitLab)
+└── prompts/                                 # Custom prompts directory
+    └── <review-name>/
+        ├── review-system-message.md
+        └── validation.md
+```
 
 ### Config Inheritance Model
 Custom configs inherit from main `.qualopsrc.json`:
@@ -26,10 +38,10 @@ Custom configs inherit from main `.qualopsrc.json`:
 ### Usage
 ```bash
 # Default config
-npm run qualops
+npx qualops
 
 # Custom config
-npm run qualops -- --config tools/qualops/config/security-reviewer.qualopsrc.json
+npx qualops --config security-auditor.qualopsrc.json
 ```
 
 ## CRITICAL WARNINGS - COMMON MISTAKES
@@ -369,9 +381,9 @@ When referencing prompts in configuration:
 **Path Resolution Logic:**
 ```
 Config value: "security-auditor/validation.md"
-System resolves to: tools/qualops/config/prompts/security-auditor/validation.md
-                                              ^^^^^^^^^^^^^^^
-                                              System adds this prefix automatically
+System resolves to: prompts/security-auditor/validation.md
+                    ^^^^^^^^
+                    System adds "prompts/" prefix automatically
 ```
 
 **❌ NEVER include "prompts/" in the config:**
@@ -386,14 +398,17 @@ System resolves to: tools/qualops/config/prompts/security-auditor/validation.md
 
 ### Step 3: Generate Configuration Files
 
-Create two files:
+Create the following files in the target project:
 
 **3.1 Configuration File**
-Path: `tools/qualops/config/<name>.qualopsrc.json`
+Path: `.qualopsrc.json` or `<name>.qualopsrc.json`
 
 **3.2 Prompt Directory (if custom prompt)**
-Path: `tools/qualops/config/prompts/<name>/`
+Path: `prompts/<name>/`
 Files: `review-system-message.md`, `validation.md` (optional), `deduplication.md` (optional)
+
+**3.3 CI Workflow (if CI integration)**
+Path: `.github/workflows/qualops.yml` (GitHub) or `.gitlab-ci.yml` (GitLab)
 
 ## FILE TEMPLATES
 
@@ -492,6 +507,14 @@ Files: `review-system-message.md`, `validation.md` (optional), `deduplication.md
     "skipOnDraft": false,
     "blockPipeline": true
   },
+  "github": {
+    // OPTIONAL: GitHub Actions integration
+    "enabled": false,                      // Enable GitHub integration
+    "postComments": true,                  // Post PR comments with results
+    "skipOnDraft": true,                   // Skip draft PRs
+    "blockPipeline": false,                // Exit non-zero on critical/high issues
+    "maxInlineComments": 50                // Max annotations per check run
+  },
   "report": {
     // REQUIRED: Report configuration
     "includedSeverities": ["critical", "high"],  // Which severities in reports
@@ -525,7 +548,7 @@ Files: `review-system-message.md`, `validation.md` (optional), `deduplication.md
 
 ### Template: Custom Review Prompt
 
-Path: `tools/qualops/config/prompts/<name>/review-system-message.md`
+Path: `prompts/<name>/review-system-message.md`
 
 ```markdown
 <role>
@@ -597,7 +620,7 @@ Before reporting an issue:
 
 ### Template: Custom Validation Prompt (Optional)
 
-Path: `tools/qualops/config/prompts/<name>/validation.md`
+Path: `prompts/<name>/validation.md`
 
 **CRITICAL**: Do NOT include response format in validation prompts. The system automatically appends the validation response specification.
 
@@ -626,12 +649,15 @@ Raise confidence if:
 - [High certainty factor 1]
 - [High certainty factor 2]
 
-**CRITICAL**: Do NOT include OUTPUT or RESPONSE FORMAT sections. The system handles response formatting automatically.
 ```
+
+**Note:** Do NOT include OUTPUT, RESPONSE FORMAT, or issues sections. The system automatically appends:
+- Issues to validate (with JSON data)
+- Response format specification
 
 ### Template: Custom Deduplication Prompt (Optional)
 
-Path: `tools/qualops/config/prompts/<name>/deduplication.md`
+Path: `prompts/<name>/deduplication.md`
 
 Usually the standard deduplication.md is sufficient. Only create custom if you have domain-specific deduplication logic.
 
@@ -644,7 +670,7 @@ Usually the standard deduplication.md is sufficient. Only create custom if you h
 **Scope**: All TypeScript files except tests
 **Focus**: High/Critical security issues only
 
-**Configuration**: `tools/qualops/config/security-auditor.qualopsrc.json`
+**Configuration**: `security-auditor.qualopsrc.json`
 ```json
 {
   "ai": {
@@ -718,7 +744,7 @@ Usually the standard deduplication.md is sufficient. Only create custom if you h
 }
 ```
 
-**Prompt**: `tools/qualops/config/prompts/security-auditor/review-system-message.md`
+**Prompt**: `prompts/security-auditor/review-system-message.md`
 ```markdown
 <role>
 You are a security expert performing vulnerability assessment on production code.
@@ -811,7 +837,7 @@ DO NOT flag:
 **Scope**: All source files
 **Focus**: Performance issues
 
-**Configuration**: `tools/qualops/config/performance-auditor.qualopsrc.json`
+**Configuration**: `performance-auditor.qualopsrc.json`
 ```json
 {
   "ai": {
@@ -886,7 +912,7 @@ DO NOT flag:
 }
 ```
 
-**Prompt**: `tools/qualops/config/prompts/performance-auditor/review-system-message.md`
+**Prompt**: `prompts/performance-auditor/review-system-message.md`
 ```markdown
 <role>
 You are a performance optimization expert analyzing code for bottlenecks and anti-patterns.
@@ -961,7 +987,7 @@ DO NOT flag:
 **Scope**: Migration-specific files
 **Focus**: Migration correctness
 
-**Configuration**: `tools/qualops/config/angularjs-migration-validator.qualopsrc.json`
+**Configuration**: `angularjs-migration-validator.qualopsrc.json`
 ```json
 {
   "ai": {
@@ -1092,7 +1118,7 @@ Root cause extraction uses AI to automatically categorize issues into meaningful
 
 ### Example Taxonomy Categories
 
-Main config (`tools/qualops/config/.qualopsrc.json`) includes standard categories:
+Your main config (`.qualopsrc.json`) can include standard categories like:
 - `memory_leaks_cleanup`: Resource cleanup issues
 - `race_conditions_async`: Async timing problems
 - `null_undefined_safety`: Null/undefined handling
@@ -1144,19 +1170,123 @@ reports/sessions/<name>/
     └── ISSUE-004-misc.md
 ```
 
+## CI WORKFLOW TEMPLATES
+
+### GitHub Actions Workflow
+
+Create `.github/workflows/qualops.yml`:
+
+```yaml
+name: QualOps Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  qualops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git diff
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run QualOps
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx qualops \
+            --base origin/${{ github.base_ref }} \
+            --head ${{ github.event.pull_request.head.sha }} \
+            --stages analyze,review,report
+
+      - name: Post GitHub Integration
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx qualops github-integration
+```
+
+### GitHub Actions with Custom Config
+
+```yaml
+      - name: Run QualOps Security Audit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          npx qualops \
+            --config security-auditor.qualopsrc.json \
+            --base origin/${{ github.base_ref }} \
+            --head ${{ github.event.pull_request.head.sha }}
+```
+
+### GitLab CI Pipeline
+
+Add to `.gitlab-ci.yml`:
+
+```yaml
+qualops:
+  stage: test
+  image: node:20
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  variables:
+    GIT_DEPTH: 0  # Full history for git diff
+  script:
+    - npx qualops --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --head $CI_COMMIT_SHA --stages analyze,review,report
+    - npx qualops gitlab-integration
+  artifacts:
+    paths:
+      - reports/
+    expire_in: 7 days
+```
+
+### CI Configuration Notes
+
+**Required Secrets:**
+- `ANTHROPIC_API_KEY`: Your Anthropic API key for Claude
+
+**GitHub-specific:**
+- `GITHUB_TOKEN` is automatically available
+- Permissions needed: `contents: read`, `pull-requests: write`, `checks: write`
+- The integration posts PR comments and creates GitHub Checks with annotations
+
+**GitLab-specific:**
+- `GITLAB_ACCESS_TOKEN`: Optional, for posting MR comments
+- Uses `CI_MERGE_REQUEST_*` variables automatically
+- Artifacts store the reports for review
+
+**Stages:**
+- `analyze`: Detect changed files
+- `review`: AI-powered code review
+- `report`: Generate reports
+- `fix`: Generate fix suggestions (optional)
+- `judge`: Quality gate check (optional)
+
 ## VALIDATION AND TESTING
 
 After creating the custom configuration, test it:
 
 ```bash
 # 1. Validate JSON syntax
-cat tools/qualops/config/<name>.qualopsrc.json | jq .
+cat <name>.qualopsrc.json | jq .
 
 # 2. Test on a single file
-npm run qualops -- --config tools/qualops/config/<name>.qualopsrc.json --files src/some-file.ts
+npx qualops --config <name>.qualopsrc.json --files src/some-file.ts
 
-# 3. Test on a small project
-npm run qualops -- --config tools/qualops/config/<name>.qualopsrc.json --projects small-project
+# 3. Test on changed files (git diff)
+npx qualops --config <name>.qualopsrc.json --base main --head HEAD
 
 # 4. Review session output
 cat reports/sessions/<session>/review-summary.json | jq '.summary'
@@ -1275,11 +1405,17 @@ Narrow down files to review by using detection triggers for specific patterns.
 
 ## FILE ORGANIZATION
 
+Recommended structure in your project:
+
 ```
-tools/qualops/config/
-├── .qualopsrc.json                          # Main config (DO NOT MODIFY)
-├── security-auditor.qualopsrc.json          # Custom config example
-├── performance-auditor.qualopsrc.json       # Custom config example
+your-project/
+├── .qualopsrc.json                          # Main config
+├── security-auditor.qualopsrc.json          # Custom config (optional)
+├── performance-auditor.qualopsrc.json       # Custom config (optional)
+├── .github/
+│   └── workflows/
+│       └── qualops.yml                      # GitHub Actions workflow
+├── .gitlab-ci.yml                           # GitLab CI config (alternative)
 └── prompts/
     ├── security-auditor/
     │   ├── review-system-message.md
@@ -1302,8 +1438,8 @@ Before finalizing a custom configuration:
 - [ ] **No response formats** in custom prompts (system auto-appends)
 
 ### Configuration Requirements:
-- [ ] Configuration file created in `tools/qualops/config/<name>.qualopsrc.json`
-- [ ] Custom prompts (if any) in `tools/qualops/config/prompts/<name>/`
+- [ ] Configuration file created (`.qualopsrc.json` or `<name>.qualopsrc.json`)
+- [ ] Custom prompts (if any) in `prompts/<name>/`
 - [ ] All JSON files are valid (test with `jq`)
 - [ ] Prompts use XML-like tags: `<role>`, `<review_principles>`
 - [ ] File patterns cover intended scope
@@ -1313,13 +1449,19 @@ Before finalizing a custom configuration:
 - [ ] Validation/deduplication settings match needs
 
 ### Testing Requirements:
-- [ ] Validated JSON syntax with `cat config.json | jq .`
-- [ ] Tested on sample files/projects
+- [ ] Validated JSON syntax with `cat <config>.json | jq .`
+- [ ] Tested on sample files
 - [ ] Verified issues-before-validation-and-dedup.json contains expected findings
 - [ ] Documentation provided to user on how to run:
   ```bash
-  npm run qualops -- --config tools/qualops/config/<name>.qualopsrc.json
+  npx qualops --config <name>.qualopsrc.json
   ```
+
+### CI Requirements (if enabling CI integration):
+- [ ] GitHub Actions workflow created in `.github/workflows/qualops.yml`
+- [ ] OR GitLab CI config added to `.gitlab-ci.yml`
+- [ ] ANTHROPIC_API_KEY secret configured in CI
+- [ ] Proper permissions set (GitHub: `pull-requests: write`, `checks: write`)
 
 ## SUMMARY
 
@@ -1328,13 +1470,14 @@ This guide enables you to help users create specialized QualOps review pipelines
 2. Creating properly structured configuration files
 3. Writing effective custom prompts with XML-like tags
 4. Organizing files in the correct directory structure
-5. Testing and validating the configuration
+5. Generating CI workflows (GitHub Actions or GitLab CI)
+6. Testing and validating the configuration
 
 ### FOUR CRITICAL RULES (Never forget):
 
 1. **ALWAYS include "ai" section** in custom configs (reviewStage, fixStage, judgeStage)
 2. **NEVER include "prompts/" prefix** in prompt paths (use `"<name>/file.md"`, not `"prompts/<name>/file.md"`)
-3. **NEVER include response format** in custom prompts (system auto-appends `<response_format>`)
+3. **NEVER include response format** in custom prompts (system auto-appends `<response_format>`, issues section, etc.)
 4. **ALWAYS define "taxonomy" array** if `enableRootCauseExtraction: true` (no defaults, config-driven only)
 
 These four mistakes will cause the pipeline to fail. Everything else is negotiable.

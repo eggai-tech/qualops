@@ -6,6 +6,15 @@ import { PromptLoader } from '../loaders/prompt-loader';
 import { TemplateEngine } from '../loaders/template-engine';
 import { globalRateLimiter } from '../utils/global-rate-limiter';
 
+const ISSUES_SECTION = `
+
+## Issues to Deduplicate
+
+Below are the issues found for this file. Identify duplicates and return indices of issues to KEEP.
+
+{{ISSUES_LIST}}
+`;
+
 const DEDUP_RESPONSE_SPEC = `
 
 <response_format>
@@ -92,7 +101,8 @@ export class DeduplicationResolver {
       2,
     );
 
-    const prompt = TemplateEngine.render(content + DEDUP_RESPONSE_SPEC, {
+    const fullPrompt = content + ISSUES_SECTION + DEDUP_RESPONSE_SPEC;
+    const prompt = TemplateEngine.render(fullPrompt, {
       ISSUES_LIST: issuesJson,
       MIN_CONFIDENCE: this.globalConfig.validation?.minConfidence ?? 7,
       REVIEW_MIN_CONFIDENCE: this.globalConfig.minConfidence ?? 4,

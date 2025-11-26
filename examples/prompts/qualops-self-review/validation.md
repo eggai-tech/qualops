@@ -178,9 +178,3 @@ For each issue, respond with:
 - **Actionable**: Every valid issue should have a clear fix
 
 Be strict but fair. Filter out noise while preserving genuinely valuable feedback.
-
-## Issues to Validate
-
-Below are the issues found during code review. Validate each one and return a JSON array with validation results.
-
-{{ISSUES_LIST}}
