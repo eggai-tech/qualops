@@ -3,6 +3,7 @@ import { join } from 'path';
 
 import { GitHubAPIClient } from './github-api-client';
 import { GitHubChecksService } from './github-checks';
+import { logger } from '../shared/utils/logger';
 
 const QUALOPS_COMMENT_MARKER = '<!-- qualops-analysis-comment -->';
 
@@ -110,7 +111,7 @@ export class GitHubIntegration {
       }
       return JSON.parse(readFileSync(eventPath, 'utf8'));
     } catch (error) {
-      console.warn('Failed to parse GitHub event:', error);
+      logger.warn('Failed to parse GitHub event:', error);
       return null;
     }
   }
@@ -122,7 +123,7 @@ export class GitHubIntegration {
 
       return qualopsComment?.id || null;
     } catch (error) {
-      console.warn('Failed to fetch existing comments:', error);
+      logger.warn('Failed to fetch existing comments:', error);
       return null;
     }
   }
@@ -206,7 +207,7 @@ export class GitHubIntegration {
     const reportsDir = join(process.cwd(), 'reports', 'sessions');
 
     if (!existsSync(reportsDir)) {
-      console.warn('Reports directory not found');
+      logger.warn('Reports directory not found');
       return this.getEmptyResult();
     }
 
@@ -216,7 +217,7 @@ export class GitHubIntegration {
     });
 
     if (sessionDirs.length === 0) {
-      console.warn('No session directories found');
+      logger.warn('No session directories found');
       return this.getEmptyResult();
     }
 
@@ -225,7 +226,7 @@ export class GitHubIntegration {
     const reviewSummaryPath = join(sessionPath, 'review-summary.json');
 
     if (!existsSync(reviewSummaryPath)) {
-      console.warn('review-summary.json not found');
+      logger.warn('review-summary.json not found');
       return this.getEmptyResult();
     }
 
@@ -253,7 +254,7 @@ export class GitHubIntegration {
         })),
       };
     } catch (error) {
-      console.error('Failed to parse reports:', error);
+      logger.error('Failed to parse reports:', error);
       return this.getEmptyResult();
     }
   }
@@ -298,7 +299,7 @@ export class GitHubIntegration {
     if (this.config.skipOnDraft) {
       const pr = await this.api.getPullRequest(prNumber);
       if (pr.draft) {
-        console.log('Skipping draft PR');
+        logger.info('Skipping draft PR');
         return;
       }
     }
@@ -324,6 +325,6 @@ export class GitHubIntegration {
       }
     }
 
-    console.log('GitHub integration completed successfully');
+    logger.info('GitHub integration completed successfully');
   }
 }

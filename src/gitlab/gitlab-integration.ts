@@ -3,6 +3,7 @@
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
+import { logger } from '../shared/utils/logger';
 import { hasValidUrlScheme, isValidGitSha } from '../shared/utils/security';
 
 const SEVERITY_EMOJI = {
@@ -173,7 +174,7 @@ class GitLabIntegration {
         includedSeverities: config.report?.includedSeverities || defaults.includedSeverities,
       };
     } catch (error) {
-      console.warn('Failed to load .qualopsrc.json, using defaults:', error instanceof Error ? error.message : error);
+      logger.warn('Failed to load .qualopsrc.json, using defaults:', error instanceof Error ? error.message : error);
       return defaults;
     }
   }
@@ -195,7 +196,7 @@ class GitLabIntegration {
         });
 
         if (!response.ok) {
-          console.warn(`Failed to fetch page ${currentPage}: ${response.status} ${response.statusText}`);
+          logger.warn(`Failed to fetch page ${currentPage}: ${response.status} ${response.statusText}`);
           break;
         }
 
@@ -215,7 +216,7 @@ class GitLabIntegration {
 
         currentPage++;
       } catch (error) {
-        console.warn(`Error fetching page ${currentPage}:`, error instanceof Error ? error.message : error);
+        logger.warn(`Error fetching page ${currentPage}:`, error instanceof Error ? error.message : error);
         break;
       }
     }
@@ -236,14 +237,14 @@ class GitLabIntegration {
 
       return qualopsNote?.id || null;
     } catch (error) {
-      console.warn('Failed to fetch existing comments:', error);
+      logger.warn('Failed to fetch existing comments:', error);
       return null;
     }
   }
 
   async postMergeRequestComment(comment: string): Promise<void> {
     if (!this.env.CI_MERGE_REQUEST_IID) {
-      console.log('No merge request IID found, skipping comment posting');
+      logger.info('No merge request IID found, skipping comment posting');
       return;
     }
 
@@ -257,7 +258,7 @@ class GitLabIntegration {
 
         if (existingCommentId) {
           const updateUrl = `${this.apiUrl}/merge_requests/${this.env.CI_MERGE_REQUEST_IID}/notes/${existingCommentId}`;
-          console.log(`Updating existing comment at: ${updateUrl} (attempt ${attempt}/${maxRetries})`);
+          logger.info(`Updating existing comment at: ${updateUrl} (attempt ${attempt}/${maxRetries})`);
           const response = await fetch(updateUrl, {
             method: 'PUT',
             headers: this.headers,
@@ -267,19 +268,19 @@ class GitLabIntegration {
           if (!response.ok) {
             const errorText = await response.text();
             if (response.status === 404) {
-              console.warn('Comment was deleted, retrying with create...');
+              logger.warn('Comment was deleted, retrying with create...');
               continue;
             }
-            console.error(`Failed to update comment (${response.status} ${response.statusText})`);
-            console.error(`Response: ${this.redactSensitiveData(errorText.substring(0, 500))}`);
+            logger.error(`Failed to update comment (${response.status} ${response.statusText})`);
+            logger.error(`Response: ${this.redactSensitiveData(errorText.substring(0, 500))}`);
             throw new Error(`Failed to update comment: ${response.statusText}`);
           }
 
-          console.log('Updated existing QualOps comment on merge request');
+          logger.info('Updated existing QualOps comment on merge request');
           return;
         } else {
           const createUrl = `${this.apiUrl}/merge_requests/${this.env.CI_MERGE_REQUEST_IID}/notes`;
-          console.log(`Creating new comment at: ${createUrl} (attempt ${attempt}/${maxRetries})`);
+          logger.info(`Creating new comment at: ${createUrl} (attempt ${attempt}/${maxRetries})`);
           const response = await fetch(createUrl, {
             method: 'POST',
             headers: this.headers,
@@ -288,27 +289,27 @@ class GitLabIntegration {
 
           if (!response.ok) {
             const errorText = await response.text();
-            console.error(`Failed to post comment (${response.status} ${response.statusText})`);
-            console.error(`Response: ${this.redactSensitiveData(errorText.substring(0, 500))}`);
+            logger.error(`Failed to post comment (${response.status} ${response.statusText})`);
+            logger.error(`Response: ${this.redactSensitiveData(errorText.substring(0, 500))}`);
             throw new Error(`Failed to post comment: ${response.statusText}`);
           }
 
-          console.log('Posted QualOps summary to merge request');
+          logger.info('Posted QualOps summary to merge request');
           return;
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        console.warn(`Attempt ${attempt}/${maxRetries} failed:`, lastError.message);
+        logger.warn(`Attempt ${attempt}/${maxRetries} failed:`, lastError.message);
 
         if (attempt < maxRetries) {
           const waitMs = Math.pow(2, attempt - 1) * 1000;
-          console.log(`Waiting ${waitMs}ms before retry...`);
+          logger.info(`Waiting ${waitMs}ms before retry...`);
           await new Promise((resolve) => setTimeout(resolve, waitMs));
         }
       }
     }
 
-    console.error('Failed to post/update comment on merge request after all retries:', lastError);
+    logger.error('Failed to post/update comment on merge request after all retries:', lastError);
   }
 
   async postInlineComment(
@@ -338,8 +339,8 @@ class GitLabIntegration {
     };
 
     if (debug) {
-      console.log(`  Attempting inline comment: ${issue.file}:${issue.line} (${issue.severity})`);
-      console.log(`    Position: base=${baseSha.substring(0, 8)} head=${headSha.substring(0, 8)} line=${issue.line}`);
+      logger.info(`  Attempting inline comment: ${issue.file}:${issue.line} (${issue.severity})`);
+      logger.info(`    Position: base=${baseSha.substring(0, 8)} head=${headSha.substring(0, 8)} line=${issue.line}`);
     }
 
     try {
@@ -351,20 +352,20 @@ class GitLabIntegration {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.warn(`✗ Failed to post inline comment for ${issue.file}:${issue.line}`);
-        console.warn(`  Severity: ${issue.severity}`);
-        console.warn(`  Status: ${response.status} ${response.statusText}`);
-        console.warn(`  Position: base=${baseSha.substring(0, 8)} head=${headSha.substring(0, 8)} line=${issue.line}`);
-        console.warn(`  Response: ${this.redactSensitiveData(errorText.substring(0, 300))}`);
+        logger.warn(`✗ Failed to post inline comment for ${issue.file}:${issue.line}`);
+        logger.warn(`  Severity: ${issue.severity}`);
+        logger.warn(`  Status: ${response.status} ${response.statusText}`);
+        logger.warn(`  Position: base=${baseSha.substring(0, 8)} head=${headSha.substring(0, 8)} line=${issue.line}`);
+        logger.warn(`  Response: ${this.redactSensitiveData(errorText.substring(0, 300))}`);
         return false;
       }
 
       if (debug) {
-        console.log(`  ✓ Posted successfully`);
+        logger.info(`  ✓ Posted successfully`);
       }
       return true;
     } catch (error) {
-      console.warn(
+      logger.warn(
         `✗ Failed to post inline comment for ${issue.file}:${issue.line} -`,
         error instanceof Error ? error.message : 'Unknown error',
       );
@@ -391,7 +392,7 @@ class GitLabIntegration {
 
       return null;
     } catch (error) {
-      console.warn('Failed to get artifact download URL:', error);
+      logger.warn('Failed to get artifact download URL:', error);
       return null;
     }
   }
@@ -450,7 +451,7 @@ class GitLabIntegration {
     if (artifactUrl) {
       // Validate URL scheme before using
       if (!hasValidUrlScheme(artifactUrl)) {
-        console.warn('Invalid artifact URL scheme, skipping download link');
+        logger.warn('Invalid artifact URL scheme, skipping download link');
       } else {
         const sanitizedUrl = this.sanitizeMarkdown(artifactUrl);
         comment += `[**Download complete analysis report**](${sanitizedUrl})\n\n`;
@@ -486,12 +487,12 @@ class GitLabIntegration {
       if (latestReport) {
         sessionsDir = join(reportsDir, latestReport, 'sessions');
         if (existsSync(sessionsDir)) {
-          console.log(`Using report directory: ${latestReport}`);
+          logger.info(`Using report directory: ${latestReport}`);
           return sessionsDir;
         }
       }
     } catch (error) {
-      console.error('Failed to scan reports directory:', error instanceof Error ? error.message : 'Unknown error');
+      logger.error('Failed to scan reports directory:', error instanceof Error ? error.message : 'Unknown error');
     }
 
     return null;
@@ -500,7 +501,7 @@ class GitLabIntegration {
   parseQualOpsResults(reportsDir: string): QualOpsResult | null {
     const sessionsDir = this.findSessionsDir(reportsDir);
     if (!sessionsDir) {
-      console.log('No sessions directory found');
+      logger.info('No sessions directory found');
       return null;
     }
 
@@ -510,12 +511,12 @@ class GitLabIntegration {
         .filter((dirent) => dirent.isDirectory())
         .map((dirent) => dirent.name);
     } catch (error) {
-      console.error('Failed to read sessions directory:', error instanceof Error ? error.message : 'Unknown error');
+      logger.error('Failed to read sessions directory:', error instanceof Error ? error.message : 'Unknown error');
       return null;
     }
 
     if (sessionFolders.length === 0) {
-      console.log('No session folders found');
+      logger.info('No session folders found');
       return null;
     }
 
@@ -534,7 +535,7 @@ class GitLabIntegration {
       const analysisPath = join(sessionsDir, sessionFolder, 'analysis.json');
 
       if (!existsSync(overallReportPath)) {
-        console.warn(`No overall-report.json found in session folder: ${sessionFolder}`);
+        logger.warn(`No overall-report.json found in session folder: ${sessionFolder}`);
         continue;
       }
 
@@ -582,7 +583,7 @@ class GitLabIntegration {
           }
         }
       } catch (error) {
-        console.warn(
+        logger.warn(
           `Failed to parse session ${sessionFolder}:`,
           error instanceof Error ? error.message : 'Unknown error',
         );
@@ -603,7 +604,7 @@ class GitLabIntegration {
       issues: allIssues,
     };
 
-    console.log(`Parsed ${sessionFolders.length} session(s) with ${totalIssues} total issues`);
+    logger.info(`Parsed ${sessionFolders.length} session(s) with ${totalIssues} total issues`);
     return result;
   }
 
@@ -627,7 +628,7 @@ class GitLabIntegration {
         }
       }
     } catch (error) {
-      console.warn('Failed to parse judge decision:', error instanceof Error ? error.message : 'Unknown error');
+      logger.warn('Failed to parse judge decision:', error instanceof Error ? error.message : 'Unknown error');
     }
 
     return null;
@@ -639,7 +640,7 @@ class GitLabIntegration {
     }
 
     const url = `${this.apiUrl}/merge_requests/${this.env.CI_MERGE_REQUEST_IID}`;
-    console.log(`Testing MR access at: ${url}`);
+    logger.info(`Testing MR access at: ${url}`);
 
     try {
       const response = await fetch(url, {
@@ -647,20 +648,20 @@ class GitLabIntegration {
         headers: this.headers,
       });
 
-      console.log(`  MR access test: ${response.status} ${response.statusText}`);
+      logger.info(`  MR access test: ${response.status} ${response.statusText}`);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`  Cannot access MR: ${this.redactSensitiveData(errorText.substring(0, 200))}`);
+        logger.error(`  Cannot access MR: ${this.redactSensitiveData(errorText.substring(0, 200))}`);
         return false;
       }
 
       const body = await response.json();
       const mr = body as { iid: number; title: string };
-      console.log(`  ✓ Successfully accessed MR #${mr.iid}: "${mr.title}"`);
+      logger.info(`  ✓ Successfully accessed MR #${mr.iid}: "${mr.title}"`);
       return true;
     } catch (error) {
-      console.error('  Failed to test MR access:', error);
+      logger.error('  Failed to test MR access:', error);
       return false;
     }
   }
@@ -703,10 +704,10 @@ class GitLabIntegration {
         }
       }
 
-      console.log(`  Found ${existingComments.size} existing unresolved inline comments`);
+      logger.info(`  Found ${existingComments.size} existing unresolved inline comments`);
       return existingComments;
     } catch (error) {
-      console.warn('Failed to fetch existing inline comments:', error instanceof Error ? error.message : error);
+      logger.warn('Failed to fetch existing inline comments:', error instanceof Error ? error.message : error);
       return existingComments;
     }
   }
@@ -717,7 +718,7 @@ class GitLabIntegration {
 
     // Validate SHAs to prevent command injection
     if (!isValidGitSha(baseSha) || !isValidGitSha(headSha)) {
-      console.warn('Invalid SHA format detected, skipping git diff');
+      logger.warn('Invalid SHA format detected, skipping git diff');
       return new Map();
     }
 
@@ -754,57 +755,57 @@ class GitLabIntegration {
 
       return changedLines;
     } catch (error) {
-      console.warn('Failed to get changed lines from git diff:', error instanceof Error ? error.message : error);
+      logger.warn('Failed to get changed lines from git diff:', error instanceof Error ? error.message : error);
       return new Map();
     }
   }
 
   async run(): Promise<void> {
-    console.log('Running GitLab integration for QualOps...');
+    logger.info('Running GitLab integration for QualOps...');
 
     if (!this.env.CI_PROJECT_ID || !this.env.CI_JOB_TOKEN) {
-      console.log('Not running in GitLab CI environment, skipping integration');
+      logger.info('Not running in GitLab CI environment, skipping integration');
       return;
     }
 
-    console.log(`Environment info:`);
-    console.log(`  CI_PROJECT_ID: ${this.env.CI_PROJECT_ID}`);
-    console.log(`  CI_MERGE_REQUEST_IID: ${this.env.CI_MERGE_REQUEST_IID}`);
-    console.log(`  CI_API_V4_URL: ${this.env.CI_API_V4_URL}`);
-    console.log(`  API URL: ${this.apiUrl}`);
-    console.log(`  Has GITLAB_ACCESS_TOKEN: ${!!process.env.GITLAB_ACCESS_TOKEN}`);
+    logger.info(`Environment info:`);
+    logger.info(`  CI_PROJECT_ID: ${this.env.CI_PROJECT_ID}`);
+    logger.info(`  CI_MERGE_REQUEST_IID: ${this.env.CI_MERGE_REQUEST_IID}`);
+    logger.info(`  CI_API_V4_URL: ${this.env.CI_API_V4_URL}`);
+    logger.info(`  API URL: ${this.apiUrl}`);
+    logger.info(`  Has GITLAB_ACCESS_TOKEN: ${!!process.env.GITLAB_ACCESS_TOKEN}`);
 
     if (!process.env.GITLAB_ACCESS_TOKEN) {
-      console.warn('⚠ GITLAB_ACCESS_TOKEN not set - comments will fail to post.');
-      console.warn('  To enable MR comments, add a project access token as GITLAB_ACCESS_TOKEN CI/CD variable.');
-      console.warn('  QualOps will still generate reports in job artifacts.');
+      logger.warn('⚠ GITLAB_ACCESS_TOKEN not set - comments will fail to post.');
+      logger.warn('  To enable MR comments, add a project access token as GITLAB_ACCESS_TOKEN CI/CD variable.');
+      logger.warn('  QualOps will still generate reports in job artifacts.');
     }
 
     // Test if we can access the merge request
     const canAccessMR = await this.testMergeRequestAccess();
     if (!canAccessMR) {
-      console.error('⚠ Cannot access merge request - skipping comment posting');
-      console.error('  This may be due to insufficient token permissions');
-      console.error('  The token needs at least "api" scope with Guest role or higher');
+      logger.error('⚠ Cannot access merge request - skipping comment posting');
+      logger.error('  This may be due to insufficient token permissions');
+      logger.error('  The token needs at least "api" scope with Guest role or higher');
     }
 
     const results = this.parseQualOpsResults('reports');
     if (!results) {
-      console.log('No QualOps results found, skipping comment posting');
+      logger.info('No QualOps results found, skipping comment posting');
       return;
     }
 
     const baseSha = this.env.CI_MERGE_REQUEST_DIFF_BASE_SHA || '';
     const headSha = this.env.CI_MERGE_REQUEST_SOURCE_BRANCH_SHA || this.env.CI_COMMIT_SHA || '';
 
-    console.log(`Using base SHA: ${baseSha.substring(0, 8)} and head SHA: ${headSha.substring(0, 8)}`);
+    logger.info(`Using base SHA: ${baseSha.substring(0, 8)} and head SHA: ${headSha.substring(0, 8)}`);
 
     if (baseSha && headSha && results.issues.length > 0) {
-      console.log('Posting inline comments on diff...');
+      logger.info('Posting inline comments on diff...');
 
       const existingComments = await this.getExistingInlineComments();
       const changedLines = await this.getChangedLines(baseSha, headSha);
-      console.log(`  Found ${changedLines.size} files with changes`);
+      logger.info(`  Found ${changedLines.size} files with changes`);
 
       const inlineIssues = results.issues.filter((issue) => this.inlineCommentSeverities.includes(issue.severity));
 
@@ -818,7 +819,7 @@ class GitLabIntegration {
         return true;
       });
 
-      console.log(`  Posting ${commentableIssues.length} inline comments...`);
+      logger.info(`  Posting ${commentableIssues.length} inline comments...`);
 
       let successCount = 0;
       for (const issue of commentableIssues) {
@@ -826,7 +827,7 @@ class GitLabIntegration {
         if (success) successCount++;
       }
 
-      console.log(`  Posted ${successCount}/${commentableIssues.length} inline comments`);
+      logger.info(`  Posted ${successCount}/${commentableIssues.length} inline comments`);
     }
 
     const artifactUrl = await this.getArtifactDownloadUrl();
@@ -834,13 +835,13 @@ class GitLabIntegration {
     const comment = this.generateCommentFromResults(results, artifactUrl);
     await this.postMergeRequestComment(comment);
 
-    console.log(`\nQualOps Analysis Complete:`);
-    console.log(`   Issues found: ${results.summary.totalIssues}`);
-    console.log(`   Critical: ${results.summary.criticalSeverity}`);
-    console.log(`   High: ${results.summary.highSeverity}`);
-    console.log(`   Medium: ${results.summary.mediumSeverity}`);
-    console.log(`   Low: ${results.summary.lowSeverity}`);
-    console.log(`   Files analyzed: ${results.summary.filesAnalyzed}`);
+    logger.info(`\nQualOps Analysis Complete:`);
+    logger.info(`   Issues found: ${results.summary.totalIssues}`);
+    logger.info(`   Critical: ${results.summary.criticalSeverity}`);
+    logger.info(`   High: ${results.summary.highSeverity}`);
+    logger.info(`   Medium: ${results.summary.mediumSeverity}`);
+    logger.info(`   Low: ${results.summary.lowSeverity}`);
+    logger.info(`   Files analyzed: ${results.summary.filesAnalyzed}`);
 
     const judgeDecision = this.parseJudgeDecision('reports');
     const hasCriticalOrHigh = results.summary.criticalSeverity > 0 || results.summary.highSeverity > 0;
@@ -856,7 +857,7 @@ class GitLabIntegration {
       if (judgeFailure) {
         reasons.push(`Quality gate failed: ${judgeDecision.reasons.join('; ')}`);
       }
-      console.error(`\n❌ Pipeline blocked: ${reasons.join('. ')}`);
+      logger.error(`\n❌ Pipeline blocked: ${reasons.join('. ')}`);
       process.exit(1);
     }
   }

@@ -97,7 +97,6 @@ describe('GitLabIntegration', () => {
       expect(integration.config).toEqual({});
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Failed to load .qualopsrc.json'),
-        expect.anything(),
       );
 
       consoleSpy.mockRestore();
@@ -139,7 +138,7 @@ describe('GitLabIntegration', () => {
           body: JSON.stringify({ body: '<!-- qualops-analysis-comment -->\nTest comment' }),
         }),
       );
-      expect(consoleSpy).toHaveBeenCalledWith('Posted QualOps summary to merge request');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Posted QualOps summary to merge request'));
 
       consoleSpy.mockRestore();
     });
@@ -181,7 +180,7 @@ describe('GitLabIntegration', () => {
           body: JSON.stringify({ body: '<!-- qualops-analysis-comment -->\nUpdated comment' }),
         }),
       );
-      expect(consoleSpy).toHaveBeenCalledWith('Updated existing QualOps comment on merge request');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Updated existing QualOps comment on merge request'));
 
       consoleSpy.mockRestore();
     });
@@ -195,7 +194,7 @@ describe('GitLabIntegration', () => {
       await integration.postMergeRequestComment('Test comment');
 
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(consoleSpy).toHaveBeenCalledWith('No merge request IID found, skipping comment posting');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No merge request IID found, skipping comment posting'));
 
       consoleSpy.mockRestore();
     });
@@ -217,8 +216,7 @@ describe('GitLabIntegration', () => {
       await integration.postMergeRequestComment('Test comment');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to post/update comment on merge request after all retries:',
-        expect.any(Error),
+        expect.stringContaining('Failed to post/update comment on merge request after all retries:'),
       );
 
       consoleErrorSpy.mockRestore();
@@ -241,8 +239,7 @@ describe('GitLabIntegration', () => {
       await integration.postMergeRequestComment('Test comment');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to post/update comment on merge request after all retries:',
-        expect.any(Error),
+        expect.stringContaining('Failed to post/update comment on merge request after all retries:'),
       );
 
       consoleErrorSpy.mockRestore();
@@ -317,8 +314,7 @@ describe('GitLabIntegration', () => {
 
       expect(result).toBe(false);
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to post inline comment for src/test.ts:42 -'),
-        'Network error',
+        expect.stringContaining('Failed to post inline comment for src/test.ts:42 - Network error'),
       );
 
       consoleSpy.mockRestore();
@@ -410,7 +406,7 @@ describe('GitLabIntegration', () => {
       url = await integration.getArtifactDownloadUrl();
 
       expect(url).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to get artifact download URL:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to get artifact download URL:'));
 
       consoleSpy.mockRestore();
     });
@@ -556,7 +552,7 @@ describe('GitLabIntegration', () => {
       expect((results as QualOpsResult).summary.lowSeverity).toBe(2);
       expect((results as QualOpsResult).summary.filesAnalyzed).toBe(3);
       expect((results as QualOpsResult).issues).toHaveLength(2);
-      expect(consoleSpy).toHaveBeenCalledWith('Parsed 2 session(s) with 8 total issues');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Parsed 2 session(s) with 8 total issues'));
 
       consoleSpy.mockRestore();
     });
@@ -570,7 +566,7 @@ describe('GitLabIntegration', () => {
       const results = integration.parseQualOpsResults('reports');
 
       expect(results).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('No sessions directory found');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No sessions directory found'));
 
       consoleSpy.mockRestore();
     });
@@ -585,7 +581,7 @@ describe('GitLabIntegration', () => {
       const results = integration.parseQualOpsResults('reports');
 
       expect(results).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('No session folders found');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No session folders found'));
 
       consoleSpy.mockRestore();
     });
@@ -625,7 +621,7 @@ describe('GitLabIntegration', () => {
       const results = integration.parseQualOpsResults('reports');
 
       expect(results).toBeDefined();
-      expect(consoleSpy).toHaveBeenCalledWith('No overall-report.json found in session folder: session1');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No overall-report.json found in session folder: session1'));
 
       consoleSpy.mockRestore();
     });
@@ -663,7 +659,6 @@ describe('GitLabIntegration', () => {
       expect((results as QualOpsResult).summary.totalIssues).toBe(2);
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Failed to parse session session1'),
-        expect.anything(),
       );
 
       consoleSpy.mockRestore();
@@ -681,7 +676,7 @@ describe('GitLabIntegration', () => {
       const results = integration.parseQualOpsResults('reports');
 
       expect(results).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Failed to read sessions directory:', 'Permission denied');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to read sessions directory:'));
 
       consoleErrorSpy.mockRestore();
     });
@@ -736,7 +731,7 @@ describe('GitLabIntegration', () => {
 
       await integration.run();
 
-      expect(consoleSpy).toHaveBeenCalledWith('Not running in GitLab CI environment, skipping integration');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Not running in GitLab CI environment, skipping integration'));
       expect(mockFetch).not.toHaveBeenCalled();
 
       consoleSpy.mockRestore();
@@ -750,7 +745,7 @@ describe('GitLabIntegration', () => {
 
       await integration.run();
 
-      expect(consoleSpy).toHaveBeenCalledWith('No QualOps results found, skipping comment posting');
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No QualOps results found, skipping comment posting'));
 
       consoleSpy.mockRestore();
     });

@@ -2,7 +2,6 @@
 import { Command } from 'commander';
 
 import { executeAllStages } from './cli/commands/all-command';
-import { executeDownloadDocsStage } from './cli/commands/download-docs-command';
 import { generateIndexCommand } from './cli/commands/generate-index-command';
 import { withErrorHandling } from './cli/utils/error-handler';
 import { formatHelpText } from './cli/utils/help-formatter';
@@ -31,21 +30,16 @@ program
 program
   .command('all')
   .description('Run all stages (alias for default command)')
-  .action(function (_opts: unknown, command: any) {
-    return runQualOps(command.parent.opts());
+  .action(function (_opts, command: Command) {
+    return runQualOps(command.parent?.opts());
   });
-
-program
-  .command('docs:download')
-  .description('Download external documentation for code review')
-  .action(withErrorHandling(executeDownloadDocsStage, 'download-docs'));
 
 program
   .command('generate-index')
   .description('Generate index of all session reports with statistics')
   .option('--filter <pattern>', 'regex filter for session names to include')
-  .action(function (options: any, command: any) {
-    const parentOpts = command.parent.opts();
+  .action(function (options: Record<string, unknown>, command: Command) {
+    const parentOpts = command.parent?.opts() || {};
     const merged = { ...parentOpts, ...options };
     return withErrorHandling(generateIndexCommand, 'generate-index')(merged);
   });

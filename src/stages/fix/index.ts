@@ -11,7 +11,7 @@ import { processConcurrently } from '../../shared/utils/concurrency';
 import { readMetadataFile, writeMetadataFile } from '../../shared/utils/file-utils';
 import { logger } from '../../shared/utils/logger';
 
-function filterAndPrioritizeIssues(issues: ReviewIssue[], _includeMedium = true): ReviewIssue[] {
+function filterAndPrioritizeIssues(issues: ReviewIssue[]): ReviewIssue[] {
   const priorityIssues = issues.filter((i) => {
     return i.severity.toLowerCase() === 'high' && i.confidence >= 7 && !i.context.startsWith('[ESLint]');
   });
@@ -23,9 +23,8 @@ function filterAndPrioritizeIssues(issues: ReviewIssue[], _includeMedium = true)
 async function generateFixSuggestions(
   issues: ReviewIssue[],
   aiProvider: AIProvider,
-  _includeMedium = true,
 ): Promise<FixSuggestion[]> {
-  const issuesToProcess = filterAndPrioritizeIssues(issues, _includeMedium);
+  const issuesToProcess = filterAndPrioritizeIssues(issues);
 
   logger.info(`Generating fixes for ${issuesToProcess.length} HIGH severity issues (confidence >= 7)`);
 
@@ -115,7 +114,7 @@ export async function generateFixes(
   logger.info(`Using AI provider: ${aiProvider.name}`);
   logger.info(`Model: Claude Opus 4.1 for accurate fix generation`);
 
-  const suggestions = await generateFixSuggestions(reviewData.issues, aiProvider, includeMedium);
+  const suggestions = await generateFixSuggestions(reviewData.issues, aiProvider);
 
   let appliedCount = 0;
   const appliedFiles: string[] = [];

@@ -59,8 +59,7 @@
     "qualops:review": "node --env-file=.env --experimental-strip-types src/cli.ts review",
     "qualops:fix": "node --env-file=.env --experimental-strip-types src/cli.ts fix",
     "qualops:report": "node --env-file=.env --experimental-strip-types src/cli.ts report",
-    "qualops:judge": "node --env-file=.env --experimental-strip-types src/cli.ts judge",
-    "qualops:docs:download": "node --env-file=.env --experimental-strip-types src/cli.ts docs:download"
+    "qualops:judge": "node --env-file=.env --experimental-strip-types src/cli.ts judge"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.32.1",

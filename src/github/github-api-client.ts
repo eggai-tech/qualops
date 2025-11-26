@@ -1,5 +1,7 @@
 import { Octokit } from '@octokit/rest';
 
+import { logger } from '../shared/utils/logger';
+
 interface GitHubEnv {
   GITHUB_TOKEN?: string;
   GITHUB_REPOSITORY?: string;
@@ -54,7 +56,7 @@ export class GitHubAPIClient {
         }
 
         const delay = baseDelay * Math.pow(2, attempt - 1);
-        console.warn(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
+        logger.warn(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }

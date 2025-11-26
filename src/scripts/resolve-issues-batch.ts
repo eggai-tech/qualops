@@ -5,6 +5,8 @@ import { readdir } from 'fs/promises';
 import { join, resolve } from 'path';
 import { promisify } from 'util';
 
+import { logger } from '../shared/utils/logger';
+
 const execAsync = promisify(exec);
 
 interface BatchOptions {
@@ -53,7 +55,7 @@ async function resolveIssueFile(issuePath: string, apply: boolean): Promise<{ su
       return { success: false, error: stderr };
     }
 
-    console.log(stdout);
+    logger.info(stdout);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -80,14 +82,14 @@ async function main() {
 
   const issuesDir = args.find((arg) => !arg.startsWith('--')) || '../../reports/qualops-full-2025-10-22/issues';
 
-  console.log(`\n🔍 Scanning for issues in: ${issuesDir}`);
+  logger.info(`\n🔍 Scanning for issues in: ${issuesDir}`);
   if (options.category) {
-    console.log(`   Category filter: ${options.category}`);
+    logger.info(`   Category filter: ${options.category}`);
   }
   if (options.limit) {
-    console.log(`   Limit: ${options.limit} issues`);
+    logger.info(`   Limit: ${options.limit} issues`);
   }
-  console.log(`   Mode: ${options.apply ? 'APPLY FIXES' : 'DRY RUN'}\n`);
+  logger.info(`   Mode: ${options.apply ? 'APPLY FIXES' : 'DRY RUN'}\n`);
 
   let issueFiles = await getIssueFiles(issuesDir, options.category);
 
@@ -95,7 +97,7 @@ async function main() {
     issueFiles = issueFiles.slice(0, options.limit);
   }
 
-  console.log(`📋 Found ${issueFiles.length} issues to process\n`);
+  logger.info(`📋 Found ${issueFiles.length} issues to process\n`);
 
   let processed = 0;
   let succeeded = 0;
@@ -103,9 +105,9 @@ async function main() {
 
   for (const issuePath of issueFiles) {
     processed++;
-    console.log(`\n${'='.repeat(80)}`);
-    console.log(`[${processed}/${issueFiles.length}] Processing: ${issuePath}`);
-    console.log('='.repeat(80));
+    logger.info(`\n${'='.repeat(80)}`);
+    logger.info(`[${processed}/${issueFiles.length}] Processing: ${issuePath}`);
+    logger.info('='.repeat(80));
 
     const result = await resolveIssueFile(issuePath, options.apply);
 
@@ -113,28 +115,28 @@ async function main() {
       succeeded++;
     } else {
       failed++;
-      console.error(`❌ Failed: ${result.error}`);
+      logger.error(`❌ Failed: ${result.error}`);
     }
 
     if (options.interactive && processed < issueFiles.length) {
-      console.log('\nPress Enter to continue or Ctrl+C to stop...');
+      logger.info('\nPress Enter to continue or Ctrl+C to stop...');
       await new Promise((resolve) => {
         process.stdin.once('data', resolve);
       });
     }
   }
 
-  console.log(`\n${'='.repeat(80)}`);
-  console.log('📊 SUMMARY');
-  console.log('='.repeat(80));
-  console.log(`Total processed: ${processed}`);
-  console.log(`Succeeded: ${succeeded}`);
-  console.log(`Failed: ${failed}`);
-  console.log('='.repeat(80));
+  logger.info(`\n${'='.repeat(80)}`);
+  logger.info('📊 SUMMARY');
+  logger.info('='.repeat(80));
+  logger.info(`Total processed: ${processed}`);
+  logger.info(`Succeeded: ${succeeded}`);
+  logger.info(`Failed: ${failed}`);
+  logger.info('='.repeat(80));
 }
 
 if (process.argv.length < 3 || process.argv.includes('--help')) {
-  console.log(`
+  logger.info(`
 Usage: resolve-issues-batch.ts [issues-dir] [options]
 
 Options:
@@ -168,6 +170,6 @@ Categories:
 }
 
 main().catch((error) => {
-  console.error('Error:', error);
+  logger.error('Error:', error);
   process.exit(1);
 });
