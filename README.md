@@ -1,6 +1,6 @@
 # @eggai/qualops
 
-AI-powered code review for your PRs using Claude AI.
+AI-powered code review for your PRs.
 
 ## Features
 
