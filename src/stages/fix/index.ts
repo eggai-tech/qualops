@@ -114,7 +114,7 @@ export async function generateFixes(
   logger.info(`Using AI provider: ${aiProvider.name}`);
   logger.info(`Model: Claude Opus 4.1 for accurate fix generation`);
 
-  const suggestions = await generateFixSuggestions(reviewData.issues, aiProvider, includeMedium);
+  const suggestions = await generateFixSuggestions(reviewData.issues, aiProvider);
 
   let appliedCount = 0;
   const appliedFiles: string[] = [];
