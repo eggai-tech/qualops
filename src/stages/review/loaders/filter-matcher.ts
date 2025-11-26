@@ -15,16 +15,22 @@ export class FilterMatcher {
       const matchesPattern = filters.filePatterns.some((pattern) => minimatch(file.path, pattern));
 
       if (!matchesPattern) {
-        logger.debug(`[FilterMatcher] File ${file.path} doesn't match filePatterns for pass "${pass.name}"`);
+        logger.debug(
+          `[FilterMatcher] File ${file.path} doesn't match filePatterns for pass "${pass.name}"`,
+        );
         return false;
       }
     }
 
     if (filters.excludePatterns && filters.excludePatterns.length > 0) {
-      const matchesExclude = filters.excludePatterns.some((pattern) => minimatch(file.path, pattern));
+      const matchesExclude = filters.excludePatterns.some((pattern) =>
+        minimatch(file.path, pattern),
+      );
 
       if (matchesExclude) {
-        logger.debug(`[FilterMatcher] File ${file.path} excluded by excludePatterns for pass "${pass.name}"`);
+        logger.debug(
+          `[FilterMatcher] File ${file.path} excluded by excludePatterns for pass "${pass.name}"`,
+        );
         return false;
       }
     }
@@ -41,7 +47,9 @@ export class FilterMatcher {
       });
 
       if (!matchesTrigger) {
-        logger.debug(`[FilterMatcher] File ${file.path} doesn't match detectionTriggers for pass "${pass.name}"`);
+        logger.debug(
+          `[FilterMatcher] File ${file.path} doesn't match detectionTriggers for pass "${pass.name}"`,
+        );
         return false;
       }
     }

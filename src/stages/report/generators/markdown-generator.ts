@@ -19,7 +19,9 @@ export function generateMarkdownSummary(report: ReportMetadata): string {
     low: summary.low || 0,
   });
 
-  const sectionsMarkdown = sections.map((section) => `## ${section.title}\n\n${section.content}`).join('\n\n');
+  const sectionsMarkdown = sections
+    .map((section) => `## ${section.title}\n\n${section.content}`)
+    .join('\n\n');
 
   return `# QualOps Analysis Report
 
@@ -96,7 +98,9 @@ export function generateReviewSection(review: ReviewMetadata | null): ReportSect
 - Total Tokens: ${review.tokenUsage.total.toLocaleString()}`;
   }
 
-  const topIssues = review.issues.filter((i) => i.severity === 'critical' || i.severity === 'high').slice(0, 5);
+  const topIssues = review.issues
+    .filter((i) => i.severity === 'critical' || i.severity === 'high')
+    .slice(0, 5);
   let topIssuesSection = '';
   if (topIssues.length > 0) {
     const issuesList = topIssues

@@ -46,14 +46,21 @@ export class PipelineExecutor {
 
     logger.info(`[Pipeline] All jobs completed: ${allIssues.length} total issues`);
 
-    const dumpPath = join(getCurrentSessionPaths().base(), 'issues-before-validation-and-dedup.json');
+    const dumpPath = join(
+      getCurrentSessionPaths().base(),
+      'issues-before-validation-and-dedup.json',
+    );
     writeFileSync(dumpPath, JSON.stringify(this.preValidationDump, null, 2));
     logger.info(`[Pipeline] Pre-validation dump saved to ${dumpPath}`);
 
     return allIssues;
   }
 
-  private async executeJob(job: PipelineJob, passes: ReviewPass[], files: FileInfo[]): Promise<ReviewIssue[]> {
+  private async executeJob(
+    job: PipelineJob,
+    passes: ReviewPass[],
+    files: FileInfo[],
+  ): Promise<ReviewIssue[]> {
     const rawIssues: ReviewIssue[] = [];
 
     for (const pass of passes) {
@@ -66,7 +73,9 @@ export class PipelineExecutor {
     this.preValidationDump[job.name] = rawIssues;
 
     const validatedIssues = await this.validationResolver.validate(rawIssues, job);
-    logger.info(`[Pipeline] Job "${job.name}" validation: ${validatedIssues.length}/${rawIssues.length} issues passed`);
+    logger.info(
+      `[Pipeline] Job "${job.name}" validation: ${validatedIssues.length}/${rawIssues.length} issues passed`,
+    );
 
     const dedupedIssues = await this.dedupResolver.deduplicate(validatedIssues, job);
     logger.info(
@@ -76,7 +85,11 @@ export class PipelineExecutor {
     return dedupedIssues;
   }
 
-  private async executePass(job: PipelineJob, pass: ReviewPass, files: FileInfo[]): Promise<ReviewIssue[]> {
+  private async executePass(
+    job: PipelineJob,
+    pass: ReviewPass,
+    files: FileInfo[],
+  ): Promise<ReviewIssue[]> {
     const filteredFiles = files.filter((file) => FilterMatcher.shouldReview(file, pass));
 
     if (filteredFiles.length === 0) {
@@ -124,8 +137,14 @@ export class PipelineExecutor {
     return await this.reviewWithPrompt(renderedPrompt, files, pass);
   }
 
-  private async reviewWithPrompt(prompt: string, files: FileInfo[], pass: ReviewPass): Promise<ReviewIssue[]> {
-    logger.debug(`[Pipeline] Review with prompt (${prompt.length} chars) for ${files.length} files`);
+  private async reviewWithPrompt(
+    prompt: string,
+    files: FileInfo[],
+    pass: ReviewPass,
+  ): Promise<ReviewIssue[]> {
+    logger.debug(
+      `[Pipeline] Review with prompt (${prompt.length} chars) for ${files.length} files`,
+    );
 
     const maxConcurrent = this.config.maxConcurrentFiles || 10;
     const reviewer = new FileReviewer(this.aiProvider, prompt, pass.name);

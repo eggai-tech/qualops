@@ -148,7 +148,11 @@ describe('calculateFileHashes', () => {
 
     mockHashInstance.digest.mockReturnValueOnce('hash1').mockReturnValueOnce('hash3');
 
-    const result = await calculateFileHashes(['/project/file1.ts', '/project/missing.ts', '/project/file3.ts']);
+    const result = await calculateFileHashes([
+      '/project/file1.ts',
+      '/project/missing.ts',
+      '/project/file3.ts',
+    ]);
 
     expect(result).toEqual({
       '/project/file1.ts': 'hash1',
@@ -201,7 +205,10 @@ describe('calculateFileHashes', () => {
       .mockRejectedValueOnce(new Error('EACCES'))
       .mockResolvedValueOnce('content5' as any);
 
-    mockHashInstance.digest.mockReturnValueOnce('hash1').mockReturnValueOnce('hash3').mockReturnValueOnce('hash5');
+    mockHashInstance.digest
+      .mockReturnValueOnce('hash1')
+      .mockReturnValueOnce('hash3')
+      .mockReturnValueOnce('hash5');
 
     const result = await calculateFileHashes([
       '/project/file1.ts',
@@ -223,7 +230,11 @@ describe('calculateFileHashes', () => {
     mockReadFile.mockResolvedValue('content' as any);
     mockHashInstance.digest.mockReturnValue('hash');
 
-    const result = await calculateFileHashes(['/project/file.ts', '/project/file.ts', '/project/file.ts']);
+    const result = await calculateFileHashes([
+      '/project/file.ts',
+      '/project/file.ts',
+      '/project/file.ts',
+    ]);
 
     expect(result).toEqual({
       '/project/file.ts': 'hash',
@@ -242,7 +253,11 @@ describe('calculateFileHashes', () => {
       .mockReturnValueOnce('hash_js')
       .mockReturnValueOnce('hash_json');
 
-    const result = await calculateFileHashes(['/project/file.ts', '/project/file.js', '/project/file.json']);
+    const result = await calculateFileHashes([
+      '/project/file.ts',
+      '/project/file.js',
+      '/project/file.json',
+    ]);
 
     expect(result).toEqual({
       '/project/file.ts': 'hash_ts',
@@ -265,7 +280,11 @@ describe('calculateFileHashes', () => {
 
     mockHashInstance.digest.mockReturnValue('test-hash');
 
-    const result = await calculateFileHashes(['/project/file1.ts', '/project/file2.ts', '/project/file3.ts']);
+    const result = await calculateFileHashes([
+      '/project/file1.ts',
+      '/project/file2.ts',
+      '/project/file3.ts',
+    ]);
 
     expect(Object.keys(result)).toHaveLength(3);
     expect(result['/project/file1.ts']).toBeDefined();

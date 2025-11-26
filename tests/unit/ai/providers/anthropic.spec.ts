@@ -122,17 +122,23 @@ describe('AnthropicProvider', () => {
 
     it('should throw error when API key format is invalid', () => {
       mockEnvConfig.get.mockReturnValue('invalid-key');
-      expect(() => new AnthropicProvider(validStageConfig)).toThrow('Invalid Anthropic API key format');
+      expect(() => new AnthropicProvider(validStageConfig)).toThrow(
+        'Invalid Anthropic API key format',
+      );
     });
 
     it('should throw error when API key is truncated', () => {
       mockEnvConfig.get.mockReturnValue('sk-ant-short');
-      expect(() => new AnthropicProvider(validStageConfig)).toThrow('Anthropic API key appears to be truncated');
+      expect(() => new AnthropicProvider(validStageConfig)).toThrow(
+        'Anthropic API key appears to be truncated',
+      );
     });
 
     it('should throw error when API key contains invalid characters', () => {
       mockEnvConfig.get.mockReturnValue('sk-ant-' + 'a'.repeat(50) + '$invalid' + 'a'.repeat(50));
-      expect(() => new AnthropicProvider(validStageConfig)).toThrow('API key contains invalid characters');
+      expect(() => new AnthropicProvider(validStageConfig)).toThrow(
+        'API key contains invalid characters',
+      );
     });
 
     it('should throw error when provider is missing from config', () => {
@@ -165,7 +171,9 @@ describe('AnthropicProvider', () => {
 
     it('should throw error when multiple config fields are missing', () => {
       const invalidConfig = {};
-      expect(() => new AnthropicProvider(invalidConfig as AIStageConfig)).toThrow('Missing required Anthropic config');
+      expect(() => new AnthropicProvider(invalidConfig as AIStageConfig)).toThrow(
+        'Missing required Anthropic config',
+      );
     });
   });
 
@@ -642,7 +650,10 @@ describe('AnthropicProvider', () => {
       };
       mockAnthropicClient.messages.create.mockResolvedValue(mockResponse);
 
-      const result = await provider.completeWithStructure<{ nested: { deep: { value: number } }; array: number[] }>({
+      const result = await provider.completeWithStructure<{
+        nested: { deep: { value: number } };
+        array: number[];
+      }>({
         messages: [{ role: 'user', content: 'Hello' }],
         schema: {},
       });

@@ -76,7 +76,9 @@ describe('IssueValidator', () => {
       const result = IssueValidator.validateIssue(issue);
 
       expect(result).toBe(false);
-      expect(logger.debug).toHaveBeenCalledWith('[VALIDATION] Issue missing required field: severity');
+      expect(logger.debug).toHaveBeenCalledWith(
+        '[VALIDATION] Issue missing required field: severity',
+      );
     });
 
     it('should reject issue missing description', () => {
@@ -86,7 +88,9 @@ describe('IssueValidator', () => {
       const result = IssueValidator.validateIssue(issue);
 
       expect(result).toBe(false);
-      expect(logger.debug).toHaveBeenCalledWith('[VALIDATION] Issue missing required field: description');
+      expect(logger.debug).toHaveBeenCalledWith(
+        '[VALIDATION] Issue missing required field: description',
+      );
     });
 
     it('should reject issue missing location', () => {
@@ -96,7 +100,9 @@ describe('IssueValidator', () => {
       const result = IssueValidator.validateIssue(issue);
 
       expect(result).toBe(false);
-      expect(logger.debug).toHaveBeenCalledWith('[VALIDATION] Issue missing required field: location');
+      expect(logger.debug).toHaveBeenCalledWith(
+        '[VALIDATION] Issue missing required field: location',
+      );
     });
 
     it('should reject issue missing suggestion', () => {
@@ -106,7 +112,9 @@ describe('IssueValidator', () => {
       const result = IssueValidator.validateIssue(issue);
 
       expect(result).toBe(false);
-      expect(logger.debug).toHaveBeenCalledWith('[VALIDATION] Issue missing required field: suggestion');
+      expect(logger.debug).toHaveBeenCalledWith(
+        '[VALIDATION] Issue missing required field: suggestion',
+      );
     });
 
     it('should reject issue missing confidence', () => {
@@ -116,7 +124,9 @@ describe('IssueValidator', () => {
       const result = IssueValidator.validateIssue(issue);
 
       expect(result).toBe(false);
-      expect(logger.debug).toHaveBeenCalledWith('[VALIDATION] Issue missing required field: confidence');
+      expect(logger.debug).toHaveBeenCalledWith(
+        '[VALIDATION] Issue missing required field: confidence',
+      );
     });
 
     it('should reject issue with confidence below 1', () => {
@@ -179,7 +189,9 @@ describe('IssueValidator', () => {
       const result = IssueValidator.validateIssue(issue);
 
       expect(result).toBe(false);
-      expect(logger.debug).toHaveBeenCalledWith('[VALIDATION] Issue missing required field: location');
+      expect(logger.debug).toHaveBeenCalledWith(
+        '[VALIDATION] Issue missing required field: location',
+      );
     });
   });
 
@@ -397,7 +409,9 @@ describe('IssueValidator', () => {
 
       IssueValidator.validateAndEnrichIssues([invalidIssue]);
 
-      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('[VALIDATION] Skipping invalid issue'));
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('[VALIDATION] Skipping invalid issue'),
+      );
     });
 
     it('should report count of filtered issues', () => {

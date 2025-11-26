@@ -198,10 +198,20 @@ describe('html-report', () => {
 
       expect(result).toBe('<html>Report</html>');
       expect(mockReadMetadataFile).toHaveBeenCalledTimes(5);
-      expect(mockGenerateSummary).toHaveBeenCalledWith(mockAnalysis, mockReview, mockFix, mockMetadata, '/base/path');
+      expect(mockGenerateSummary).toHaveBeenCalledWith(
+        mockAnalysis,
+        mockReview,
+        mockFix,
+        mockMetadata,
+        '/base/path',
+      );
       expect(mockAggregateIssues).toHaveBeenCalledWith(mockReview);
       expect(mockGenerateFiltersSection).toHaveBeenCalled();
-      expect(mockGenerateIssuesSection).toHaveBeenCalledWith(mockReview.issues, mockFixSuggestions, expect.any(Map));
+      expect(mockGenerateIssuesSection).toHaveBeenCalledWith(
+        mockReview.issues,
+        mockFixSuggestions,
+        expect.any(Map),
+      );
       expect(mockGenerateBaseTemplate).toHaveBeenCalledWith({
         sessionName: 'Test Session',
         projectsList: 'project1, project2',

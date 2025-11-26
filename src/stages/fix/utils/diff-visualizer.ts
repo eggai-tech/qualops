@@ -22,11 +22,15 @@ export function generateUnifiedDiff(original: string, modified: string): string 
     writeFileSync(originalFile, original);
     writeFileSync(modifiedFile, modified);
 
-    const result = spawnSync('git', ['diff', '--no-index', '--no-color', '-U5', '--', originalFile, modifiedFile], {
-      encoding: 'utf8',
-      maxBuffer: 10 * 1024 * 1024,
-      shell: false,
-    });
+    const result = spawnSync(
+      'git',
+      ['diff', '--no-index', '--no-color', '-U5', '--', originalFile, modifiedFile],
+      {
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024,
+        shell: false,
+      },
+    );
 
     try {
       if (existsSync(originalFile)) unlinkSync(originalFile);
@@ -75,7 +79,12 @@ function parseUnifiedDiff(diffText: string): DiffLine[] {
   const result: DiffLine[] = [];
 
   for (const line of lines) {
-    if (line.startsWith('+++') || line.startsWith('---') || line.startsWith('@@') || line.startsWith('diff ')) {
+    if (
+      line.startsWith('+++') ||
+      line.startsWith('---') ||
+      line.startsWith('@@') ||
+      line.startsWith('diff ')
+    ) {
       continue;
     }
 
@@ -229,7 +238,10 @@ export async function generateDiffHTML(fixes: FixSuggestion[], outputPath: strin
           ${fix.explanation ? `<div class="fix-explanation">${fix.explanation}</div>` : ''}
           <div class="diff-container">
             ${diffLines
-              .map((line) => `<div class="diff-line diff-${line.type}">${escapeHtml(line.content)}</div>`)
+              .map(
+                (line) =>
+                  `<div class="diff-line diff-${line.type}">${escapeHtml(line.content)}</div>`,
+              )
               .join('')}
           </div>
         </div>

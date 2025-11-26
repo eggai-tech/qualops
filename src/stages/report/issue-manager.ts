@@ -21,7 +21,9 @@ export class IssueManager {
       return 1;
     }
 
-    const files = readdirSync(this.issuesDir).filter((f) => f.startsWith('ISSUE-') && f.endsWith('.md'));
+    const files = readdirSync(this.issuesDir).filter(
+      (f) => f.startsWith('ISSUE-') && f.endsWith('.md'),
+    );
     return files.length + 1;
   }
 

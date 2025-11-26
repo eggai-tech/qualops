@@ -7,7 +7,16 @@ export class IssueValidator {
       return false;
     }
 
-    const required = ['id', 'file', 'type', 'severity', 'description', 'location', 'suggestion', 'confidence'];
+    const required = [
+      'id',
+      'file',
+      'type',
+      'severity',
+      'description',
+      'location',
+      'suggestion',
+      'confidence',
+    ];
     for (const field of required) {
       if (!(field in issue) || !(issue as Record<string, unknown>)[field]) {
         logger.debug(`[VALIDATION] Issue missing required field: ${field}`);
@@ -16,7 +25,11 @@ export class IssueValidator {
     }
 
     const issueObj = issue as Record<string, unknown>;
-    if (typeof issueObj.confidence !== 'number' || issueObj.confidence < 1 || issueObj.confidence > 100) {
+    if (
+      typeof issueObj.confidence !== 'number' ||
+      issueObj.confidence < 1 ||
+      issueObj.confidence > 100
+    ) {
       logger.debug(`[VALIDATION] Invalid confidence value: ${issueObj.confidence}`);
       return false;
     }

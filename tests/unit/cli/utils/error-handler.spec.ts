@@ -37,7 +37,10 @@ describe('handleError', () => {
       handleError(error);
 
       expect(mockLogger.error).toHaveBeenCalledWith('Test error');
-      expect(mockLogger.error).toHaveBeenCalledWith('Stack trace:', 'Error: Test error\n    at test.ts:10:5');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Stack trace:',
+        'Error: Test error\n    at test.ts:10:5',
+      );
     });
 
     it('should not log stack trace when undefined', () => {
@@ -62,12 +65,19 @@ describe('handleError', () => {
 
     it('should handle error with multiline stack trace', () => {
       const error = new Error('Complex error');
-      error.stack = 'Error: Complex error\n    at func1 (file1.ts:10:5)\n    at func2 (file2.ts:20:10)';
+      error.stack =
+        'Error: Complex error\n    at func1 (file1.ts:10:5)\n    at func2 (file2.ts:20:10)';
 
       handleError(error);
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Stack trace:', expect.stringContaining('func1'));
-      expect(mockLogger.error).toHaveBeenCalledWith('Stack trace:', expect.stringContaining('func2'));
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Stack trace:',
+        expect.stringContaining('func1'),
+      );
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Stack trace:',
+        expect.stringContaining('func2'),
+      );
     });
 
     it('should handle error with empty message', () => {
@@ -228,7 +238,10 @@ describe('handleStageError', () => {
       handleStageError('review', error);
 
       expect(mockLogger.error).toHaveBeenCalledWith('review failed:', 'Stage failed');
-      expect(mockLogger.error).toHaveBeenCalledWith('Stack trace:', 'Error: Stage failed\n    at stage.ts:100:20');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Stack trace:',
+        'Error: Stage failed\n    at stage.ts:100:20',
+      );
     });
 
     it('should not log stack trace when undefined', () => {
@@ -257,8 +270,14 @@ describe('handleStageError', () => {
 
       handleStageError('report', error);
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Stack trace:', expect.stringContaining('processFile'));
-      expect(mockLogger.error).toHaveBeenCalledWith('Stack trace:', expect.stringContaining('runStage'));
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Stack trace:',
+        expect.stringContaining('processFile'),
+      );
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Stack trace:',
+        expect.stringContaining('runStage'),
+      );
     });
   });
 
@@ -587,7 +606,10 @@ describe('withErrorHandling', () => {
 
       await wrapped();
 
-      expect(mockLogger.error).toHaveBeenCalledWith('Stack trace:', expect.stringContaining('test.ts:10:5'));
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Stack trace:',
+        expect.stringContaining('test.ts:10:5'),
+      );
     });
 
     it('should not log stack trace when undefined', async () => {
@@ -616,7 +638,9 @@ describe('withErrorHandling', () => {
     it('should maintain async behavior', async () => {
       const mockFn = jest
         .fn()
-        .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('delayed'), 10)));
+        .mockImplementation(
+          () => new Promise((resolve) => setTimeout(() => resolve('delayed'), 10)),
+        );
       const wrapped = withErrorHandling(mockFn);
 
       const result = await wrapped();
@@ -717,7 +741,9 @@ describe('withErrorHandling', () => {
     });
 
     it('should handle functions with optional parameters', async () => {
-      const mockFn = jest.fn(async (required: string, optional?: number) => `${required}-${optional || 'none'}`);
+      const mockFn = jest.fn(
+        async (required: string, optional?: number) => `${required}-${optional || 'none'}`,
+      );
       const wrapped = withErrorHandling(mockFn);
 
       expect(await wrapped('test')).toBe('test-none');
@@ -784,7 +810,10 @@ describe('withErrorHandling', () => {
     });
 
     it('should handle Error with additional properties', async () => {
-      const error = new Error('Error with extra data') as Error & { code: string; statusCode: number };
+      const error = new Error('Error with extra data') as Error & {
+        code: string;
+        statusCode: number;
+      };
       error.code = 'E_CUSTOM';
       error.statusCode = 500;
       const mockFn = jest.fn().mockRejectedValue(error);

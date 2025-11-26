@@ -79,7 +79,9 @@ export function formatRecommendations(summary: ReportSummary): string {
 
   // General recommendations
   if (summary.totalIssues === 0) {
-    recommendations.push(`**EXCELLENT:** No issues found. Consider adding more comprehensive analysis rules.`);
+    recommendations.push(
+      `**EXCELLENT:** No issues found. Consider adding more comprehensive analysis rules.`,
+    );
   } else if (summary.critical === 0 && summary.high === 0) {
     recommendations.push(`**GOOD:** No critical or high-priority issues found.`);
   }
@@ -89,24 +91,32 @@ export function formatRecommendations(summary: ReportSummary): string {
     : '';
 }
 
-export function formatMetricsSummary(summary: ReportSummary, previousSummary?: ReportSummary): string {
+export function formatMetricsSummary(
+  summary: ReportSummary,
+  previousSummary?: ReportSummary,
+): string {
   const lines: string[] = [];
 
   lines.push('### Key Metrics');
   lines.push('');
 
   // Issues per file ratio
-  const issuesPerFile = summary.filesAnalyzed > 0 ? (summary.totalIssues / summary.filesAnalyzed).toFixed(2) : '0.00';
+  const issuesPerFile =
+    summary.filesAnalyzed > 0 ? (summary.totalIssues / summary.filesAnalyzed).toFixed(2) : '0.00';
 
   lines.push(`- **Issues per File:** ${issuesPerFile}`);
 
   // Issue severity ratio
-  const criticalRatio = summary.totalIssues > 0 ? ((summary.critical / summary.totalIssues) * 100).toFixed(1) : '0.0';
+  const criticalRatio =
+    summary.totalIssues > 0 ? ((summary.critical / summary.totalIssues) * 100).toFixed(1) : '0.0';
 
   lines.push(`- **Critical Issue Ratio:** ${criticalRatio}%`);
 
   // Fix automation ratio
-  const fixRatio = summary.totalIssues > 0 ? ((summary.fixSuggestions / summary.totalIssues) * 100).toFixed(1) : '0.0';
+  const fixRatio =
+    summary.totalIssues > 0
+      ? ((summary.fixSuggestions / summary.totalIssues) * 100).toFixed(1)
+      : '0.0';
 
   lines.push(`- **Fixable Issues:** ${fixRatio}%`);
 
@@ -118,11 +128,15 @@ export function formatMetricsSummary(summary: ReportSummary, previousSummary?: R
     const totalChange = summary.totalIssues - previousSummary.totalIssues;
     const criticalChange = summary.critical - previousSummary.critical;
 
-    const totalTrend = totalChange === 0 ? 'unchanged' : totalChange > 0 ? 'increased' : 'decreased';
-    const criticalTrend = criticalChange === 0 ? 'unchanged' : criticalChange > 0 ? 'increased' : 'decreased';
+    const totalTrend =
+      totalChange === 0 ? 'unchanged' : totalChange > 0 ? 'increased' : 'decreased';
+    const criticalTrend =
+      criticalChange === 0 ? 'unchanged' : criticalChange > 0 ? 'increased' : 'decreased';
 
     lines.push(`- **Total Issues:** ${totalTrend} (${totalChange >= 0 ? '+' : ''}${totalChange})`);
-    lines.push(`- **Critical Issues:** ${criticalTrend} (${criticalChange >= 0 ? '+' : ''}${criticalChange})`);
+    lines.push(
+      `- **Critical Issues:** ${criticalTrend} (${criticalChange >= 0 ? '+' : ''}${criticalChange})`,
+    );
   }
 
   return lines.join('\n');

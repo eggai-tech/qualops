@@ -46,10 +46,11 @@ export class GitHubAPIClient {
         return await operation();
       } catch (error) {
         const isLastAttempt = attempt === maxRetries;
-        const isRetryable = error instanceof Error &&
+        const isRetryable =
+          error instanceof Error &&
           (error.message.includes('rate limit') ||
-           error.message.includes('timeout') ||
-           error.message.includes('503'));
+            error.message.includes('timeout') ||
+            error.message.includes('503'));
 
         if (isLastAttempt || !isRetryable) {
           throw error;
@@ -57,7 +58,7 @@ export class GitHubAPIClient {
 
         const delay = baseDelay * Math.pow(2, attempt - 1);
         logger.warn(`Attempt ${attempt} failed, retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
@@ -114,7 +115,14 @@ export class GitHubAPIClient {
     name: string;
     head_sha: string;
     status?: 'queued' | 'in_progress' | 'completed';
-    conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required';
+    conclusion?:
+      | 'success'
+      | 'failure'
+      | 'neutral'
+      | 'cancelled'
+      | 'skipped'
+      | 'timed_out'
+      | 'action_required';
     output?: {
       title: string;
       summary: string;

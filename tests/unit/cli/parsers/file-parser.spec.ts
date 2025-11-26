@@ -187,7 +187,9 @@ describe('parseFilePatterns', () => {
   });
 
   it('should remove duplicate files', async () => {
-    mockGlob.mockResolvedValueOnce(['file1.ts', 'file2.ts']).mockResolvedValueOnce(['file2.ts', 'file3.ts']);
+    mockGlob
+      .mockResolvedValueOnce(['file1.ts', 'file2.ts'])
+      .mockResolvedValueOnce(['file2.ts', 'file3.ts']);
 
     const result = await parseFilePatterns('pattern1/*,pattern2/*');
 
@@ -337,7 +339,10 @@ describe('parseFilePatterns', () => {
 
   it('should handle complex pattern combinations', async () => {
     mockExistsSync.mockReturnValue(true);
-    mockGlob.mockResolvedValueOnce(['src/a.ts']).mockResolvedValueOnce([]).mockResolvedValueOnce(['test/c.ts']);
+    mockGlob
+      .mockResolvedValueOnce(['src/a.ts'])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(['test/c.ts']);
 
     const result = await parseFilePatterns('exact.ts,src/**/*.ts,lib/**/*.tsx,test/*.ts');
 

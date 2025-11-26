@@ -6,7 +6,6 @@ export class ConfigLoader {
   private static instance: ConfigLoader | null = null;
   private config: ReviewConfig | null = null;
 
-   
   private constructor() {}
 
   static getInstance(): ConfigLoader {

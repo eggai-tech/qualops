@@ -39,7 +39,9 @@ describe('ProgressReporter', () => {
 
       reporter.startStages(stages);
 
-      expect(mockLogger.start).toHaveBeenCalledWith('Running stages: analyze, review, fix, report, judge');
+      expect(mockLogger.start).toHaveBeenCalledWith(
+        'Running stages: analyze, review, fix, report, judge',
+      );
     });
 
     it('should preserve stage order', () => {
@@ -248,9 +250,7 @@ describe('ProgressReporter', () => {
   });
 
   describe('reportSessionInfo', () => {
-    it('should log project name when provided', () => {
-
-    });
+    it('should log project name when provided', () => {});
 
     it('should log single file', () => {
       reporter.reportSessionInfo({ files: ['src/app.ts'] });
@@ -273,7 +273,9 @@ describe('ProgressReporter', () => {
       reporter.reportSessionInfo({ files });
 
       expect(mockLogger.info).toHaveBeenCalledWith('Analyzing 5 files');
-      expect(mockLogger.info).toHaveBeenCalledWith('Files: file1.ts, file2.ts, file3.ts... and 2 more');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Files: file1.ts, file2.ts, file3.ts... and 2 more',
+      );
     });
 
     it('should show exact count of remaining files', () => {
@@ -286,7 +288,6 @@ describe('ProgressReporter', () => {
     });
 
     it('should prioritize project over files', () => {
-
       expect(mockLogger.info).not.toHaveBeenCalledWith(expect.stringContaining('file'));
     });
 
@@ -316,7 +317,9 @@ describe('ProgressReporter', () => {
 
       reporter.reportSessionInfo({ files });
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Files: file1.ts, file2.ts, file3.ts... and 1 more');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Files: file1.ts, file2.ts, file3.ts... and 1 more',
+      );
     });
 
     it('should handle files with long paths', () => {
@@ -324,7 +327,9 @@ describe('ProgressReporter', () => {
 
       reporter.reportSessionInfo({ files });
 
-      expect(mockLogger.info).toHaveBeenCalledWith('Analyzing file: src/app/features/module/component.ts');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'Analyzing file: src/app/features/module/component.ts',
+      );
     });
 
     it('should handle files with special characters', () => {
@@ -366,13 +371,17 @@ describe('ProgressReporter', () => {
     it('should handle paths with special characters', () => {
       reporter.reportCompletion('/path/with spaces/session-name');
 
-      expect(mockLogger.info).toHaveBeenCalledWith('View results at: /path/with spaces/session-name');
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        'View results at: /path/with spaces/session-name',
+      );
     });
 
     it('should call logger methods in correct order', () => {
       reporter.reportCompletion('/path/to/session');
 
-      const calls = mockLogger.summary.mock.invocationCallOrder.concat(mockLogger.info.mock.invocationCallOrder);
+      const calls = mockLogger.summary.mock.invocationCallOrder.concat(
+        mockLogger.info.mock.invocationCallOrder,
+      );
       expect(calls[0]).toBeLessThan(calls[1]);
     });
   });

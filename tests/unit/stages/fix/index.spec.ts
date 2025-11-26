@@ -22,7 +22,9 @@ jest.mock('@/stages/fix/utils/rollback-manager');
 
 const mockAIFactory = AIFactory as jest.Mocked<typeof AIFactory>;
 const mockConfigService = ConfigService as jest.Mocked<typeof ConfigService>;
-const mockGetCurrentSessionPaths = getCurrentSessionPaths as jest.MockedFunction<typeof getCurrentSessionPaths>;
+const mockGetCurrentSessionPaths = getCurrentSessionPaths as jest.MockedFunction<
+  typeof getCurrentSessionPaths
+>;
 const mockAddStageTokenStats = addStageTokenStats as jest.MockedFunction<typeof addStageTokenStats>;
 const mockReadMetadataFile = readMetadataFile as jest.MockedFunction<typeof readMetadataFile>;
 const mockWriteMetadataFile = writeMetadataFile as jest.MockedFunction<typeof writeMetadataFile>;
@@ -96,7 +98,9 @@ describe('generateFixes', () => {
       const result = await generateFixes();
 
       expect(result).toEqual(existingFix);
-      expect(logger.info).toHaveBeenCalledWith('Fix stage already completed - using existing results');
+      expect(logger.info).toHaveBeenCalledWith(
+        'Fix stage already completed - using existing results',
+      );
     });
   });
 
@@ -111,7 +115,9 @@ describe('generateFixes', () => {
     it('should throw error if no review metadata found', async () => {
       mockReadMetadataFile.mockResolvedValue(null);
 
-      await expect(generateFixes()).rejects.toThrow('No review metadata found. Run review stage first.');
+      await expect(generateFixes()).rejects.toThrow(
+        'No review metadata found. Run review stage first.',
+      );
     });
 
     it('should handle empty issues', async () => {
@@ -484,7 +490,9 @@ describe('generateFixes', () => {
         },
       ]);
 
-      await expect(generateFixes({ dryRun: false, apply: true, createRollback: true })).resolves.toBeDefined();
+      await expect(
+        generateFixes({ dryRun: false, apply: true, createRollback: true }),
+      ).resolves.toBeDefined();
     });
 
     it('should update applied status on success', async () => {
@@ -796,7 +804,10 @@ describe('generateFixes', () => {
     it('should save metadata to file', async () => {
       await generateFixes({ dryRun: true });
 
-      expect(mockWriteMetadataFile).toHaveBeenCalledWith(mockPaths.fixSummary(), expect.any(Object));
+      expect(mockWriteMetadataFile).toHaveBeenCalledWith(
+        mockPaths.fixSummary(),
+        expect.any(Object),
+      );
     });
 
     it('should include complete metadata', async () => {
@@ -872,7 +883,9 @@ describe('generateFixes', () => {
     it('should log timing information', async () => {
       await generateFixes({ dryRun: true });
 
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Fix generation completed in'));
+      expect(logger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Fix generation completed in'),
+      );
     });
   });
 });

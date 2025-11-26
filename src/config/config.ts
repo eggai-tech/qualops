@@ -13,10 +13,7 @@ export const FILE_NAMES = {
   ERROR_LOG: 'error-log.json',
 } as const;
 
-export const CRITICAL_STAGES = [
-  'analyze', 
-  'report'
-] as const;
+export const CRITICAL_STAGES = ['analyze', 'report'] as const;
 
 export const CACHE_CONFIG = {
   VERSION: '1.0.0',
@@ -73,7 +70,9 @@ export class ConfigService {
       logger.info(`Loaded config from: ${rcPath}`);
       return JSON.parse(content);
     } catch (error) {
-      logger.warn(`Failed to parse ${rcPath}: ${error instanceof Error ? error.message : String(error)}`);
+      logger.warn(
+        `Failed to parse ${rcPath}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return {};
     }
   }
@@ -90,7 +89,8 @@ export class ConfigService {
     if (this.rawConfig.performance) {
       Object.assign(config, this.rawConfig.performance);
       if ((this.rawConfig.performance as Record<string, unknown>).throttling) {
-        config.throttling = (this.rawConfig.performance as Record<string, unknown>).throttling as Config['throttling'];
+        config.throttling = (this.rawConfig.performance as Record<string, unknown>)
+          .throttling as Config['throttling'];
       }
     }
     if (this.rawConfig.fix) {
@@ -218,7 +218,8 @@ export class ConfigService {
       maxFilesPerBatch: (perf?.maxFilesPerBatch as number) ?? this.config.maxFilesPerBatch ?? 10,
       maxFilesPerProject: (perf?.maxFilesPerProject as number) ?? 10000,
       timeoutSeconds: (perf?.timeoutSeconds as number) ?? 300,
-      maxTokensPerFile: (perf?.maxTokensPerFile as number) ?? this.config.maxTokensPerFile ?? 1000000,
+      maxTokensPerFile:
+        (perf?.maxTokensPerFile as number) ?? this.config.maxTokensPerFile ?? 1000000,
       maxRetries: (perf?.maxRetries as number) ?? 2,
     } as const;
   }

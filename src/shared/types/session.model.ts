@@ -132,7 +132,11 @@ export class Session {
   }
 
   static fromJSON(data: Record<string, unknown>): Session {
-    const session = new Session(data.id as string, data.stages as SessionStage[], data.metadata as Record<string, unknown>);
+    const session = new Session(
+      data.id as string,
+      data.stages as SessionStage[],
+      data.metadata as Record<string, unknown>,
+    );
     session.status = data.status as SessionStatus;
     session.currentStage = data.currentStage as SessionStage | undefined;
     session.files = (data.files as string[]) || [];

@@ -1,6 +1,11 @@
 import type { AIProvider } from '../../../ai/providers/provider';
 import type { ReviewIssue } from '../../../shared/types';
-import type { PipelineJob, PromptConfig, ReviewConfig, ValidationConfig } from '../../../shared/types/config';
+import type {
+  PipelineJob,
+  PromptConfig,
+  ReviewConfig,
+  ValidationConfig,
+} from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
 import { PromptLoader } from '../loaders/prompt-loader';
 import { TemplateEngine } from '../loaders/template-engine';
@@ -74,7 +79,9 @@ export class ValidationResolver {
       return issues;
     }
 
-    logger.info(`[Validation] Validating ${issues.length} issues (minConfidence: ${config.minConfidence})`);
+    logger.info(
+      `[Validation] Validating ${issues.length} issues (minConfidence: ${config.minConfidence})`,
+    );
 
     let validated = issues.filter((issue) => {
       const passes = issue.confidence >= (config.minConfidence || 7);
@@ -86,7 +93,9 @@ export class ValidationResolver {
       return passes;
     });
 
-    logger.info(`[Validation] After confidence filter: ${validated.length}/${issues.length} issues`);
+    logger.info(
+      `[Validation] After confidence filter: ${validated.length}/${issues.length} issues`,
+    );
 
     if (config.prompt && validated.length > 0) {
       validated = await this.validateWithAI(validated, config.prompt);
@@ -99,12 +108,16 @@ export class ValidationResolver {
   private resolveConfig(job: PipelineJob): Required<ValidationConfig> {
     return {
       enabled: job.validation?.enabled ?? this.globalConfig.validation?.enabled ?? true,
-      minConfidence: job.validation?.minConfidence ?? this.globalConfig.validation?.minConfidence ?? 7,
+      minConfidence:
+        job.validation?.minConfidence ?? this.globalConfig.validation?.minConfidence ?? 7,
       prompt: job.validation?.prompt ?? this.globalConfig.validation?.prompt ?? '',
     };
   }
 
-  private async validateWithAI(issues: ReviewIssue[], promptRef: string | PromptConfig): Promise<ReviewIssue[]> {
+  private async validateWithAI(
+    issues: ReviewIssue[],
+    promptRef: string | PromptConfig,
+  ): Promise<ReviewIssue[]> {
     logger.info(`[Validation] Running AI validation on ${issues.length} issues`);
 
     const { content } = await PromptLoader.load(promptRef);
@@ -165,7 +178,9 @@ export class ValidationResolver {
       validatedIssues.push(issue);
     }
 
-    logger.info(`[Validation] Kept ${validatedIssues.length}/${issues.length} issues after AI validation`);
+    logger.info(
+      `[Validation] Kept ${validatedIssues.length}/${issues.length} issues after AI validation`,
+    );
 
     return validatedIssues;
   }

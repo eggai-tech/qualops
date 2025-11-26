@@ -1,6 +1,11 @@
 import type { ReviewIssue } from '@/shared/types';
 import { reviewProjects } from '@/stages/review';
-import { addFile, createMockAIProvider, createTestProject, SAMPLE_COMPONENTS } from '@tests/helpers/test-fixtures';
+import {
+  addFile,
+  createMockAIProvider,
+  createTestProject,
+  SAMPLE_COMPONENTS,
+} from '@tests/helpers/test-fixtures';
 import { getOutputDir } from '@tests/setup/integration.setup';
 
 const mockGetCurrentSessionPaths = jest.fn();
@@ -212,7 +217,10 @@ describe('Review Stage Integration', () => {
       if (path.includes('analysis.json')) {
         return Promise.resolve({
           timestamp: new Date().toISOString(),
-          filePaths: [`${testProject.root}/src/component.ts`, `${testProject.root}/src/component.spec.ts`],
+          filePaths: [
+            `${testProject.root}/src/component.ts`,
+            `${testProject.root}/src/component.spec.ts`,
+          ],
         });
       }
       return null;

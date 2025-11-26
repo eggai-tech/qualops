@@ -28,10 +28,28 @@ describe('changed-files', () => {
       const result = await getChangedFiles('main');
 
       expect(mockLogger.git).toHaveBeenCalledWith('Getting changed files: main..HEAD');
-      expect(mockExecuteGitCommand).toHaveBeenCalledWith(['diff', '--name-only', '--diff-filter=ACMRT', 'main...HEAD']);
-      expect(mockExecuteGitCommand).toHaveBeenCalledWith(['diff', '--cached', '--name-only', '--diff-filter=ACMRT']);
-      expect(mockExecuteGitCommand).toHaveBeenCalledWith(['diff', '--name-only', '--diff-filter=ACMRT']);
-      expect(mockExecuteGitCommand).toHaveBeenCalledWith(['ls-files', '--others', '--exclude-standard']);
+      expect(mockExecuteGitCommand).toHaveBeenCalledWith([
+        'diff',
+        '--name-only',
+        '--diff-filter=ACMRT',
+        'main...HEAD',
+      ]);
+      expect(mockExecuteGitCommand).toHaveBeenCalledWith([
+        'diff',
+        '--cached',
+        '--name-only',
+        '--diff-filter=ACMRT',
+      ]);
+      expect(mockExecuteGitCommand).toHaveBeenCalledWith([
+        'diff',
+        '--name-only',
+        '--diff-filter=ACMRT',
+      ]);
+      expect(mockExecuteGitCommand).toHaveBeenCalledWith([
+        'ls-files',
+        '--others',
+        '--exclude-standard',
+      ]);
       expect(result).toEqual(['src/app.ts', 'src/utils.ts']);
       expect(mockLogger.git).toHaveBeenCalledWith('Found 2 changed TypeScript files');
     });
@@ -42,7 +60,12 @@ describe('changed-files', () => {
       await getChangedFiles();
 
       expect(mockLogger.git).toHaveBeenCalledWith('Getting changed files: main..HEAD');
-      expect(mockExecuteGitCommand).toHaveBeenCalledWith(['diff', '--name-only', '--diff-filter=ACMRT', 'main...HEAD']);
+      expect(mockExecuteGitCommand).toHaveBeenCalledWith([
+        'diff',
+        '--name-only',
+        '--diff-filter=ACMRT',
+        'main...HEAD',
+      ]);
     });
 
     it('should use custom base branch', async () => {
@@ -114,7 +137,9 @@ describe('changed-files', () => {
         .mockReturnValueOnce('')
         .mockReturnValueOnce('');
 
-      mockShouldProcessFile.mockImplementation((file) => !file.includes('spec') && !file.includes('.d.ts'));
+      mockShouldProcessFile.mockImplementation(
+        (file) => !file.includes('spec') && !file.includes('.d.ts'),
+      );
 
       const result = await getChangedFiles('main');
 
@@ -226,7 +251,9 @@ describe('changed-files', () => {
         .mockReturnValueOnce('')
         .mockReturnValueOnce('');
 
-      mockShouldProcessFile.mockImplementation((file) => !file.includes('spec') && !file.includes('test'));
+      mockShouldProcessFile.mockImplementation(
+        (file) => !file.includes('spec') && !file.includes('test'),
+      );
 
       const result = await getChangedFiles('main');
 
@@ -267,7 +294,10 @@ describe('changed-files', () => {
       const result = await getChangedFiles('main');
 
       expect(result).toEqual([]);
-      expect(mockLogger.error).toHaveBeenCalledWith('Error getting changed files:', 'git command failed');
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Error getting changed files:',
+        'git command failed',
+      );
     });
 
     it('should handle error with non-Error object', async () => {
@@ -364,7 +394,10 @@ describe('changed-files', () => {
         .mockReturnValueOnce('')
         .mockReturnValueOnce('');
 
-      mockShouldProcessFile.mockReturnValueOnce(true).mockReturnValueOnce(false).mockReturnValueOnce(true);
+      mockShouldProcessFile
+        .mockReturnValueOnce(true)
+        .mockReturnValueOnce(false)
+        .mockReturnValueOnce(true);
 
       const result = await getChangedFiles('main');
 
@@ -373,7 +406,9 @@ describe('changed-files', () => {
 
     it('should handle files in node_modules subdirectories', async () => {
       mockExecuteGitCommand
-        .mockReturnValueOnce('src/app.ts\nnode_modules/@types/node/index.ts\nnode_modules/lib/deep/path/file.ts')
+        .mockReturnValueOnce(
+          'src/app.ts\nnode_modules/@types/node/index.ts\nnode_modules/lib/deep/path/file.ts',
+        )
         .mockReturnValueOnce('')
         .mockReturnValueOnce('')
         .mockReturnValueOnce('');

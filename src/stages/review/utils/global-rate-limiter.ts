@@ -25,7 +25,9 @@ class GlobalRateLimiter {
       const waitTime = 60000 - (now - oldestRequest) + 1000;
 
       if (waitTime > 0) {
-        logger.debug(`[RateLimit] Hit ${this.apiCallsPerMinute} API calls/minute limit, waiting ${waitTime}ms`);
+        logger.debug(
+          `[RateLimit] Hit ${this.apiCallsPerMinute} API calls/minute limit, waiting ${waitTime}ms`,
+        );
         await new Promise((resolve) => setTimeout(resolve, waitTime));
       }
     }
@@ -33,7 +35,9 @@ class GlobalRateLimiter {
     const timeSinceLastRequest = now - this.lastApiRequestTime;
     if (timeSinceLastRequest < this.minApiIntervalMs) {
       const waitTime = this.minApiIntervalMs - timeSinceLastRequest;
-      logger.debug(`[RateLimit] Enforcing ${this.minApiIntervalMs}ms API interval, waiting ${waitTime}ms`);
+      logger.debug(
+        `[RateLimit] Enforcing ${this.minApiIntervalMs}ms API interval, waiting ${waitTime}ms`,
+      );
       await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
 

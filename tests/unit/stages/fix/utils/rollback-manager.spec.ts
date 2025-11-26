@@ -31,8 +31,12 @@ const mockUnlink = unlink as jest.MockedFunction<typeof unlink>;
 const mockJoin = join as jest.MockedFunction<typeof join>;
 
 // Import mocked functions
-const { listBackupsForFile } = jest.requireMock('@/stages/fix/appliers/backup-manager.ts') as { listBackupsForFile: jest.Mock };
-const { validateFilePath } = jest.requireMock('@/shared/utils/file-utils.ts') as { validateFilePath: jest.Mock };
+const { listBackupsForFile } = jest.requireMock('@/stages/fix/appliers/backup-manager.ts') as {
+  listBackupsForFile: jest.Mock;
+};
+const { validateFilePath } = jest.requireMock('@/shared/utils/file-utils.ts') as {
+  validateFilePath: jest.Mock;
+};
 
 const mockListBackupsForFile = listBackupsForFile;
 const mockValidateFilePath = validateFilePath;
@@ -98,8 +102,16 @@ describe('createRollbackPoint', () => {
     await createRollbackPoint('Test', ['/project/file1.ts', '/project/file2.ts']);
 
     expect(mockWriteFile).toHaveBeenCalledTimes(2);
-    expect(mockWriteFile).toHaveBeenCalledWith(expect.stringContaining('file1.ts.rollback-'), 'file content', 'utf-8');
-    expect(mockWriteFile).toHaveBeenCalledWith(expect.stringContaining('file2.ts.rollback-'), 'file content', 'utf-8');
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      expect.stringContaining('file1.ts.rollback-'),
+      'file content',
+      'utf-8',
+    );
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      expect.stringContaining('file2.ts.rollback-'),
+      'file content',
+      'utf-8',
+    );
   });
 
   it('should read file content for backup', async () => {
@@ -116,7 +128,9 @@ describe('createRollbackPoint', () => {
   });
 
   it('should store file sizes in rollback info', async () => {
-    mockStat.mockResolvedValueOnce({ size: 200 } as any).mockResolvedValueOnce({ size: 200 } as any);
+    mockStat
+      .mockResolvedValueOnce({ size: 200 } as any)
+      .mockResolvedValueOnce({ size: 200 } as any);
 
     const result = await createRollbackPoint('Test', ['/project/file.ts']);
 
@@ -236,14 +250,18 @@ describe('performRollback', () => {
 
     await performRollback(mockRollbackPoint, { verifyBackups: false });
 
-    const preRollbackCalls = (mockWriteFile.mock.calls as any[]).filter((call) => call[0].includes('.pre-rollback-'));
+    const preRollbackCalls = (mockWriteFile.mock.calls as any[]).filter((call) =>
+      call[0].includes('.pre-rollback-'),
+    );
     expect(preRollbackCalls.length).toBeGreaterThan(0);
   });
 
   it('should skip pre-rollback backups when option is false', async () => {
     await performRollback(mockRollbackPoint, { createNewBackups: false });
 
-    const preRollbackCalls = (mockWriteFile.mock.calls as any[]).filter((call) => call[0].includes('.pre-rollback-'));
+    const preRollbackCalls = (mockWriteFile.mock.calls as any[]).filter((call) =>
+      call[0].includes('.pre-rollback-'),
+    );
     expect(preRollbackCalls).toHaveLength(0);
   });
 
@@ -282,7 +300,10 @@ describe('performRollback', () => {
       .mockResolvedValueOnce('current2')
       .mockResolvedValueOnce('backup content');
 
-    const result = await performRollback(mockRollbackPoint, { verifyBackups: false, createNewBackups: true });
+    const result = await performRollback(mockRollbackPoint, {
+      verifyBackups: false,
+      createNewBackups: true,
+    });
 
     expect(result.success).toBe(false);
     expect(result.errors).toHaveLength(1);
@@ -297,7 +318,10 @@ describe('performRollback', () => {
       .mockResolvedValueOnce('current2')
       .mockResolvedValueOnce('backup content');
 
-    const result = await performRollback(mockRollbackPoint, { verifyBackups: false, createNewBackups: true });
+    const result = await performRollback(mockRollbackPoint, {
+      verifyBackups: false,
+      createNewBackups: true,
+    });
 
     expect(result.errors).toHaveLength(1);
     expect(result.filesRestored).toHaveLength(1);
@@ -334,7 +358,9 @@ describe('performRollback', () => {
     });
 
     expect(result.filesRestored).toHaveLength(2);
-    const preRollbackCalls = (mockWriteFile.mock.calls as any[]).filter((call) => call[0].includes('.pre-rollback-'));
+    const preRollbackCalls = (mockWriteFile.mock.calls as any[]).filter((call) =>
+      call[0].includes('.pre-rollback-'),
+    );
     expect(preRollbackCalls).toHaveLength(0);
   });
 
@@ -345,7 +371,10 @@ describe('performRollback', () => {
       .mockResolvedValueOnce('current2')
       .mockResolvedValueOnce('backup2');
 
-    const result = await performRollback(mockRollbackPoint, { createNewBackups: true, verifyBackups: false });
+    const result = await performRollback(mockRollbackPoint, {
+      createNewBackups: true,
+      verifyBackups: false,
+    });
 
     expect(result.filesRestored).toHaveLength(2);
   });
@@ -413,9 +442,13 @@ describe('performPartialRollback', () => {
   });
 
   it('should restore only specified files', async () => {
-    const result = await performPartialRollback(mockRollbackPoint, ['/project/file1.ts', '/project/file3.ts'], {
-      verifyBackups: false,
-    });
+    const result = await performPartialRollback(
+      mockRollbackPoint,
+      ['/project/file1.ts', '/project/file3.ts'],
+      {
+        verifyBackups: false,
+      },
+    );
 
     expect(result.filesRestored).toHaveLength(2);
     expect(result.filesRestored).toContain('/project/file1.ts');
@@ -424,9 +457,13 @@ describe('performPartialRollback', () => {
   });
 
   it('should ignore files not in rollback point', async () => {
-    const result = await performPartialRollback(mockRollbackPoint, ['/project/file1.ts', '/project/nonexistent.ts'], {
-      verifyBackups: false,
-    });
+    const result = await performPartialRollback(
+      mockRollbackPoint,
+      ['/project/file1.ts', '/project/nonexistent.ts'],
+      {
+        verifyBackups: false,
+      },
+    );
 
     expect(result.filesRestored).toHaveLength(1);
     expect(result.filesRestored).toContain('/project/file1.ts');
@@ -623,7 +660,9 @@ describe('autoRollback', () => {
   });
 
   it('should handle pre-rollback backup failure gracefully', async () => {
-    mockReadFile.mockRejectedValueOnce(new Error('Cannot read current')).mockResolvedValueOnce('backup content');
+    mockReadFile
+      .mockRejectedValueOnce(new Error('Cannot read current'))
+      .mockResolvedValueOnce('backup content');
 
     const result = await autoRollback(['/project/file.ts'], 3600000, { createNewBackups: true });
 
@@ -895,7 +934,9 @@ describe('smartRollback', () => {
   });
 
   it('should find backup preserving specified patterns', async () => {
-    mockReadFile.mockResolvedValueOnce('no pattern here').mockResolvedValueOnce('content with pattern1 and pattern2');
+    mockReadFile
+      .mockResolvedValueOnce('no pattern here')
+      .mockResolvedValueOnce('content with pattern1 and pattern2');
 
     const result = await smartRollback(['/project/file.ts'], ['pattern1', 'pattern2']);
 
@@ -922,7 +963,9 @@ describe('smartRollback', () => {
   });
 
   it('should skip unreadable backups when searching for patterns', async () => {
-    mockReadFile.mockRejectedValueOnce(new Error('Cannot read')).mockResolvedValueOnce('content with pattern');
+    mockReadFile
+      .mockRejectedValueOnce(new Error('Cannot read'))
+      .mockResolvedValueOnce('content with pattern');
 
     const result = await smartRollback(['/project/file.ts'], ['pattern']);
 
@@ -984,7 +1027,9 @@ describe('smartRollback', () => {
   });
 
   it('should handle restore errors', async () => {
-    mockReadFile.mockRejectedValueOnce(new Error('backup content')).mockRejectedValueOnce(new Error('Restore failed'));
+    mockReadFile
+      .mockRejectedValueOnce(new Error('backup content'))
+      .mockRejectedValueOnce(new Error('Restore failed'));
 
     const result = await smartRollback(['/project/file.ts']);
 
@@ -1012,7 +1057,9 @@ describe('smartRollback', () => {
   });
 
   it('should handle pre-rollback backup failure gracefully', async () => {
-    mockReadFile.mockRejectedValueOnce(new Error('Cannot read current')).mockResolvedValueOnce('backup content');
+    mockReadFile
+      .mockRejectedValueOnce(new Error('Cannot read current'))
+      .mockResolvedValueOnce('backup content');
 
     const result = await smartRollback(['/project/file.ts'], [], { createNewBackups: true });
 

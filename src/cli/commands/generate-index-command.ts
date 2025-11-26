@@ -121,7 +121,8 @@ function analyzeSession(sessionDir: string, sessionsBaseDir: string): SessionDat
           const category = knowledgeSource.includes(':')
             ? knowledgeSource.split(':')[0].trim()
             : knowledgeSource.trim();
-          sessionData.issues.byKnowledgeSource[category] = (sessionData.issues.byKnowledgeSource[category] || 0) + 1;
+          sessionData.issues.byKnowledgeSource[category] =
+            (sessionData.issues.byKnowledgeSource[category] || 0) + 1;
         }
       }
     }
@@ -139,7 +140,9 @@ function analyzeSession(sessionDir: string, sessionsBaseDir: string): SessionDat
   return sessionData;
 }
 
-function generateBatchStatistics(sessionsByBatch: Record<string, SessionData[]>): Record<string, BatchStats> {
+function generateBatchStatistics(
+  sessionsByBatch: Record<string, SessionData[]>,
+): Record<string, BatchStats> {
   const batchStats: Record<string, BatchStats> = {};
 
   for (const [batchName, sessions] of Object.entries(sessionsByBatch)) {
@@ -154,7 +157,9 @@ function generateBatchStatistics(sessionsByBatch: Record<string, SessionData[]>)
     const issuesByKnowledgeSource: Record<string, number> = {};
 
     for (const session of sessions) {
-      for (const severity of Object.keys(issuesBySeverity) as Array<keyof typeof issuesBySeverity>) {
+      for (const severity of Object.keys(issuesBySeverity) as Array<
+        keyof typeof issuesBySeverity
+      >) {
         issuesBySeverity[severity] += session.issues.bySeverity[severity] || 0;
       }
       for (const type of Object.keys(issuesByType) as Array<keyof typeof issuesByType>) {
@@ -174,7 +179,8 @@ function generateBatchStatistics(sessionsByBatch: Record<string, SessionData[]>)
       completedSessions,
       sessionsWithDiffs,
       sessionsWithErrors,
-      completionRate: sessions.length > 0 ? Math.round((completedSessions / sessions.length) * 100 * 10) / 10 : 0,
+      completionRate:
+        sessions.length > 0 ? Math.round((completedSessions / sessions.length) * 100 * 10) / 10 : 0,
       issues: {
         total: totalIssues,
         bySeverity: issuesBySeverity,
@@ -198,7 +204,10 @@ function findSessionDirs(baseDir: string, filter?: string): string[] {
       const fullPath = join(dir, entry);
       if (!statSync(fullPath).isDirectory()) continue;
 
-      if (existsSync(join(fullPath, 'metadata.json')) || existsSync(join(fullPath, 'review-summary.json'))) {
+      if (
+        existsSync(join(fullPath, 'metadata.json')) ||
+        existsSync(join(fullPath, 'review-summary.json'))
+      ) {
         dirs.push(fullPath);
       } else {
         scanDir(fullPath);
@@ -228,7 +237,9 @@ function findSessionDirs(baseDir: string, filter?: string): string[] {
   return dirs.filter((path) => !path.toLowerCase().includes('workspace'));
 }
 
-export async function generateIndexCommand(options: { reportRoot?: string; filter?: string } = {}): Promise<void> {
+export async function generateIndexCommand(
+  options: { reportRoot?: string; filter?: string } = {},
+): Promise<void> {
   logger.info('🔍 Analyzing QualOps sessions...');
 
   const reportRootName = options.reportRoot || getDefaultReportRoot();
@@ -275,24 +286,34 @@ export async function generateIndexCommand(options: { reportRoot?: string; filte
   const overallIssuesByKnowledgeSource: Record<string, number> = {};
 
   for (const session of allSessions) {
-    for (const severity of Object.keys(overallIssuesBySeverity) as Array<keyof typeof overallIssuesBySeverity>) {
+    for (const severity of Object.keys(overallIssuesBySeverity) as Array<
+      keyof typeof overallIssuesBySeverity
+    >) {
       overallIssuesBySeverity[severity] += session.issues.bySeverity[severity] || 0;
     }
-    for (const type of Object.keys(overallIssuesByType) as Array<keyof typeof overallIssuesByType>) {
+    for (const type of Object.keys(overallIssuesByType) as Array<
+      keyof typeof overallIssuesByType
+    >) {
       overallIssuesByType[type] += session.issues.byType[type] || 0;
     }
-    for (const effort of Object.keys(overallIssuesByEffort) as Array<keyof typeof overallIssuesByEffort>) {
+    for (const effort of Object.keys(overallIssuesByEffort) as Array<
+      keyof typeof overallIssuesByEffort
+    >) {
       overallIssuesByEffort[effort] += session.issues.byEffort[effort] || 0;
     }
     for (const [source, count] of Object.entries(session.issues.byKnowledgeSource)) {
-      overallIssuesByKnowledgeSource[source] = (overallIssuesByKnowledgeSource[source] || 0) + count;
+      overallIssuesByKnowledgeSource[source] =
+        (overallIssuesByKnowledgeSource[source] || 0) + count;
     }
   }
 
   const overallStats = {
     totalSessions: allSessions.length,
     completedSessions,
-    completionRate: allSessions.length > 0 ? Math.round((completedSessions / allSessions.length) * 100 * 10) / 10 : 0,
+    completionRate:
+      allSessions.length > 0
+        ? Math.round((completedSessions / allSessions.length) * 100 * 10) / 10
+        : 0,
     issues: {
       total: totalIssues,
       bySeverity: overallIssuesBySeverity,
@@ -326,14 +347,18 @@ export async function generateIndexCommand(options: { reportRoot?: string; filte
   logger.info('✅ Analysis complete!');
   logger.info('📈 Overall Statistics:');
   logger.info(`   • Total Sessions: ${overallStats.totalSessions}`);
-  logger.info(`   • Completed: ${overallStats.completedSessions} (${overallStats.completionRate}%)`);
+  logger.info(
+    `   • Completed: ${overallStats.completedSessions} (${overallStats.completionRate}%)`,
+  );
   logger.info(`   • Total Issues Found: ${overallStats.issues.total.toLocaleString()}`);
 
   logger.info('');
   logger.info('🚨 Issues by Severity:');
   for (const [severity, count] of Object.entries(overallStats.issues.bySeverity)) {
     if (count > 0) {
-      logger.info(`   • ${severity.charAt(0).toUpperCase() + severity.slice(1)}: ${count.toLocaleString()}`);
+      logger.info(
+        `   • ${severity.charAt(0).toUpperCase() + severity.slice(1)}: ${count.toLocaleString()}`,
+      );
     }
   }
 
@@ -341,7 +366,9 @@ export async function generateIndexCommand(options: { reportRoot?: string; filte
   logger.info('🔍 Issues by Type:');
   for (const [type, count] of Object.entries(overallStats.issues.byType)) {
     if (count > 0) {
-      logger.info(`   • ${type.charAt(0).toUpperCase() + type.slice(1)}: ${count.toLocaleString()}`);
+      logger.info(
+        `   • ${type.charAt(0).toUpperCase() + type.slice(1)}: ${count.toLocaleString()}`,
+      );
     }
   }
 

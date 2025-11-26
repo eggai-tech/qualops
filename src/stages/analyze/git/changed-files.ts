@@ -8,7 +8,11 @@ export interface FileDiff {
   modifications: Set<number>;
 }
 
-export async function getFileDiff(filePath: string, base = 'main', head = 'HEAD'): Promise<FileDiff> {
+export async function getFileDiff(
+  filePath: string,
+  base = 'main',
+  head = 'HEAD',
+): Promise<FileDiff> {
   const diff: FileDiff = {
     additions: new Set<number>(),
     deletions: new Set<number>(),
@@ -40,7 +44,10 @@ export async function getFileDiff(filePath: string, base = 'main', head = 'HEAD'
       }
     }
   } catch (error) {
-    logger.warn(`Could not get diff for ${filePath}:`, error instanceof Error ? error.message : String(error));
+    logger.warn(
+      `Could not get diff for ${filePath}:`,
+      error instanceof Error ? error.message : String(error),
+    );
   }
 
   return diff;
@@ -50,8 +57,18 @@ export async function getChangedFiles(base = 'main', head = 'HEAD'): Promise<str
   logger.git(`Getting changed files: ${base}..${head}`);
 
   try {
-    const committedFiles = executeGitCommand(['diff', '--name-only', '--diff-filter=ACMRT', `${base}...${head}`]);
-    const stagedFiles = executeGitCommand(['diff', '--cached', '--name-only', '--diff-filter=ACMRT']);
+    const committedFiles = executeGitCommand([
+      'diff',
+      '--name-only',
+      '--diff-filter=ACMRT',
+      `${base}...${head}`,
+    ]);
+    const stagedFiles = executeGitCommand([
+      'diff',
+      '--cached',
+      '--name-only',
+      '--diff-filter=ACMRT',
+    ]);
     const unstagedFiles = executeGitCommand(['diff', '--name-only', '--diff-filter=ACMRT']);
     const untrackedFiles = executeGitCommand(['ls-files', '--others', '--exclude-standard']);
 
@@ -79,7 +96,10 @@ export async function getChangedFiles(base = 'main', head = 'HEAD'): Promise<str
     logger.git(`Found ${files.length} changed TypeScript files`);
     return files;
   } catch (error) {
-    logger.error('Error getting changed files:', error instanceof Error ? error.message : String(error));
+    logger.error(
+      'Error getting changed files:',
+      error instanceof Error ? error.message : String(error),
+    );
     return [];
   }
 }

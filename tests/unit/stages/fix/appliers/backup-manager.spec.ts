@@ -29,7 +29,9 @@ const mockBasename = basename as jest.MockedFunction<typeof basename>;
 const mockDirname = dirname as jest.MockedFunction<typeof dirname>;
 const mockJoin = join as jest.MockedFunction<typeof join>;
 
-const { validateFilePath } = jest.requireMock('@/shared/utils/file-utils.ts') as { validateFilePath: jest.Mock };
+const { validateFilePath } = jest.requireMock('@/shared/utils/file-utils.ts') as {
+  validateFilePath: jest.Mock;
+};
 const mockValidateFilePath = validateFilePath;
 
 describe('createBackup', () => {
@@ -70,19 +72,25 @@ describe('createBackup', () => {
   it('should throw error on read failure', async () => {
     mockReadFile.mockRejectedValue(new Error('Read failed'));
 
-    await expect(createBackup('/project/test.ts')).rejects.toThrow('Backup creation failed: Read failed');
+    await expect(createBackup('/project/test.ts')).rejects.toThrow(
+      'Backup creation failed: Read failed',
+    );
   });
 
   it('should throw error on write failure', async () => {
     mockWriteFile.mockRejectedValue(new Error('Write failed'));
 
-    await expect(createBackup('/project/test.ts')).rejects.toThrow('Backup creation failed: Write failed');
+    await expect(createBackup('/project/test.ts')).rejects.toThrow(
+      'Backup creation failed: Write failed',
+    );
   });
 
   it('should handle non-Error thrown values', async () => {
     mockWriteFile.mockRejectedValue('String error message');
 
-    await expect(createBackup('/project/test.ts')).rejects.toThrow('Backup creation failed: String error message');
+    await expect(createBackup('/project/test.ts')).rejects.toThrow(
+      'Backup creation failed: String error message',
+    );
   });
 
   it('should handle empty content', async () => {
@@ -129,7 +137,9 @@ describe('createBackupWithMetadata', () => {
   it('should write metadata file', async () => {
     await createBackupWithMetadata('/project/test.ts');
 
-    const metadataCall = (mockWriteFile.mock.calls as any[]).find((call) => call[0].includes('.metadata.json'));
+    const metadataCall = (mockWriteFile.mock.calls as any[]).find((call) =>
+      call[0].includes('.metadata.json'),
+    );
     expect(metadataCall).toBeDefined();
     expect(metadataCall[1]).toContain('"originalFile"');
   });
@@ -164,7 +174,9 @@ describe('createBackupWithMetadata', () => {
   });
 
   it('should throw error on metadata write failure', async () => {
-    mockWriteFile.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('Metadata write failed'));
+    mockWriteFile
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('Metadata write failed'));
 
     await expect(createBackupWithMetadata('/project/test.ts')).rejects.toThrow(
       'Backup with metadata creation failed: Metadata write failed',
@@ -255,7 +267,10 @@ describe('listBackupsForFile', () => {
   });
 
   it('should list backups for specific file', async () => {
-    mockReaddir.mockResolvedValue(['test.ts.qualops-backup-111-aaa', 'test.ts.qualops-backup-222-bbb'] as any);
+    mockReaddir.mockResolvedValue([
+      'test.ts.qualops-backup-111-aaa',
+      'test.ts.qualops-backup-222-bbb',
+    ] as any);
     mockStat.mockResolvedValue({ size: 100, mtime: new Date('2024-01-01') } as any);
 
     const result = await listBackupsForFile('/project/test.ts');
@@ -331,7 +346,10 @@ describe('listBackupsForFile', () => {
   });
 
   it('should handle stat errors gracefully', async () => {
-    mockReaddir.mockResolvedValue(['test.ts.qualops-backup-111-aaa', 'test.ts.qualops-backup-222-bbb'] as any);
+    mockReaddir.mockResolvedValue([
+      'test.ts.qualops-backup-111-aaa',
+      'test.ts.qualops-backup-222-bbb',
+    ] as any);
     mockStat
       .mockResolvedValueOnce({ size: 100, mtime: new Date() } as any)
       .mockRejectedValueOnce(new Error('Stat failed'));
@@ -436,7 +454,10 @@ describe('listAllBackups', () => {
   });
 
   it('should handle stat errors gracefully', async () => {
-    mockReaddir.mockResolvedValue(['file1.ts.qualops-backup-111-aaa', 'file2.ts.qualops-backup-222-bbb'] as any);
+    mockReaddir.mockResolvedValue([
+      'file1.ts.qualops-backup-111-aaa',
+      'file2.ts.qualops-backup-222-bbb',
+    ] as any);
     mockStat
       .mockResolvedValueOnce({ size: 100, mtime: new Date() } as any)
       .mockRejectedValueOnce(new Error('Stat failed'));
@@ -477,7 +498,10 @@ describe('cleanupOldBackups', () => {
     const oldDate = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
     const recentDate = new Date();
 
-    mockReaddir.mockResolvedValue(['test.ts.qualops-backup-111-aaa', 'test.ts.qualops-backup-222-bbb'] as any);
+    mockReaddir.mockResolvedValue([
+      'test.ts.qualops-backup-111-aaa',
+      'test.ts.qualops-backup-222-bbb',
+    ] as any);
     mockStat
       .mockResolvedValueOnce({ size: 100, mtime: oldDate } as any)
       .mockResolvedValueOnce({ size: 100, mtime: recentDate } as any);
@@ -489,19 +513,29 @@ describe('cleanupOldBackups', () => {
 
   it('should delete metadata files along with backups', async () => {
     mockReaddir.mockResolvedValue(['test.ts.qualops-backup-111-aaa'] as any);
-    mockStat.mockResolvedValue({ size: 100, mtime: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000) } as any);
+    mockStat.mockResolvedValue({
+      size: 100,
+      mtime: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
+    } as any);
     mockUnlink.mockResolvedValue(undefined);
 
     await cleanupOldBackups('/project', 0, 30);
 
     expect(mockUnlink).toHaveBeenCalledWith('/project/test.ts.qualops-backup-111-aaa');
-    expect(mockUnlink).toHaveBeenCalledWith('/project/test.ts.qualops-backup-111-aaa.metadata.json');
+    expect(mockUnlink).toHaveBeenCalledWith(
+      '/project/test.ts.qualops-backup-111-aaa.metadata.json',
+    );
   });
 
   it('should handle missing metadata files gracefully', async () => {
     mockReaddir.mockResolvedValue(['test.ts.qualops-backup-111-aaa'] as any);
-    mockStat.mockResolvedValue({ size: 100, mtime: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000) } as any);
-    mockUnlink.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('Metadata not found'));
+    mockStat.mockResolvedValue({
+      size: 100,
+      mtime: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
+    } as any);
+    mockUnlink
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('Metadata not found'));
 
     const result = await cleanupOldBackups('/project', 0, 30);
 
@@ -511,7 +545,10 @@ describe('cleanupOldBackups', () => {
 
   it('should track deletion errors', async () => {
     mockReaddir.mockResolvedValue(['test.ts.qualops-backup-111-aaa'] as any);
-    mockStat.mockResolvedValue({ size: 100, mtime: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000) } as any);
+    mockStat.mockResolvedValue({
+      size: 100,
+      mtime: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
+    } as any);
     mockUnlink.mockRejectedValue(new Error('Delete failed'));
 
     const result = await cleanupOldBackups('/project', 0, 30);
@@ -636,7 +673,9 @@ describe('verifyBackup', () => {
   });
 
   it('should handle missing metadata gracefully', async () => {
-    mockReadFile.mockResolvedValueOnce('backup content').mockRejectedValueOnce(new Error('Metadata not found'));
+    mockReadFile
+      .mockResolvedValueOnce('backup content')
+      .mockRejectedValueOnce(new Error('Metadata not found'));
 
     const result = await verifyBackup('/project/test.ts.qualops-backup-111-aaa');
 
@@ -658,7 +697,9 @@ describe('verifyBackup', () => {
       timestamp: new Date().toISOString(),
       size: 100,
     };
-    mockReadFile.mockResolvedValueOnce('backup content').mockResolvedValueOnce(JSON.stringify(metadata));
+    mockReadFile
+      .mockResolvedValueOnce('backup content')
+      .mockResolvedValueOnce(JSON.stringify(metadata));
 
     const result = await verifyBackup('/project/test.ts.qualops-backup-111-aaa');
 
@@ -725,7 +766,10 @@ describe('edge cases and error handling', () => {
     mockWriteFile.mockResolvedValue(undefined);
     jest.spyOn(Math, 'random').mockReturnValueOnce(0.1).mockReturnValueOnce(0.9);
 
-    const [backup1, backup2] = await Promise.all([createBackup('/project/test.ts'), createBackup('/project/test.ts')]);
+    const [backup1, backup2] = await Promise.all([
+      createBackup('/project/test.ts'),
+      createBackup('/project/test.ts'),
+    ]);
 
     expect(backup1).not.toBe(backup2);
   });

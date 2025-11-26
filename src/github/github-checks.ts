@@ -37,7 +37,7 @@ export class GitHubChecksService {
     headSha: string,
     summary: QualOpsSummary,
     issues: QualOpsIssue[],
-    maxAnnotations = 50
+    maxAnnotations = 50,
   ): Promise<void> {
     const conclusion = this.determineConclusion(summary);
     const annotations = this.convertIssuesToAnnotations(issues, maxAnnotations);
@@ -57,7 +57,7 @@ export class GitHubChecksService {
   }
 
   private determineConclusion(
-    summary: QualOpsSummary
+    summary: QualOpsSummary,
   ): 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required' {
     if (summary.criticalSeverity > 0) {
       return 'failure';
@@ -96,7 +96,7 @@ export class GitHubChecksService {
   private generateCheckSummary(
     summary: QualOpsSummary,
     totalIssuesCount: number,
-    annotationsCount: number
+    annotationsCount: number,
   ): string {
     let text = `## QualOps Code Quality Analysis\n\n`;
     text += `**Files Analyzed:** ${summary.filesAnalyzed}\n`;
@@ -123,7 +123,10 @@ export class GitHubChecksService {
     return text;
   }
 
-  private convertIssuesToAnnotations(issues: QualOpsIssue[], maxAnnotations: number): CheckAnnotation[] {
+  private convertIssuesToAnnotations(
+    issues: QualOpsIssue[],
+    maxAnnotations: number,
+  ): CheckAnnotation[] {
     const annotations: CheckAnnotation[] = [];
 
     const prioritizedIssues = this.prioritizeIssues(issues);

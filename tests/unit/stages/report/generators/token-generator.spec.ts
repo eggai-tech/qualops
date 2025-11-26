@@ -10,7 +10,9 @@ import {
 jest.mock('@/ai/providers');
 jest.mock('@/ai/shared/token-utils');
 
-const mockGetGlobalTokenStats = getGlobalTokenStats as jest.MockedFunction<typeof getGlobalTokenStats>;
+const mockGetGlobalTokenStats = getGlobalTokenStats as jest.MockedFunction<
+  typeof getGlobalTokenStats
+>;
 const mockFormatTokenStats = formatTokenStats as jest.MockedFunction<typeof formatTokenStats>;
 
 describe('token-generator', () => {
@@ -212,7 +214,11 @@ describe('token-generator', () => {
       });
 
       it('should handle equal distribution', () => {
-        const stats = createMockTokenStats({ totalTokens: 10000, totalInputTokens: 5000, totalOutputTokens: 5000 });
+        const stats = createMockTokenStats({
+          totalTokens: 10000,
+          totalInputTokens: 5000,
+          totalOutputTokens: 5000,
+        });
         mockGetGlobalTokenStats.mockReturnValue(stats);
 
         const result = generateTokenUsageHTML();
@@ -533,7 +539,11 @@ describe('token-generator', () => {
 
     describe('edge cases', () => {
       it('should handle zero tokens', () => {
-        const stats = createMockTokenStats({ totalTokens: 0, invocationCount: 0, estimatedCost: 0 });
+        const stats = createMockTokenStats({
+          totalTokens: 0,
+          invocationCount: 0,
+          estimatedCost: 0,
+        });
         mockGetGlobalTokenStats.mockReturnValue(stats);
 
         const result = generateTokenConsoleOutput();

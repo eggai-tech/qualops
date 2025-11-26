@@ -139,7 +139,9 @@ export async function performRollback(
           await writeFile(currentBackupPath, currentContent, 'utf-8');
           logger.debug(` Created pre-rollback backup: ${currentBackupPath}`);
         } catch (backupError) {
-          logger.warn(` Failed to create pre-rollback backup for ${fileInfo.filePath}: ${backupError}`);
+          logger.warn(
+            ` Failed to create pre-rollback backup for ${fileInfo.filePath}: ${backupError}`,
+          );
         }
       }
 
@@ -256,7 +258,9 @@ export async function autoRollback(
       }
 
       filesRestored.push(filePath);
-      logger.info(` ${options.dryRun ? 'Would restore' : 'Restored'} ${filePath} from ${latestBackup.path}`);
+      logger.info(
+        ` ${options.dryRun ? 'Would restore' : 'Restored'} ${filePath} from ${latestBackup.path}`,
+      );
     } catch (error) {
       const errorMessage = `Failed to auto-rollback ${filePath}: ${error instanceof Error ? error.message : String(error)}`;
       errors.push(errorMessage);
@@ -352,7 +356,9 @@ export async function cleanupRollbackPoints(
     rollbackPoints.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
     // Keep the minimum number of recent rollback points
-    const pointsToDelete = rollbackPoints.slice(keepMinimum).filter((point) => point.timestamp < cutoffTime);
+    const pointsToDelete = rollbackPoints
+      .slice(keepMinimum)
+      .filter((point) => point.timestamp < cutoffTime);
 
     for (const point of pointsToDelete) {
       try {
@@ -433,7 +439,10 @@ async function deleteRollbackPoint(rollbackId: string): Promise<void> {
   }
 }
 
-export async function createFixBatchRollbackPoint(fixedFiles: string[], sessionId?: string): Promise<RollbackPoint> {
+export async function createFixBatchRollbackPoint(
+  fixedFiles: string[],
+  sessionId?: string,
+): Promise<RollbackPoint> {
   const description = `Batch fix application (${fixedFiles.length} files)`;
   return createRollbackPoint(description, fixedFiles, sessionId);
 }
@@ -464,7 +473,9 @@ export async function smartRollback(
         for (const backup of backups) {
           try {
             const backupContent = await readFile(backup.path, 'utf-8');
-            const preservesPatterns = preservePatterns.every((pattern) => backupContent.includes(pattern));
+            const preservesPatterns = preservePatterns.every((pattern) =>
+              backupContent.includes(pattern),
+            );
 
             if (preservesPatterns) {
               selectedBackup = backup;
@@ -495,7 +506,9 @@ export async function smartRollback(
       }
 
       filesRestored.push(filePath);
-      logger.info(` ${options.dryRun ? 'Would restore' : 'Restored'} ${filePath} from ${selectedBackup.path}`);
+      logger.info(
+        ` ${options.dryRun ? 'Would restore' : 'Restored'} ${filePath} from ${selectedBackup.path}`,
+      );
     } catch (error) {
       const errorMessage = `Smart rollback failed for ${filePath}: ${error instanceof Error ? error.message : String(error)}`;
       errors.push(errorMessage);

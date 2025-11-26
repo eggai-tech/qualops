@@ -102,17 +102,23 @@ describe('OpenAIProvider', () => {
 
     it('should throw error when provider is missing from config', () => {
       const { provider: _provider, ...invalidConfig } = validStageConfig;
-      expect(() => new OpenAIProvider(invalidConfig as any)).toThrow('Missing required OpenAI config: provider');
+      expect(() => new OpenAIProvider(invalidConfig as any)).toThrow(
+        'Missing required OpenAI config: provider',
+      );
     });
 
     it('should throw error when model is missing from config', () => {
       const { model: _model, ...invalidConfig } = validStageConfig;
-      expect(() => new OpenAIProvider(invalidConfig as any)).toThrow('Missing required OpenAI config: model');
+      expect(() => new OpenAIProvider(invalidConfig as any)).toThrow(
+        'Missing required OpenAI config: model',
+      );
     });
 
     it('should throw error when inputPerMillion is missing from config', () => {
       const { inputPerMillion: _inputPerMillion, ...invalidConfig } = validStageConfig;
-      expect(() => new OpenAIProvider(invalidConfig as any)).toThrow('Missing required OpenAI config: inputPerMillion');
+      expect(() => new OpenAIProvider(invalidConfig as any)).toThrow(
+        'Missing required OpenAI config: inputPerMillion',
+      );
     });
 
     it('should throw error when outputPerMillion is missing from config', () => {
@@ -124,7 +130,9 @@ describe('OpenAIProvider', () => {
 
     it('should throw error when multiple config fields are missing', () => {
       const invalidConfig = {};
-      expect(() => new OpenAIProvider(invalidConfig as any)).toThrow('Missing required OpenAI config');
+      expect(() => new OpenAIProvider(invalidConfig as any)).toThrow(
+        'Missing required OpenAI config',
+      );
     });
   });
 
@@ -151,7 +159,9 @@ describe('OpenAIProvider', () => {
         throw new Error('Failed to initialize OpenAI provider: Import failed');
       };
 
-      await expect(provider.initialize()).rejects.toThrow('Failed to initialize OpenAI provider: Import failed');
+      await expect(provider.initialize()).rejects.toThrow(
+        'Failed to initialize OpenAI provider: Import failed',
+      );
     });
   });
 

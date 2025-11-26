@@ -32,7 +32,11 @@ export interface AIProvider {
 
   completeWithStructure<T>(options: AICompletionOptions & { schema: unknown }): Promise<T>;
 
-  invoke(prompt: string, maxTokens?: number, options?: { stage?: string; enableCaching?: boolean }): Promise<string>;
+  invoke(
+    prompt: string,
+    maxTokens?: number,
+    options?: { stage?: string; enableCaching?: boolean },
+  ): Promise<string>;
 
   isAvailable(): boolean;
 

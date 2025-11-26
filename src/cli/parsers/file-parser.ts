@@ -34,7 +34,9 @@ export async function parseFilePatterns(fileOption: string): Promise<string[]> {
           allFiles.push(...matches);
         }
       } catch (error) {
-        logger.warn(`Invalid glob pattern '${pattern}': ${error instanceof Error ? error.message : String(error)}`);
+        logger.warn(
+          `Invalid glob pattern '${pattern}': ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     } else {
       if (existsSync(pattern)) {

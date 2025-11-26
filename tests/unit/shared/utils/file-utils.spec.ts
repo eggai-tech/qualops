@@ -1,7 +1,12 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import { ensureDirectory, fileExists, readMetadataFile, writeMetadataFile } from '@/shared/utils/file-utils';
+import {
+  ensureDirectory,
+  fileExists,
+  readMetadataFile,
+  writeMetadataFile,
+} from '@/shared/utils/file-utils';
 
 jest.mock('node:fs/promises');
 jest.mock('node:path');
@@ -46,7 +51,11 @@ describe('writeMetadataFile', () => {
 
     await writeMetadataFile('/project/src/file.json', data);
 
-    expect(mockWriteFile).toHaveBeenCalledWith('/project/src/file.json', JSON.stringify(data, null, 2), 'utf-8');
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      '/project/src/file.json',
+      JSON.stringify(data, null, 2),
+      'utf-8',
+    );
   });
 
   it('should ensure directory exists before writing', async () => {
@@ -69,7 +78,11 @@ describe('writeMetadataFile', () => {
 
     await writeMetadataFile('/project/file.json', 'string value');
 
-    expect(mockWriteFile).toHaveBeenCalledWith('/project/file.json', JSON.stringify('string value', null, 2), 'utf-8');
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      '/project/file.json',
+      JSON.stringify('string value', null, 2),
+      'utf-8',
+    );
   });
 
   it('should serialize arrays', async () => {
@@ -78,7 +91,11 @@ describe('writeMetadataFile', () => {
 
     await writeMetadataFile('/project/file.json', data);
 
-    expect(mockWriteFile).toHaveBeenCalledWith('/project/file.json', JSON.stringify(data, null, 2), 'utf-8');
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      '/project/file.json',
+      JSON.stringify(data, null, 2),
+      'utf-8',
+    );
   });
 });
 

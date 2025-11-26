@@ -123,12 +123,18 @@ class GitLabIntegration {
       redacted = redacted.replace(new RegExp(this.token, 'g'), '[REDACTED_TOKEN]');
       if (this.token.length > 16) {
         redacted = redacted.replace(new RegExp(this.token.substring(0, 8), 'g'), '[REDACTED');
-        redacted = redacted.replace(new RegExp(this.token.substring(this.token.length - 8), 'g'), 'REDACTED]');
+        redacted = redacted.replace(
+          new RegExp(this.token.substring(this.token.length - 8), 'g'),
+          'REDACTED]',
+        );
       }
     }
 
     if (process.env.GITLAB_ACCESS_TOKEN) {
-      redacted = redacted.replace(new RegExp(process.env.GITLAB_ACCESS_TOKEN, 'g'), '[REDACTED_ACCESS_TOKEN]');
+      redacted = redacted.replace(
+        new RegExp(process.env.GITLAB_ACCESS_TOKEN, 'g'),
+        '[REDACTED_ACCESS_TOKEN]',
+      );
     }
     if (this.env.CI_JOB_TOKEN) {
       redacted = redacted.replace(new RegExp(this.env.CI_JOB_TOKEN, 'g'), '[REDACTED_JOB_TOKEN]');
@@ -174,7 +180,10 @@ class GitLabIntegration {
         includedSeverities: config.report?.includedSeverities || defaults.includedSeverities,
       };
     } catch (error) {
-      logger.warn('Failed to load .qualopsrc.json, using defaults:', error instanceof Error ? error.message : error);
+      logger.warn(
+        'Failed to load .qualopsrc.json, using defaults:',
+        error instanceof Error ? error.message : error,
+      );
       return defaults;
     }
   }
@@ -196,7 +205,9 @@ class GitLabIntegration {
         });
 
         if (!response.ok) {
-          logger.warn(`Failed to fetch page ${currentPage}: ${response.status} ${response.statusText}`);
+          logger.warn(
+            `Failed to fetch page ${currentPage}: ${response.status} ${response.statusText}`,
+          );
           break;
         }
 
@@ -216,7 +227,10 @@ class GitLabIntegration {
 
         currentPage++;
       } catch (error) {
-        logger.warn(`Error fetching page ${currentPage}:`, error instanceof Error ? error.message : error);
+        logger.warn(
+          `Error fetching page ${currentPage}:`,
+          error instanceof Error ? error.message : error,
+        );
         break;
       }
     }
@@ -258,7 +272,9 @@ class GitLabIntegration {
 
         if (existingCommentId) {
           const updateUrl = `${this.apiUrl}/merge_requests/${this.env.CI_MERGE_REQUEST_IID}/notes/${existingCommentId}`;
-          logger.info(`Updating existing comment at: ${updateUrl} (attempt ${attempt}/${maxRetries})`);
+          logger.info(
+            `Updating existing comment at: ${updateUrl} (attempt ${attempt}/${maxRetries})`,
+          );
           const response = await fetch(updateUrl, {
             method: 'PUT',
             headers: this.headers,
@@ -340,7 +356,9 @@ class GitLabIntegration {
 
     if (debug) {
       logger.info(`  Attempting inline comment: ${issue.file}:${issue.line} (${issue.severity})`);
-      logger.info(`    Position: base=${baseSha.substring(0, 8)} head=${headSha.substring(0, 8)} line=${issue.line}`);
+      logger.info(
+        `    Position: base=${baseSha.substring(0, 8)} head=${headSha.substring(0, 8)} line=${issue.line}`,
+      );
     }
 
     try {
@@ -355,7 +373,9 @@ class GitLabIntegration {
         logger.warn(`✗ Failed to post inline comment for ${issue.file}:${issue.line}`);
         logger.warn(`  Severity: ${issue.severity}`);
         logger.warn(`  Status: ${response.status} ${response.statusText}`);
-        logger.warn(`  Position: base=${baseSha.substring(0, 8)} head=${headSha.substring(0, 8)} line=${issue.line}`);
+        logger.warn(
+          `  Position: base=${baseSha.substring(0, 8)} head=${headSha.substring(0, 8)} line=${issue.line}`,
+        );
         logger.warn(`  Response: ${this.redactSensitiveData(errorText.substring(0, 300))}`);
         return false;
       }
@@ -403,7 +423,12 @@ class GitLabIntegration {
     return hasCritical || hasHigh ? 'FAILED' : summary.totalIssues > 0 ? 'WARNINGS' : 'PASSED';
   }
 
-  private formatIssuesByType(issues: QualOpsResult['issues'], severity: string, emoji: string, limit: number): string {
+  private formatIssuesByType(
+    issues: QualOpsResult['issues'],
+    severity: string,
+    emoji: string,
+    limit: number,
+  ): string {
     const filtered = issues.filter((i) => i.severity === severity).slice(0, limit);
     if (filtered.length === 0) return '';
 
@@ -492,7 +517,10 @@ class GitLabIntegration {
         }
       }
     } catch (error) {
-      logger.error('Failed to scan reports directory:', error instanceof Error ? error.message : 'Unknown error');
+      logger.error(
+        'Failed to scan reports directory:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
     }
 
     return null;
@@ -511,7 +539,10 @@ class GitLabIntegration {
         .filter((dirent) => dirent.isDirectory())
         .map((dirent) => dirent.name);
     } catch (error) {
-      logger.error('Failed to read sessions directory:', error instanceof Error ? error.message : 'Unknown error');
+      logger.error(
+        'Failed to read sessions directory:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       return null;
     }
 
@@ -628,7 +659,10 @@ class GitLabIntegration {
         }
       }
     } catch (error) {
-      logger.warn('Failed to parse judge decision:', error instanceof Error ? error.message : 'Unknown error');
+      logger.warn(
+        'Failed to parse judge decision:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
     }
 
     return null;
@@ -652,7 +686,9 @@ class GitLabIntegration {
 
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error(`  Cannot access MR: ${this.redactSensitiveData(errorText.substring(0, 200))}`);
+        logger.error(
+          `  Cannot access MR: ${this.redactSensitiveData(errorText.substring(0, 200))}`,
+        );
         return false;
       }
 
@@ -707,12 +743,18 @@ class GitLabIntegration {
       logger.info(`  Found ${existingComments.size} existing unresolved inline comments`);
       return existingComments;
     } catch (error) {
-      logger.warn('Failed to fetch existing inline comments:', error instanceof Error ? error.message : error);
+      logger.warn(
+        'Failed to fetch existing inline comments:',
+        error instanceof Error ? error.message : error,
+      );
       return existingComments;
     }
   }
 
-  private async getChangedLines(baseSha: string, headSha: string): Promise<Map<string, Set<number>>> {
+  private async getChangedLines(
+    baseSha: string,
+    headSha: string,
+  ): Promise<Map<string, Set<number>>> {
     const { execSync } = await import('child_process');
     const changedLines = new Map<string, Set<number>>();
 
@@ -755,7 +797,10 @@ class GitLabIntegration {
 
       return changedLines;
     } catch (error) {
-      logger.warn('Failed to get changed lines from git diff:', error instanceof Error ? error.message : error);
+      logger.warn(
+        'Failed to get changed lines from git diff:',
+        error instanceof Error ? error.message : error,
+      );
       return new Map();
     }
   }
@@ -777,7 +822,9 @@ class GitLabIntegration {
 
     if (!process.env.GITLAB_ACCESS_TOKEN) {
       logger.warn('⚠ GITLAB_ACCESS_TOKEN not set - comments will fail to post.');
-      logger.warn('  To enable MR comments, add a project access token as GITLAB_ACCESS_TOKEN CI/CD variable.');
+      logger.warn(
+        '  To enable MR comments, add a project access token as GITLAB_ACCESS_TOKEN CI/CD variable.',
+      );
       logger.warn('  QualOps will still generate reports in job artifacts.');
     }
 
@@ -798,7 +845,9 @@ class GitLabIntegration {
     const baseSha = this.env.CI_MERGE_REQUEST_DIFF_BASE_SHA || '';
     const headSha = this.env.CI_MERGE_REQUEST_SOURCE_BRANCH_SHA || this.env.CI_COMMIT_SHA || '';
 
-    logger.info(`Using base SHA: ${baseSha.substring(0, 8)} and head SHA: ${headSha.substring(0, 8)}`);
+    logger.info(
+      `Using base SHA: ${baseSha.substring(0, 8)} and head SHA: ${headSha.substring(0, 8)}`,
+    );
 
     if (baseSha && headSha && results.issues.length > 0) {
       logger.info('Posting inline comments on diff...');
@@ -807,7 +856,9 @@ class GitLabIntegration {
       const changedLines = await this.getChangedLines(baseSha, headSha);
       logger.info(`  Found ${changedLines.size} files with changes`);
 
-      const inlineIssues = results.issues.filter((issue) => this.inlineCommentSeverities.includes(issue.severity));
+      const inlineIssues = results.issues.filter((issue) =>
+        this.inlineCommentSeverities.includes(issue.severity),
+      );
 
       const commentableIssues = inlineIssues.filter((issue) => {
         const key = `${issue.file}:${issue.line}`;
@@ -844,7 +895,8 @@ class GitLabIntegration {
     logger.info(`   Files analyzed: ${results.summary.filesAnalyzed}`);
 
     const judgeDecision = this.parseJudgeDecision('reports');
-    const hasCriticalOrHigh = results.summary.criticalSeverity > 0 || results.summary.highSeverity > 0;
+    const hasCriticalOrHigh =
+      results.summary.criticalSeverity > 0 || results.summary.highSeverity > 0;
     const judgeFailure = judgeDecision && !judgeDecision.passed;
 
     if (this.config.blockPipeline && (hasCriticalOrHigh || judgeFailure)) {

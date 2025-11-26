@@ -49,7 +49,9 @@ describe('AIFactory', () => {
       resetTokenStats: jest.fn(),
     });
 
-    mockAnthropicProvider.mockImplementation(() => createMockProvider(AIProviderType.ANTHROPIC) as any);
+    mockAnthropicProvider.mockImplementation(
+      () => createMockProvider(AIProviderType.ANTHROPIC) as any,
+    );
     mockBedrockProvider.mockImplementation(() => createMockProvider(AIProviderType.BEDROCK) as any);
     mockOpenAIProvider.mockImplementation(() => createMockProvider(AIProviderType.OPENAI) as any);
   });
@@ -115,7 +117,9 @@ describe('AIFactory', () => {
       };
       mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig as any);
 
-      await expect(AIFactory.createForStage('review')).rejects.toThrow('Unknown AI provider: unknown-provider');
+      await expect(AIFactory.createForStage('review')).rejects.toThrow(
+        'Unknown AI provider: unknown-provider',
+      );
     });
 
     it('should reuse existing provider if available', async () => {
@@ -167,7 +171,9 @@ describe('AIFactory', () => {
         outputPerMillion: 15,
       };
 
-      mockConfigInstance.getAIStageConfig.mockReturnValueOnce(reviewConfig).mockReturnValueOnce(analyzeConfig);
+      mockConfigInstance.getAIStageConfig
+        .mockReturnValueOnce(reviewConfig)
+        .mockReturnValueOnce(analyzeConfig);
 
       const reviewProvider = await AIFactory.createForStage('review');
       const analyzeProvider = await AIFactory.createForStage('analyze');
@@ -253,7 +259,11 @@ describe('AIFactory', () => {
     it('should return all available provider types', () => {
       const providers = AIFactory.getAvailableProviders();
 
-      expect(providers).toEqual([AIProviderType.ANTHROPIC, AIProviderType.BEDROCK, AIProviderType.OPENAI]);
+      expect(providers).toEqual([
+        AIProviderType.ANTHROPIC,
+        AIProviderType.BEDROCK,
+        AIProviderType.OPENAI,
+      ]);
     });
 
     it('should return array with correct length', () => {
@@ -328,7 +338,9 @@ describe('AIFactory', () => {
           outputPerMillion: 15,
         };
 
-        mockConfigInstance.getAIStageConfig.mockReturnValueOnce(anthropicConfig).mockReturnValueOnce(openaiConfig);
+        mockConfigInstance.getAIStageConfig
+          .mockReturnValueOnce(anthropicConfig)
+          .mockReturnValueOnce(openaiConfig);
 
         const provider1 = await initializeGlobalAIProviderForStage('review');
         const provider2 = await initializeGlobalAIProviderForStage('analyze');

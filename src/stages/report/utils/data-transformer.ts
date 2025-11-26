@@ -29,7 +29,9 @@ export function aggregateIssues(review: ReviewMetadata) {
   };
 }
 
-export function buildFileTree(issues: ReviewIssue[]): Map<string, { files: string[]; issues: ReviewIssue[] }> {
+export function buildFileTree(
+  issues: ReviewIssue[],
+): Map<string, { files: string[]; issues: ReviewIssue[] }> {
   const fileTree = new Map<string, { files: string[]; issues: ReviewIssue[] }>();
 
   for (const issue of issues) {

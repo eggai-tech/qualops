@@ -76,7 +76,9 @@ class Logger {
 
     const formattedMessage =
       args.length > 0
-        ? message + ' ' + args.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' ')
+        ? message +
+          ' ' +
+          args.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' ')
         : message;
 
     parts.push(formattedMessage);

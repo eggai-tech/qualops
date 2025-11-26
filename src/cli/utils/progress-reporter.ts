@@ -48,7 +48,9 @@ export class ProgressReporter {
         logger.info(`Analyzing ${options.files.length} files`);
         const displayFiles = options.files.slice(0, 3);
         const hasMore = options.files.length > 3;
-        logger.info(`Files: ${displayFiles.join(', ')}${hasMore ? `... and ${options.files.length - 3} more` : ''}`);
+        logger.info(
+          `Files: ${displayFiles.join(', ')}${hasMore ? `... and ${options.files.length - 3} more` : ''}`,
+        );
       }
     }
   }

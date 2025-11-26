@@ -80,7 +80,10 @@ export function findContextInFile(fileContent: string, context: string): Context
       const regex = new RegExp(pattern.regex, 'g');
       const match = regex.exec(fileContent);
       if (match) {
-        return { ...calculateLocation(fileContent, match.index, match[0].length), confidence: 'pattern' };
+        return {
+          ...calculateLocation(fileContent, match.index, match[0].length),
+          confidence: 'pattern',
+        };
       }
     } catch {
       continue;
@@ -149,7 +152,9 @@ export async function smartContextSearch(
   }
 
   // 6. Last resort - try to find any significant word from context
-  const contextWords = cleanContext.split(/\s+/).filter((w) => w.length > 5 && /^[a-zA-Z_]\w+$/.test(w));
+  const contextWords = cleanContext
+    .split(/\s+/)
+    .filter((w) => w.length > 5 && /^[a-zA-Z_]\w+$/.test(w));
   for (const word of contextWords) {
     if (fileContent.includes(word)) {
       const index = fileContent.indexOf(word);
@@ -205,7 +210,11 @@ export function extractKeywords(description: string, context?: string): string[]
   return [...new Set(keywords)].sort((a, b) => b.length - a.length);
 }
 
-function calculateLocation(content: string, index: number, length: number): Omit<ContextLocation, 'confidence'> {
+function calculateLocation(
+  content: string,
+  index: number,
+  length: number,
+): Omit<ContextLocation, 'confidence'> {
   const lines = content.substring(0, index).split('\n');
   const startLine = lines.length - 1;
   const endContent = content.substring(0, index + length);

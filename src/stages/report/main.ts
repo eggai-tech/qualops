@@ -20,7 +20,9 @@ import { IssueManager } from './issue-manager';
 import { writeHTMLReport } from './utils/file-writer';
 
 export async function generateReport(): Promise<ReportMetadata> {
-  const existingReport = await readMetadataFile<ReportMetadata>(getCurrentSessionPaths().overallReport());
+  const existingReport = await readMetadataFile<ReportMetadata>(
+    getCurrentSessionPaths().overallReport(),
+  );
   if (existingReport) {
     logger.info('Report stage already completed - using existing results');
     return existingReport;
@@ -36,16 +38,25 @@ export async function generateReport(): Promise<ReportMetadata> {
   const config = ConfigService.getInstance().getAll() as Record<string, unknown> & {
     report: { includedSeverities?: string[] };
   };
-  const includedSeverities = config.report?.includedSeverities || ['critical', 'high', 'medium', 'low'];
+  const includedSeverities = config.report?.includedSeverities || [
+    'critical',
+    'high',
+    'medium',
+    'low',
+  ];
 
   let filteredReviewData = data.review;
   if (data.review?.issues && data.review.issues.length > 0) {
     const originalCount = data.review.issues.length;
-    const filteredIssues = data.review.issues.filter((issue) => includedSeverities.includes(issue.severity));
+    const filteredIssues = data.review.issues.filter((issue) =>
+      includedSeverities.includes(issue.severity),
+    );
 
     if (filteredIssues.length < originalCount) {
       const excluded = originalCount - filteredIssues.length;
-      logger.info(`[REPORT] Filtered ${excluded} issues by severity (showing: ${includedSeverities.join(', ')})`);
+      logger.info(
+        `[REPORT] Filtered ${excluded} issues by severity (showing: ${includedSeverities.join(', ')})`,
+      );
     }
 
     filteredReviewData = {

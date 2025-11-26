@@ -13,4 +13,3 @@ export function executeGitCommand(args: string[]): string {
 
   return result.stdout.trim();
 }
-

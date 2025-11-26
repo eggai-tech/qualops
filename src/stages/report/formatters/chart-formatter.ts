@@ -173,7 +173,11 @@ function getSegmentChar(index: number): string {
   return chars[index % chars.length];
 }
 
-function getSegmentForAngle(angle: number, segments: Array<{ value: number }>, total: number): number {
+function getSegmentForAngle(
+  angle: number,
+  segments: Array<{ value: number }>,
+  total: number,
+): number {
   let cumulative = 0;
   for (let i = 0; i < segments.length; i++) {
     cumulative += segments[i].value;

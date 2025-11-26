@@ -28,17 +28,25 @@ jest.mock('@/stages/report/utils/data-transformer');
 jest.mock('@/stages/report/utils/formatters');
 
 const mockReadFile = readFile as jest.MockedFunction<typeof readFile>;
-const mockGenerateCodeSection = generateCodeSection as jest.MockedFunction<typeof generateCodeSection>;
-const mockGenerateDirectoryHeader = generateDirectoryHeader as jest.MockedFunction<typeof generateDirectoryHeader>;
+const mockGenerateCodeSection = generateCodeSection as jest.MockedFunction<
+  typeof generateCodeSection
+>;
+const mockGenerateDirectoryHeader = generateDirectoryHeader as jest.MockedFunction<
+  typeof generateDirectoryHeader
+>;
 const mockGenerateFileHeader = generateFileHeader as jest.MockedFunction<typeof generateFileHeader>;
 const mockGenerateIssueCard = generateIssueCard as jest.MockedFunction<typeof generateIssueCard>;
 const mockBuildFileTree = buildFileTree as jest.MockedFunction<typeof buildFileTree>;
 const mockGenerateSafeId = generateSafeId as jest.MockedFunction<typeof generateSafeId>;
 const mockGroupIssuesByFile = groupIssuesByFile as jest.MockedFunction<typeof groupIssuesByFile>;
-const mockSortDirectoriesByIssues = sortDirectoriesByIssues as jest.MockedFunction<typeof sortDirectoriesByIssues>;
+const mockSortDirectoriesByIssues = sortDirectoriesByIssues as jest.MockedFunction<
+  typeof sortDirectoriesByIssues
+>;
 const mockEscapeHtml = escapeHtml as jest.MockedFunction<typeof escapeHtml>;
 
-const { validateFilePath } = jest.requireMock('@/shared/utils/file-utils.ts') as { validateFilePath: jest.Mock };
+const { validateFilePath } = jest.requireMock('@/shared/utils/file-utils.ts') as {
+  validateFilePath: jest.Mock;
+};
 const mockValidateFilePath = validateFilePath;
 
 describe('issues-generator', () => {
@@ -71,7 +79,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path/to', { files: ['/path/to/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path/to', { files: ['/path/to/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path/to', { files: ['/path/to/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/to/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Directory Header</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File Header</div>');
@@ -90,7 +100,9 @@ describe('issues-generator', () => {
           createMockIssue({ id: 'issue-1', file: '/path/file1.ts' }),
           createMockIssue({ id: 'issue-2', file: '/path/file2.ts' }),
         ];
-        const fileTree = new Map([['/path', { files: ['/path/file1.ts', '/path/file2.ts'], issues }]]);
+        const fileTree = new Map([
+          ['/path', { files: ['/path/file1.ts', '/path/file2.ts'], issues }],
+        ]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
         mockSortDirectoriesByIssues.mockReturnValue([
@@ -146,7 +158,10 @@ describe('issues-generator', () => {
       });
 
       it('should handle multiple directories', async () => {
-        const issues = [createMockIssue({ file: '/dir1/file.ts' }), createMockIssue({ file: '/dir2/file.ts' })];
+        const issues = [
+          createMockIssue({ file: '/dir1/file.ts' }),
+          createMockIssue({ file: '/dir2/file.ts' }),
+        ];
         const fileTree = new Map([
           ['/dir1', { files: ['/dir1/file.ts'], issues: [issues[0]] }],
           ['/dir2', { files: ['/dir2/file.ts'], issues: [issues[1]] }],
@@ -177,7 +192,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/test', { files: ['/test/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/test', { files: ['/test/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/test', { files: ['/test/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/test/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -194,7 +211,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/test', { files: ['/test/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/test', { files: ['/test/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/test', { files: ['/test/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/test/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -212,7 +231,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/test', { files: ['/test/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/test', { files: ['/test/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/test', { files: ['/test/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/test/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -247,7 +268,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path/to', { files: ['/path/to/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path/to', { files: ['/path/to/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path/to', { files: ['/path/to/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/to/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -281,7 +304,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path/to', { files: ['/path/to/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path/to', { files: ['/path/to/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path/to', { files: ['/path/to/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/to/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -299,7 +324,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path', { files: ['/path/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path', { files: ['/path/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path', { files: ['/path/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -319,7 +346,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path/to', { files: ['/path/to/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path/to', { files: ['/path/to/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path/to', { files: ['/path/to/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/to/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -328,7 +357,11 @@ describe('issues-generator', () => {
 
         await generateIssuesSection(issues, null);
 
-        expect(mockGenerateDirectoryHeader).toHaveBeenCalledWith('/path/to', expect.any(String), issues);
+        expect(mockGenerateDirectoryHeader).toHaveBeenCalledWith(
+          '/path/to',
+          expect.any(String),
+          issues,
+        );
       });
 
       it('should generate file header with issue count', async () => {
@@ -336,7 +369,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path', { files: ['/path/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path', { files: ['/path/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path', { files: ['/path/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -350,7 +385,9 @@ describe('issues-generator', () => {
 
       it('should extract file name from path', async () => {
         const issues = [createMockIssue({ file: '/very/long/path/to/my-file.ts' })];
-        const fileTree = new Map([['/very/long/path/to', { files: ['/very/long/path/to/my-file.ts'], issues }]]);
+        const fileTree = new Map([
+          ['/very/long/path/to', { files: ['/very/long/path/to/my-file.ts'], issues }],
+        ]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
         mockSortDirectoriesByIssues.mockReturnValue([
@@ -374,7 +411,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path/to', { files: ['/path/to/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path/to', { files: ['/path/to/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path/to', { files: ['/path/to/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/to/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -391,7 +430,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path', { files: ['/path/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path', { files: ['/path/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path', { files: ['/path/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -410,7 +451,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path', { files: ['/path/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path', { files: ['/path/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path', { files: ['/path/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -428,7 +471,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path', { files: ['/path/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path', { files: ['/path/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path', { files: ['/path/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -446,7 +491,9 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path', { files: ['/path/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path', { files: ['/path/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path', { files: ['/path/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
@@ -480,7 +527,9 @@ describe('issues-generator', () => {
       it('should handle very long file paths', async () => {
         const longPath = '/very/long/path/with/many/directories/file';
         const issues = [createMockIssue({ file: longPath })];
-        const fileTree = new Map([['/very/long/path/with/many/directories', { files: [longPath], issues }]]);
+        const fileTree = new Map([
+          ['/very/long/path/with/many/directories', { files: [longPath], issues }],
+        ]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
         mockSortDirectoriesByIssues.mockReturnValue([
@@ -521,7 +570,10 @@ describe('issues-generator', () => {
 
     describe('async operations', () => {
       it('should handle parallel file reads', async () => {
-        const issues = [createMockIssue({ file: '/file1.ts' }), createMockIssue({ file: '/file2.ts' })];
+        const issues = [
+          createMockIssue({ file: '/file1.ts' }),
+          createMockIssue({ file: '/file2.ts' }),
+        ];
         const fileTree = new Map([
           ['', { files: ['/file1.ts'], issues: [issues[0]] }],
           ['', { files: ['/file2.ts'], issues: [issues[1]] }],
@@ -550,11 +602,15 @@ describe('issues-generator', () => {
         const fileTree = new Map([['/path', { files: ['/path/file.ts'], issues }]]);
 
         mockBuildFileTree.mockReturnValue(fileTree);
-        mockSortDirectoriesByIssues.mockReturnValue([['/path', { files: ['/path/file.ts'], issues }]]);
+        mockSortDirectoriesByIssues.mockReturnValue([
+          ['/path', { files: ['/path/file.ts'], issues }],
+        ]);
         mockGroupIssuesByFile.mockReturnValue(new Map([['/path/file.ts', issues]]));
         mockGenerateDirectoryHeader.mockReturnValue('<div>Dir</div>');
         mockGenerateFileHeader.mockReturnValue('<div>File</div>');
-        mockGenerateIssueCard.mockResolvedValueOnce('<div>Card1</div>').mockResolvedValueOnce('<div>Card2</div>');
+        mockGenerateIssueCard
+          .mockResolvedValueOnce('<div>Card1</div>')
+          .mockResolvedValueOnce('<div>Card2</div>');
         mockReadFile.mockResolvedValue('code');
 
         const result = await generateIssuesSection(issues, null);

@@ -51,7 +51,9 @@ describe('calculateDiff', () => {
     const result = calculateDiff(original, suggested);
 
     expect(result.length).toBeGreaterThan(0);
-    expect(result.some((s) => s.type === 'remove' && s.content.includes('const x = 1;'))).toBe(true);
+    expect(result.some((s) => s.type === 'remove' && s.content.includes('const x = 1;'))).toBe(
+      true,
+    );
     expect(result.some((s) => s.type === 'add' && s.content.includes('const x = 2;'))).toBe(true);
   });
 

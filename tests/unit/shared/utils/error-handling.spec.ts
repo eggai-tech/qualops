@@ -10,7 +10,9 @@ jest.mock('@/config/config', () => ({
   CRITICAL_STAGES: ['analyze', 'report'],
 }));
 
-const mockWriteMetadataFile = fileUtils.writeMetadataFile as jest.MockedFunction<typeof fileUtils.writeMetadataFile>;
+const mockWriteMetadataFile = fileUtils.writeMetadataFile as jest.MockedFunction<
+  typeof fileUtils.writeMetadataFile
+>;
 const mockGetCurrentSessionPaths = sessionContext.getCurrentSessionPaths as jest.MockedFunction<
   typeof sessionContext.getCurrentSessionPaths
 >;
@@ -58,7 +60,9 @@ describe('withErrorHandling', () => {
     await withErrorHandling('test-stage', 'test-operation', mockFn);
 
     expect(mockLoggerInfo).toHaveBeenCalledWith('test-stage: Starting test-operation');
-    expect(mockLoggerInfo).toHaveBeenCalledWith(expect.stringMatching(/test-stage: Completed in \d+ms/));
+    expect(mockLoggerInfo).toHaveBeenCalledWith(
+      expect.stringMatching(/test-stage: Completed in \d+ms/),
+    );
   });
 
   it('should return failure without result when operation fails', async () => {
@@ -154,11 +158,15 @@ describe('withErrorHandling', () => {
     const mockFn = jest.fn().mockRejectedValue(new Error('non-critical failure'));
     mockWriteMetadataFile.mockResolvedValue();
 
-    await expect(withErrorHandling('extract', 'test-operation', mockFn)).resolves.toEqual({ success: false });
+    await expect(withErrorHandling('extract', 'test-operation', mockFn)).resolves.toEqual({
+      success: false,
+    });
   });
 
   it('should measure operation duration', async () => {
-    const mockFn = jest.fn().mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('done'), 10)));
+    const mockFn = jest
+      .fn()
+      .mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve('done'), 10)));
 
     await withErrorHandling('test-stage', 'test-operation', mockFn);
 
@@ -168,7 +176,9 @@ describe('withErrorHandling', () => {
   it('should measure duration even on failure', async () => {
     const mockFn = jest
       .fn()
-      .mockImplementation(() => new Promise((_, reject) => setTimeout(() => reject(new Error('fail')), 10)));
+      .mockImplementation(
+        () => new Promise((_, reject) => setTimeout(() => reject(new Error('fail')), 10)),
+      );
     mockWriteMetadataFile.mockResolvedValue();
 
     await withErrorHandling('non-critical', 'test-operation', mockFn);
@@ -240,7 +250,10 @@ describe('withErrorHandling', () => {
 
     await withErrorHandling('custom-stage', 'test-operation', mockFn);
 
-    expect(mockWriteMetadataFile).toHaveBeenCalledWith('/session/error-custom-stage.json', expect.any(Object));
+    expect(mockWriteMetadataFile).toHaveBeenCalledWith(
+      '/session/error-custom-stage.json',
+      expect.any(Object),
+    );
   });
 
   it('should call function exactly once', async () => {

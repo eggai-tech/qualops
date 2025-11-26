@@ -59,7 +59,7 @@ async function parseIssueFile(issuePath: string): Promise<ParsedIssue> {
       i += 2;
       const contextLines: string[] = [];
       let inCodeBlock = false;
-      while (i < lines.length && (inCodeBlock || (!lines[i].startsWith('##')))) {
+      while (i < lines.length && (inCodeBlock || !lines[i].startsWith('##'))) {
         if (lines[i].trim() === '```typescript' || lines[i].trim() === '```') {
           inCodeBlock = !inCodeBlock;
         }
@@ -87,7 +87,11 @@ async function parseIssueFile(issuePath: string): Promise<ParsedIssue> {
   return issue as ParsedIssue;
 }
 
-async function resolveIssue(issuePath: string, monorepoRoot: string, dryRun: boolean = true): Promise<void> {
+async function resolveIssue(
+  issuePath: string,
+  monorepoRoot: string,
+  dryRun: boolean = true,
+): Promise<void> {
   logger.info(`\n📖 Parsing issue: ${issuePath}`);
   const issue = await parseIssueFile(issuePath);
 
@@ -152,10 +156,15 @@ Your task: Apply the fix to the code. Return ONLY the complete fixed file conten
     return;
   }
 
-  fixedContent = fixedContent.replace(/^```typescript\n/, '').replace(/\n```$/, '').trim();
+  fixedContent = fixedContent
+    .replace(/^```typescript\n/, '')
+    .replace(/\n```$/, '')
+    .trim();
 
   logger.info(`\n✅ Fix generated successfully`);
-  logger.info(`\nTokens used: ${message.usage.input_tokens} input, ${message.usage.output_tokens} output`);
+  logger.info(
+    `\nTokens used: ${message.usage.input_tokens} input, ${message.usage.output_tokens} output`,
+  );
 
   if (dryRun) {
     logger.info(`\n🔍 DRY RUN MODE - Changes not applied`);
@@ -187,7 +196,9 @@ const applyFlag = args.includes('--apply');
 if (!issuePath) {
   logger.error('Usage: node resolve-issue.ts <path-to-issue.md> [--apply]');
   logger.error('\nExample:');
-  logger.error('  node resolve-issue.ts reports/qualops-full-2025-10-22/issues/security_input_validation/ISSUE-018.md');
+  logger.error(
+    '  node resolve-issue.ts reports/qualops-full-2025-10-22/issues/security_input_validation/ISSUE-018.md',
+  );
   logger.error('\nBy default, runs in dry-run mode. Add --apply to actually modify files.');
   process.exit(1);
 }

@@ -2,7 +2,10 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { enhanceReviewPromptWithDocumentation, SimpleDocumentationLoader } from '@/shared/utils/documentation-context';
+import {
+  enhanceReviewPromptWithDocumentation,
+  SimpleDocumentationLoader,
+} from '@/shared/utils/documentation-context';
 
 jest.mock('node:fs');
 jest.mock('node:fs/promises');
@@ -58,7 +61,8 @@ describe('SimpleDocumentationLoader', () => {
     });
 
     it('should prioritize Angular over RxJS', () => {
-      const content = 'import { Component } from "@angular/core"; import { Observable } from "rxjs";';
+      const content =
+        'import { Component } from "@angular/core"; import { Observable } from "rxjs";';
       expect(loader.detectFramework(content)).toBe('angular');
     });
   });
@@ -114,7 +118,10 @@ describe('SimpleDocumentationLoader', () => {
 
       const docs = await loader.loadRelevantDocs('typescript');
 
-      expect(mockReadFile).toHaveBeenCalledWith(expect.stringContaining('owasp/Authentication.md'), 'utf-8');
+      expect(mockReadFile).toHaveBeenCalledWith(
+        expect.stringContaining('owasp/Authentication.md'),
+        'utf-8',
+      );
       expect(docs).toContain('OWASP: Authentication');
     });
 
@@ -126,7 +133,10 @@ describe('SimpleDocumentationLoader', () => {
 
       const docs = await loader.loadRelevantDocs('typescript');
 
-      expect(mockReadFile).toHaveBeenCalledWith(expect.stringContaining('security-patterns.md'), 'utf-8');
+      expect(mockReadFile).toHaveBeenCalledWith(
+        expect.stringContaining('security-patterns.md'),
+        'utf-8',
+      );
       expect(docs).toContain('# Security patterns');
     });
 
@@ -138,7 +148,10 @@ describe('SimpleDocumentationLoader', () => {
 
       const docs = await loader.loadRelevantDocs('angular');
 
-      expect(mockReadFile).toHaveBeenCalledWith(expect.stringContaining('angular/best-practices.md'), 'utf-8');
+      expect(mockReadFile).toHaveBeenCalledWith(
+        expect.stringContaining('angular/best-practices.md'),
+        'utf-8',
+      );
       expect(docs).toContain('# Angular best practices');
     });
 
@@ -318,7 +331,11 @@ describe('enhanceReviewPromptWithDocumentation', () => {
     const filePath = '/path/to/file.ts';
     const frameworkContext = { framework: 'angular' as const, dependencies: [] };
 
-    const prompt = await enhanceReviewPromptWithDocumentation(fileContent, filePath, frameworkContext);
+    const prompt = await enhanceReviewPromptWithDocumentation(
+      fileContent,
+      filePath,
+      frameworkContext,
+    );
 
     expect(prompt).toContain('Framework: angular');
   });

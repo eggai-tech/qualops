@@ -1,4 +1,8 @@
-import { enforceStageDependencies, STAGE_DEPENDENCIES, validateAndProcessStages } from '@/cli/parsers/argument-validator';
+import {
+  enforceStageDependencies,
+  STAGE_DEPENDENCIES,
+  validateAndProcessStages,
+} from '@/cli/parsers/argument-validator';
 import { logger } from '@/shared/utils/logger';
 
 jest.mock('@/shared/utils/logger', () => ({
@@ -23,7 +27,9 @@ describe('enforceStageDependencies', () => {
   it('should order stages respecting dependencies - review depends on analyze', () => {
     const result = enforceStageDependencies(['review', 'analyze']);
     expect(result).toEqual(['analyze', 'review']);
-    expect(logger.info).toHaveBeenCalledWith('Stage order adjusted for dependencies: analyze,review');
+    expect(logger.info).toHaveBeenCalledWith(
+      'Stage order adjusted for dependencies: analyze,review',
+    );
   });
 
   it('should not log info when order is already correct', () => {
@@ -35,19 +41,25 @@ describe('enforceStageDependencies', () => {
   it('should order stages respecting dependencies - fix depends on review', () => {
     const result = enforceStageDependencies(['fix', 'review', 'analyze']);
     expect(result).toEqual(['analyze', 'review', 'fix']);
-    expect(logger.info).toHaveBeenCalledWith('Stage order adjusted for dependencies: analyze,review,fix');
+    expect(logger.info).toHaveBeenCalledWith(
+      'Stage order adjusted for dependencies: analyze,review,fix',
+    );
   });
 
   it('should order stages respecting dependencies - report depends on analyze and review', () => {
     const result = enforceStageDependencies(['report', 'review', 'analyze']);
     expect(result).toEqual(['analyze', 'review', 'report']);
-    expect(logger.info).toHaveBeenCalledWith('Stage order adjusted for dependencies: analyze,review,report');
+    expect(logger.info).toHaveBeenCalledWith(
+      'Stage order adjusted for dependencies: analyze,review,report',
+    );
   });
 
   it('should order stages respecting dependencies - judge depends on report and fix', () => {
     const result = enforceStageDependencies(['judge', 'fix', 'report', 'review', 'analyze']);
     expect(result).toEqual(['analyze', 'review', 'report', 'fix', 'judge']);
-    expect(logger.info).toHaveBeenCalledWith('Stage order adjusted for dependencies: analyze,review,report,fix,judge');
+    expect(logger.info).toHaveBeenCalledWith(
+      'Stage order adjusted for dependencies: analyze,review,report,fix,judge',
+    );
   });
 
   it('should warn when dependency is missing - review without analyze', () => {
@@ -150,7 +162,9 @@ describe('enforceStageDependencies', () => {
       b: ['a'],
     });
 
-    expect(() => enforceStageDependencies(['a', 'b'])).toThrow('Circular dependency detected involving stage');
+    expect(() => enforceStageDependencies(['a', 'b'])).toThrow(
+      'Circular dependency detected involving stage',
+    );
 
     Object.keys(STAGE_DEPENDENCIES).forEach((key) => delete STAGE_DEPENDENCIES[key]);
     Object.assign(STAGE_DEPENDENCIES, originalDeps);
@@ -187,7 +201,9 @@ describe('validateAndProcessStages', () => {
   it('should reorder stages based on dependencies', () => {
     const result = validateAndProcessStages(['review', 'analyze']);
     expect(result).toEqual(['analyze', 'review']);
-    expect(logger.info).toHaveBeenCalledWith('Stage order adjusted for dependencies: analyze,review');
+    expect(logger.info).toHaveBeenCalledWith(
+      'Stage order adjusted for dependencies: analyze,review',
+    );
   });
 
   it('should validate before processing dependencies', () => {

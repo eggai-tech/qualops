@@ -5,7 +5,12 @@ import { type FilterData, generateFiltersSection } from './templates/components'
 import { aggregateIssues } from './utils/data-transformer';
 import { ConfigService } from '../../config/config';
 import { getCurrentSessionPaths } from '../../shared/runtime/session-context';
-import type { AnalysisMetadata, FixMetadata, ReviewIssue, ReviewMetadata } from '../../shared/types';
+import type {
+  AnalysisMetadata,
+  FixMetadata,
+  ReviewIssue,
+  ReviewMetadata,
+} from '../../shared/types';
 import { readMetadataFile } from '../../shared/utils/file-utils';
 import { logger } from '../../shared/utils/logger';
 
@@ -38,7 +43,9 @@ function extractKnowledgeSourceFromIssue(issue: ReviewIssue): string {
   return 'other';
 }
 
-export async function generateHTMLReport(issueIdMap: Map<string, number> = new Map()): Promise<string> {
+export async function generateHTMLReport(
+  issueIdMap: Map<string, number> = new Map(),
+): Promise<string> {
   // Load all metadata in parallel
   const [analysis, review, fix, fixSuggestions, metadata] = await Promise.all([
     readMetadataFile<AnalysisMetadata>(getCurrentSessionPaths().analysis()),
@@ -68,14 +75,23 @@ export async function generateHTMLReport(issueIdMap: Map<string, number> = new M
   const config = ConfigService.getInstance().getAll() as Record<string, unknown> & {
     report: { includedSeverities?: string[] };
   };
-  const includedSeverities = config.report?.includedSeverities || ['critical', 'high', 'medium', 'low'];
+  const includedSeverities = config.report?.includedSeverities || [
+    'critical',
+    'high',
+    'medium',
+    'low',
+  ];
 
   const originalIssueCount = review.issues.length;
-  const filteredIssues = review.issues.filter((issue) => includedSeverities.includes(issue.severity));
+  const filteredIssues = review.issues.filter((issue) =>
+    includedSeverities.includes(issue.severity),
+  );
 
   if (filteredIssues.length < originalIssueCount) {
     const excluded = originalIssueCount - filteredIssues.length;
-    logger.info(`[REPORT] Filtered ${excluded} issues by severity (showing: ${includedSeverities.join(', ')})`);
+    logger.info(
+      `[REPORT] Filtered ${excluded} issues by severity (showing: ${includedSeverities.join(', ')})`,
+    );
   }
 
   // Create filtered review metadata
@@ -85,7 +101,13 @@ export async function generateHTMLReport(issueIdMap: Map<string, number> = new M
   };
 
   // Generate summary data
-  const summaryData = generateSummary(analysis, filteredReview, fix, metadata, getCurrentSessionPaths().base());
+  const summaryData = generateSummary(
+    analysis,
+    filteredReview,
+    fix,
+    metadata,
+    getCurrentSessionPaths().base(),
+  );
 
   // Aggregate issues for filtering
   const { byType: issuesByType } = aggregateIssues(filteredReview);
@@ -117,7 +139,11 @@ export async function generateHTMLReport(issueIdMap: Map<string, number> = new M
 
   // Generate content sections
   const filtersSection = generateFiltersSection(filterData);
-  const directoriesSection = await generateIssuesSection(filteredIssues, fixSuggestions, issueIdMap);
+  const directoriesSection = await generateIssuesSection(
+    filteredIssues,
+    fixSuggestions,
+    issueIdMap,
+  );
 
   // Prepare base template data
   const baseTemplateData: BaseTemplateData = {

@@ -10,10 +10,16 @@ import type { FileInfo } from '../../shared/types/config';
 import { readMetadataFile } from '../../shared/utils/file-utils';
 import { logger } from '../../shared/utils/logger';
 import { getFileDiff } from '../analyze/git/changed-files';
-import { loadExtractLog, saveExtractLog, updateFileInExtractLog } from '../analyze/utils/extract-log';
+import {
+  loadExtractLog,
+  saveExtractLog,
+  updateFileInExtractLog,
+} from '../analyze/utils/extract-log';
 
 export async function reviewProjects(): Promise<ReviewMetadata> {
-  const existingReview = await readMetadataFile<ReviewMetadata>(getCurrentSessionPaths().reviewSummary());
+  const existingReview = await readMetadataFile<ReviewMetadata>(
+    getCurrentSessionPaths().reviewSummary(),
+  );
   if (existingReview) {
     logger.info('Review stage already completed - using existing results');
     return existingReview;
@@ -25,7 +31,9 @@ export async function reviewProjects(): Promise<ReviewMetadata> {
   const aiProvider = await AIFactory.createForStage('review');
   logger.ai(`Using AI provider: ${aiProvider.name}`);
 
-  const analysisData = await readMetadataFile<AnalysisMetadata>(getCurrentSessionPaths().analysis());
+  const analysisData = await readMetadataFile<AnalysisMetadata>(
+    getCurrentSessionPaths().analysis(),
+  );
   if (!analysisData) {
     throw new Error('No analysis metadata found. Run analysis stage first.');
   }

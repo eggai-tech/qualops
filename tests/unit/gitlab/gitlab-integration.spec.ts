@@ -138,7 +138,9 @@ describe('GitLabIntegration', () => {
           body: JSON.stringify({ body: '<!-- qualops-analysis-comment -->\nTest comment' }),
         }),
       );
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Posted QualOps summary to merge request'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Posted QualOps summary to merge request'),
+      );
 
       consoleSpy.mockRestore();
     });
@@ -180,7 +182,9 @@ describe('GitLabIntegration', () => {
           body: JSON.stringify({ body: '<!-- qualops-analysis-comment -->\nUpdated comment' }),
         }),
       );
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Updated existing QualOps comment on merge request'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Updated existing QualOps comment on merge request'),
+      );
 
       consoleSpy.mockRestore();
     });
@@ -194,7 +198,9 @@ describe('GitLabIntegration', () => {
       await integration.postMergeRequestComment('Test comment');
 
       expect(mockFetch).not.toHaveBeenCalled();
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No merge request IID found, skipping comment posting'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No merge request IID found, skipping comment posting'),
+      );
 
       consoleSpy.mockRestore();
     });
@@ -216,7 +222,9 @@ describe('GitLabIntegration', () => {
       await integration.postMergeRequestComment('Test comment');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to post/update comment on merge request after all retries:'),
+        expect.stringContaining(
+          'Failed to post/update comment on merge request after all retries:',
+        ),
       );
 
       consoleErrorSpy.mockRestore();
@@ -239,7 +247,9 @@ describe('GitLabIntegration', () => {
       await integration.postMergeRequestComment('Test comment');
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed to post/update comment on merge request after all retries:'),
+        expect.stringContaining(
+          'Failed to post/update comment on merge request after all retries:',
+        ),
       );
 
       consoleErrorSpy.mockRestore();
@@ -406,7 +416,9 @@ describe('GitLabIntegration', () => {
       url = await integration.getArtifactDownloadUrl();
 
       expect(url).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to get artifact download URL:'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to get artifact download URL:'),
+      );
 
       consoleSpy.mockRestore();
     });
@@ -424,9 +436,21 @@ describe('GitLabIntegration', () => {
       },
       reportPath: '/path/to/report',
       issues: [
-        { file: 'test1.ts', line: 1, severity: 'critical', message: 'Critical issue', category: 'Security' },
+        {
+          file: 'test1.ts',
+          line: 1,
+          severity: 'critical',
+          message: 'Critical issue',
+          category: 'Security',
+        },
         { file: 'test2.ts', line: 2, severity: 'high', message: 'High issue', category: 'Bug' },
-        { file: 'test3.ts', line: 3, severity: 'medium', message: 'Medium issue', category: 'Style' },
+        {
+          file: 'test3.ts',
+          line: 3,
+          severity: 'medium',
+          message: 'Medium issue',
+          category: 'Style',
+        },
       ],
     };
 
@@ -490,12 +514,16 @@ describe('GitLabIntegration', () => {
 
       expect(commentWithUrl).toContain('Download complete analysis report');
       // URL is sanitized/escaped for markdown safety
-      expect(commentWithUrl).toContain('https:&#x2F;&#x2F;gitlab.example.com&#x2F;artifacts&#x2F;download');
+      expect(commentWithUrl).toContain(
+        'https:&#x2F;&#x2F;gitlab.example.com&#x2F;artifacts&#x2F;download',
+      );
       expect(commentWithUrl).toContain('Detailed HTML reports');
       expect(commentWithUrl).toContain('Session-based analysis results (JSON)');
 
       const commentWithoutUrl = integration.generateCommentFromResults(mockResults, null);
-      expect(commentWithoutUrl).toContain('Download the complete report from the pipeline job artifacts');
+      expect(commentWithoutUrl).toContain(
+        'Download the complete report from the pipeline job artifacts',
+      );
     });
   });
 
@@ -516,7 +544,15 @@ describe('GitLabIntegration', () => {
           });
         } else if (pathStr.includes('session1/review-summary.json')) {
           return JSON.stringify({
-            issues: [{ file: 'file1.ts', location: '1', severity: 'high', description: 'Issue 1', type: 'Bug' }],
+            issues: [
+              {
+                file: 'file1.ts',
+                location: '1',
+                severity: 'high',
+                description: 'Issue 1',
+                type: 'Bug',
+              },
+            ],
           });
         } else if (pathStr.includes('session1/analysis.json')) {
           return JSON.stringify({
@@ -528,7 +564,15 @@ describe('GitLabIntegration', () => {
           });
         } else if (pathStr.includes('session2/review-summary.json')) {
           return JSON.stringify({
-            issues: [{ file: 'file3.ts', location: '10', severity: 'medium', description: 'Issue 2', type: 'Style' }],
+            issues: [
+              {
+                file: 'file3.ts',
+                location: '10',
+                severity: 'medium',
+                description: 'Issue 2',
+                type: 'Style',
+              },
+            ],
           });
         } else if (pathStr.includes('session2/analysis.json')) {
           return JSON.stringify({
@@ -552,7 +596,9 @@ describe('GitLabIntegration', () => {
       expect((results as QualOpsResult).summary.lowSeverity).toBe(2);
       expect((results as QualOpsResult).summary.filesAnalyzed).toBe(3);
       expect((results as QualOpsResult).issues).toHaveLength(2);
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Parsed 2 session(s) with 8 total issues'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Parsed 2 session(s) with 8 total issues'),
+      );
 
       consoleSpy.mockRestore();
     });
@@ -566,7 +612,9 @@ describe('GitLabIntegration', () => {
       const results = integration.parseQualOpsResults('reports');
 
       expect(results).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No sessions directory found'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No sessions directory found'),
+      );
 
       consoleSpy.mockRestore();
     });
@@ -621,7 +669,9 @@ describe('GitLabIntegration', () => {
       const results = integration.parseQualOpsResults('reports');
 
       expect(results).toBeDefined();
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No overall-report.json found in session folder: session1'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No overall-report.json found in session folder: session1'),
+      );
 
       consoleSpy.mockRestore();
     });
@@ -676,7 +726,9 @@ describe('GitLabIntegration', () => {
       const results = integration.parseQualOpsResults('reports');
 
       expect(results).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to read sessions directory:'));
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to read sessions directory:'),
+      );
 
       consoleErrorSpy.mockRestore();
     });
@@ -695,7 +747,13 @@ describe('GitLabIntegration', () => {
 
     const mockReviewSummary = {
       issues: [
-        { file: 'test.ts', location: '1', severity: 'critical', description: 'Issue', type: 'Security' },
+        {
+          file: 'test.ts',
+          location: '1',
+          severity: 'critical',
+          description: 'Issue',
+          type: 'Security',
+        },
         { file: 'test.ts', location: '5', severity: 'high', description: 'Issue', type: 'Bug' },
       ],
     };
@@ -707,9 +765,9 @@ describe('GitLabIntegration', () => {
     beforeEach(() => {
       process.env.CI_MERGE_REQUEST_SOURCE_BRANCH_SHA = 'head-sha';
       mockExistsSync.mockReturnValue(true);
-      mockReaddirSync.mockReturnValue([{ name: 'session1', isDirectory: () => true }] as unknown as ReturnType<
-        typeof readdirSync
-      >);
+      mockReaddirSync.mockReturnValue([
+        { name: 'session1', isDirectory: () => true },
+      ] as unknown as ReturnType<typeof readdirSync>);
       mockReadFileSync.mockImplementation((path) => {
         const pathStr = String(path);
         if (pathStr.includes('overall-report.json')) {
@@ -731,7 +789,9 @@ describe('GitLabIntegration', () => {
 
       await integration.run();
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Not running in GitLab CI environment, skipping integration'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Not running in GitLab CI environment, skipping integration'),
+      );
       expect(mockFetch).not.toHaveBeenCalled();
 
       consoleSpy.mockRestore();
@@ -745,14 +805,19 @@ describe('GitLabIntegration', () => {
 
       await integration.run();
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No QualOps results found, skipping comment posting'));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('No QualOps results found, skipping comment posting'),
+      );
 
       consoleSpy.mockRestore();
     });
 
     it('should post inline comments and summary', async () => {
       // Mock testMergeRequestAccess
-      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ iid: 456, title: 'Test MR' }) } as Response);
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ iid: 456, title: 'Test MR' }),
+      } as Response);
 
       // Mock getArtifactDownloadUrl
       mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] } as Response);
@@ -784,7 +849,10 @@ describe('GitLabIntegration', () => {
 
     it('should track inline comment failures', async () => {
       // Mock testMergeRequestAccess
-      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ iid: 456, title: 'Test MR' }) } as Response);
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ iid: 456, title: 'Test MR' }),
+      } as Response);
 
       // Mock getArtifactDownloadUrl
       mockFetch.mockResolvedValueOnce({ ok: true, json: async () => [] } as Response);
@@ -814,9 +882,9 @@ describe('GitLabIntegration', () => {
       jest.clearAllMocks();
 
       mockExistsSync.mockReturnValue(true);
-      mockReaddirSync.mockReturnValue([{ name: 'session1', isDirectory: () => true }] as unknown as ReturnType<
-        typeof readdirSync
-      >);
+      mockReaddirSync.mockReturnValue([
+        { name: 'session1', isDirectory: () => true },
+      ] as unknown as ReturnType<typeof readdirSync>);
       mockReadFileSync.mockImplementation((path) => {
         const pathStr = String(path);
         if (pathStr.includes('.qualopsrc.json')) {
@@ -869,9 +937,9 @@ describe('GitLabIntegration', () => {
         },
       };
 
-      mockReaddirSync.mockReturnValue([{ name: 'session1', isDirectory: () => true }] as unknown as ReturnType<
-        typeof readdirSync
-      >);
+      mockReaddirSync.mockReturnValue([
+        { name: 'session1', isDirectory: () => true },
+      ] as unknown as ReturnType<typeof readdirSync>);
       mockExistsSync.mockImplementation((path) => {
         const pathStr = String(path);
         // Return false for judge-decision.json so it doesn't trigger a false positive

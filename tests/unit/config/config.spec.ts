@@ -93,10 +93,14 @@ describe('ConfigService', () => {
     it('should initialize with default skip patterns', () => {
       const instance = ConfigService.getInstance();
       const skipPatterns = instance.get('skipPatterns');
-      expect(skipPatterns).toEqual(['node_modules/**', '.git/**', 'dist/**', 'build/**', 'coverage/**']);
+      expect(skipPatterns).toEqual([
+        'node_modules/**',
+        '.git/**',
+        'dist/**',
+        'build/**',
+        'coverage/**',
+      ]);
     });
-
-
 
     it('should set debug based on environment', () => {
       mockEnvConfig.get = jest.fn((key: any) => {
@@ -176,8 +180,6 @@ describe('ConfigService', () => {
       const instance = ConfigService.getInstance();
       expect(instance.get('verbose')).toBe(true);
     });
-
-
   });
 
   describe('get', () => {
@@ -383,7 +385,9 @@ describe('ConfigService', () => {
       const instance = ConfigService.getInstance();
 
       instance.set('ai', aiConfig as Config['ai']);
-      expect(() => instance.getAIStageConfig('fix')).toThrow('Missing required AI config for stage "fix": provider');
+      expect(() => instance.getAIStageConfig('fix')).toThrow(
+        'Missing required AI config for stage "fix": provider',
+      );
     });
   });
 

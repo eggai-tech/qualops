@@ -15,7 +15,11 @@ export async function writeReportFile(
   content: string,
   options: FileWriteOptions = {},
 ): Promise<string> {
-  const { encoding = 'utf-8', createDir: _createDir = true, overwrite: _overwrite = true } = options;
+  const {
+    encoding = 'utf-8',
+    createDir: _createDir = true,
+    overwrite: _overwrite = true,
+  } = options;
 
   const sessionPaths = getCurrentSessionPaths();
   const filePath =
@@ -36,7 +40,9 @@ export async function writeReportFile(
 export async function writeMultipleReports(
   reports: Array<{ fileName: string; content: string; options?: FileWriteOptions }>,
 ): Promise<string[]> {
-  const writePromises = reports.map(({ fileName, content, options }) => writeReportFile(fileName, content, options));
+  const writePromises = reports.map(({ fileName, content, options }) =>
+    writeReportFile(fileName, content, options),
+  );
 
   try {
     const filePaths = await Promise.all(writePromises);
@@ -96,7 +102,10 @@ export function getFileSizeSummary(content: string): string {
   return `${sizeInKB} KB (${sizeInBytes} bytes)`;
 }
 
-export function validateContent(content: string, type: 'json' | 'html' | 'csv' | 'markdown'): boolean {
+export function validateContent(
+  content: string,
+  type: 'json' | 'html' | 'csv' | 'markdown',
+): boolean {
   if (!content || content.trim().length === 0) {
     return false;
   }

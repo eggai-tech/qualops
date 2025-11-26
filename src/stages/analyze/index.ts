@@ -13,7 +13,9 @@ export async function analyzeProjects(
   head?: string,
   files?: string[],
 ): Promise<AnalysisMetadata> {
-  const existingAnalysis = await readMetadataFile<AnalysisMetadata>(getCurrentSessionPaths().analysis());
+  const existingAnalysis = await readMetadataFile<AnalysisMetadata>(
+    getCurrentSessionPaths().analysis(),
+  );
   if (existingAnalysis) {
     logger.info('Analysis stage already completed - using existing results');
     return existingAnalysis;
@@ -37,7 +39,11 @@ export async function analyzeProjects(
     changedFiles = await getChangedFiles(base, head);
   }
 
-  const { validFiles, skippedCount } = await processBatchForAnalysis(changedFiles, extractLog, analysisMode);
+  const { validFiles, skippedCount } = await processBatchForAnalysis(
+    changedFiles,
+    extractLog,
+    analysisMode,
+  );
 
   if (validFiles.length === 0) {
     return {

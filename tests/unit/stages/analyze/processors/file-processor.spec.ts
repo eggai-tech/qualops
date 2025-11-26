@@ -65,7 +65,10 @@ describe('processFile', () => {
     const result = await processFile('/project/missing.ts', extractLog);
 
     expect(result).toBe(false);
-    expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Failed to process file'), 'File not found');
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to process file'),
+      'File not found',
+    );
     expect(extractLog.files).not.toHaveProperty('/project/missing.ts');
   });
 
@@ -207,7 +210,10 @@ describe('prepareFilesForProcessing', () => {
       mtime: new Date(),
       isFile: () => true,
     } as any);
-    mockCalculateFileHash.mockResolvedValueOnce('hash1').mockResolvedValueOnce('hash2').mockResolvedValueOnce('hash3');
+    mockCalculateFileHash
+      .mockResolvedValueOnce('hash1')
+      .mockResolvedValueOnce('hash2')
+      .mockResolvedValueOnce('hash3');
 
     const files = ['/project/file1.ts', '/project/file2.ts', '/project/file3.ts'];
     const result = await prepareFilesForProcessing(files, extractLog);
@@ -432,7 +438,12 @@ describe('prepareFilesForProcessing', () => {
       } as any);
     mockCalculateFileHash.mockResolvedValue('hash');
 
-    const files = ['/project/fail1.ts', '/project/success1.ts', '/project/fail2.ts', '/project/success2.ts'];
+    const files = [
+      '/project/fail1.ts',
+      '/project/success1.ts',
+      '/project/fail2.ts',
+      '/project/success2.ts',
+    ];
     const result = await prepareFilesForProcessing(files, extractLog);
 
     expect(result.validFiles).toEqual(['/project/success1.ts', '/project/success2.ts']);

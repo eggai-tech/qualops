@@ -40,7 +40,12 @@ export async function generateIssuesSection(
           const issueSections = await Promise.all(
             fileIssueList.map(async (issue) => {
               const codePreview = await getCodePreview(issue.file || file, issue.location);
-              const codeSection = await generateCodeOrFixSection(issue, fixSuggestions, file, codePreview);
+              const codeSection = await generateCodeOrFixSection(
+                issue,
+                fixSuggestions,
+                file,
+                codePreview,
+              );
               const issueId = issueIdMap.get(issue.id);
               // Validate issueId is a number before passing to template
               const validatedIssueId = typeof issueId === 'number' ? issueId : undefined;
@@ -146,7 +151,10 @@ async function generateCodeOrFixSection(
           if (fileLines[i].trim() === firstOriginalLine) {
             let matches = true;
             for (let j = 1; j < Math.min(3, originalLines.length); j++) {
-              if (i + j >= fileLines.length || fileLines[i + j].trim() !== originalLines[j].trim()) {
+              if (
+                i + j >= fileLines.length ||
+                fileLines[i + j].trim() !== originalLines[j].trim()
+              ) {
                 matches = false;
                 break;
               }
@@ -194,17 +202,13 @@ async function generateCodeOrFixSection(
   }
 }
 
-type Diff = { 
-  type: 'context' | 'removed' | 'added'; 
-  content: string; 
-  lineNumber?: number 
+type Diff = {
+  type: 'context' | 'removed' | 'added';
+  content: string;
+  lineNumber?: number;
 };
 
-function generateDiff(
-  original: string,
-  suggested: string,
-  startLineNumber = 1,
-): Diff[] {
+function generateDiff(original: string, suggested: string, startLineNumber = 1): Diff[] {
   const originalLines = original.split('\n');
   const suggestedLines = suggested.split('\n');
 

@@ -13,7 +13,9 @@ import { logger } from '../../shared/utils/logger';
 
 function filterAndPrioritizeIssues(issues: ReviewIssue[]): ReviewIssue[] {
   const priorityIssues = issues.filter((i) => {
-    return i.severity.toLowerCase() === 'high' && i.confidence >= 7 && !i.context.startsWith('[ESLint]');
+    return (
+      i.severity.toLowerCase() === 'high' && i.confidence >= 7 && !i.context.startsWith('[ESLint]')
+    );
   });
 
   logger.info(`Filtered ${priorityIssues.length} HIGH severity issues with confidence >= 7`);
@@ -26,26 +28,32 @@ async function generateFixSuggestions(
 ): Promise<FixSuggestion[]> {
   const issuesToProcess = filterAndPrioritizeIssues(issues);
 
-  logger.info(`Generating fixes for ${issuesToProcess.length} HIGH severity issues (confidence >= 7)`);
+  logger.info(
+    `Generating fixes for ${issuesToProcess.length} HIGH severity issues (confidence >= 7)`,
+  );
 
   const config = ConfigService.getInstance().getAll();
   const maxConcurrent = config.fix?.maxConcurrentFixes ?? 3;
 
-  const results = await processConcurrently(issuesToProcess, maxConcurrent, async (issue, index) => {
-    const taskName = `[${index + 1}/${issuesToProcess.length}] ${issue.file}:${issue.location}`;
-    logger.info(`${taskName} START FIX`);
-    const startTime = Date.now();
+  const results = await processConcurrently(
+    issuesToProcess,
+    maxConcurrent,
+    async (issue, index) => {
+      const taskName = `[${index + 1}/${issuesToProcess.length}] ${issue.file}:${issue.location}`;
+      logger.info(`${taskName} START FIX`);
+      const startTime = Date.now();
 
-    try {
-      const fix = await generateFix(issue, aiProvider);
-      const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-      logger.info(`${taskName} FIX DONE IN ${duration}s`);
-      return fix;
-    } catch (error) {
-      logger.error(`${taskName} FIX FAILED: ${error instanceof Error ? error.message : error}`);
-      return null;
-    }
-  });
+      try {
+        const fix = await generateFix(issue, aiProvider);
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        logger.info(`${taskName} FIX DONE IN ${duration}s`);
+        return fix;
+      } catch (error) {
+        logger.error(`${taskName} FIX FAILED: ${error instanceof Error ? error.message : error}`);
+        return null;
+      }
+    },
+  );
 
   const suggestions = results.filter((fix): fix is FixSuggestion => fix != null);
   const failed = issuesToProcess.length - suggestions.length;
@@ -82,7 +90,9 @@ export async function generateFixes(
     return existingFix;
   }
 
-  logger.info(`Starting fix generation (dry-run: ${dryRun}, apply: ${apply}, include-medium: ${includeMedium})`);
+  logger.info(
+    `Starting fix generation (dry-run: ${dryRun}, apply: ${apply}, include-medium: ${includeMedium})`,
+  );
   const startTime = Date.now();
 
   const reviewData = await readMetadataFile<ReviewMetadata>(sessionPaths.reviewSummary());
@@ -181,7 +191,12 @@ export async function generateFixes(
   }
 
   const tokenStats = aiProvider.getTokenStats?.() as
-    | { invocationCount: number; totalInputTokens: number; totalOutputTokens: number; estimatedCost: number }
+    | {
+        invocationCount: number;
+        totalInputTokens: number;
+        totalOutputTokens: number;
+        estimatedCost: number;
+      }
     | undefined;
   if (tokenStats) {
     const cachedTokens = (aiProvider as { cachedTokens?: number }).cachedTokens || 0;

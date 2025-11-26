@@ -143,7 +143,9 @@ export async function listBackupsForFile(filePath: string): Promise<BackupInfo[]
 export async function listAllBackups(directory: string): Promise<BackupInfo[]> {
   try {
     const files = await readdir(directory);
-    const backupFiles = files.filter((file) => file.includes('.qualops-backup-') && !file.endsWith('.metadata.json'));
+    const backupFiles = files.filter(
+      (file) => file.includes('.qualops-backup-') && !file.endsWith('.metadata.json'),
+    );
 
     const backups: BackupInfo[] = [];
 
@@ -311,7 +313,11 @@ async function calculateChecksum(content: string): Promise<string> {
   return `${length}-${hash.toString(36)}`;
 }
 
-export async function createNamedBackup(filePath: string, backupName: string, content?: string): Promise<string> {
+export async function createNamedBackup(
+  filePath: string,
+  backupName: string,
+  content?: string,
+): Promise<string> {
   try {
     // Read content if not provided
     const fileContent = content || (await readFile(filePath, 'utf-8'));

@@ -1,4 +1,9 @@
-import { createFixPrompt, createReviewPrompt, detectFrameworkContext, validateReviewIssue } from '@/ai/shared/structured-ai';
+import {
+  createFixPrompt,
+  createReviewPrompt,
+  detectFrameworkContext,
+  validateReviewIssue,
+} from '@/ai/shared/structured-ai';
 import type { FrameworkContext, ReviewIssue } from '@/shared/types';
 
 jest.mock('@/shared/utils/documentation-context', () => ({
@@ -90,7 +95,11 @@ describe('structured-ai', () => {
     };
 
     it('should create fix prompt with basic information', async () => {
-      const result = await createFixPrompt(mockIssue, 'const x = undefined;', 'surrounding context');
+      const result = await createFixPrompt(
+        mockIssue,
+        'const x = undefined;',
+        'surrounding context',
+      );
 
       expect(result).toContain('Variable not defined');
       expect(result).toContain('line 10');
@@ -151,13 +160,26 @@ describe('structured-ai', () => {
         framework: 'angular',
         dependencies: ['@angular/core'],
       };
-      const result = await createFixPrompt(mockIssue, 'code', 'context', undefined, frameworkContext);
+      const result = await createFixPrompt(
+        mockIssue,
+        'code',
+        'context',
+        undefined,
+        frameworkContext,
+      );
 
       expect(result).toBeTruthy();
     });
 
     it('should handle loadDocumentation flag', async () => {
-      const result = await createFixPrompt(mockIssue, 'code', 'context', undefined, undefined, true);
+      const result = await createFixPrompt(
+        mockIssue,
+        'code',
+        'context',
+        undefined,
+        undefined,
+        true,
+      );
 
       expect(result).toBeTruthy();
     });

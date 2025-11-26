@@ -132,7 +132,14 @@ export function addStageTokenStats(
   cachedTokens: number,
   cost: number,
 ): void {
-  sessionContext.addStageStats({ stage, invocations, inputTokens, outputTokens, cachedTokens, cost });
+  sessionContext.addStageStats({
+    stage,
+    invocations,
+    inputTokens,
+    outputTokens,
+    cachedTokens,
+    cost,
+  });
 }
 
 export function getTotalTokenStats() {
