@@ -56,6 +56,16 @@ qualops --base=main --head=HEAD
 qualops --files="src/**/*.ts"
 ```
 
+## AI-Assisted Setup
+
+Use Claude Code to interactively configure QualOps for your project:
+
+```bash
+npx @eggai/qualops init-claude
+```
+
+Then use `/setup-qualops` in Claude Code. The AI will guide you through configuration based on your project's framework and needs.
+
 ## Configuration
 
 Create `.qualopsrc.json` in your project root:

@@ -3,6 +3,7 @@ import { Command } from 'commander';
 
 import { executeAllStages } from './cli/commands/all-command';
 import { generateIndexCommand } from './cli/commands/generate-index-command';
+import { initClaudeCommand } from './cli/commands/init-claude-command';
 import { withErrorHandling } from './cli/utils/error-handler';
 import { formatHelpText } from './cli/utils/help-formatter';
 
@@ -43,6 +44,11 @@ program
     const merged = { ...parentOpts, ...options };
     return withErrorHandling(generateIndexCommand, 'generate-index')(merged);
   });
+
+program
+  .command('init-claude')
+  .description('Create Claude Code command for QualOps setup')
+  .action(() => initClaudeCommand());
 
 // Add help examples
 program.addHelpText('after', formatHelpText());
