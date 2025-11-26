@@ -29,6 +29,13 @@ program
   .action(runQualOps);
 
 program
+  .command('all')
+  .description('Run all stages (alias for default command)')
+  .action(function (_opts: unknown, command: any) {
+    return runQualOps(command.parent.opts());
+  });
+
+program
   .command('docs:download')
   .description('Download external documentation for code review')
   .action(withErrorHandling(executeDownloadDocsStage, 'download-docs'));

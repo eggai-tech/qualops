@@ -1,0 +1,70 @@
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "fixStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "performance": {
+    "maxFileSizeKB": 500,
+    "maxFilesPerBatch": 20,
+    "maxTokensPerFile": 8000,
+    "timeoutSeconds": 300,
+    "throttling": {
+      "enabled": true,
+      "maxRequestsPerMinute": 50
+    }
+  },
+  "review": {
+    "minConfidence": 7,
+    "sessionBased": true,
+    "maxFilesBeforeReset": 8,
+    "maxContextTokens": 100000,
+    "enableValidation": true,
+    "enableDeduplication": true
+  },
+  "fix": {
+    "enabled": true,
+    "maxConcurrentFixes": 5,
+    "severities": ["critical", "high"],
+    "minConfidence": 8,
+    "autoApply": false
+  },
+  "report": {
+    "outputFormat": "html",
+    "includedSeverities": ["critical", "high", "medium", "low"]
+  },
+  "github": {
+    "enabled": true,
+    "postComments": true,
+    "skipOnDraft": false,
+    "blockPipeline": false,
+    "maxInlineComments": 50
+  },
+  "skipPatterns": [
+    "node_modules/**",
+    ".git/**",
+    "dist/**",
+    "build/**",
+    "coverage/**",
+    "*.min.js",
+    "*.bundle.js"
+  ]
+}

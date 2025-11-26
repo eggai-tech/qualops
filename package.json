@@ -1,17 +1,33 @@
 {
-  "name": "qualops",
-  "version": "0.14.0",
-  "type": "module",
-  "description": "AI-powered code quality pipeline for automated reviews and fixes",
+  "name": "@eggai/qualops",
+  "version": "0.1.0",
+  "description": "AI-powered code quality analysis with GitHub Actions integration - automated PR reviews, checks, and annotations",
   "keywords": [
     "code-quality",
     "ai",
-    "eslint",
     "code-review",
-    "automation"
+    "automation",
+    "github-action",
+    "github-actions",
+    "pr-review",
+    "pull-request",
+    "checks-api",
+    "claude-ai",
+    "anthropic",
+    "static-analysis",
+    "security",
+    "ci-cd"
   ],
-  "author": "",
+  "author": "EggAI Tech",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eggai-tech/qualops.git"
+  },
+  "homepage": "https://github.com/eggai-tech/qualops#readme",
+  "bugs": {
+    "url": "https://github.com/eggai-tech/qualops/issues"
+  },
   "main": "dist/index.js",
   "bin": {
     "qualops": "./dist/cli.js"
@@ -22,11 +38,16 @@
   },
   "files": [
     "dist",
-    "config"
+    "config",
+    "action.yml"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.lib.json",
-    "build:check": "npm run build -- --noEmit",
+    "build": "tsc -p tsconfig.lib.json && tsc-alias -p tsconfig.lib.json",
+    "build:check": "tsc -p tsconfig.lib.json --noEmit",
     "dev": "tsx --env-file=.env src/cli.ts",
     "test": "LC_ALL=en_US jest",
     "test:integration": "jest --config jest.integration.config.ts",
@@ -44,6 +65,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.32.1",
     "@aws-sdk/client-bedrock-runtime": "3.896.0",
+    "@octokit/rest": "^22.0.1",
+    "@octokit/webhooks-types": "^7.6.1",
     "@types/commander": "2.12.0",
     "commander": "14.0.1",
     "diff": "8.0.2",
@@ -65,6 +88,7 @@
     "prettier": "3.6.2",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
     "tsx": "^4.20.6",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.47.0"

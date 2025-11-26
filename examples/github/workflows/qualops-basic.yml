@@ -1,0 +1,27 @@
+# Basic QualOps GitHub Action workflow
+# This is the simplest setup for running QualOps on pull requests
+
+name: QualOps Code Quality
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  qualops:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for accurate git diff
+
+      - name: Run QualOps
+        uses: eggai-tech/qualops@v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

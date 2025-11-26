@@ -121,14 +121,26 @@ Do NOT report issues in unchanged code unless they are directly related to the c
   }
 
   private parseIssuesFromResponse(content: string, filePath: string): ReviewIssue[] {
-    const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) || content.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      logger.warn(`[FileReviewer] No JSON found in response for ${filePath}`);
+    if (!content || content.trim() === '') {
+      logger.warn(`[FileReviewer] Empty response for ${filePath}`);
+      return [];
+    }
+
+    // Try multiple patterns to extract JSON
+    const codeBlockMatch = content.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
+    const arrayMatch = content.match(/\[[\s\S]*\]/);
+    const jsonString = codeBlockMatch?.[1] || arrayMatch?.[0];
+
+    if (!jsonString) {
+      logger.warn(`[FileReviewer] No JSON array found in response for ${filePath}`);
+      logger.warn(`[FileReviewer] Response preview: ${content.slice(0, 300)}...`);
       return [];
     }
 
     try {
-      const parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+      // Try to fix common JSON issues: unescaped newlines in string values
+      const fixedJson = this.fixMalformedJson(jsonString);
+      const parsed = JSON.parse(fixedJson);
       const issueArray = Array.isArray(parsed) ? parsed : [];
 
       return issueArray.map((issue) => ({
@@ -147,10 +159,60 @@ Do NOT report issues in unchanged code unless they are directly related to the c
         estimatedEffort: issue.effort || 'medium',
         tags: this.generateTags(issue, filePath),
       }));
-    } catch {
-      logger.warn(`[FileReviewer] No valid JSON found in response for ${filePath}`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown parse error';
+      logger.warn(`[FileReviewer] JSON parse error for ${filePath}: ${errorMsg}`);
+      logger.warn(`[FileReviewer] JSON preview: ${jsonString.slice(0, 300)}...`);
       return [];
     }
+  }
+
+  private fixMalformedJson(json: string): string {
+    // Fix unescaped newlines inside string values
+    // This is a common issue when AI outputs multi-line strings
+    let inString = false;
+    let escaped = false;
+    let result = '';
+
+    for (let i = 0; i < json.length; i++) {
+      const char = json[i];
+
+      if (escaped) {
+        result += char;
+        escaped = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escaped = true;
+        result += char;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        result += char;
+        continue;
+      }
+
+      if (inString && char === '\n') {
+        result += '\\n';
+        continue;
+      }
+
+      if (inString && char === '\r') {
+        continue; // Skip carriage returns
+      }
+
+      if (inString && char === '\t') {
+        result += '\\t';
+        continue;
+      }
+
+      result += char;
+    }
+
+    return result;
   }
 
   private normalizeLocation(location: string | { line?: number }): string {

@@ -1,0 +1,63 @@
+# Advanced QualOps GitHub Action workflow
+# Includes all features: custom config, pipeline blocking, output handling
+
+name: QualOps Code Quality (Advanced)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - develop
+
+jobs:
+  qualops:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run QualOps
+        id: qualops
+        uses: eggai-tech/qualops@v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          config-path: '.qualopsrc.json'
+          stages: 'analyze,review,judge,report'
+
+      - name: Check Quality Results
+        if: always()
+        run: |
+          echo "Total Issues: ${{ steps.qualops.outputs.total-issues }}"
+          echo "Critical Issues: ${{ steps.qualops.outputs.critical-issues }}"
+          echo "High Issues: ${{ steps.qualops.outputs.high-issues }}"
+          echo "Quality Passed: ${{ steps.qualops.outputs.quality-passed }}"
+
+      - name: Comment on PR
+        if: always() && steps.qualops.outputs.total-issues > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const totalIssues = '${{ steps.qualops.outputs.total-issues }}';
+            const criticalIssues = '${{ steps.qualops.outputs.critical-issues }}';
+            const highIssues = '${{ steps.qualops.outputs.high-issues }}';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.name,
+              body: `## Additional QualOps Insights\\n\\nFound ${totalIssues} issues (${criticalIssues} critical, ${highIssues} high). See check annotations for details.`
+            })
+
+      - name: Fail on Critical Issues
+        if: steps.qualops.outputs.critical-issues > 0
+        run: |
+          echo "::error::Found ${{ steps.qualops.outputs.critical-issues }} critical issues"
+          exit 1

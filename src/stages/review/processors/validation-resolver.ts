@@ -6,6 +6,15 @@ import { PromptLoader } from '../loaders/prompt-loader';
 import { TemplateEngine } from '../loaders/template-engine';
 import { globalRateLimiter } from '../utils/global-rate-limiter';
 
+const ISSUES_SECTION = `
+
+## Issues to Validate
+
+Below are the issues found during code review. Validate each one and return a JSON array with your validation results.
+
+{{ISSUES_LIST}}
+`;
+
 const VALIDATION_RESPONSE_SPEC = `
 
 <response_format>
@@ -116,7 +125,8 @@ export class ValidationResolver {
       2,
     );
 
-    const prompt = TemplateEngine.render(content + VALIDATION_RESPONSE_SPEC, {
+    const fullPrompt = content + ISSUES_SECTION + VALIDATION_RESPONSE_SPEC;
+    const prompt = TemplateEngine.render(fullPrompt, {
       ISSUES_LIST: issuesJson,
       MIN_CONFIDENCE: this.globalConfig.validation?.minConfidence ?? 7,
       REVIEW_MIN_CONFIDENCE: this.globalConfig.minConfidence ?? 4,
@@ -161,18 +171,28 @@ export class ValidationResolver {
   }
 
   private parseValidations(content: string): ValidationResult[] {
-    const match = content.match(/\[[\s\S]*\]/);
-    if (!match) {
+    if (!content || content.trim() === '') {
+      logger.warn('[Validation] Empty response from AI');
+      return [];
+    }
+
+    // Try code block first, then raw array
+    const codeBlockMatch = content.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
+    const arrayMatch = content.match(/\[[\s\S]*\]/);
+    const jsonString = codeBlockMatch?.[1] || arrayMatch?.[0];
+
+    if (!jsonString) {
       logger.warn('[Validation] No JSON array found in AI response');
-      logger.debug('[Validation] Response preview:', content.slice(0, 500));
+      logger.warn(`[Validation] Response preview: ${content.slice(0, 300)}...`);
       return [];
     }
 
     try {
-      const parsed = JSON.parse(match[0]);
+      const fixedJson = this.fixMalformedJson(jsonString);
+      const parsed = JSON.parse(fixedJson);
       if (!Array.isArray(parsed)) {
         logger.warn('[Validation] Response is not an array');
-        logger.debug('[Validation] Parsed value:', JSON.stringify(parsed).slice(0, 200));
+        logger.warn(`[Validation] Parsed value: ${JSON.stringify(parsed).slice(0, 200)}`);
         return [];
       }
 
@@ -185,9 +205,56 @@ export class ValidationResolver {
           typeof v.reasoning === 'string',
       );
     } catch (error) {
-      logger.error('[Validation] Failed to parse AI response:', error);
-      logger.debug('[Validation] Response preview:', content.slice(0, 500));
+      const errorMsg = error instanceof Error ? error.message : 'Unknown parse error';
+      logger.warn(`[Validation] JSON parse error: ${errorMsg}`);
+      logger.warn(`[Validation] JSON preview: ${jsonString.slice(0, 300)}...`);
       return [];
     }
+  }
+
+  private fixMalformedJson(json: string): string {
+    let inString = false;
+    let escaped = false;
+    let result = '';
+
+    for (let i = 0; i < json.length; i++) {
+      const char = json[i];
+
+      if (escaped) {
+        result += char;
+        escaped = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escaped = true;
+        result += char;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        result += char;
+        continue;
+      }
+
+      if (inString && char === '\n') {
+        result += '\\n';
+        continue;
+      }
+
+      if (inString && char === '\r') {
+        continue;
+      }
+
+      if (inString && char === '\t') {
+        result += '\\t';
+        continue;
+      }
+
+      result += char;
+    }
+
+    return result;
   }
 }
