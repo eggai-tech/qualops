@@ -40,31 +40,20 @@ export class GitHubChecksService {
     maxAnnotations = 50
   ): Promise<void> {
     const conclusion = this.determineConclusion(summary);
-    const status = 'completed';
-
-    console.log(`Check conclusion: ${conclusion} (critical=${summary.criticalSeverity}, high=${summary.highSeverity})`);
-
     const annotations = this.convertIssuesToAnnotations(issues, maxAnnotations);
     const summaryText = this.generateCheckSummary(summary, issues.length, annotations.length);
 
-    try {
-      await this.api.createCheck({
-        name: 'QualOps Code Quality',
-        head_sha: headSha,
-        status,
-        conclusion,
-        output: {
-          title: this.generateCheckTitle(summary),
-          summary: summaryText,
-          annotations,
-        },
-      });
-
-      console.log(`Created GitHub check run with ${annotations.length} annotations`);
-    } catch (error) {
-      console.error('Failed to create GitHub check run:', error);
-      throw error;
-    }
+    await this.api.createCheck({
+      name: 'QualOps Code Quality',
+      head_sha: headSha,
+      status: 'completed',
+      conclusion,
+      output: {
+        title: this.generateCheckTitle(summary),
+        summary: summaryText,
+        annotations,
+      },
+    });
   }
 
   private determineConclusion(

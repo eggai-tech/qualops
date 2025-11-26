@@ -1,5 +1,3 @@
-#!/usr/bin/env node --experimental-strip-types
-
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -16,13 +14,8 @@ interface GitHubConfig {
   maxInlineComments?: number;
 }
 
-interface ReportConfig {
-  includedSeverities?: string[];
-}
-
 interface QualOpsConfig {
   github?: GitHubConfig;
-  report?: ReportConfig;
 }
 
 interface GitHubEnv {
@@ -79,73 +72,23 @@ export class GitHubIntegration {
   private api: GitHubAPIClient;
   private checksService: GitHubChecksService;
   private config: GitHubConfig;
-  private inlineCommentSeverities: string[];
 
   constructor() {
     this.env = process.env as GitHubEnv;
     this.api = new GitHubAPIClient();
     this.checksService = new GitHubChecksService(this.api);
-
-    const { github, includedSeverities } = this.loadConfig();
-    this.config = github;
-    this.inlineCommentSeverities = includedSeverities;
+    this.config = this.loadConfig();
   }
 
-  private redactSensitiveData(text: string): string {
-    if (!text) return text;
-
-    let redacted = text;
-
-    const token = this.env.GITHUB_TOKEN;
-    if (token && token.length > 0) {
-      redacted = redacted.replace(new RegExp(token, 'g'), '[REDACTED_TOKEN]');
-      if (token.length > 16) {
-        redacted = redacted.replace(new RegExp(token.substring(0, 8), 'g'), '[REDACTED');
-        redacted = redacted.replace(new RegExp(token.substring(token.length - 8), 'g'), 'REDACTED]');
-      }
-    }
-
-    redacted = redacted.replace(/gh[ps]_[a-zA-Z0-9]{36,255}/g, '[REDACTED_GITHUB_TOKEN]');
-
-    return redacted;
-  }
-
-  private sanitizeMarkdown(text: string): string {
-    if (!text) return text;
-
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#x27;')
-      .replace(/\//g, '&#x2F;')
-      .replace(/\[/g, '&#91;')
-      .replace(/\]/g, '&#93;')
-      .replace(/\(/g, '&#40;')
-      .replace(/\)/g, '&#41;')
-      .replace(/`/g, '&#96;')
-      .replace(/\*/g, '&#42;')
-      .replace(/_/g, '&#95;')
-      .replace(/~/g, '&#126;')
-      .replace(/\|/g, '&#124;');
-  }
-
-  private loadConfig(): { github: GitHubConfig; includedSeverities: string[] } {
-    const defaults = { github: {}, includedSeverities: ['critical', 'high', 'medium'] };
-
+  private loadConfig(): GitHubConfig {
     try {
       const configPath = join(process.cwd(), '.qualopsrc.json');
-      if (!existsSync(configPath)) return defaults;
+      if (!existsSync(configPath)) return {};
 
       const config: QualOpsConfig = JSON.parse(readFileSync(configPath, 'utf8'));
-      return {
-        github: config.github || {},
-        includedSeverities: config.report?.includedSeverities || defaults.includedSeverities,
-      };
-    } catch (error) {
-      console.warn('Failed to load .qualopsrc.json, using defaults:', error instanceof Error ? error.message : error);
-      return defaults;
+      return config.github || {};
+    } catch {
+      return {};
     }
   }
 
@@ -185,22 +128,13 @@ export class GitHubIntegration {
   }
 
   async postPullRequestComment(prNumber: number, comment: string): Promise<void> {
-    try {
-      const existingCommentId = await this.getExistingQualOpsComment(prNumber);
+    const existingCommentId = await this.getExistingQualOpsComment(prNumber);
+    const body = `${QUALOPS_COMMENT_MARKER}\n${comment}`;
 
-      const body = `${QUALOPS_COMMENT_MARKER}\n${comment}`;
-
-      if (existingCommentId) {
-        console.log(`Updating existing QualOps comment #${existingCommentId}...`);
-        await this.api.updateComment(existingCommentId, body);
-      } else {
-        console.log('Creating new QualOps comment...');
-        await this.api.createComment(prNumber, body);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error('Failed to post PR comment:', this.redactSensitiveData(message));
-      throw error;
+    if (existingCommentId) {
+      await this.api.updateComment(existingCommentId, body);
+    } else {
+      await this.api.createComment(prNumber, body);
     }
   }
 
@@ -352,67 +286,40 @@ export class GitHubIntegration {
   }
 
   async run(): Promise<void> {
-    console.log('Running GitHub integration for QualOps...');
-
     if (this.env.GITHUB_EVENT_NAME !== 'pull_request') {
-      console.log('Not a pull request event, skipping integration');
       return;
     }
 
     const prNumber = this.getPullRequestNumber();
     if (!prNumber) {
-      console.log('No pull request number found, skipping integration');
       return;
     }
 
-    console.log(`Environment info:`);
-    console.log(`  GITHUB_REPOSITORY: ${this.env.GITHUB_REPOSITORY}`);
-    console.log(`  Pull Request: #${prNumber}`);
-    console.log(`  Event: ${this.env.GITHUB_EVENT_NAME}`);
-
     if (this.config.skipOnDraft) {
-      try {
-        const pr = await this.api.getPullRequest(prNumber);
-        if (pr.draft) {
-          console.log('PR is in draft state, skipping as configured');
-          return;
-        }
-      } catch (error) {
-        console.warn('Failed to check PR draft status:', error);
+      const pr = await this.api.getPullRequest(prNumber);
+      if (pr.draft) {
+        console.log('Skipping draft PR');
+        return;
       }
     }
 
     const results = this.parseReports();
-    console.log(`Parsed results: ${results.summary.totalIssues} total issues found`);
-    console.log(`  Critical: ${results.summary.criticalSeverity}, High: ${results.summary.highSeverity}, Medium: ${results.summary.mediumSeverity}, Low: ${results.summary.lowSeverity}`);
 
     if (this.config.postComments !== false) {
       const artifactUrl = this.getArtifactUrl();
       const comment = this.generateCommentFromResults(results, artifactUrl);
-
-      try {
-        await this.postPullRequestComment(prNumber, comment);
-        console.log('Successfully posted PR comment');
-      } catch (error) {
-        console.error('Failed to post PR comment:', error);
-      }
+      await this.postPullRequestComment(prNumber, comment);
     }
 
     const headSha = this.getPullRequestHeadSha() || this.env.GITHUB_SHA;
     if (headSha) {
-      try {
-        const maxAnnotations = this.config.maxInlineComments || 50;
-        await this.checksService.createCheckRun(headSha, results.summary, results.issues, maxAnnotations);
-        console.log(`Created GitHub check run with ${results.issues.length} annotations`);
-      } catch (error) {
-        console.error('Failed to create GitHub check run:', error);
-      }
+      const maxAnnotations = this.config.maxInlineComments || 50;
+      await this.checksService.createCheckRun(headSha, results.summary, results.issues, maxAnnotations);
     }
 
     if (this.config.blockPipeline) {
       const { criticalSeverity, highSeverity } = results.summary;
       if (criticalSeverity > 0 || highSeverity > 0) {
-        console.error(`\nBlocking pipeline: ${criticalSeverity} critical and ${highSeverity} high severity issues found`);
         process.exit(1);
       }
     }

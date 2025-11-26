@@ -108,17 +108,6 @@ export class GitHubAPIClient {
     });
   }
 
-  async listReviewComments(prNumber: number) {
-    return this.withRetry(async () => {
-      const { data} = await this.octokit.pulls.listReviewComments({
-        owner: this.owner,
-        repo: this.repo,
-        pull_number: prNumber,
-      });
-      return data;
-    });
-  }
-
   async createCheck(params: {
     name: string;
     head_sha: string;
@@ -146,41 +135,5 @@ export class GitHubAPIClient {
       });
       return data;
     });
-  }
-
-  async updateCheck(checkRunId: number, params: {
-    status?: 'queued' | 'in_progress' | 'completed';
-    conclusion?: 'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required';
-    output?: {
-      title: string;
-      summary: string;
-      text?: string;
-      annotations?: Array<{
-        path: string;
-        start_line: number;
-        end_line: number;
-        annotation_level: 'notice' | 'warning' | 'failure';
-        message: string;
-        title?: string;
-      }>;
-    };
-  }) {
-    return this.withRetry(async () => {
-      const { data } = await this.octokit.checks.update({
-        owner: this.owner,
-        repo: this.repo,
-        check_run_id: checkRunId,
-        ...params,
-      });
-      return data;
-    });
-  }
-
-  getOwner(): string {
-    return this.owner;
-  }
-
-  getRepo(): string {
-    return this.repo;
   }
 }
