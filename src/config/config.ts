@@ -25,7 +25,7 @@ export const CACHE_CONFIG = {
 } as const;
 
 export class ConfigService {
-  private static instance: ConfigService;
+  private static instance: ConfigService | undefined;
   private static configPath = '.qualopsrc.json';
   private config: Config;
   private rawConfig: Record<string, unknown>;
@@ -51,7 +51,7 @@ export class ConfigService {
   static setConfigPath(path: string): void {
     ConfigService.configPath = path;
     if (ConfigService.instance) {
-      ConfigService.instance = undefined as any;
+      ConfigService.instance = undefined;
     }
   }
 

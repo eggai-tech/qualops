@@ -5,6 +5,8 @@ import { resolve } from 'path';
 
 import Anthropic from '@anthropic-ai/sdk';
 
+import { logger } from '../shared/utils/logger';
+
 interface ParsedIssue {
   id: string;
   status: string;
@@ -86,26 +88,26 @@ async function parseIssueFile(issuePath: string): Promise<ParsedIssue> {
 }
 
 async function resolveIssue(issuePath: string, monorepoRoot: string, dryRun: boolean = true): Promise<void> {
-  console.log(`\n📖 Parsing issue: ${issuePath}`);
+  logger.info(`\n📖 Parsing issue: ${issuePath}`);
   const issue = await parseIssueFile(issuePath);
 
-  console.log(`\n📋 Issue Details:`);
-  console.log(`   ID: ${issue.id}`);
-  console.log(`   Severity: ${issue.severity}`);
-  console.log(`   Category: ${issue.category}`);
-  console.log(`   File: ${issue.file}`);
-  console.log(`   Line: ${issue.line || 'N/A'}`);
-  console.log(`   Description: ${issue.description}`);
-  console.log(`   Confidence: ${issue.confidence}`);
+  logger.info(`\n📋 Issue Details:`);
+  logger.info(`   ID: ${issue.id}`);
+  logger.info(`   Severity: ${issue.severity}`);
+  logger.info(`   Category: ${issue.category}`);
+  logger.info(`   File: ${issue.file}`);
+  logger.info(`   Line: ${issue.line || 'N/A'}`);
+  logger.info(`   Description: ${issue.description}`);
+  logger.info(`   Confidence: ${issue.confidence}`);
 
   const filePath = resolve(monorepoRoot, issue.file);
-  console.log(`\n📂 Reading source file: ${filePath}`);
+  logger.info(`\n📂 Reading source file: ${filePath}`);
 
   let sourceContent: string;
   try {
     sourceContent = await readFile(filePath, 'utf-8');
   } catch (error) {
-    console.error(`❌ Failed to read source file: ${error}`);
+    logger.error(`❌ Failed to read source file: ${error}`);
     return;
   }
 
@@ -113,7 +115,7 @@ async function resolveIssue(issuePath: string, monorepoRoot: string, dryRun: boo
     apiKey: process.env.ANTHROPIC_API_KEY,
   });
 
-  console.log(`\n🤖 Generating fix using Claude...`);
+  logger.info(`\n🤖 Generating fix using Claude...`);
 
   const prompt = `You are a code fixing assistant. You need to apply a fix to a TypeScript file.
 
@@ -146,35 +148,35 @@ Your task: Apply the fix to the code. Return ONLY the complete fixed file conten
   let fixedContent = message.content[0].type === 'text' ? message.content[0].text : '';
 
   if (!fixedContent) {
-    console.error('❌ Failed to generate fix');
+    logger.error('❌ Failed to generate fix');
     return;
   }
 
   fixedContent = fixedContent.replace(/^```typescript\n/, '').replace(/\n```$/, '').trim();
 
-  console.log(`\n✅ Fix generated successfully`);
-  console.log(`\nTokens used: ${message.usage.input_tokens} input, ${message.usage.output_tokens} output`);
+  logger.info(`\n✅ Fix generated successfully`);
+  logger.info(`\nTokens used: ${message.usage.input_tokens} input, ${message.usage.output_tokens} output`);
 
   if (dryRun) {
-    console.log(`\n🔍 DRY RUN MODE - Changes not applied`);
-    console.log(`\nTo apply changes, run with --apply flag`);
+    logger.info(`\n🔍 DRY RUN MODE - Changes not applied`);
+    logger.info(`\nTo apply changes, run with --apply flag`);
 
     const previewPath = `/tmp/qualops-preview-${issue.id}.ts`;
     await writeFile(previewPath, fixedContent, 'utf-8');
-    console.log(`\n📁 Full preview saved to: ${previewPath}`);
+    logger.info(`\n📁 Full preview saved to: ${previewPath}`);
 
     const previewLength = Math.min(500, fixedContent.length);
-    console.log(`\n📝 Preview of fixed content (first ${previewLength} chars):`);
-    console.log('─'.repeat(80));
-    console.log(fixedContent.substring(0, previewLength));
+    logger.info(`\n📝 Preview of fixed content (first ${previewLength} chars):`);
+    logger.info('─'.repeat(80));
+    logger.info(fixedContent.substring(0, previewLength));
     if (fixedContent.length > previewLength) {
-      console.log(`\n... (${fixedContent.length - previewLength} more characters)`);
+      logger.info(`\n... (${fixedContent.length - previewLength} more characters)`);
     }
-    console.log('─'.repeat(80));
+    logger.info('─'.repeat(80));
   } else {
-    console.log(`\n✍️  Applying fix to ${filePath}`);
+    logger.info(`\n✍️  Applying fix to ${filePath}`);
     await writeFile(filePath, fixedContent, 'utf-8');
-    console.log(`✅ Fix applied successfully!`);
+    logger.info(`✅ Fix applied successfully!`);
   }
 }
 
@@ -183,16 +185,16 @@ const issuePath = args[0];
 const applyFlag = args.includes('--apply');
 
 if (!issuePath) {
-  console.error('Usage: node resolve-issue.ts <path-to-issue.md> [--apply]');
-  console.error('\nExample:');
-  console.error('  node resolve-issue.ts reports/qualops-full-2025-10-22/issues/security_input_validation/ISSUE-018.md');
-  console.error('\nBy default, runs in dry-run mode. Add --apply to actually modify files.');
+  logger.error('Usage: node resolve-issue.ts <path-to-issue.md> [--apply]');
+  logger.error('\nExample:');
+  logger.error('  node resolve-issue.ts reports/qualops-full-2025-10-22/issues/security_input_validation/ISSUE-018.md');
+  logger.error('\nBy default, runs in dry-run mode. Add --apply to actually modify files.');
   process.exit(1);
 }
 
 const projectRoot = process.cwd();
 
 resolveIssue(issuePath, projectRoot, !applyFlag).catch((error) => {
-  console.error('Error:', error);
+  logger.error('Error:', error);
   process.exit(1);
 });

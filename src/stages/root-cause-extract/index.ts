@@ -245,7 +245,7 @@ export async function extractRootCauses(): Promise<RootCauseMetadata> {
 
   const tokenStats = aiProvider.getTokenStats();
   if (tokenStats) {
-    const cachedTokens = (aiProvider as unknown as { cachedTokens?: number }).cachedTokens || 0;
+    const cachedTokens = (aiProvider as { cachedTokens?: number }).cachedTokens || 0;
     addStageTokenStats(
       'root-cause-extract',
       tokenStats.invocationCount,

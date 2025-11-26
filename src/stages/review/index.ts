@@ -132,7 +132,7 @@ export async function reviewProjects(): Promise<ReviewMetadata> {
       total: tokenStats.totalTokens,
     };
 
-    const cachedTokens = (aiProvider as unknown as { cachedTokens?: number }).cachedTokens || 0;
+    const cachedTokens = (aiProvider as { cachedTokens?: number }).cachedTokens || 0;
     addStageTokenStats(
       'review',
       tokenStats.invocationCount,
