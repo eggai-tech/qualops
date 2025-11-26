@@ -288,32 +288,26 @@ export class GitHubIntegration {
 
     const latestSession = sessionDirs[sessionDirs.length - 1];
     const sessionPath = join(reportsDir, latestSession);
-
-    const overallReportPath = join(sessionPath, 'overall-report.json');
     const reviewSummaryPath = join(sessionPath, 'review-summary.json');
 
-    if (!existsSync(overallReportPath)) {
-      console.warn('overall-report.json not found');
+    if (!existsSync(reviewSummaryPath)) {
+      console.warn('review-summary.json not found');
       return this.getEmptyResult();
     }
 
     try {
-      const overallReport = JSON.parse(readFileSync(overallReportPath, 'utf8'));
-
-      let issues: ReviewIssue[] = [];
-      if (existsSync(reviewSummaryPath)) {
-        const reviewSummary = JSON.parse(readFileSync(reviewSummaryPath, 'utf8'));
-        issues = reviewSummary.issues || [];
-      }
+      const reviewSummary = JSON.parse(readFileSync(reviewSummaryPath, 'utf8'));
+      const summary = reviewSummary.summary || {};
+      const issues: ReviewIssue[] = reviewSummary.issues || [];
 
       return {
         summary: {
-          totalIssues: overallReport.totalIssues || 0,
-          criticalSeverity: overallReport.issuesBySeverity?.critical || 0,
-          highSeverity: overallReport.issuesBySeverity?.high || 0,
-          mediumSeverity: overallReport.issuesBySeverity?.medium || 0,
-          lowSeverity: overallReport.issuesBySeverity?.low || 0,
-          filesAnalyzed: overallReport.filesAnalyzed || 0,
+          totalIssues: summary.totalIssues || 0,
+          criticalSeverity: summary.critical || 0,
+          highSeverity: summary.high || 0,
+          mediumSeverity: summary.medium || 0,
+          lowSeverity: summary.low || 0,
+          filesAnalyzed: reviewSummary.filesReviewed || 0,
         },
         reportPath: sessionPath,
         issues: issues.map((issue) => ({
@@ -390,6 +384,7 @@ export class GitHubIntegration {
 
     const results = this.parseReports();
     console.log(`Parsed results: ${results.summary.totalIssues} total issues found`);
+    console.log(`  Critical: ${results.summary.criticalSeverity}, High: ${results.summary.highSeverity}, Medium: ${results.summary.mediumSeverity}, Low: ${results.summary.lowSeverity}`);
 
     if (this.config.postComments !== false) {
       const artifactUrl = this.getArtifactUrl();

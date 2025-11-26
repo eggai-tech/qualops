@@ -42,6 +42,8 @@ export class GitHubChecksService {
     const conclusion = this.determineConclusion(summary);
     const status = 'completed';
 
+    console.log(`Check conclusion: ${conclusion} (critical=${summary.criticalSeverity}, high=${summary.highSeverity})`);
+
     const annotations = this.convertIssuesToAnnotations(issues, maxAnnotations);
     const summaryText = this.generateCheckSummary(summary, issues.length, annotations.length);
 
