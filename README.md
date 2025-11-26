@@ -136,12 +136,6 @@ Reference in `.qualopsrc.json`:
 }
 ```
 
-## Links
-
-- [GitHub Setup Guide](docs/github-setup.md)
-- [Configuration Reference](docs/configuration.md)
-- [Issues](https://github.com/eggai-tech/qualops/issues)
-
 ## License
 
 MIT
