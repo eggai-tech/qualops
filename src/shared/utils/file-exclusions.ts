@@ -40,7 +40,10 @@ class FileExclusionChecker {
           const pattern = line.match(/`([^`]+)`/)?.[1];
           if (!pattern) continue;
 
-          if (currentSection === 'Generated Files' || currentSection === 'Third-Party and Examples') {
+          if (
+            currentSection === 'Generated Files' ||
+            currentSection === 'Third-Party and Examples'
+          ) {
             this.skipPatterns.push(pattern);
           } else if (currentSection === 'Test and Mock Files') {
             this.penaltyPatterns.set(pattern, {
@@ -104,7 +107,10 @@ class FileExclusionChecker {
     };
   }
 
-  applyPenalty<T extends { confidence: number; notes?: string }>(issues: T[], filePath: string): T[] {
+  applyPenalty<T extends { confidence: number; notes?: string }>(
+    issues: T[],
+    filePath: string,
+  ): T[] {
     const exclusion = this.check(filePath);
 
     if (exclusion.confidencePenalty > 0) {

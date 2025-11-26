@@ -41,14 +41,17 @@ async function getIssueFiles(issuesDir: string, category?: string): Promise<stri
   return issues;
 }
 
-async function resolveIssueFile(issuePath: string, apply: boolean): Promise<{ success: boolean; error?: string }> {
+async function resolveIssueFile(
+  issuePath: string,
+  apply: boolean,
+): Promise<{ success: boolean; error?: string }> {
   const applyFlag = apply ? '--apply' : '';
   const scriptPath = resolve(process.cwd(), 'src/scripts/resolve-issue.ts');
 
   try {
     const { stdout, stderr } = await execAsync(
       `node --env-file=../../.env --experimental-strip-types ${scriptPath} ${issuePath} ${applyFlag}`,
-      { maxBuffer: 10 * 1024 * 1024 }
+      { maxBuffer: 10 * 1024 * 1024 },
     );
 
     if (stderr && !stderr.includes('ExperimentalWarning')) {
@@ -80,7 +83,8 @@ async function main() {
     options.limit = parseInt(args[limitIdx + 1]);
   }
 
-  const issuesDir = args.find((arg) => !arg.startsWith('--')) || '../../reports/qualops-full-2025-10-22/issues';
+  const issuesDir =
+    args.find((arg) => !arg.startsWith('--')) || '../../reports/qualops-full-2025-10-22/issues';
 
   logger.info(`\n🔍 Scanning for issues in: ${issuesDir}`);
   if (options.category) {

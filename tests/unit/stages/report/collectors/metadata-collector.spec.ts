@@ -1,7 +1,10 @@
 import { jest } from '@jest/globals';
 
 import type { AnalysisMetadata, ExtractLog, FixMetadata, ReviewMetadata } from '@/shared/types';
-import { collectIncrementalStats, collectMetadata } from '@/stages/report/collectors/metadata-collector';
+import {
+  collectIncrementalStats,
+  collectMetadata,
+} from '@/stages/report/collectors/metadata-collector';
 
 jest.mock('@/stages/report/utils/formatters');
 
@@ -59,7 +62,8 @@ const createFixMetadata = (
 ): FixMetadata => {
   const highConfidence = overrides?.highConfidence ?? Math.floor(totalSuggestions / 2);
   const mediumConfidence = overrides?.mediumConfidence ?? Math.floor(totalSuggestions / 4);
-  const lowConfidence = overrides?.lowConfidence ?? totalSuggestions - highConfidence - mediumConfidence;
+  const lowConfidence =
+    overrides?.lowConfidence ?? totalSuggestions - highConfidence - mediumConfidence;
 
   return {
     timestamp: '2025-01-01T00:00:00Z',
@@ -144,7 +148,11 @@ describe('metadata-collector', () => {
     it('should handle custom confidence distributions in fix metadata', () => {
       const mockAnalysis = createAnalysisMetadata(['project1'], ['/path/to/file1.ts']);
       const mockReview = createReviewMetadata(1, 3, 0, 1, 2, 0);
-      const mockFix = createFixMetadata(10, { highConfidence: 1, mediumConfidence: 2, lowConfidence: 7 });
+      const mockFix = createFixMetadata(10, {
+        highConfidence: 1,
+        mediumConfidence: 2,
+        lowConfidence: 7,
+      });
 
       mockGetQualityStatus.mockReturnValue({
         status: 'WARNING',
@@ -247,7 +255,10 @@ describe('metadata-collector', () => {
       },
       {
         name: 'null fix',
-        analysis: createAnalysisMetadata(['project1'], ['/path/to/file1.ts', '/path/to/file2.ts', '/path/to/file3.ts']),
+        analysis: createAnalysisMetadata(
+          ['project1'],
+          ['/path/to/file1.ts', '/path/to/file2.ts', '/path/to/file3.ts'],
+        ),
         review: createReviewMetadata(3, 4, 2, 1, 1, 0),
         fix: null,
         expected: {

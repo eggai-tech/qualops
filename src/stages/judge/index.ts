@@ -74,29 +74,41 @@ function evaluateQuality(
 
   if (summary.critical > thresholds.maxCriticalIssues) {
     passed = false;
-    reasons.push(`Found ${summary.critical} critical issues (max allowed: ${thresholds.maxCriticalIssues})`);
+    reasons.push(
+      `Found ${summary.critical} critical issues (max allowed: ${thresholds.maxCriticalIssues})`,
+    );
   }
 
   if (summary.high > thresholds.maxHighIssues) {
     passed = false;
-    reasons.push(`Found ${summary.high} high severity issues (max allowed: ${thresholds.maxHighIssues})`);
+    reasons.push(
+      `Found ${summary.high} high severity issues (max allowed: ${thresholds.maxHighIssues})`,
+    );
   }
 
   if (thresholds.maxMediumIssues !== undefined && summary.medium > thresholds.maxMediumIssues) {
     if (thresholds.failOnMedium) {
       passed = false;
-      reasons.push(`Found ${summary.medium} medium severity issues (max allowed: ${thresholds.maxMediumIssues})`);
+      reasons.push(
+        `Found ${summary.medium} medium severity issues (max allowed: ${thresholds.maxMediumIssues})`,
+      );
     } else {
-      warnings.push(`Found ${summary.medium} medium severity issues (threshold: ${thresholds.maxMediumIssues})`);
+      warnings.push(
+        `Found ${summary.medium} medium severity issues (threshold: ${thresholds.maxMediumIssues})`,
+      );
     }
   }
 
   if (thresholds.maxLowIssues !== undefined && summary.low > thresholds.maxLowIssues) {
     if (thresholds.failOnLow) {
       passed = false;
-      reasons.push(`Found ${summary.low} low severity issues (max allowed: ${thresholds.maxLowIssues})`);
+      reasons.push(
+        `Found ${summary.low} low severity issues (max allowed: ${thresholds.maxLowIssues})`,
+      );
     } else {
-      warnings.push(`Found ${summary.low} low severity issues (threshold: ${thresholds.maxLowIssues})`);
+      warnings.push(
+        `Found ${summary.low} low severity issues (threshold: ${thresholds.maxLowIssues})`,
+      );
     }
   }
 
@@ -176,7 +188,10 @@ function generateJudgeReport(
         output += '   - Focus on null reference and error handling\n\n';
       }
 
-      if (thresholds.maxMediumIssues !== undefined && report.summary.medium > thresholds.maxMediumIssues) {
+      if (
+        thresholds.maxMediumIssues !== undefined &&
+        report.summary.medium > thresholds.maxMediumIssues
+      ) {
         output += '3. **Reduce medium severity issues**\n';
         output += `   - Current: ${report.summary.medium}, Target: ${thresholds.maxMediumIssues}\n`;
         output += '   - Apply suggested fixes and improve error handling\n\n';
@@ -212,7 +227,9 @@ export async function judgeQuality(
     thresholds?: Partial<QualityThresholds>;
   } = {},
 ): Promise<JudgeMetadata> {
-  const existingJudge = await readMetadataFile<JudgeMetadata>(getCurrentSessionPaths().judgeDecision());
+  const existingJudge = await readMetadataFile<JudgeMetadata>(
+    getCurrentSessionPaths().judgeDecision(),
+  );
   if (existingJudge) {
     logger.info('Judge stage already completed - using existing results');
     return existingJudge;

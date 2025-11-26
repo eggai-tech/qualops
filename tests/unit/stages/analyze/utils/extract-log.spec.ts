@@ -22,7 +22,9 @@ jest.mock('@/stages/analyze/utils/hash-calculator');
 
 const mockReadFile = readFile as jest.MockedFunction<typeof readFile>;
 const mockStat = stat as jest.MockedFunction<typeof stat>;
-const mockGetCurrentSessionPaths = getCurrentSessionPaths as jest.MockedFunction<typeof getCurrentSessionPaths>;
+const mockGetCurrentSessionPaths = getCurrentSessionPaths as jest.MockedFunction<
+  typeof getCurrentSessionPaths
+>;
 const mockWriteMetadataFile = writeMetadataFile as jest.MockedFunction<typeof writeMetadataFile>;
 const mockCalculateFileHash = calculateFileHash as jest.MockedFunction<typeof calculateFileHash>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
@@ -478,9 +480,13 @@ describe('updateExtractLog', () => {
       files: {},
     };
     mockReadFile.mockResolvedValue(JSON.stringify(existingLog));
-    mockWriteMetadataFile.mockRejectedValueOnce(new Error('Write failed')).mockResolvedValueOnce(undefined);
+    mockWriteMetadataFile
+      .mockRejectedValueOnce(new Error('Write failed'))
+      .mockResolvedValueOnce(undefined);
 
-    await expect(updateExtractLog('/project/file1.ts', 'hash1', 1000)).rejects.toThrow('Write failed');
+    await expect(updateExtractLog('/project/file1.ts', 'hash1', 1000)).rejects.toThrow(
+      'Write failed',
+    );
 
     await updateExtractLog('/project/file2.ts', 'hash2', 2000);
 
@@ -807,7 +813,10 @@ describe('updateFileInExtractLog', () => {
 
     await updateFileInExtractLog('/project/file1.ts', extractLog);
 
-    expect(mockLogger.warn).toHaveBeenCalledWith('Failed to update extract log for /project/file1.ts:', error);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Failed to update extract log for /project/file1.ts:',
+      error,
+    );
     expect(extractLog.files['/project/file1.ts']).toBeUndefined();
   });
 
@@ -822,7 +831,10 @@ describe('updateFileInExtractLog', () => {
 
     await updateFileInExtractLog('/project/file1.ts', extractLog);
 
-    expect(mockLogger.warn).toHaveBeenCalledWith('Failed to update extract log for /project/file1.ts:', error);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'Failed to update extract log for /project/file1.ts:',
+      error,
+    );
     expect(extractLog.files['/project/file1.ts']).toBeUndefined();
   });
 

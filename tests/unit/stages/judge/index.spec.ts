@@ -17,7 +17,9 @@ jest.mock('@/shared/utils/file-utils');
 jest.mock('@/shared/utils/logger');
 
 const mockEnvConfig = envConfig as jest.Mocked<typeof envConfig>;
-const mockGetCurrentSessionPaths = getCurrentSessionPaths as jest.MockedFunction<typeof getCurrentSessionPaths>;
+const mockGetCurrentSessionPaths = getCurrentSessionPaths as jest.MockedFunction<
+  typeof getCurrentSessionPaths
+>;
 const mockReadMetadataFile = readMetadataFile as jest.MockedFunction<typeof readMetadataFile>;
 
 describe('judgeQuality', () => {
@@ -69,7 +71,9 @@ describe('judgeQuality', () => {
       const result = await judgeQuality();
 
       expect(result).toEqual(existingJudge);
-      expect(logger.info).toHaveBeenCalledWith('Judge stage already completed - using existing results');
+      expect(logger.info).toHaveBeenCalledWith(
+        'Judge stage already completed - using existing results',
+      );
     });
   });
 

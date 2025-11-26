@@ -206,7 +206,8 @@ describe('removeLineNumbers', () => {
 });
 
 describe('getLineRange', () => {
-  const numberedContent = '    1 | first\n    2 | second\n    3 | third\n    4 | fourth\n    5 | fifth';
+  const numberedContent =
+    '    1 | first\n    2 | second\n    3 | third\n    4 | fourth\n    5 | fifth';
 
   it('should extract line range', () => {
     const result = getLineRange(numberedContent, 2, 4);

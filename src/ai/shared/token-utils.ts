@@ -11,7 +11,10 @@ export function createEmptyTokenStats(): TokenStats {
   };
 }
 
-export function addTokenStats(base: TokenStats, addition: TokenStats | null | undefined): TokenStats {
+export function addTokenStats(
+  base: TokenStats,
+  addition: TokenStats | null | undefined,
+): TokenStats {
   if (!addition) {
     return base;
   }

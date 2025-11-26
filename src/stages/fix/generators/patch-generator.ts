@@ -218,7 +218,9 @@ export function validatePatch(
   const lines = fileContent.split('\n');
 
   if (lines.length < patch.metadata.endLine) {
-    errors.push(`File has ${lines.length} lines but patch expects at least ${patch.metadata.endLine}`);
+    errors.push(
+      `File has ${lines.length} lines but patch expects at least ${patch.metadata.endLine}`,
+    );
   }
 
   const startIdx = (patch.metadata.startLine || 1) - 1;
@@ -233,7 +235,9 @@ export function validatePatch(
     const patchLine = patch.metadata.originalLines[i].trim();
 
     if (fileLine !== patchLine) {
-      errors.push(`Line ${fileLineIndex + 1} mismatch: expected "${patchLine}", found "${fileLine}"`);
+      errors.push(
+        `Line ${fileLineIndex + 1} mismatch: expected "${patchLine}", found "${fileLine}"`,
+      );
     }
   }
 

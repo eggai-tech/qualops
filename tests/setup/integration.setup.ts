@@ -14,7 +14,10 @@ const TEST_FIXTURES_DIR = join(__dirname, '../test-fixtures');
 const TEST_OUTPUT_BASE_DIR = join(__dirname, '../test-output');
 
 // Create a unique output directory for each test file to avoid race conditions
-const TEST_OUTPUT_DIR = join(TEST_OUTPUT_BASE_DIR, `run-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+const TEST_OUTPUT_DIR = join(
+  TEST_OUTPUT_BASE_DIR,
+  `run-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+);
 
 export const getFixturesDir = () => TEST_FIXTURES_DIR;
 export const getOutputDir = () => TEST_OUTPUT_DIR;

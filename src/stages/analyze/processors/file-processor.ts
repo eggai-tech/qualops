@@ -17,7 +17,10 @@ export async function processFile(file: string, extractLog: ExtractLog): Promise
 
     return true;
   } catch (error) {
-    logger.warn(`Failed to process file ${file}:`, error instanceof Error ? error.message : String(error));
+    logger.warn(
+      `Failed to process file ${file}:`,
+      error instanceof Error ? error.message : String(error),
+    );
     return false;
   }
 }

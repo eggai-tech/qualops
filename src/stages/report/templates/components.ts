@@ -72,7 +72,11 @@ export function generateFiltersSection(data: FilterData): string {
   `;
 }
 
-export function generateDirectoryHeader(directory: string, dirId: string, issues: ReviewIssue[]): string {
+export function generateDirectoryHeader(
+  directory: string,
+  dirId: string,
+  issues: ReviewIssue[],
+): string {
   const counts = calculateIssueCounts(issues);
 
   return `
@@ -106,7 +110,11 @@ export function generateFileHeader(fileName: string, fileId: string, issueCount:
   `;
 }
 
-export async function generateIssueCard(issue: ReviewIssue, codeSection: string, issueId?: number): Promise<string> {
+export async function generateIssueCard(
+  issue: ReviewIssue,
+  codeSection: string,
+  issueId?: number,
+): Promise<string> {
   const safeId = generateSafeId(issue.id);
 
   const knowledgeSource = extractKnowledgeSource(issue);
@@ -137,7 +145,12 @@ export async function generateIssueCard(issue: ReviewIssue, codeSection: string,
 }
 
 function generateIssueDetails(
-  issue: ReviewIssue & { problem?: string; impact?: string; rootCause?: string; education?: string },
+  issue: ReviewIssue & {
+    problem?: string;
+    impact?: string;
+    rootCause?: string;
+    education?: string;
+  },
 ): string {
   // Use enhanced fields if available, otherwise fallback to original
   const problem = issue.problem || issue.description;
@@ -257,7 +270,11 @@ function generateConfidenceSection(issue: ReviewIssue): string {
   `;
 }
 
-export function generateCodeSection(filePath: string, location: string, codePreview: string): string {
+export function generateCodeSection(
+  filePath: string,
+  location: string,
+  codePreview: string,
+): string {
   const lines = codePreview.split('\n');
 
   return `

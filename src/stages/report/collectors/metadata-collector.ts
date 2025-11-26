@@ -1,4 +1,9 @@
-import type { AnalysisMetadata, ExtractLog, FixMetadata, ReviewMetadata } from '../../../shared/types';
+import type {
+  AnalysisMetadata,
+  ExtractLog,
+  FixMetadata,
+  ReviewMetadata,
+} from '../../../shared/types';
 import { getQualityStatus } from '../utils/formatters';
 
 export interface ReportSummary {

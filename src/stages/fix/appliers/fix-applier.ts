@@ -109,7 +109,9 @@ async function applyFuzzyMatch(
       .join('\n');
 
     const newContent =
-      normalizedContent.substring(0, startIndex) + indentedSuggested + normalizedContent.substring(endIndex);
+      normalizedContent.substring(0, startIndex) +
+      indentedSuggested +
+      normalizedContent.substring(endIndex);
 
     return { newContent, applied: true };
   }
@@ -117,7 +119,10 @@ async function applyFuzzyMatch(
   return { newContent: content, applied: false };
 }
 
-export async function applySingleFix(suggestion: FixSuggestion, options: ApplyOptions = {}): Promise<ApplyResult> {
+export async function applySingleFix(
+  suggestion: FixSuggestion,
+  options: ApplyOptions = {},
+): Promise<ApplyResult> {
   const { dryRun = false, createBackup: shouldCreateBackup = true, force = false } = options;
 
   logger.info(`${dryRun ? 'Dry-run' : 'Applying'} fix to ${suggestion.file}`);
@@ -212,8 +217,13 @@ export async function applyMultipleFixes(
   return results;
 }
 
-export async function applySafeFixes(suggestions: FixSuggestion[], options: ApplyOptions = {}): Promise<ApplyResult[]> {
-  const safeSuggestions = suggestions.filter((s) => s.confidence === 'high' && !s.breaking && s.suggestedCode);
+export async function applySafeFixes(
+  suggestions: FixSuggestion[],
+  options: ApplyOptions = {},
+): Promise<ApplyResult[]> {
+  const safeSuggestions = suggestions.filter(
+    (s) => s.confidence === 'high' && !s.breaking && s.suggestedCode,
+  );
 
   logger.info(`Applying ${safeSuggestions.length} safe fixes out of ${suggestions.length} total`);
 

@@ -20,7 +20,12 @@ export function getConfidenceBadge(confidence: number | undefined): string {
   return `<span class="confidence-badge ${className}" title="Confidence: ${confidence}/10">${confidence}/10</span>`;
 }
 
-export function getQualityStatus(summary: { critical: number; high: number; medium: number; low: number }): {
+export function getQualityStatus(summary: {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+}): {
   status: 'FAILED' | 'WARNING' | 'PASSED';
   color: string;
   emoji: string;

@@ -126,7 +126,10 @@ export class JsonParser {
 
   private looksLikeJson(text: string): boolean {
     const trimmed = text.trim();
-    return (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'));
+    return (
+      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('[') && trimmed.endsWith(']'))
+    );
   }
 
   validateSchema<T>(data: unknown, validator: (data: unknown) => data is T): data is T {
@@ -142,7 +145,10 @@ export class JsonParser {
 
 export const jsonParser = new JsonParser();
 
-export function parseJsonResponse<T = unknown>(response: string, options?: JsonParserOptions): ParsedResponse<T> {
+export function parseJsonResponse<T = unknown>(
+  response: string,
+  options?: JsonParserOptions,
+): ParsedResponse<T> {
   const parser = new JsonParser(options);
   return parser.parseResponse<T>(response);
 }

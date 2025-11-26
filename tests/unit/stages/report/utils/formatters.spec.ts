@@ -1,5 +1,11 @@
 import type { ReviewIssue } from '@/shared/types';
-import { escapeHtml, extractProblem, formatSource, getConfidenceBadge, getQualityStatus } from '@/stages/report/utils/formatters';
+import {
+  escapeHtml,
+  extractProblem,
+  formatSource,
+  getConfidenceBadge,
+  getQualityStatus,
+} from '@/stages/report/utils/formatters';
 
 describe('formatters', () => {
   describe('getConfidenceBadge', () => {
@@ -406,7 +412,9 @@ describe('formatters', () => {
     it('should escape all special characters', () => {
       const result = escapeHtml(`<div class="test" id='foo'>A & B</div>`);
 
-      expect(result).toBe('&lt;div class=&quot;test&quot; id=&#39;foo&#39;&gt;A &amp; B&lt;/div&gt;');
+      expect(result).toBe(
+        '&lt;div class=&quot;test&quot; id=&#39;foo&#39;&gt;A &amp; B&lt;/div&gt;',
+      );
     });
 
     it('should handle empty string', () => {

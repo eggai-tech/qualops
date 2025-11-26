@@ -38,7 +38,10 @@ export async function saveExtractLog(log: ExtractLog): Promise<void> {
   await writeMetadataFile(getCurrentSessionPaths().extractLog(), log);
 }
 
-export async function shouldProcessFile(filePath: string, extractLog: Readonly<ExtractLog>): Promise<boolean> {
+export async function shouldProcessFile(
+  filePath: string,
+  extractLog: Readonly<ExtractLog>,
+): Promise<boolean> {
   const logEntry = extractLog.files[filePath];
 
   if (!logEntry || !logEntry.processed) {
@@ -54,7 +57,11 @@ export async function shouldProcessFile(filePath: string, extractLog: Readonly<E
 }
 
 const updateQueue = new Map<string, Promise<void>>();
-export async function updateExtractLog(filePath: string, hash: string, size: number): Promise<void> {
+export async function updateExtractLog(
+  filePath: string,
+  hash: string,
+  size: number,
+): Promise<void> {
   const logPath = getCurrentSessionPaths().extractLog();
   const previous = updateQueue.get(logPath) ?? Promise.resolve();
   const update = previous
@@ -72,7 +79,10 @@ export async function updateExtractLog(filePath: string, hash: string, size: num
   await update;
 }
 
-export async function getFilesToProcess(allFiles: string[], extractLog: Readonly<ExtractLog>): Promise<string[]> {
+export async function getFilesToProcess(
+  allFiles: string[],
+  extractLog: Readonly<ExtractLog>,
+): Promise<string[]> {
   const shouldProcessPromises = allFiles.map(async (file) => {
     const shouldProcess = await shouldProcessFile(file, extractLog);
     return { file, shouldProcess };
@@ -82,7 +92,10 @@ export async function getFilesToProcess(allFiles: string[], extractLog: Readonly
   return results.filter((result) => result.shouldProcess).map((result) => result.file);
 }
 
-export async function updateFileInExtractLog(filePath: string, extractLog: ExtractLog): Promise<void> {
+export async function updateFileInExtractLog(
+  filePath: string,
+  extractLog: ExtractLog,
+): Promise<void> {
   try {
     const currentHash = await calculateFileHash(filePath);
     const { stat } = await import('node:fs/promises');

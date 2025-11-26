@@ -41,7 +41,8 @@ export function parseStageOptions(options: QualOpsOptions): ParsedStageOptions {
     stages = [...STAGES];
   }
 
-  const sessionName = options.name || new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '-');
+  const sessionName =
+    options.name || new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '-');
 
   return {
     stages,
@@ -56,7 +57,9 @@ export function validateStages(stages: string[]): Stage[] {
   const invalidStages = stages.filter((s) => !STAGES.includes(s as Stage));
 
   if (invalidStages.length > 0) {
-    throw new Error(`Invalid stages: ${invalidStages.join(', ')}. Valid stages are: ${STAGES.join(', ')}`);
+    throw new Error(
+      `Invalid stages: ${invalidStages.join(', ')}. Valid stages are: ${STAGES.join(', ')}`,
+    );
   }
 
   return stages as Stage[];

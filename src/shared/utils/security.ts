@@ -10,7 +10,12 @@ import { basename } from 'node:path';
  */
 export function isPathTraversalSafe(filename: string): boolean {
   if (!filename) return false;
-  return !filename.includes('..') && !filename.includes('/') && !filename.includes('\\') && !filename.includes('\0');
+  return (
+    !filename.includes('..') &&
+    !filename.includes('/') &&
+    !filename.includes('\\') &&
+    !filename.includes('\0')
+  );
 }
 
 /**

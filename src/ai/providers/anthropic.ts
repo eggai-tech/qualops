@@ -111,7 +111,8 @@ export class AnthropicProvider implements AIProvider {
     // - 5-minute cache: 1.25x base price
     // - 1-hour cache: 2x base price
     const cacheWriteMultiplier = use1HourCache ? 2.0 : 1.25;
-    const cacheWriteCost = ((cacheCreationTokens || 0) / 1_000_000) * (pricing.inputPerMillion * cacheWriteMultiplier);
+    const cacheWriteCost =
+      ((cacheCreationTokens || 0) / 1_000_000) * (pricing.inputPerMillion * cacheWriteMultiplier);
 
     // Cache reads are always 0.1x (90% discount)
     const cacheReadCost = ((cacheReadTokens || 0) / 1_000_000) * (pricing.inputPerMillion * 0.1);
@@ -156,7 +157,9 @@ export class AnthropicProvider implements AIProvider {
               type: 'text' as const,
               text: m.content,
 
-              ...('cache_control' in m && m.cache_control ? { cache_control: m.cache_control } : {}),
+              ...('cache_control' in m && m.cache_control
+                ? { cache_control: m.cache_control }
+                : {}),
             }))
           : undefined;
 
@@ -181,12 +184,15 @@ export class AnthropicProvider implements AIProvider {
         cache_read_input_tokens?: number;
       };
 
-      const cacheCreationTokens = (response.usage as AnthropicUsage)?.cache_creation_input_tokens || 0;
+      const cacheCreationTokens =
+        (response.usage as AnthropicUsage)?.cache_creation_input_tokens || 0;
 
       const cacheReadTokens = (response.usage as AnthropicUsage)?.cache_read_input_tokens || 0;
 
       if (cacheReadTokens > 0) {
-        logger.debug(`[CACHE HIT] ${cacheReadTokens.toLocaleString()} tokens from cache (90% discount)`);
+        logger.debug(
+          `[CACHE HIT] ${cacheReadTokens.toLocaleString()} tokens from cache (90% discount)`,
+        );
       }
       if (cacheCreationTokens > 0) {
         const cacheTTL = use1HourCache ? '1-hour' : '5-minute';
@@ -196,7 +202,13 @@ export class AnthropicProvider implements AIProvider {
         );
       }
 
-      this.updateTokenStats(inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens, use1HourCache);
+      this.updateTokenStats(
+        inputTokens,
+        outputTokens,
+        cacheCreationTokens,
+        cacheReadTokens,
+        use1HourCache,
+      );
 
       return {
         content,
@@ -210,7 +222,9 @@ export class AnthropicProvider implements AIProvider {
         model: response.model,
       };
     } catch (error) {
-      throw new Error(`Anthropic completion failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Anthropic completion failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -225,7 +239,9 @@ export class AnthropicProvider implements AIProvider {
       const jsonStr = jsonMatch ? jsonMatch[1] : response.content;
       return JSON.parse(jsonStr) as T;
     } catch (error) {
-      throw new Error(`Failed to parse structured response: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to parse structured response: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

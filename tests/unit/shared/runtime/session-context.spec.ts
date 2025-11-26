@@ -119,7 +119,9 @@ describe('session-context', () => {
     });
 
     it('should throw error when not initialized', () => {
-      expect(() => getCurrentSession()).toThrow('Session context not initialized. Call setCurrentSession() first.');
+      expect(() => getCurrentSession()).toThrow(
+        'Session context not initialized. Call setCurrentSession() first.',
+      );
     });
 
     it('should return correct session after multiple initializations', () => {

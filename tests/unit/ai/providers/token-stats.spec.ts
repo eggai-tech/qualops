@@ -5,7 +5,9 @@ import { getGlobalTokenStats, resetTokenStats } from '@/ai/providers/token-stats
 jest.mock('@/ai/providers/factory');
 jest.mock('@/shared/utils/logger');
 
-const mockGetGlobalAIProvider = getGlobalAIProvider as jest.MockedFunction<typeof getGlobalAIProvider>;
+const mockGetGlobalAIProvider = getGlobalAIProvider as jest.MockedFunction<
+  typeof getGlobalAIProvider
+>;
 
 describe('token-stats', () => {
   let mockProvider: jest.Mocked<AIProvider>;
@@ -307,7 +309,10 @@ describe('token-stats', () => {
         estimatedCost: 0,
       };
 
-      mockProvider.getTokenStats = jest.fn().mockReturnValueOnce(initialStats).mockReturnValueOnce(resetStats);
+      mockProvider.getTokenStats = jest
+        .fn()
+        .mockReturnValueOnce(initialStats)
+        .mockReturnValueOnce(resetStats);
 
       mockGetGlobalAIProvider.mockReturnValue(mockProvider);
 
@@ -345,7 +350,10 @@ describe('token-stats', () => {
       const stats1 = getGlobalTokenStats();
       expect(stats1.totalTokens).toBe(150);
 
-      const mockProvider2 = { ...mockProvider, getTokenStats: jest.fn().mockReturnValue(provider2Stats) };
+      const mockProvider2 = {
+        ...mockProvider,
+        getTokenStats: jest.fn().mockReturnValue(provider2Stats),
+      };
       mockGetGlobalAIProvider.mockReturnValue(mockProvider2 as any);
 
       const stats2 = getGlobalTokenStats();

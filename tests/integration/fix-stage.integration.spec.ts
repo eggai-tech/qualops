@@ -1,6 +1,11 @@
 import type { FixSuggestion, ReviewIssue } from '@/shared/types';
 import { generateFixes } from '@/stages/fix';
-import { addFile, createMockAIProvider, createTestProject, SAMPLE_COMPONENTS } from '@tests/helpers/test-fixtures';
+import {
+  addFile,
+  createMockAIProvider,
+  createTestProject,
+  SAMPLE_COMPONENTS,
+} from '@tests/helpers/test-fixtures';
 import { getOutputDir } from '@tests/setup/integration.setup';
 
 const mockGetCurrentSessionPaths = jest.fn();

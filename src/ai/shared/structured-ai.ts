@@ -12,7 +12,11 @@ export async function createReviewPrompt(
   },
 ): Promise<string> {
   const documentation = await import('../../shared/utils/documentation-context');
-  return documentation.enhanceReviewPromptWithDocumentation(fileContent, filePath, frameworkContext);
+  return documentation.enhanceReviewPromptWithDocumentation(
+    fileContent,
+    filePath,
+    frameworkContext,
+  );
 }
 
 export async function createFixPrompt(
@@ -75,5 +79,12 @@ export function detectFrameworkContext(filePath: string, fileContent: string): F
 }
 
 export function validateReviewIssue(issue: Partial<ReviewIssue>): boolean {
-  return !!(issue.id && issue.file && issue.type && issue.severity && issue.description && issue.location);
+  return !!(
+    issue.id &&
+    issue.file &&
+    issue.type &&
+    issue.severity &&
+    issue.description &&
+    issue.location
+  );
 }

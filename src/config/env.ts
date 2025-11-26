@@ -78,12 +78,18 @@ class EnvironmentConfigService {
       maxFilesPerBatch: process.env.QUALOPS_MAX_FILES_PER_BATCH
         ? parseInt(process.env.QUALOPS_MAX_FILES_PER_BATCH)
         : undefined,
-      timeoutSeconds: process.env.QUALOPS_TIMEOUT_SECONDS ? parseInt(process.env.QUALOPS_TIMEOUT_SECONDS) : undefined,
+      timeoutSeconds: process.env.QUALOPS_TIMEOUT_SECONDS
+        ? parseInt(process.env.QUALOPS_TIMEOUT_SECONDS)
+        : undefined,
 
       // Quality Thresholds
-      maxCritical: process.env.QUALOPS_MAX_CRITICAL ? parseInt(process.env.QUALOPS_MAX_CRITICAL) : undefined,
+      maxCritical: process.env.QUALOPS_MAX_CRITICAL
+        ? parseInt(process.env.QUALOPS_MAX_CRITICAL)
+        : undefined,
       maxHigh: process.env.QUALOPS_MAX_HIGH ? parseInt(process.env.QUALOPS_MAX_HIGH) : undefined,
-      maxMedium: process.env.QUALOPS_MAX_MEDIUM ? parseInt(process.env.QUALOPS_MAX_MEDIUM) : undefined,
+      maxMedium: process.env.QUALOPS_MAX_MEDIUM
+        ? parseInt(process.env.QUALOPS_MAX_MEDIUM)
+        : undefined,
       maxLow: process.env.QUALOPS_MAX_LOW ? parseInt(process.env.QUALOPS_MAX_LOW) : undefined,
       failOnMedium: process.env.QUALOPS_FAIL_ON_MEDIUM === 'true',
       failOnLow: process.env.QUALOPS_FAIL_ON_LOW === 'true',
@@ -110,7 +116,11 @@ class EnvironmentConfigService {
   }
 
   get<K extends keyof EnvironmentConfig>(key: K): EnvironmentConfig[K] {
-    if (key === 'anthropicApiKey' && !this.config.anthropicApiKey && process.env.ANTHROPIC_API_KEY) {
+    if (
+      key === 'anthropicApiKey' &&
+      !this.config.anthropicApiKey &&
+      process.env.ANTHROPIC_API_KEY
+    ) {
       this.config.anthropicApiKey = process.env.ANTHROPIC_API_KEY;
     }
     return this.config[key];

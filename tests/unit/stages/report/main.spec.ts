@@ -28,17 +28,31 @@ jest.mock('@/stages/report/generators/token-generator');
 jest.mock('@/stages/report/html-report');
 jest.mock('@/stages/report/utils/file-writer');
 
-const mockGetCurrentSessionPaths = getCurrentSessionPaths as jest.MockedFunction<typeof getCurrentSessionPaths>;
+const mockGetCurrentSessionPaths = getCurrentSessionPaths as jest.MockedFunction<
+  typeof getCurrentSessionPaths
+>;
 const mockReadMetadataFile = readMetadataFile as jest.MockedFunction<typeof readMetadataFile>;
-const mockCollectAllStageData = collectAllStageData as jest.MockedFunction<typeof collectAllStageData>;
+const mockCollectAllStageData = collectAllStageData as jest.MockedFunction<
+  typeof collectAllStageData
+>;
 const mockGetStageResults = getStageResults as jest.MockedFunction<typeof getStageResults>;
 const mockCollectMetadata = collectMetadata as jest.MockedFunction<typeof collectMetadata>;
-const mockGenerateConsoleOutput = generateConsoleOutput as jest.MockedFunction<typeof generateConsoleOutput>;
-const mockGenerateAnalysisSection = generateAnalysisSection as jest.MockedFunction<typeof generateAnalysisSection>;
+const mockGenerateConsoleOutput = generateConsoleOutput as jest.MockedFunction<
+  typeof generateConsoleOutput
+>;
+const mockGenerateAnalysisSection = generateAnalysisSection as jest.MockedFunction<
+  typeof generateAnalysisSection
+>;
 const mockGenerateFixSection = generateFixSection as jest.MockedFunction<typeof generateFixSection>;
-const mockGenerateMarkdownSummary = generateMarkdownSummary as jest.MockedFunction<typeof generateMarkdownSummary>;
-const mockGenerateRecommendations = generateRecommendations as jest.MockedFunction<typeof generateRecommendations>;
-const mockGenerateReviewSection = generateReviewSection as jest.MockedFunction<typeof generateReviewSection>;
+const mockGenerateMarkdownSummary = generateMarkdownSummary as jest.MockedFunction<
+  typeof generateMarkdownSummary
+>;
+const mockGenerateRecommendations = generateRecommendations as jest.MockedFunction<
+  typeof generateRecommendations
+>;
+const mockGenerateReviewSection = generateReviewSection as jest.MockedFunction<
+  typeof generateReviewSection
+>;
 const mockGenerateTokenUsageSection = generateTokenUsageSection as jest.MockedFunction<
   typeof generateTokenUsageSection
 >;
@@ -126,8 +140,14 @@ describe('generateReport', () => {
     mockGenerateAnalysisSection.mockReturnValue({ title: 'Analysis', content: 'Analysis content' });
     mockGenerateReviewSection.mockReturnValue({ title: 'Review', content: 'Review content' });
     mockGenerateFixSection.mockReturnValue({ title: 'Fix', content: 'Fix content' });
-    mockGenerateTokenUsageSection.mockReturnValue({ title: 'Token Usage', content: 'Token content' });
-    mockGenerateRecommendations.mockReturnValue({ title: 'Recommendations', content: 'Recommendations content' });
+    mockGenerateTokenUsageSection.mockReturnValue({
+      title: 'Token Usage',
+      content: 'Token content',
+    });
+    mockGenerateRecommendations.mockReturnValue({
+      title: 'Recommendations',
+      content: 'Recommendations content',
+    });
     mockGenerateMarkdownSummary.mockReturnValue('# Report Summary');
     mockGenerateHTMLReport.mockResolvedValue('<html>Report</html>');
     mockWriteHTMLReport.mockResolvedValue('/session/report.html');
@@ -148,7 +168,9 @@ describe('generateReport', () => {
       const result = await generateReport();
 
       expect(result).toEqual(existingReport);
-      expect(logger.info).toHaveBeenCalledWith('Report stage already completed - using existing results');
+      expect(logger.info).toHaveBeenCalledWith(
+        'Report stage already completed - using existing results',
+      );
     });
 
     it('should not collect data if existing report found', async () => {

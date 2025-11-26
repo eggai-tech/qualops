@@ -224,7 +224,11 @@ describe('IssueManager', () => {
       const result = await issueManager.writeIssue(issue, 3);
 
       expect(mockJoin).toHaveBeenCalledWith(issuesDir, 'ISSUE-003-test-issue.md');
-      expect(mockWriteFile).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('# ISSUE-003'), 'utf-8');
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.stringContaining('# ISSUE-003'),
+        'utf-8',
+      );
       expect(result).toBe('/test/issues/ISSUE-003-test-issue.md');
     });
   });

@@ -26,7 +26,11 @@ export interface DiffOptions {
   showLineNumbers?: boolean;
 }
 
-export function calculateDiff(originalCode: string, suggestedCode: string, options: DiffOptions = {}): DiffSegment[] {
+export function calculateDiff(
+  originalCode: string,
+  suggestedCode: string,
+  options: DiffOptions = {},
+): DiffSegment[] {
   const { contextLines = 3, ignoreWhitespace = false, showLineNumbers = true } = options;
 
   const originalLines = normalizeLines(originalCode, ignoreWhitespace);
@@ -110,7 +114,12 @@ function calculateMyersDiff(
   // Backtrack to build the diff
   let i = m;
   let j = n;
-  const diffOps: { type: 'add' | 'remove' | 'keep'; line: string; oldLine?: number; newLine?: number }[] = [];
+  const diffOps: {
+    type: 'add' | 'remove' | 'keep';
+    line: string;
+    oldLine?: number;
+    newLine?: number;
+  }[] = [];
 
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && originalLines[i - 1] === suggestedLines[j - 1]) {
@@ -164,7 +173,9 @@ function calculateMyersDiff(
         }
       } else {
         // Check if changes are coming up
-        const hasChangesAhead = diffOps.slice(idx + 1, idx + 1 + contextLines).some((nextOp) => nextOp.type !== 'keep');
+        const hasChangesAhead = diffOps
+          .slice(idx + 1, idx + 1 + contextLines)
+          .some((nextOp) => nextOp.type !== 'keep');
 
         if (hasChangesAhead) {
           segments.push({

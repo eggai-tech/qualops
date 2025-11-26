@@ -1,6 +1,11 @@
 import type { AIProvider } from '../../../ai/providers/provider';
 import type { ReviewIssue } from '../../../shared/types';
-import type { DeduplicationConfig, PipelineJob, PromptConfig, ReviewConfig } from '../../../shared/types/config';
+import type {
+  DeduplicationConfig,
+  PipelineJob,
+  PromptConfig,
+  ReviewConfig,
+} from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
 import { PromptLoader } from '../loaders/prompt-loader';
 import { TemplateEngine } from '../loaders/template-engine';
@@ -84,7 +89,10 @@ export class DeduplicationResolver {
     };
   }
 
-  private async deduplicateFile(issues: ReviewIssue[], promptRef: string | PromptConfig): Promise<ReviewIssue[]> {
+  private async deduplicateFile(
+    issues: ReviewIssue[],
+    promptRef: string | PromptConfig,
+  ): Promise<ReviewIssue[]> {
     const { content } = await PromptLoader.load(promptRef);
 
     const issuesJson = JSON.stringify(

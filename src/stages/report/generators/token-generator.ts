@@ -6,7 +6,9 @@ export function generateTokenUsageSection(): ReportSection {
   const tokenStats = getGlobalTokenStats();
 
   const averageTokensPerCall =
-    tokenStats.invocationCount > 0 ? Math.round(tokenStats.totalTokens / tokenStats.invocationCount) : 0;
+    tokenStats.invocationCount > 0
+      ? Math.round(tokenStats.totalTokens / tokenStats.invocationCount)
+      : 0;
 
   const content = `### AI Token Usage
 ${formatTokenStats(tokenStats)}
@@ -28,7 +30,9 @@ export function generateTokenUsageHTML(): string {
   const tokenStats = getGlobalTokenStats();
 
   const averageTokensPerCall =
-    tokenStats.invocationCount > 0 ? Math.round(tokenStats.totalTokens / tokenStats.invocationCount) : 0;
+    tokenStats.invocationCount > 0
+      ? Math.round(tokenStats.totalTokens / tokenStats.invocationCount)
+      : 0;
 
   const efficiencyRating = getEfficiencyRating(averageTokensPerCall);
 
@@ -94,7 +98,9 @@ export function generateTokenUsageJSON() {
     outputTokens: tokenStats.totalOutputTokens,
     apiCalls: tokenStats.invocationCount,
     averageTokensPerCall:
-      tokenStats.invocationCount > 0 ? Math.round(tokenStats.totalTokens / tokenStats.invocationCount) : 0,
+      tokenStats.invocationCount > 0
+        ? Math.round(tokenStats.totalTokens / tokenStats.invocationCount)
+        : 0,
     estimatedCost: tokenStats.estimatedCost,
     costBreakdown: {
       inputCost: tokenStats.totalInputTokens * 0.00001, // Approximate cost

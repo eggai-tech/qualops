@@ -15,7 +15,11 @@ program
   .name('qualops')
   .description('AI-powered code quality analysis tool')
   .version('1.0.0')
-  .option('-c, --config <path>', 'path to config file (default: .qualopsrc.json)', '.qualopsrc.json')
+  .option(
+    '-c, --config <path>',
+    'path to config file (default: .qualopsrc.json)',
+    '.qualopsrc.json',
+  )
   .option('-b, --base <branch>', 'base branch for comparison', 'main')
   .option('-h, --head <ref>', 'head ref for comparison (defaults to HEAD)')
   .option('-f, --files <paths>', 'specific file(s) to analyze (comma-separated or glob patterns)')

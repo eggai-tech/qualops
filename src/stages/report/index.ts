@@ -9,7 +9,11 @@ export { collectIssues, collectReviewIssues } from './collectors/issue-collector
 export { collectIncrementalStats, collectMetadata } from './collectors/metadata-collector';
 
 // Generators
-export { generateConsoleOutput, generateDetailedConsoleOutput, logProgress } from './generators/console-generator';
+export {
+  generateConsoleOutput,
+  generateDetailedConsoleOutput,
+  logProgress,
+} from './generators/console-generator';
 export { generateCIReport, generateJSONReport } from './generators/json-generator';
 export {
   generateAnalysisSection,
@@ -55,7 +59,13 @@ export {
   writeMultipleReports,
   writeReportFile,
 } from './utils/file-writer';
-export { escapeHtml, extractProblem, formatSource, getConfidenceBadge, getQualityStatus } from './utils/formatters';
+export {
+  escapeHtml,
+  extractProblem,
+  formatSource,
+  getConfidenceBadge,
+  getQualityStatus,
+} from './utils/formatters';
 
 // Types
 export type { CollectedData } from './collectors/data-collector';

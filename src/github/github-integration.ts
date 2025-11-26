@@ -119,7 +119,9 @@ export class GitHubIntegration {
   async getExistingQualOpsComment(prNumber: number): Promise<number | null> {
     try {
       const comments = await this.api.listComments(prNumber);
-      const qualopsComment = comments.find((comment) => comment.body?.includes(QUALOPS_COMMENT_MARKER));
+      const qualopsComment = comments.find((comment) =>
+        comment.body?.includes(QUALOPS_COMMENT_MARKER),
+      );
 
       return qualopsComment?.id || null;
     } catch (error) {
@@ -184,7 +186,12 @@ export class GitHubIntegration {
     return '✅ **PASSED** - No issues found';
   }
 
-  private formatIssuesByType(issues: QualOpsResult['issues'], severity: string, emoji: string, maxItems: number): string {
+  private formatIssuesByType(
+    issues: QualOpsResult['issues'],
+    severity: string,
+    emoji: string,
+    maxItems: number,
+  ): string {
     const filtered = issues.filter((issue) => issue.severity === severity);
     if (filtered.length === 0) return '';
 
@@ -315,7 +322,12 @@ export class GitHubIntegration {
     const headSha = this.getPullRequestHeadSha() || this.env.GITHUB_SHA;
     if (headSha) {
       const maxAnnotations = this.config.maxInlineComments || 50;
-      await this.checksService.createCheckRun(headSha, results.summary, results.issues, maxAnnotations);
+      await this.checksService.createCheckRun(
+        headSha,
+        results.summary,
+        results.issues,
+        maxAnnotations,
+      );
     }
 
     if (this.config.blockPipeline) {

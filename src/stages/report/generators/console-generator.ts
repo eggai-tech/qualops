@@ -60,6 +60,7 @@ export function generateDetailedConsoleOutput(report: ReportMetadata): void {
 
 export function logProgress(stage: string, current: number, total: number): void {
   const percentage = Math.round((current / total) * 100);
-  const progressBar = '█'.repeat(Math.floor(percentage / 5)) + '░'.repeat(20 - Math.floor(percentage / 5));
+  const progressBar =
+    '█'.repeat(Math.floor(percentage / 5)) + '░'.repeat(20 - Math.floor(percentage / 5));
   logger.info(`[${stage}] ${progressBar} ${percentage}% (${current}/${total})`);
 }

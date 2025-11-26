@@ -120,7 +120,9 @@ Return ONLY a JSON array with this exact format:
     for (const result of results) {
       // Validate rootCause is in allowed list AND safe for path operations
       if (!validKeys.includes(result.rootCause) || !isPathTraversalSafe(result.rootCause)) {
-        logger.warn(`Invalid root cause key "${result.rootCause}" for ${result.issueId}, setting to "other"`);
+        logger.warn(
+          `Invalid root cause key "${result.rootCause}" for ${result.issueId}, setting to "other"`,
+        );
         result.rootCause = 'other';
       }
     }

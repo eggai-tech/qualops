@@ -85,7 +85,9 @@ describe('BedrockProvider', () => {
     };
     logger.logger = mockLogger;
 
-    const tokenUtils = (await import('@/ai/shared/token-utils')) as unknown as { estimateTokens: jest.Mock };
+    const tokenUtils = (await import('@/ai/shared/token-utils')) as unknown as {
+      estimateTokens: jest.Mock;
+    };
     mockEstimateTokens = jest.fn(() => 100);
     tokenUtils.estimateTokens = mockEstimateTokens;
   });
@@ -129,12 +131,16 @@ describe('BedrockProvider', () => {
 
     it('should throw error when provider is missing from config', () => {
       const { provider: _provider, ...invalidConfig } = validStageConfig;
-      expect(() => new BedrockProvider(invalidConfig as any)).toThrow('Missing required Bedrock config: provider');
+      expect(() => new BedrockProvider(invalidConfig as any)).toThrow(
+        'Missing required Bedrock config: provider',
+      );
     });
 
     it('should throw error when model is missing from config', () => {
       const { model: _model, ...invalidConfig } = validStageConfig;
-      expect(() => new BedrockProvider(invalidConfig as any)).toThrow('Missing required Bedrock config: model');
+      expect(() => new BedrockProvider(invalidConfig as any)).toThrow(
+        'Missing required Bedrock config: model',
+      );
     });
 
     it('should throw error when inputPerMillion is missing from config', () => {
@@ -207,7 +213,9 @@ describe('BedrockProvider', () => {
         throw new Error('Failed to initialize AWS Bedrock client');
       };
 
-      await expect(provider.initialize()).rejects.toThrow('Failed to initialize AWS Bedrock client');
+      await expect(provider.initialize()).rejects.toThrow(
+        'Failed to initialize AWS Bedrock client',
+      );
     });
   });
 
@@ -679,7 +687,10 @@ describe('BedrockProvider', () => {
       };
       mockBedrockClient.send.mockResolvedValue(mockResponse);
 
-      const result = await provider.completeWithStructure<{ nested: { deep: { value: number } }; array: number[] }>({
+      const result = await provider.completeWithStructure<{
+        nested: { deep: { value: number } };
+        array: number[];
+      }>({
         messages: [{ role: 'user', content: 'Hello' }],
         schema: {},
       });

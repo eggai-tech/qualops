@@ -29,7 +29,9 @@ export function enforceStageDependencies(stages: Stage[]): Stage[] {
       if (stageSet.has(dep)) {
         visit(dep);
       } else if (dependencies.length > 0) {
-        logger.warn(`Stage '${stage}' depends on '${dep}' but it's not included. This may cause failures.`);
+        logger.warn(
+          `Stage '${stage}' depends on '${dep}' but it's not included. This may cause failures.`,
+        );
       }
     }
 

@@ -73,17 +73,21 @@ describe('GlobalRateLimiter', () => {
       (globalRateLimiter as any).lastApiRequestTime = Date.now() - 1000; // 1 second ago
 
       let wasCalled = false;
-      const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation((callback: any, ms?: number) => {
-        wasCalled = true;
-        expect(ms).toBeGreaterThan(3000); // Should wait ~4000ms
-        callback();
-        return {} as NodeJS.Timeout;
-      });
+      const setTimeoutSpy = jest
+        .spyOn(global, 'setTimeout')
+        .mockImplementation((callback: any, ms?: number) => {
+          wasCalled = true;
+          expect(ms).toBeGreaterThan(3000); // Should wait ~4000ms
+          callback();
+          return {} as NodeJS.Timeout;
+        });
 
       await globalRateLimiter.throttleApiCall('provider');
 
       expect(wasCalled).toBe(true);
-      expect(logger.debug).toHaveBeenCalledWith(expect.stringMatching(/\[RateLimit\] Enforcing \d+ms API interval/));
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.stringMatching(/\[RateLimit\] Enforcing \d+ms API interval/),
+      );
 
       setTimeoutSpy.mockRestore();
     });
@@ -97,7 +101,9 @@ describe('GlobalRateLimiter', () => {
       ];
 
       // Trigger filtering by accessing the array
-      const filtered = (globalRateLimiter as any).apiRequestTimes.filter((time: number) => now - time < 60000);
+      const filtered = (globalRateLimiter as any).apiRequestTimes.filter(
+        (time: number) => now - time < 60000,
+      );
 
       expect(filtered).toHaveLength(2);
     });

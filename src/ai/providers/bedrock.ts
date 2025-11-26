@@ -82,7 +82,9 @@ export class BedrockProvider implements AIProvider {
       throw new Error('AWS_ACCESS_KEY_ID environment variable is required for bedrock provider');
     }
     if (!envConfig.get('awsSecretAccessKey')) {
-      throw new Error('AWS_SECRET_ACCESS_KEY environment variable is required for bedrock provider');
+      throw new Error(
+        'AWS_SECRET_ACCESS_KEY environment variable is required for bedrock provider',
+      );
     }
   }
 
@@ -155,7 +157,9 @@ export class BedrockProvider implements AIProvider {
     const cacheReadTokens = response.usage?.cache_read_input_tokens || 0;
 
     if (cacheReadTokens > 0) {
-      logger.debug(`[CACHE HIT] ${cacheReadTokens.toLocaleString()} tokens from cache (90% discount)`);
+      logger.debug(
+        `[CACHE HIT] ${cacheReadTokens.toLocaleString()} tokens from cache (90% discount)`,
+      );
     }
     if (cacheCreationTokens > 0) {
       logger.debug(`[CACHE WRITE] ${cacheCreationTokens.toLocaleString()} tokens written to cache`);
@@ -274,7 +278,8 @@ export class BedrockProvider implements AIProvider {
     bedrockMessages: Array<{ role: string; content: Array<{ type: string; text: string }> }>;
     system?: Array<{ type: string; text: string }>;
   } {
-    const bedrockMessages: Array<{ role: string; content: Array<{ type: string; text: string }> }> = [];
+    const bedrockMessages: Array<{ role: string; content: Array<{ type: string; text: string }> }> =
+      [];
     const systemPrompts: string[] = [];
 
     for (const message of messages ?? []) {
@@ -294,7 +299,9 @@ export class BedrockProvider implements AIProvider {
       systemPrompts.push(systemPrompt);
     }
 
-    const system = systemPrompts.length ? systemPrompts.map((text) => ({ type: 'text', text })) : undefined;
+    const system = systemPrompts.length
+      ? systemPrompts.map((text) => ({ type: 'text', text }))
+      : undefined;
 
     if (bedrockMessages.length === 0) {
       bedrockMessages.push({
@@ -350,7 +357,10 @@ export class BedrockProvider implements AIProvider {
 
     const logFrequency = this.tokenStats.invocationCount <= 20 ? 5 : 10;
 
-    if (this.tokenStats.invocationCount % logFrequency === 0 || this.tokenStats.estimatedCost >= 0.5) {
+    if (
+      this.tokenStats.invocationCount % logFrequency === 0 ||
+      this.tokenStats.estimatedCost >= 0.5
+    ) {
       let logMsg =
         `[TOKENS][Bedrock] Invocations=${this.tokenStats.invocationCount}, ` +
         `Input=${this.tokenStats.totalInputTokens.toLocaleString()}, ` +
@@ -358,7 +368,8 @@ export class BedrockProvider implements AIProvider {
 
       if (this.cacheReadTokens > 0 || this.cacheCreationTokens > 0) {
         const cacheHitRate = ((this.cacheHits / this.tokenStats.invocationCount) * 100).toFixed(1);
-        const cacheReadSavings = (this.cacheReadTokens / 1_000_000) * (this.stageConfig.inputPerMillion * 0.9);
+        const cacheReadSavings =
+          (this.cacheReadTokens / 1_000_000) * (this.stageConfig.inputPerMillion * 0.9);
         logMsg += `, CacheWrite=${this.cacheCreationTokens.toLocaleString()}`;
         logMsg += `, CacheRead=${this.cacheReadTokens.toLocaleString()} (${cacheHitRate}% hit rate)`;
         logMsg += `, CacheSavings=$${cacheReadSavings.toFixed(4)}`;
@@ -369,7 +380,10 @@ export class BedrockProvider implements AIProvider {
     }
   }
 
-  getDetailedTokenStats(): TokenStats & { inputCostPerMillion: number; outputCostPerMillion: number } {
+  getDetailedTokenStats(): TokenStats & {
+    inputCostPerMillion: number;
+    outputCostPerMillion: number;
+  } {
     const pricing = {
       inputPerMillion: this.stageConfig.inputPerMillion,
       outputPerMillion: this.stageConfig.outputPerMillion,

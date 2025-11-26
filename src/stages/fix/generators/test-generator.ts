@@ -26,7 +26,11 @@ export interface TestGenerationOptions {
 }
 
 export function detectTestingFramework(fileContent: string, filePath: string): string {
-  if (fileContent.includes("from 'jest'") || fileContent.includes('describe(') || fileContent.includes('it(')) {
+  if (
+    fileContent.includes("from 'jest'") ||
+    fileContent.includes('describe(') ||
+    fileContent.includes('it(')
+  ) {
     return 'jest';
   }
 
@@ -359,7 +363,11 @@ function generateTeardownCode(framework: string, integration = false): string {
   }
 }
 
-function generateFallbackTest(suggestion: FixSuggestion, framework: string, testType: string): GeneratedTest {
+function generateFallbackTest(
+  suggestion: FixSuggestion,
+  framework: string,
+  testType: string,
+): GeneratedTest {
   const testCode = `// ${testType.toUpperCase()} TEST
 // Generated as fallback for fix: ${suggestion.explanation}
 

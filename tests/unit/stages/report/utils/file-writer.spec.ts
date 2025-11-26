@@ -55,7 +55,9 @@ describe('file-writer', () => {
       const result = await writeReportFile(fileName, content);
 
       expect(mockWriteFile).toHaveBeenCalledWith(expect.any(String), content, 'utf-8');
-      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Wrote test.txt report'));
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Wrote test.txt report'),
+      );
       expect(result).toBe(path.join('/test/session/reports', fileName));
     });
 
@@ -144,12 +146,18 @@ describe('file-writer', () => {
 
       expect(result).toHaveLength(3);
       expect(mockWriteFile).toHaveBeenCalledTimes(3);
-      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Successfully wrote 3 report files'));
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        expect.stringContaining('Successfully wrote 3 report files'),
+      );
     });
 
     it('should pass custom options to each write', async () => {
       const reports = [
-        { fileName: 'file1.txt', content: 'content1', options: { encoding: 'ascii' as BufferEncoding } },
+        {
+          fileName: 'file1.txt',
+          content: 'content1',
+          options: { encoding: 'ascii' as BufferEncoding },
+        },
         { fileName: 'file2.txt', content: 'content2', options: { createDir: false } },
       ];
 
@@ -176,7 +184,9 @@ describe('file-writer', () => {
       ];
 
       await expect(writeMultipleReports(reports)).rejects.toThrow('Write failed');
-      expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to write some report files'));
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to write some report files'),
+      );
     });
 
     it('should handle empty reports array', async () => {
@@ -259,7 +269,11 @@ describe('file-writer', () => {
 
       await writeJSONReport(jsonData);
 
-      expect(mockWriteFile).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('"value": null'), 'utf-8');
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.stringContaining('"value": null'),
+        'utf-8',
+      );
     });
 
     it('should handle empty object', async () => {
@@ -281,7 +295,11 @@ describe('file-writer', () => {
 
       await writeJSONReport(jsonData);
 
-      expect(mockWriteFile).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('deep'), 'utf-8');
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.stringContaining('deep'),
+        'utf-8',
+      );
     });
   });
 

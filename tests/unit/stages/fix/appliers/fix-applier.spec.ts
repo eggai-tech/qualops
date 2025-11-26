@@ -2,7 +2,12 @@ import { readFile, writeFile } from 'node:fs/promises';
 
 import type { FixSuggestion } from '@/shared/types';
 import { createBackup } from '@/stages/fix/appliers/backup-manager';
-import { applyMultipleFixes, applySafeFixes, applySingleFix, canApplyFix } from '@/stages/fix/appliers/fix-applier';
+import {
+  applyMultipleFixes,
+  applySafeFixes,
+  applySingleFix,
+  canApplyFix,
+} from '@/stages/fix/appliers/fix-applier';
 
 jest.mock('node:fs/promises');
 jest.mock('@/shared/utils/file-utils');
@@ -71,7 +76,10 @@ describe('applySingleFix', () => {
       const result = await applySingleFix(mockSuggestion);
 
       expect(result.success).toBe(true);
-      expect(mockWriteFile).toHaveBeenCalledWith('/project/test.ts', expect.stringContaining('const x = 2;'));
+      expect(mockWriteFile).toHaveBeenCalledWith(
+        '/project/test.ts',
+        expect.stringContaining('const x = 2;'),
+      );
     });
 
     it('should handle multiple occurrences using first match', async () => {
@@ -466,7 +474,9 @@ describe('applyMultipleFixes', () => {
   });
 
   it('should continue processing after failures', async () => {
-    mockReadFile.mockRejectedValueOnce(new Error('File not found')).mockResolvedValueOnce('const y = 1;');
+    mockReadFile
+      .mockRejectedValueOnce(new Error('File not found'))
+      .mockResolvedValueOnce('const y = 1;');
 
     const results = await applyMultipleFixes(mockSuggestions);
 
@@ -626,7 +636,9 @@ describe('applySafeFixes', () => {
   });
 
   it('should handle all safe suggestions', async () => {
-    const safeSuggestions = mockSuggestions.filter((s) => s.confidence === 'high' && !s.breaking && s.suggestedCode);
+    const safeSuggestions = mockSuggestions.filter(
+      (s) => s.confidence === 'high' && !s.breaking && s.suggestedCode,
+    );
 
     const results = await applySafeFixes(mockSuggestions);
 

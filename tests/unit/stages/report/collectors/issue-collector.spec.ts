@@ -129,7 +129,9 @@ describe('issue-collector', () => {
 
       expect(result.topPriorityIssues).toHaveLength(5);
       expect(
-        result.topPriorityIssues.every((issue) => issue.severity === 'critical' || issue.severity === 'high'),
+        result.topPriorityIssues.every(
+          (issue) => issue.severity === 'critical' || issue.severity === 'high',
+        ),
       ).toBe(true);
     });
 

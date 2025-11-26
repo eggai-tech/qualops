@@ -17,7 +17,11 @@ export class SimpleDocumentationLoader {
     let totalSize = 0;
     const MAX_SIZE = 500000;
 
-    const criticalOwaspFiles = ['Authentication.md', 'Cross_Site_Scripting_Prevention.md', 'Injection_Prevention.md'];
+    const criticalOwaspFiles = [
+      'Authentication.md',
+      'Cross_Site_Scripting_Prevention.md',
+      'Injection_Prevention.md',
+    ];
 
     for (const file of criticalOwaspFiles) {
       const filePath = join(DOCS_BASE_PATH, 'owasp', file);

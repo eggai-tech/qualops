@@ -63,7 +63,9 @@ export class OpenAIProvider implements AIProvider {
       });
       this.initialized = true;
     } catch (error) {
-      throw new Error(`Failed to initialize OpenAI provider: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to initialize OpenAI provider: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -113,8 +115,11 @@ export class OpenAIProvider implements AIProvider {
       // Prompt caching stats
       if (this.cachedTokens > 0) {
         const cacheHitRate = ((this.cacheHits / stats.invocationCount) * 100).toFixed(1);
-        const cachedSavings = (this.cachedTokens / 1_000_000) * (this.stageConfig.inputPerMillion * 0.5);
-        logger.info(`   Cached tokens: ${this.cachedTokens.toLocaleString()} (${cacheHitRate}% cache hit rate)`);
+        const cachedSavings =
+          (this.cachedTokens / 1_000_000) * (this.stageConfig.inputPerMillion * 0.5);
+        logger.info(
+          `   Cached tokens: ${this.cachedTokens.toLocaleString()} (${cacheHitRate}% cache hit rate)`,
+        );
         logger.info(`   Cache savings: $${cachedSavings.toFixed(4)}`);
       }
 
@@ -206,7 +211,9 @@ export class OpenAIProvider implements AIProvider {
       const jsonStr = jsonMatch ? jsonMatch[1] : response.content;
       return JSON.parse(jsonStr) as T;
     } catch (error) {
-      throw new Error(`Failed to parse structured response: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to parse structured response: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

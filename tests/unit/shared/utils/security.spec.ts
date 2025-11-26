@@ -73,7 +73,11 @@ describe('isValidGitSha', () => {
 
   it('should return true for valid SHA-256 (64 chars)', () => {
     expect(isValidGitSha('a'.repeat(64))).toBe(true);
-    expect(isValidGitSha('1234567890abcdef' + '1234567890abcdef' + '1234567890abcdef' + '1234567890abcdef')).toBe(true);
+    expect(
+      isValidGitSha(
+        '1234567890abcdef' + '1234567890abcdef' + '1234567890abcdef' + '1234567890abcdef',
+      ),
+    ).toBe(true);
   });
 
   it('should return false for SHA with wrong length', () => {
