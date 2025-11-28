@@ -99,7 +99,7 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: qualops-reports
-        path: reports/
+        path: .qualops/reports/
         retention-days: 30
 
     - name: Set Outputs
@@ -108,8 +108,8 @@ runs:
       run: |
         cd "$GITHUB_WORKSPACE"
 
-        if [ -f "reports/sessions/*/overall-report.json" ]; then
-          REPORT=$(ls -t reports/sessions/*/overall-report.json | head -1)
+        if [ -f ".qualops/reports/sessions/*/overall-report.json" ]; then
+          REPORT=$(ls -t .qualops/reports/sessions/*/overall-report.json | head -1)
           TOTAL=$(jq -r '.totalIssues // 0' "$REPORT")
           CRITICAL=$(jq -r '.issuesBySeverity.critical // 0' "$REPORT")
           HIGH=$(jq -r '.issuesBySeverity.high // 0' "$REPORT")
@@ -119,8 +119,8 @@ runs:
           echo "high-issues=$HIGH" >> $GITHUB_OUTPUT
         fi
 
-        if [ -f "reports/sessions/*/judge-decision.json" ]; then
-          JUDGE=$(ls -t reports/sessions/*/judge-decision.json | head -1)
+        if [ -f ".qualops/reports/sessions/*/judge-decision.json" ]; then
+          JUDGE=$(ls -t .qualops/reports/sessions/*/judge-decision.json | head -1)
           PASSED=$(jq -r '.passed // false' "$JUDGE")
           echo "quality-passed=$PASSED" >> $GITHUB_OUTPUT
         fi

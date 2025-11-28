@@ -83,7 +83,7 @@ export class GitHubIntegration {
 
   private loadConfig(): GitHubConfig {
     try {
-      const configPath = join(process.cwd(), '.qualopsrc.json');
+      const configPath = join(process.cwd(), '.qualops/.qualopsrc.json');
       if (!existsSync(configPath)) return {};
 
       const config: QualOpsConfig = JSON.parse(readFileSync(configPath, 'utf8'));

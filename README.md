@@ -68,7 +68,7 @@ Then use `/setup-qualops` in Claude Code. The AI will guide you through configur
 
 ## Configuration
 
-Create `.qualopsrc.json` in your project root:
+Create `.qualops/.qualopsrc.json` in your project:
 
 ```json
 {

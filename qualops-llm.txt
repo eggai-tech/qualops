@@ -1,6 +1,61 @@
 # QualOps Custom Pipeline Creation Guide
 # For LLM Agents assisting users in creating specialized review configurations
 
+## ⚠️ CRITICAL CONFIGURATION RULES - READ FIRST ⚠️
+
+When generating `.qualopsrc.json` files, you MUST follow these rules EXACTLY:
+
+### AI Configuration Structure
+```json
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",   // ✅ ALWAYS this exact model
+      "inputPerMillion": 3.0,                  // ✅ DIRECT property (NOT nested)
+      "outputPerMillion": 15.0,                // ✅ DIRECT property (NOT nested)
+      "temperature": 0.1
+    }
+  }
+}
+```
+
+### ❌ COMMON MISTAKES TO AVOID:
+1. **NEVER** use model `"claude-sonnet-4-20250514"` - ALWAYS use `"claude-sonnet-4-5-20250929"`
+2. **NEVER** nest cost fields in a `"costs"` object - they MUST be direct properties
+3. **NEVER** use field names `"inputTokensPerMillion"` or `"outputTokensPerMillion"`
+4. **ALWAYS** use `"inputPerMillion"` and `"outputPerMillion"` as the exact field names
+
+### ❌ WRONG Examples (DO NOT USE):
+```json
+{
+  "ai": {
+    "reviewStage": {
+      "model": "claude-sonnet-4-20250514",    // ❌ WRONG model
+      "costs": {                              // ❌ WRONG - no nesting
+        "inputTokensPerMillion": 3.0,         // ❌ WRONG field name
+        "outputTokensPerMillion": 15.0        // ❌ WRONG field name
+      }
+    }
+  }
+}
+```
+
+### ✅ CORRECT Example (ALWAYS USE THIS):
+```json
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",   // ✅ Correct model
+      "inputPerMillion": 3.0,                  // ✅ Direct property
+      "outputPerMillion": 15.0,                // ✅ Direct property
+      "temperature": 0.1
+    }
+  }
+}
+```
+
 ## PURPOSE
 This guide enables LLM agents to help users create custom QualOps review pipelines for specific purposes:
 - Security-focused reviews
@@ -15,18 +70,20 @@ This guide enables LLM agents to help users create custom QualOps review pipelin
 ### Configuration Hierarchy
 1. **Main Config**: `.qualopsrc.json` (project root) - Default configuration
 2. **Custom Configs**: `<name>.qualopsrc.json` - Specialized configurations (location is flexible)
-3. **Prompts**: `prompts/<name>/` directory - Custom prompt files
+3. **Prompts**: `.qualops/prompts/<name>/` directory - Custom prompt files
 
 **Recommended directory structure** (adapt to your project):
 ```
 your-project/
-├── .qualopsrc.json                          # Main config
+
 ├── .github/workflows/qualops.yml            # GitHub Actions (if using GitHub)
 ├── .gitlab-ci.yml                           # GitLab CI (if using GitLab)
-└── prompts/                                 # Custom prompts directory
-    └── <review-name>/
-        ├── review-system-message.md
-        └── validation.md
+└── .qualops                                 # Main qualops folder
+    ├── .qualopsrc.json                      # Main config
+    └── prompts/                             # Custom prompts directory
+        └── <review-name>/
+            ├── review-system-message.md
+            └── validation.md
 ```
 
 ### Config Inheritance Model
@@ -38,10 +95,10 @@ Custom configs inherit from main `.qualopsrc.json`:
 ### Usage
 ```bash
 # Default config
-npx qualops
+npx @aggai/qualops
 
 # Custom config
-npx qualops --config security-auditor.qualopsrc.json
+npx @aggai/qualops --config security-auditor.qualopsrc.json
 ```
 
 ## CRITICAL WARNINGS - COMMON MISTAKES
@@ -69,29 +126,29 @@ npx qualops --config security-auditor.qualopsrc.json
 ```
 
 ### ⚠️ MISTAKE 2: Wrong Prompt Paths
-**Problem**: Prompt paths should be relative to `prompts/` directory, NOT include "prompts/" prefix.
-**Error**: "Failed to load prompt: prompts/prompts/security-auditor/validation.md"
-**Solution**: Use `"<name>/file.md"` format, not `"prompts/<name>/file.md"`
+**Problem**: Prompt paths should be relative to `.qualops/prompts/` directory, NOT include ".qualops/prompts/" prefix.
+**Error**: "Failed to load prompt: .qualops/prompts/.qualops/prompts/security-auditor/validation.md"
+**Solution**: Use `"<name>/file.md"` format, not `.qualops/prompts/<name>/file.md"`
 
 ```json
-// ❌ WRONG - Duplicates "prompts/" in path
+// ❌ WRONG - Duplicates ".qualops/prompts/" in path
 {
   "validation": {
-    "prompt": "prompts/security-auditor/validation.md"  // Will look for prompts/prompts/...
+    "prompt": ".qualops/prompts/security-auditor/validation.md"  // Will look for .qualops/prompts/.qualops/prompts/...
   }
 }
 
-// ✅ CORRECT - Relative to prompts/ directory
+// ✅ CORRECT - Relative to .qualops/prompts/ directory
 {
   "validation": {
-    "prompt": "security-auditor/validation.md"  // System adds prompts/ prefix
+    "prompt": "security-auditor/validation.md"  // System adds .qualops/prompts/ prefix
   }
 }
 ```
 
 **Path Resolution:**
-- Standard prompts: Just filename (e.g., `"validation.md"` → `prompts/validation.md`)
-- Custom prompts: Subdirectory + filename (e.g., `"security-auditor/validation.md"` → `prompts/security-auditor/validation.md`)
+- Standard prompts: Just filename (e.g., `"validation.md"` → `.qualops/prompts/validation.md`)
+- Custom prompts: Subdirectory + filename (e.g., `"security-auditor/validation.md"` → `.qualops/prompts/security-auditor/validation.md`)
 
 ### ⚠️ MISTAKE 3: Response Format in Custom Prompts
 **Problem**: Including `<response_format>` or OUTPUT sections in custom prompts causes parsing failures.
@@ -381,17 +438,17 @@ When referencing prompts in configuration:
 **Path Resolution Logic:**
 ```
 Config value: "security-auditor/validation.md"
-System resolves to: prompts/security-auditor/validation.md
-                    ^^^^^^^^
-                    System adds "prompts/" prefix automatically
+System resolves to: .qualops/prompts/security-auditor/validation.md
+                    ^^^^^^^^^^^^^^^^^
+                    System adds ".qualops/prompts/" prefix automatically
 ```
 
-**❌ NEVER include "prompts/" in the config:**
+**❌ NEVER include ".qualops/prompts/" in the config:**
 ```json
-"prompt": "prompts/security-auditor/validation.md"  // WRONG - creates prompts/prompts/...
+"prompt": ".qualops/prompts/security-auditor/validation.md"  // WRONG - creates .qualops/prompts/.qualops/prompts/...
 ```
 
-**✅ ALWAYS use relative path from prompts/ directory:**
+**✅ ALWAYS use relative path from .qualops/prompts/ directory:**
 ```json
 "prompt": "security-auditor/validation.md"  // CORRECT
 ```
@@ -404,7 +461,7 @@ Create the following files in the target project:
 Path: `.qualopsrc.json` or `<name>.qualopsrc.json`
 
 **3.2 Prompt Directory (if custom prompt)**
-Path: `prompts/<name>/`
+Path: `.qualops/prompts/<name>/`
 Files: `review-system-message.md`, `validation.md` (optional), `deduplication.md` (optional)
 
 **3.3 CI Workflow (if CI integration)**
@@ -419,25 +476,29 @@ Path: `.github/workflows/qualops.yml` (GitHub) or `.gitlab-ci.yml` (GitLab)
   "ai": {
     // REQUIRED: AI provider configuration for each stage
     // Custom configs do NOT inherit this from main config
+    //
+    // ⚠️ CRITICAL: ALWAYS use "claude-sonnet-4-5-20250929" as the model value
+    // ⚠️ CRITICAL: Cost fields are "inputPerMillion" and "outputPerMillion" (NOT nested in a "costs" object)
+    // ⚠️ CRITICAL: Do NOT use "inputTokensPerMillion" or "outputTokensPerMillion" - these are WRONG field names
     "reviewStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // ⚠️ ALWAYS use this model
+      "inputPerMillion": 3.0,                  // ⚠️ Direct property, NOT nested in "costs"
+      "outputPerMillion": 15.0,                // ⚠️ Direct property, NOT nested in "costs"
       "temperature": 0.1
     },
     "fixStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // ⚠️ ALWAYS use this model
+      "inputPerMillion": 3.0,                  // ⚠️ Direct property, NOT nested in "costs"
+      "outputPerMillion": 15.0,                // ⚠️ Direct property, NOT nested in "costs"
       "temperature": 0
     },
     "judgeStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // ⚠️ ALWAYS use this model
+      "inputPerMillion": 3.0,                  // ⚠️ Direct property, NOT nested in "costs"
+      "outputPerMillion": 15.0,                // ⚠️ Direct property, NOT nested in "costs"
       "temperature": 0
     }
   },
@@ -539,16 +600,16 @@ Path: `.github/workflows/qualops.yml` (GitHub) or `.gitlab-ci.yml` (GitLab)
   },
   "paths": {
     // OPTIONAL: Inherit from main config if not specified
-    "sessionsDir": "reports/sessions",
+    "sessionsDir": ".qualops/reports/sessions",
     "cacheDir": ".qualops-cache",
-    "outputDir": "reports"
+    "outputDir": ".qualops/reports"
   }
 }
 ```
 
 ### Template: Custom Review Prompt
 
-Path: `prompts/<name>/review-system-message.md`
+Path: `.qualops/prompts/<name>/review-system-message.md`
 
 ```markdown
 <role>
@@ -620,7 +681,7 @@ Before reporting an issue:
 
 ### Template: Custom Validation Prompt (Optional)
 
-Path: `prompts/<name>/validation.md`
+Path: `.qualops/prompts/<name>/validation.md`
 
 **CRITICAL**: Do NOT include response format in validation prompts. The system automatically appends the validation response specification.
 
@@ -657,11 +718,18 @@ Raise confidence if:
 
 ### Template: Custom Deduplication Prompt (Optional)
 
-Path: `prompts/<name>/deduplication.md`
+Path: `.qualops/prompts/<name>/deduplication.md`
 
 Usually the standard deduplication.md is sufficient. Only create custom if you have domain-specific deduplication logic.
 
 ## COMPLETE EXAMPLES
+
+**⚠️ CRITICAL REMINDER FOR ALL EXAMPLES BELOW:**
+When generating configurations, remember:
+1. Model: ALWAYS use `"claude-sonnet-4-5-20250929"`
+2. Cost fields: ALWAYS use `"inputPerMillion"` and `"outputPerMillion"` as DIRECT properties
+3. NEVER create a nested `"costs"` object
+4. NEVER use field names `"inputTokensPerMillion"` or `"outputTokensPerMillion"`
 
 ### Example 1: Security Auditor
 
@@ -676,23 +744,23 @@ Usually the standard deduplication.md is sufficient. Only create custom if you h
   "ai": {
     "reviewStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // Correct model
+      "inputPerMillion": 3.0,                  // Direct property (NOT nested)
+      "outputPerMillion": 15.0,                // Direct property (NOT nested)
       "temperature": 0.1
     },
     "fixStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // Correct model
+      "inputPerMillion": 3.0,                  // Direct property (NOT nested)
+      "outputPerMillion": 15.0,                // Direct property (NOT nested)
       "temperature": 0
     },
     "judgeStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // Correct model
+      "inputPerMillion": 3.0,                  // Direct property (NOT nested)
+      "outputPerMillion": 15.0,                // Direct property (NOT nested)
       "temperature": 0
     }
   },
@@ -744,7 +812,7 @@ Usually the standard deduplication.md is sufficient. Only create custom if you h
 }
 ```
 
-**Prompt**: `prompts/security-auditor/review-system-message.md`
+**Prompt**: `.qualops/prompts/security-auditor/review-system-message.md`
 ```markdown
 <role>
 You are a security expert performing vulnerability assessment on production code.
@@ -843,23 +911,23 @@ DO NOT flag:
   "ai": {
     "reviewStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // Correct model
+      "inputPerMillion": 3.0,                  // Direct property (NOT nested)
+      "outputPerMillion": 15.0,                // Direct property (NOT nested)
       "temperature": 0.1
     },
     "fixStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // Correct model
+      "inputPerMillion": 3.0,                  // Direct property (NOT nested)
+      "outputPerMillion": 15.0,                // Direct property (NOT nested)
       "temperature": 0
     },
     "judgeStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // Correct model
+      "inputPerMillion": 3.0,                  // Direct property (NOT nested)
+      "outputPerMillion": 15.0,                // Direct property (NOT nested)
       "temperature": 0
     }
   },
@@ -912,7 +980,7 @@ DO NOT flag:
 }
 ```
 
-**Prompt**: `prompts/performance-auditor/review-system-message.md`
+**Prompt**: `.qualops/prompts/performance-auditor/review-system-message.md`
 ```markdown
 <role>
 You are a performance optimization expert analyzing code for bottlenecks and anti-patterns.
@@ -993,23 +1061,23 @@ DO NOT flag:
   "ai": {
     "reviewStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // Correct model
+      "inputPerMillion": 3.0,                  // Direct property (NOT nested)
+      "outputPerMillion": 15.0,                // Direct property (NOT nested)
       "temperature": 0.1
     },
     "fixStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // Correct model
+      "inputPerMillion": 3.0,                  // Direct property (NOT nested)
+      "outputPerMillion": 15.0,                // Direct property (NOT nested)
       "temperature": 0
     },
     "judgeStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "model": "claude-sonnet-4-5-20250929",  // Correct model
+      "inputPerMillion": 3.0,                  // Direct property (NOT nested)
+      "outputPerMillion": 15.0,                // Direct property (NOT nested)
       "temperature": 0
     }
   },
@@ -1148,7 +1216,7 @@ Typically disabled for:
 
 **With extraction enabled:**
 ```
-reports/sessions/<name>/
+.qualops/reports/sessions/<name>/
 ├── issues/
 │   ├── security_input_validation/
 │   │   ├── ISSUE-001-xss-vulnerability.md
@@ -1162,7 +1230,7 @@ reports/sessions/<name>/
 
 **With extraction disabled:**
 ```
-reports/sessions/<name>/
+.qualops/reports/sessions/<name>/
 └── issues/
     ├── ISSUE-001-xss-vulnerability.md
     ├── ISSUE-002-missing-check.md
@@ -1206,7 +1274,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npx qualops \
+          npx @aggai/qualops \
             --base origin/${{ github.base_ref }} \
             --head ${{ github.event.pull_request.head.sha }} \
             --stages analyze,review,report
@@ -1215,7 +1283,7 @@ jobs:
         if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx qualops github-integration
+        run: npx @aggai/qualops github-integration
 ```
 
 ### GitHub Actions with Custom Config
@@ -1225,7 +1293,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          npx qualops \
+          npx @aggai/qualops \
             --config security-auditor.qualopsrc.json \
             --base origin/${{ github.base_ref }} \
             --head ${{ github.event.pull_request.head.sha }}
@@ -1244,11 +1312,11 @@ qualops:
   variables:
     GIT_DEPTH: 0  # Full history for git diff
   script:
-    - npx qualops --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --head $CI_COMMIT_SHA --stages analyze,review,report
-    - npx qualops gitlab-integration
+    - npx @aggai/qualops --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --head $CI_COMMIT_SHA --stages analyze,review,report
+    - npx @aggai/qualops gitlab-integration
   artifacts:
     paths:
-      - reports/
+      - .qualops/reports/
     expire_in: 7 days
 ```
 
@@ -1283,13 +1351,13 @@ After creating the custom configuration, test it:
 cat <name>.qualopsrc.json | jq .
 
 # 2. Test on a single file
-npx qualops --config <name>.qualopsrc.json --files src/some-file.ts
+npx @aggai/qualops --config <name>.qualopsrc.json --files src/some-file.ts
 
 # 3. Test on changed files (git diff)
-npx qualops --config <name>.qualopsrc.json --base main --head HEAD
+npx @aggai/qualops --config <name>.qualopsrc.json --base main --head HEAD
 
 # 4. Review session output
-cat reports/sessions/<session>/review-summary.json | jq '.summary'
+cat .qualops/reports/sessions/<session>/review-summary.json | jq '.summary'
 ```
 
 ## COMMON PATTERNS
@@ -1409,23 +1477,24 @@ Recommended structure in your project:
 
 ```
 your-project/
-├── .qualopsrc.json                          # Main config
 ├── security-auditor.qualopsrc.json          # Custom config (optional)
 ├── performance-auditor.qualopsrc.json       # Custom config (optional)
 ├── .github/
 │   └── workflows/
 │       └── qualops.yml                      # GitHub Actions workflow
 ├── .gitlab-ci.yml                           # GitLab CI config (alternative)
-└── prompts/
-    ├── security-auditor/
-    │   ├── review-system-message.md
-    │   └── validation.md
-    ├── performance-auditor/
-    │   └── review-system-message.md
-    └── <custom-initiative>/
-        ├── review-system-message.md
-        ├── validation.md                    # Optional
-        └── deduplication.md                 # Optional
+└── .qualops/
+    ├── .qualopsrc.json                      # Main config
+    └── prompts/
+        ├── security-auditor/
+        │   ├── review-system-message.md
+        │   └── validation.md
+        ├── performance-auditor/
+        │   └── review-system-message.md
+        └── <custom-initiative>/
+            ├── review-system-message.md
+            ├── validation.md                # Optional
+            └── deduplication.md             # Optional
 ```
 
 ## CHECKLIST
@@ -1434,12 +1503,12 @@ Before finalizing a custom configuration:
 
 ### CRITICAL Requirements (Must be correct or config will fail):
 - [ ] **"ai" section included** with reviewStage, fixStage, judgeStage configs
-- [ ] **Prompt paths correct** (use `"<name>/file.md"`, NOT `"prompts/<name>/file.md"`)
+- [ ] **Prompt paths correct** (use `"<name>/file.md"`, NOT `".qualops/prompts/<name>/file.md"`)
 - [ ] **No response formats** in custom prompts (system auto-appends)
 
 ### Configuration Requirements:
 - [ ] Configuration file created (`.qualopsrc.json` or `<name>.qualopsrc.json`)
-- [ ] Custom prompts (if any) in `prompts/<name>/`
+- [ ] Custom prompts (if any) in `.qualops/prompts/<name>/`
 - [ ] All JSON files are valid (test with `jq`)
 - [ ] Prompts use XML-like tags: `<role>`, `<review_principles>`
 - [ ] File patterns cover intended scope
@@ -1454,7 +1523,7 @@ Before finalizing a custom configuration:
 - [ ] Verified issues-before-validation-and-dedup.json contains expected findings
 - [ ] Documentation provided to user on how to run:
   ```bash
-  npx qualops --config <name>.qualopsrc.json
+  npx @aggai/qualops --config <name>.qualopsrc.json
   ```
 
 ### CI Requirements (if enabling CI integration):
@@ -1473,13 +1542,18 @@ This guide enables you to help users create specialized QualOps review pipelines
 5. Generating CI workflows (GitHub Actions or GitLab CI)
 6. Testing and validating the configuration
 
-### FOUR CRITICAL RULES (Never forget):
+### SIX CRITICAL RULES (Never forget):
 
 1. **ALWAYS include "ai" section** in custom configs (reviewStage, fixStage, judgeStage)
-2. **NEVER include "prompts/" prefix** in prompt paths (use `"<name>/file.md"`, not `"prompts/<name>/file.md"`)
-3. **NEVER include response format** in custom prompts (system auto-appends `<response_format>`, issues section, etc.)
-4. **ALWAYS define "taxonomy" array** if `enableRootCauseExtraction: true` (no defaults, config-driven only)
+2. **ALWAYS use correct model and cost fields** in "ai" section:
+   - Model: `"claude-sonnet-4-5-20250929"` (NOT `"claude-sonnet-4-20250514"`)
+   - Cost fields: `"inputPerMillion"` and `"outputPerMillion"` as DIRECT properties (NOT nested in a `"costs"` object)
+   - NEVER use `"inputTokensPerMillion"` or `"outputTokensPerMillion"` (wrong field names)
+3. **NEVER include ".qualops/prompts/" prefix** in prompt paths (use `"<name>/file.md"`, not `".qualops/prompts/<name>/file.md"`)
+4. **NEVER include response format** in custom prompts (system auto-appends `<response_format>`, issues section, etc.)
+5. **ALWAYS define "taxonomy" array** if `enableRootCauseExtraction: true` (no defaults, config-driven only)
+6. **VERIFY the generated config** matches the examples in this document exactly (check model name, field names, and structure)
 
-These four mistakes will cause the pipeline to fail. Everything else is negotiable.
+These six mistakes will cause the pipeline to fail. Everything else is negotiable.
 
 Remember: Custom configs inherit from main config, so only specify what needs to be different.

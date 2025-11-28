@@ -6,6 +6,7 @@ import { generateIndexCommand } from './cli/commands/generate-index-command';
 import { initClaudeCommand } from './cli/commands/init-claude-command';
 import { withErrorHandling } from './cli/utils/error-handler';
 import { formatHelpText } from './cli/utils/help-formatter';
+import { DEFAULT_CONFIG_PATH } from './config/config';
 
 const runQualOps = withErrorHandling(executeAllStages, 'qualops');
 
@@ -17,8 +18,8 @@ program
   .version('1.0.0')
   .option(
     '-c, --config <path>',
-    'path to config file (default: .qualopsrc.json)',
-    '.qualopsrc.json',
+    `path to config file (default: ${DEFAULT_CONFIG_PATH})`,
+    DEFAULT_CONFIG_PATH,
   )
   .option('-b, --base <branch>', 'base branch for comparison', 'main')
   .option('-h, --head <ref>', 'head ref for comparison (defaults to HEAD)')

@@ -9,7 +9,7 @@ export function buildSessionPath(sessionName: string, reportRoot: string) {
 
   // Validate reportRoot stays within expected directory
   const resolvedRoot = resolve(reportRoot);
-  const expectedBase = resolve('./reports');
+  const expectedBase = resolve('.qualops/reports');
   if (!resolvedRoot.startsWith(expectedBase)) {
     throw new Error(`Invalid report root path: ${reportRoot}`);
   }

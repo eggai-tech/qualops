@@ -153,6 +153,20 @@ describe('ConfigService', () => {
       expect(() => ConfigService.getInstance()).not.toThrow();
     });
 
+    it('should load configuration from .qualops/.qualopsrc.json', () => {
+      const rcConfig = {
+        review: { maxConcurrentFiles: 15 },
+        ai: { reviewStage: { provider: 'anthropic', model: 'claude-3' } },
+      };
+
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify(rcConfig));
+
+      const instance = ConfigService.getInstance();
+      expect(instance.get('review')).toEqual(rcConfig.review);
+      expect(instance.get('ai')).toEqual(rcConfig.ai);
+    });
+
     it('should handle invalid JSON in .qualopsrc.json', () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue('invalid json');

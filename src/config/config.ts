@@ -21,9 +21,11 @@ export const CACHE_CONFIG = {
   TTL_DAYS: 7,
 } as const;
 
+export const DEFAULT_CONFIG_PATH = '.qualops/.qualopsrc.json';
+
 export class ConfigService {
   private static instance: ConfigService | undefined;
-  private static configPath = '.qualopsrc.json';
+  private static configPath = DEFAULT_CONFIG_PATH;
   private config: Config;
   private rawConfig: Record<string, unknown>;
   private readonly defaultConfig: Config = {
