@@ -3,5 +3,5 @@
  * @returns The default report root directory name
  */
 export function getDefaultReportRoot(): string {
-  return 'reports';
+  return '.qualops/reports';
 }

@@ -13,7 +13,6 @@ tsconfig*.json
 eslint.config.js
 
 # Reports and caches
-reports/
 .qualops/
 
 # Docs

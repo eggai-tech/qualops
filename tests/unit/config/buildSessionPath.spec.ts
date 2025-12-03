@@ -9,7 +9,7 @@ const mockReadFileSync = readFileSync as jest.MockedFunction<typeof readFileSync
 
 describe('buildSessionPath', () => {
   it('should build session paths', () => {
-    const sessionPath = buildSessionPath('test-session', 'reports');
+    const sessionPath = buildSessionPath('test-session', '.qualops/reports');
     expect(sessionPath.base()).toContain('test-session');
     expect(sessionPath.analysis()).toContain('analysis.json');
     expect(sessionPath.reviewSummary()).toContain('review-summary.json');
@@ -31,12 +31,12 @@ describe('buildSessionPath', () => {
     mockReadFileSync.mockReturnValue(
       JSON.stringify({
         paths: {
-          sessionsDir: 'reports/custom-sessions',
+          sessionsDir: '.qualops/reports/custom-sessions',
         },
       }),
     );
-    const sessionPath = buildSessionPath('test-session', 'reports/custom');
-    expect(sessionPath.base()).toContain('reports/custom/sessions');
+    const sessionPath = buildSessionPath('test-session', '.qualops/reports/custom');
+    expect(sessionPath.base()).toContain('.qualops/reports/custom/sessions');
     expect(sessionPath.base()).toContain('test-session');
   });
 });

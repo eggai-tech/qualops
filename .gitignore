@@ -1,7 +1,6 @@
 # Runtime and cache
-.qualops/
-reports/
-projects/
+.qualops/reports/
+.qualops/projects/
 
 # Build output
 dist/

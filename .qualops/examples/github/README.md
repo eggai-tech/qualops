@@ -10,7 +10,7 @@ This directory contains example configurations and workflows for using QualOps w
 
 ## Quick Setup
 
-1. Copy `.qualopsrc.json` to your repository root
+1. Copy `.qualopsrc.json` to your repository into `.qualops` folder
 2. Copy one of the workflow files to `.github/workflows/`
 3. Add `ANTHROPIC_API_KEY` to repository secrets
 4. Open a pull request to see QualOps in action!

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { PromptConfig } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
 
-const PROMPTS_BASE_PATH = join(process.cwd(), 'examples/prompts');
+const PROMPTS_BASE_PATH = join(process.cwd(), '.qualops/prompts');
 
 interface LoadedPrompt {
   content: string;
