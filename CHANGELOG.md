@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Agentic reviewer mode using Claude Agent SDK for PR-level analysis
+- Context preloading: inject diffs/content directly into agent prompt (70% fewer tool calls)
+- Cross-file dependency tracing with `find_usages` tool
+- Security analysis subagent for vulnerability detection
+- Custom agent support via configuration or markdown files in `.qualops/agents/`
+
+### Changed
+- Pipeline jobs now support `mode: 'file-by-file' | 'agentic'` configuration
+- Extended `AgenticConfig` with `contextMode`, `maxTokensPerFile`, `maxTotalTokens` options
+
 ## [0.1.1] - 2025-01-06
 
 ### Added

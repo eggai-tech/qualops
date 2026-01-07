@@ -11,6 +11,7 @@ import type { ReviewIssue } from '../../../shared/types';
 import type { FileInfo, PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config';
 import { processConcurrently } from '../../../shared/utils/concurrency';
 import { logger } from '../../../shared/utils/logger';
+import { AgenticExecutor } from '../agentic';
 import { ConfigLoader } from '../loaders/config-loader';
 import { DocDiscovery } from '../loaders/doc-discovery';
 import { FilterMatcher } from '../loaders/filter-matcher';
@@ -38,8 +39,17 @@ export class PipelineExecutor {
     const enabledJobs = ConfigLoader.getInstance().getEnabledJobs();
 
     for (const { job, passes } of enabledJobs) {
-      logger.info(`[Pipeline] Executing job: ${job.name} (${passes.length} passes)`);
-      const jobIssues = await this.executeJob(job, passes, files);
+      const mode = job.mode || 'file-by-file';
+      logger.info(`[Pipeline] Executing job: ${job.name} (mode: ${mode})`);
+
+      let jobIssues: ReviewIssue[];
+
+      if (mode === 'agentic') {
+        jobIssues = await this.executeAgenticJob(job, files);
+      } else {
+        jobIssues = await this.executeJob(job, passes, files);
+      }
+
       allIssues.push(...jobIssues);
       logger.info(`[Pipeline] Job "${job.name}" completed: ${jobIssues.length} issues`);
     }
@@ -54,6 +64,27 @@ export class PipelineExecutor {
     logger.info(`[Pipeline] Pre-validation dump saved to ${dumpPath}`);
 
     return allIssues;
+  }
+
+  private async executeAgenticJob(job: PipelineJob, files: FileInfo[]): Promise<ReviewIssue[]> {
+    logger.info(`[Pipeline] Starting agentic review for job: ${job.name}`);
+
+    const executor = new AgenticExecutor(job);
+    const rawIssues = await executor.execute(files);
+
+    this.preValidationDump[job.name] = rawIssues;
+
+    const validatedIssues = await this.validationResolver.validate(rawIssues, job);
+    logger.info(
+      `[Pipeline] Job "${job.name}" validation: ${validatedIssues.length}/${rawIssues.length} issues passed`,
+    );
+
+    const dedupedIssues = await this.dedupResolver.deduplicate(validatedIssues, job);
+    logger.info(
+      `[Pipeline] Job "${job.name}" deduplication: ${dedupedIssues.length}/${validatedIssues.length} issues kept`,
+    );
+
+    return dedupedIssues;
   }
 
   private async executeJob(

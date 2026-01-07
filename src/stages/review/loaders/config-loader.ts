@@ -44,6 +44,11 @@ export class ConfigLoader {
         throw new Error('Pipeline job must have a name');
       }
 
+      // Agentic mode jobs don't require passes
+      if (job.mode === 'agentic') {
+        continue;
+      }
+
       if (!job.passes || !Array.isArray(job.passes)) {
         throw new Error(`Pipeline job "${job.name}" must have passes array`);
       }
@@ -75,9 +80,9 @@ export class ConfigLoader {
       .filter((job) => job.enabled !== false)
       .map((job) => ({
         job,
-        passes: job.passes.filter((pass) => pass.enabled !== false),
+        passes: (job.passes || []).filter((pass) => pass.enabled !== false),
       }))
-      .filter((item) => item.passes.length > 0);
+      .filter((item) => item.job.mode === 'agentic' || item.passes.length > 0);
   }
 
   reset(): void {
