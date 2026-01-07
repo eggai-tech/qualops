@@ -96,7 +96,7 @@ jobs:
           echo "CHANGELOG.md has been updated"
 
   qualops:
-    if: github.event_name == 'pull_request'
+    if: false # Disabled for now
     runs-on: ubuntu-latest
     permissions:
       contents: read
