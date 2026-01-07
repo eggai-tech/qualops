@@ -1,3 +1,28 @@
+export type ReviewMode = 'file-by-file' | 'agentic';
+
+export type AgenticSubagentType =
+  | 'dependency-tracer'
+  | 'breaking-change-detector'
+  | 'security-analyzer'
+  | 'pattern-validator';
+
+export interface CustomAgentDefinition {
+  name: string;
+  description: string;
+  prompt: string;
+  tools?: string[];
+  model?: 'sonnet' | 'opus' | 'haiku';
+}
+
+export interface AgenticConfig {
+  maxTurns?: number;
+  maxBudgetUsd?: number;
+  enabledSubagents?: AgenticSubagentType[];
+  customAgents?: CustomAgentDefinition[];
+  agentsDir?: string;
+  systemPrompt?: string;
+}
+
 export interface ReviewConfig {
   minConfidence?: number;
   sessionBased?: boolean;
@@ -12,6 +37,8 @@ export interface ReviewConfig {
 export interface PipelineJob {
   name: string;
   enabled: boolean;
+  mode?: ReviewMode;
+  agentic?: AgenticConfig;
   validation?: ValidationConfig;
   deduplication?: DeduplicationConfig;
   passes: ReviewPass[];

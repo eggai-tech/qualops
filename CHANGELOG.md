@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Agentic reviewer mode using Claude Agent SDK for PR-level analysis
+- Cross-file dependency tracing with `find_usages` and `trace_imports` tools
+- Breaking change detection across file boundaries
+- Security analysis subagent for vulnerability detection
+- Pattern validation subagent for code consistency checks
+- Custom agent support via configuration or markdown files in `.qualops/agents/`
+- Example agents: migration checker, comment rewriter, RxJS migration, Angular signals
+
+### Changed
+- Pipeline jobs now support `mode: 'file-by-file' | 'agentic'` configuration
+- Extended `PipelineJob` type with optional `agentic` configuration block
+
 ## [0.1.1] - 2025-01-06
 
 ### Added
