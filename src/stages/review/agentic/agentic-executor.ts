@@ -74,12 +74,8 @@ export class AgenticExecutor {
             'Read',
             'Grep',
             'Glob',
-            'Task',
             'mcp__qualops-agentic-tools__find_usages',
-            'mcp__qualops-agentic-tools__trace_imports',
             'mcp__qualops-agentic-tools__git_diff_analysis',
-            'mcp__qualops-agentic-tools__analyze_exports',
-            'mcp__qualops-agentic-tools__find_interface_changes',
             'mcp__qualops-agentic-tools__list_changed_files',
           ],
           mcpServers: {
@@ -93,12 +89,30 @@ export class AgenticExecutor {
       });
 
       for await (const message of result) {
+        logger.info(
+          `[Agentic] Message: type=${message.type}, subtype=${'subtype' in message ? message.subtype : 'N/A'}`,
+        );
+
         if (message.type === 'assistant') {
-          logger.debug(`[Agentic] Assistant message received`);
+          const content = 'message' in message ? message.message?.content : null;
+          if (content && Array.isArray(content)) {
+            for (const block of content) {
+              if (block.type === 'text') {
+                logger.info(
+                  `[Agentic] Assistant text (first 200 chars): ${block.text.substring(0, 200)}`,
+                );
+              } else if (block.type === 'tool_use') {
+                logger.info(`[Agentic] Tool call: ${block.name}`);
+              }
+            }
+          }
         }
 
         if (message.type === 'result') {
           if (message.subtype === 'success' && message.result) {
+            logger.info(
+              `[Agentic] Success result (first 500 chars): ${message.result.substring(0, 500)}`,
+            );
             const parsed = this.parseIssuesFromResult(message.result, files);
             issues.push(...parsed);
             logger.info(`[Agentic] Parsed ${parsed.length} issues from result`);
@@ -116,85 +130,115 @@ export class AgenticExecutor {
     return issues;
   }
 
-  private buildSystemPrompt(allAgents: Record<string, AgentDefinition>): string {
-    const agentList = Object.entries(allAgents)
-      .map(([name, def]) => `- **${name}**: ${def.description}`)
-      .join('\n');
+  private buildSystemPrompt(_allAgents: Record<string, AgentDefinition>): string {
+    const customPrompt = this.config.systemPrompt || '';
 
-    return `You are an expert code reviewer performing a comprehensive PR review.
+    return `You are a code reviewer. File contents and diffs are provided below.
 
-Your job is to coordinate specialized subagents to analyze the changed files and identify issues.
+${customPrompt}
 
-## Available Subagents
+## Process
 
-You have access to these specialized subagents via the Task tool:
-${agentList}
-
-## Review Process
-
-1. First, understand the scope of changes using list_changed_files and git_diff_analysis
-2. Analyze dependencies between changed files using trace_imports
-3. Delegate specialized analysis to appropriate subagents based on the task
-4. Collect and deduplicate findings from all subagents
-5. Return a final consolidated list of issues
+1. Analyze the provided code/diffs
+2. Use Grep/Glob ONLY if checking external dependencies
+3. Output JSON findings
 
 ## Output Format
-
-After all analysis is complete, output the final issues as a JSON array:
 
 \`\`\`json
 [
   {
-    "type": "security|performance|bug|maintainability",
+    "type": "security|bug|performance|maintainability",
     "severity": "critical|high|medium|low",
-    "description": "Clear description of the issue",
-    "location": "file:line",
-    "reasoning": "Why this is problematic",
+    "description": "What the issue is",
+    "location": "src/file.ts:42",
+    "reasoning": "Why this is a problem",
     "suggestion": "How to fix it",
-    "confidence": 7-10
+    "confidence": 8
   }
 ]
 \`\`\`
 
-Only include issues with confidence >= 7. If no issues are found, return an empty array.
+If no issues found, output: \`\`\`json\n[]\n\`\`\`
 
-## Important Guidelines
+## Rules
 
-- Focus on the CHANGED code, not the entire codebase
-- Verify findings before reporting - use tools to confirm issues exist
-- Deduplicate issues that multiple subagents might find
-- Prioritize security and breaking changes over style issues
-- Be specific about file paths and line numbers`;
+- confidence >= 7
+- Focus on changed code
+- Max 10 tool calls`;
   }
 
   private buildUserPrompt(files: FileInfo[]): string {
-    const fileList = files.map((f) => `- ${f.path}`).join('\n');
+    const mode = this.config.contextMode || 'auto';
+    const maxPerFile = this.config.maxTokensPerFile || 8000;
+    const maxTotal = this.config.maxTotalTokens || 50000;
 
-    const filesWithDiffs = files.filter((f) => f.diff);
-    const diffSummary =
-      filesWithDiffs.length > 0
-        ? `\n\n## Changed Lines Summary\n${filesWithDiffs
-            .map((f) => {
-              const added = f.diff?.additions.size || 0;
-              const deleted = f.diff?.deletions.size || 0;
-              return `- ${f.path}: +${added}/-${deleted} lines`;
-            })
-            .join('\n')}`
-        : '';
+    let totalTokens = 0;
+    const fileContexts: string[] = [];
 
-    return `Please review the following files that have been changed:
+    const sorted = [...files].sort((a, b) => {
+      const aChanges = (a.diff?.additions.size || 0) + (a.diff?.deletions.size || 0);
+      const bChanges = (b.diff?.additions.size || 0) + (b.diff?.deletions.size || 0);
+      return bChanges - aChanges;
+    });
 
-## Files to Review
-${fileList}
-${diffSummary}
+    for (const file of sorted) {
+      const ctx = this.buildFileContext(file, mode, maxPerFile, maxTotal - totalTokens);
+      if (ctx) {
+        fileContexts.push(ctx);
+        totalTokens += this.estimateTokens(ctx);
+      }
+      if (totalTokens >= maxTotal) break;
+    }
 
-Perform a comprehensive code review using the available subagents. Focus on:
-1. Cross-file dependency impacts
-2. Breaking API changes
-3. Security vulnerabilities
-4. Code quality and pattern violations
+    return `Review the following changed files for issues.
 
-Return the final list of issues as JSON.`;
+${fileContexts.join('\n\n---\n\n')}
+
+Return issues as JSON. If checking dependencies, use Grep/Glob tools.`;
+  }
+
+  private buildFileContext(
+    file: FileInfo,
+    mode: string,
+    maxTokens: number,
+    remainingBudget: number,
+  ): string {
+    const budget = Math.min(maxTokens, remainingBudget);
+    const useDiff = mode === 'diff' || (mode === 'auto' && file.rawDiff);
+
+    let content: string;
+    if (useDiff && file.rawDiff) {
+      content = `### Diff\n\`\`\`diff\n${file.rawDiff}\n\`\`\``;
+    } else {
+      content = this.formatFileContent(file.content, budget);
+    }
+
+    const header = `## ${file.path}${file.framework ? ` (${file.framework})` : ''}`;
+    return `${header}\n\n${content}`;
+  }
+
+  private formatFileContent(content: string, maxTokens: number): string {
+    const lines = content.split('\n');
+    const maxLines = Math.floor(maxTokens / 10);
+
+    if (lines.length <= maxLines) {
+      return this.addLineNumbers(content);
+    }
+
+    const truncated = lines.slice(0, maxLines).join('\n');
+    return `${this.addLineNumbers(truncated)}\n[TRUNCATED: ${lines.length - maxLines} more lines]`;
+  }
+
+  private addLineNumbers(content: string): string {
+    return content
+      .split('\n')
+      .map((line, i) => `${String(i + 1).padStart(4)} | ${line}`)
+      .join('\n');
+  }
+
+  private estimateTokens(text: string): number {
+    return Math.ceil(text.length / 4);
   }
 
   private parseIssuesFromResult(result: string, files: FileInfo[]): ReviewIssue[] {

@@ -9,7 +9,7 @@ import type { AnalysisMetadata, ReviewMetadata } from '../../shared/types';
 import type { FileInfo } from '../../shared/types/config';
 import { readMetadataFile } from '../../shared/utils/file-utils';
 import { logger } from '../../shared/utils/logger';
-import { getFileDiff } from '../analyze/git/changed-files';
+import { getFileDiff, getRawFileDiff } from '../analyze/git/changed-files';
 import {
   loadExtractLog,
   saveExtractLog,
@@ -52,8 +52,10 @@ export async function reviewProjects(): Promise<ReviewMetadata> {
       const frameworkContext = detectFrameworkContext(filePath, content);
 
       let diff;
+      let rawDiff;
       if (analysisData.gitRefs) {
         diff = await getFileDiff(filePath, analysisData.gitRefs.base, analysisData.gitRefs.head);
+        rawDiff = getRawFileDiff(filePath, analysisData.gitRefs.base, analysisData.gitRefs.head);
       }
 
       files.push({
@@ -61,6 +63,7 @@ export async function reviewProjects(): Promise<ReviewMetadata> {
         content,
         framework: frameworkContext.framework,
         diff,
+        rawDiff,
       });
     } catch (error) {
       logger.error(`Failed to read file ${filePath}:`, error);

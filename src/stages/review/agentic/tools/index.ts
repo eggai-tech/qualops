@@ -246,13 +246,13 @@ function findImportingFiles(targetPath: string, cwd: string): string[] {
       .split('/')
       .pop()
       ?.replace(/\.[^.]+$/, '') || '';
-  const _dirPath = targetPath.replace(/\/[^/]+$/, '');
 
   try {
-    const result = execSync(
-      `rg -l "from\\s+['\"].*${fileName}['\"]" --type ts --type tsx ${cwd} 2>/dev/null || true`,
-      { encoding: 'utf-8', cwd },
-    );
+    const result = execSync(`rg -l "${fileName}" --type ts ${cwd} 2>/dev/null || true`, {
+      encoding: 'utf-8',
+      cwd,
+      shell: '/bin/bash',
+    });
     return result
       .trim()
       .split('\n')

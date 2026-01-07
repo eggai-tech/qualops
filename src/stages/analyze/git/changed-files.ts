@@ -8,6 +8,21 @@ export interface FileDiff {
   modifications: Set<number>;
 }
 
+export function getRawFileDiff(
+  filePath: string,
+  base = 'main',
+  head = 'HEAD',
+  contextLines = 3,
+): string {
+  try {
+    return (
+      executeGitCommand(['diff', `-U${contextLines}`, `${base}...${head}`, '--', filePath]) || ''
+    );
+  } catch {
+    return '';
+  }
+}
+
 export async function getFileDiff(
   filePath: string,
   base = 'main',

@@ -21,6 +21,9 @@ export interface AgenticConfig {
   customAgents?: CustomAgentDefinition[];
   agentsDir?: string;
   systemPrompt?: string;
+  contextMode?: 'diff' | 'full' | 'auto';
+  maxTokensPerFile?: number;
+  maxTotalTokens?: number;
 }
 
 export interface ReviewConfig {
@@ -81,6 +84,7 @@ export interface FileInfo {
     deletions: Set<number>;
     modifications: Set<number>;
   };
+  rawDiff?: string;
 }
 
 export interface ReviewTask {
