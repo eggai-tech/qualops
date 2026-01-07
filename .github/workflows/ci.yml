@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, labeled]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run build check
+        run: npm run build:check
+
+      - name: Run tests
+        run: npm test
+
+  changelog:
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check changelog updated
+        run: |
+          # Check if this is a release PR
+          if echo "${{ github.head_ref }}" | grep -qE '^release/v'; then
+            echo "Release PR detected, checking for version entry..."
+            VERSION=$(echo "${{ github.head_ref }}" | sed 's/release\/v//')
+            if grep -qE "^## \[$VERSION\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md; then
+              echo "Found version entry for $VERSION"
+              exit 0
+            else
+              echo "Error: Release PR must have version entry in CHANGELOG.md"
+              echo "Expected: ## [$VERSION] - YYYY-MM-DD"
+              exit 1
+            fi
+          fi
+
+          # For regular PRs, check if [Unreleased] section has content
+          git fetch origin main
+          CHANGELOG_DIFF=$(git diff origin/main...HEAD -- CHANGELOG.md)
+          if [ -z "$CHANGELOG_DIFF" ]; then
+            echo "Error: CHANGELOG.md has not been updated"
+            echo ""
+            echo "Please add your changes under the [Unreleased] section:"
+            echo ""
+            echo "## [Unreleased]"
+            echo ""
+            echo "### Added"
+            echo "- Your new feature"
+            echo ""
+            echo "### Fixed"
+            echo "- Your bug fix"
+            echo ""
+            echo "If this change doesn't need a changelog entry, add the 'skip-changelog' label."
+            exit 1
+          fi
+          echo "CHANGELOG.md has been updated"
+
+  qualops:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build QualOps
+        run: npm run build
+
+      - name: Run QualOps Analysis
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node dist/cli.js all \
+            --base origin/${{ github.base_ref }} \
+            --head ${{ github.event.pull_request.head.sha }} \
+            --stages analyze,review,report
+
+      - name: Post GitHub Integration
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node dist/github/run-integration.js
+
+      - name: Upload QualOps Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualops-reports
+          path: reports/
+
+  all-checks-passed:
+    if: always()
+    needs: [lint, test, changelog]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "Lint job failed"
+            exit 1
+          fi
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "Test job failed"
+            exit 1
+          fi
+          # Changelog is optional (can be skipped with label or on main push)
+          if [ "${{ needs.changelog.result }}" != "success" ] && [ "${{ needs.changelog.result }}" != "skipped" ]; then
+            echo "Changelog job failed"
+            exit 1
+          fi
+          echo "All required checks passed!"
