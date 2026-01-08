@@ -5,10 +5,11 @@ AI-powered code review for your PRs.
 ## Features
 
 - **Automated PR Reviews** - AI analyzes changed files and posts findings as PR comments
+- **Two Review Modes** - File-by-file (fast, high volume) or Agentic (cross-file analysis with Claude Agent SDK)
 - **GitHub Checks Integration** - Inline annotations directly in the "Files changed" tab
 - **Multi-stage Pipeline** - Analyze → Review → Fix → Report → Judge
 - **Framework-aware** - Detects Angular, React, Node.js and loads relevant context
-- **Customizable** - Configure severity thresholds, prompts, and AI providers
+- **Customizable** - Configure severity thresholds, prompts, AI providers, and custom agents
 - **CI/CD Ready** - GitHub Actions and GitLab CI support
 
 ## Quick Start
@@ -70,6 +71,8 @@ Then use `/setup-qualops` in Claude Code. The AI will guide you through configur
 
 Create `.qualops/.qualopsrc.json` in your project:
 
+### File-by-File Mode (Default)
+
 ```json
 {
   "ai": {
@@ -87,6 +90,26 @@ Create `.qualops/.qualopsrc.json` in your project:
   }
 }
 ```
+
+### Agentic Mode (Cross-File Analysis)
+
+```json
+{
+  "jobs": {
+    "security-audit": {
+      "mode": "agentic",
+      "agentic": {
+        "maxTurns": 20,
+        "contextMode": "auto",
+        "enabledSubagents": ["security-analyzer", "dependency-tracer"],
+        "systemPrompt": "Focus on security vulnerabilities and injection risks"
+      }
+    }
+  }
+}
+```
+
+See [qualops-llm.txt](./qualops-llm.txt) for full configuration reference.
 
 ## Environment Variables
 
@@ -109,6 +132,19 @@ AWS_SECRET_ACCESS_KEY=...
 | **fix** | Generates fix suggestions for high-confidence issues |
 | **report** | Creates HTML reports with findings |
 | **judge** | Evaluates quality against thresholds |
+
+## Review Modes
+
+| Mode | Best For | How It Works |
+|------|----------|--------------|
+| **file-by-file** | High volume, quick scans | Reviews each file independently using configured passes |
+| **agentic** | Complex analysis, cross-file issues | Agent explores codebase with tools, traces dependencies |
+
+Built-in subagents for agentic mode:
+- `dependency-tracer` - Cross-file import analysis
+- `breaking-change-detector` - API compatibility checks
+- `security-analyzer` - Vulnerability detection
+- `pattern-validator` - Codebase pattern consistency
 
 ## CLI Options
 

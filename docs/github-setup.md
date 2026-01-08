@@ -123,6 +123,35 @@ That's it! QualOps will now analyze all pull requests.
 }
 ```
 
+### Agentic Mode (Cross-File Analysis)
+
+For complex PRs requiring dependency tracing and cross-file analysis:
+
+```json
+{
+  "jobs": {
+    "security-audit": {
+      "mode": "agentic",
+      "agentic": {
+        "maxTurns": 20,
+        "contextMode": "auto",
+        "enabledSubagents": ["security-analyzer", "dependency-tracer"],
+        "systemPrompt": "Focus on security vulnerabilities"
+      }
+    }
+  }
+}
+```
+
+| Option | Description |
+|--------|-------------|
+| `maxTurns` | Max tool call cycles (default: 15) |
+| `contextMode` | `auto` (diff if available), `diff`, or `full` |
+| `enabledSubagents` | Subset of built-in subagents to use |
+| `systemPrompt` | Additional focus instructions for the agent |
+
+Built-in subagents: `dependency-tracer`, `breaking-change-detector`, `security-analyzer`, `pattern-validator`
+
 ## Advanced Usage
 
 ### Custom Stages
