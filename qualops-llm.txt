@@ -231,7 +231,27 @@ Q: What should we name this review pipeline?
 A: [user provides name] → Use for: <name>.qualopsrc.json
 ```
 
-**1.2 Review Scope**
+**1.2 Review Mode**
+```
+Q: Which review mode do you need?
+   Options:
+   - File-by-file (traditional): Reviews each file independently, best for simple checks
+   - Agentic (cross-file): Uses Claude Agent SDK for PR-level analysis with dependency tracing
+A: [user selects] → Use for: review.pipeline[].mode
+
+If AGENTIC, ask:
+Q: What should the agent focus on?
+   Examples:
+   - Security vulnerabilities and breaking changes
+   - Cross-file dependency impacts
+   - Migration validation
+A: [user describes] → Use for: review.pipeline[].agentic.systemPrompt
+
+Q: Maximum tool call cycles? (default: 15, higher = more thorough but slower)
+A: [number] → Use for: review.pipeline[].agentic.maxTurns
+```
+
+**1.3 Review Scope**
 ```
 Q: What is the primary focus of this review?
    Options:
@@ -245,7 +265,7 @@ Q: What is the primary focus of this review?
 A: [user describes scope]
 ```
 
-**1.3 Severity Focus**
+**1.4 Severity Focus**
 ```
 Q: Which severity levels should this review focus on?
    Options:
@@ -255,7 +275,7 @@ Q: Which severity levels should this review focus on?
 A: [user selects] → Use for: review.minConfidence, report.includedSeverities
 ```
 
-**1.4 Fix Stage**
+**1.5 Fix Stage**
 ```
 Q: Should the fix stage be enabled to auto-generate fixes?
    - Yes: Generates code fixes for found issues
@@ -275,7 +295,7 @@ Q: Minimum confidence for fix generation? (1-10)
 A: [number] → Use for: fix.minConfidence
 ```
 
-**1.5 Validation & Deduplication**
+**1.6 Validation & Deduplication**
 ```
 Q: Enable strict validation to reduce false positives?
    - Yes: Uses AI to validate issues (slower, more accurate)
@@ -293,7 +313,7 @@ Q: Enable deduplication to remove duplicate issues?
 A: [yes/no] → Use for: review.deduplication.enabled
 ```
 
-**1.6 Documentation Context**
+**1.7 Documentation Context**
 ```
 Q: Does this review need framework/library documentation?
    Options:
@@ -314,7 +334,7 @@ Q: Please provide:
 A: [user provides] → Create in: .qualops/unified-docs/<topic>.md
 ```
 
-**1.7 File Patterns**
+**1.8 File Patterns**
 ```
 Q: Which files should be reviewed?
    Common patterns:
@@ -329,7 +349,7 @@ Q: Which files should be excluded?
 A: [user provides] → Use for: review.pipeline[].passes[].filters.excludePatterns
 ```
 
-**1.8 Detection Triggers (Optional)**
+**1.9 Detection Triggers (Optional)**
 ```
 Q: Should this review only trigger for files containing specific patterns?
    Examples:
@@ -340,7 +360,7 @@ Q: Should this review only trigger for files containing specific patterns?
 A: [user provides or skips] → Use for: review.pipeline[].passes[].filters.detectionTriggers
 ```
 
-**1.9 Root Cause Extraction**
+**1.10 Root Cause Extraction**
 ```
 Q: Should the report include AI-powered root cause classification?
    - Yes: Organizes issues by root cause, uses AI to classify patterns (default)
@@ -1360,6 +1380,227 @@ npx @aggai/qualops --config <name>.qualopsrc.json --base main --head HEAD
 cat .qualops/reports/sessions/<session>/review-summary.json | jq '.summary'
 ```
 
+## AGENTIC REVIEW MODE
+
+### Overview
+
+QualOps supports two review modes:
+- **file-by-file**: Traditional mode - reviews each file independently (default)
+- **agentic**: Uses Claude Agent SDK for PR-level analysis with cross-file understanding
+
+Agentic mode enables:
+- Cross-file dependency tracing
+- Breaking change detection across boundaries
+- Autonomous tool use for code exploration
+- Context preloading for efficiency
+
+### Agentic Configuration
+
+```json
+{
+  "review": {
+    "pipeline": [
+      {
+        "name": "agenticSecurityAudit",
+        "enabled": true,
+        "mode": "agentic",
+        "agentic": {
+          "maxTurns": 15,
+          "contextMode": "auto",
+          "maxTokensPerFile": 8000,
+          "maxTotalTokens": 50000,
+          "enabledSubagents": ["security-analyzer", "dependency-tracer", "breaking-change-detector"],
+          "systemPrompt": "Focus on security vulnerabilities and breaking changes"
+        },
+        "validation": {
+          "enabled": true,
+          "minConfidence": 8
+        }
+      }
+    ]
+  }
+}
+```
+
+### AgenticConfig Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `maxTurns` | number | 100 | Maximum tool call cycles before stopping |
+| `contextMode` | `'diff' \| 'full' \| 'auto'` | `'auto'` | How to inject file context |
+| `maxTokensPerFile` | number | 8000 | Max tokens per file in prompt |
+| `maxTotalTokens` | number | 50000 | Max total tokens for all files |
+| `enabledSubagents` | string[] | all | Which subagents to enable |
+| `customAgents` | object[] | [] | Inline custom agent definitions |
+| `agentsDir` | string | `.qualops/agents` | Directory for markdown agents |
+| `systemPrompt` | string | `''` | Additional system prompt instructions |
+
+### Context Modes
+
+**`auto` (recommended)**: Uses diff if available, falls back to full file content
+- Git mode: Injects raw unified diff directly into prompt
+- Non-git mode: Injects line-numbered file content
+
+**`diff`**: Always use diff (fails if no git refs)
+
+**`full`**: Always use full file content (truncated if over limit)
+
+### Context Preloading Benefits
+
+| Metric | Without Preloading | With Preloading | Improvement |
+|--------|-------------------|-----------------|-------------|
+| Tool calls | ~13 | ~4 | 70% fewer |
+| Time | 126s | 90s | 29% faster |
+| Cost | $0.047 | $0.038 | 18% cheaper |
+
+### Built-in Subagents
+
+| Subagent | Purpose |
+|----------|---------|
+| `security-analyzer` | Detects security vulnerabilities |
+| `dependency-tracer` | Traces cross-file dependencies and impact |
+| `breaking-change-detector` | Identifies breaking API changes |
+
+### Available Tools
+
+The agentic reviewer has access to:
+
+**SDK Tools:**
+- `Read` - Read file contents
+- `Grep` - Search file contents with regex
+- `Glob` - Find files by pattern
+
+**Custom MCP Tools:**
+- `find_usages` - Find all usages of a symbol across codebase
+- `git_diff_analysis` - Analyze git diffs for specific files
+- `list_changed_files` - List files changed in the PR
+
+### Custom Agents
+
+Define custom agents via markdown files in `.qualops/agents/`:
+
+**Example: `.qualops/agents/migration-checker.md`**
+```markdown
+---
+name: migration-checker
+description: Validates migration patterns
+model: sonnet
+tools:
+  - Read
+  - Grep
+---
+
+You are a migration validation specialist. Check that:
+1. All deprecated APIs are replaced
+2. New patterns follow best practices
+3. No breaking changes introduced
+```
+
+**Or inline in config:**
+```json
+{
+  "agentic": {
+    "customAgents": [
+      {
+        "name": "migration-checker",
+        "description": "Validates migration patterns",
+        "prompt": "You are a migration specialist...",
+        "tools": ["Read", "Grep"],
+        "model": "sonnet"
+      }
+    ]
+  }
+}
+```
+
+### Example: Security-Focused Agentic Review
+
+```json
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "fixStage": { ... },
+    "judgeStage": { ... }
+  },
+  "review": {
+    "pipeline": [
+      {
+        "name": "agenticSecurityAudit",
+        "enabled": true,
+        "mode": "agentic",
+        "agentic": {
+          "maxTurns": 15,
+          "contextMode": "auto",
+          "maxTokensPerFile": 8000,
+          "maxTotalTokens": 50000,
+          "enabledSubagents": ["security-analyzer", "dependency-tracer"],
+          "systemPrompt": "You are a security-focused code reviewer. Focus on:\n1. Command injection vulnerabilities\n2. Path traversal in file operations\n3. Credential exposure in logs\n4. Unsafe deserialization\n5. Cross-file security implications"
+        },
+        "validation": {
+          "enabled": true,
+          "minConfidence": 8,
+          "prompt": "validation.md"
+        }
+      }
+    ]
+  },
+  "fix": { "enabled": false },
+  "report": {
+    "includedSeverities": ["critical", "high", "medium"],
+    "enableRootCauseExtraction": false
+  }
+}
+```
+
+### When to Use Agentic vs File-by-File
+
+**Use Agentic Mode when:**
+- Reviewing PRs with cross-file changes
+- Need dependency impact analysis
+- Looking for breaking API changes
+- Security audits requiring full context
+- Complex refactoring validation
+
+**Use File-by-File when:**
+- Simple code quality checks
+- Single-file analysis
+- High file count (cost optimization)
+- Framework-specific pattern validation
+- Quick scans
+
+### Combining Modes
+
+You can run both modes in the same pipeline:
+
+```json
+{
+  "review": {
+    "pipeline": [
+      {
+        "name": "agenticSecurityAudit",
+        "enabled": true,
+        "mode": "agentic",
+        "agentic": { ... }
+      },
+      {
+        "name": "fileByFileQuality",
+        "enabled": true,
+        "mode": "file-by-file",
+        "passes": [
+          { "name": "Code Quality", "prompt": "review-system-message.md", ... }
+        ]
+      }
+    ]
+  }
+}
+```
+
 ## COMMON PATTERNS
 
 ### High Confidence + Strict Validation (Security/Critical Reviews)
@@ -1526,6 +1767,14 @@ Before finalizing a custom configuration:
   npx @aggai/qualops --config <name>.qualopsrc.json
   ```
 
+### Agentic Mode Requirements (if using `"mode": "agentic"`):
+- [ ] `"agentic"` config block present (NOT `"passes"` array)
+- [ ] `maxTurns` set appropriately (15-25 recommended)
+- [ ] `contextMode` set (`"auto"` recommended)
+- [ ] `enabledSubagents` list if limiting subagents
+- [ ] `systemPrompt` provides focus areas for the review
+- [ ] Custom agents (if any) in `.qualops/agents/` or `customAgents` array
+
 ### CI Requirements (if enabling CI integration):
 - [ ] GitHub Actions workflow created in `.github/workflows/qualops.yml`
 - [ ] OR GitLab CI config added to `.gitlab-ci.yml`
@@ -1541,8 +1790,16 @@ This guide enables you to help users create specialized QualOps review pipelines
 4. Organizing files in the correct directory structure
 5. Generating CI workflows (GitHub Actions or GitLab CI)
 6. Testing and validating the configuration
+7. **Configuring agentic mode for cross-file analysis**
 
-### SIX CRITICAL RULES (Never forget):
+### Review Modes
+
+| Mode | Best For | Config |
+|------|----------|--------|
+| **file-by-file** | Single-file analysis, quick scans, high file count | `"mode": "file-by-file"` with `"passes": [...]` |
+| **agentic** | Cross-file dependencies, security audits, breaking changes | `"mode": "agentic"` with `"agentic": {...}` |
+
+### SEVEN CRITICAL RULES (Never forget):
 
 1. **ALWAYS include "ai" section** in custom configs (reviewStage, fixStage, judgeStage)
 2. **ALWAYS use correct model and cost fields** in "ai" section:
@@ -1553,7 +1810,8 @@ This guide enables you to help users create specialized QualOps review pipelines
 4. **NEVER include response format** in custom prompts (system auto-appends `<response_format>`, issues section, etc.)
 5. **ALWAYS define "taxonomy" array** if `enableRootCauseExtraction: true` (no defaults, config-driven only)
 6. **VERIFY the generated config** matches the examples in this document exactly (check model name, field names, and structure)
+7. **For agentic mode**: Use `"mode": "agentic"` with `"agentic": {}` config block (NOT `"passes": []`)
 
-These six mistakes will cause the pipeline to fail. Everything else is negotiable.
+These seven mistakes will cause the pipeline to fail. Everything else is negotiable.
 
 Remember: Custom configs inherit from main config, so only specify what needs to be different.
