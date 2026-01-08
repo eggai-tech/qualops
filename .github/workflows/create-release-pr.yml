@@ -92,20 +92,12 @@ jobs:
       - name: Create Pull Request
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANGELOG_BODY: ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
         run: |
+          printf '%s\n' "## Release v$VERSION" "" "$CHANGELOG_BODY" "" "---" "**Checklist:**" "- [ ] Version bump looks correct" "- [ ] Changelog entries are accurate" "- [ ] CI passes" "" "After merging, a git tag will be automatically created and npm publish will be triggered." > /tmp/pr-body.md
           gh pr create \
             --title "chore: release v$VERSION" \
-            --body "## Release v$VERSION
-
-          ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
-
-          ---
-          **Checklist:**
-          - [ ] Version bump looks correct
-          - [ ] Changelog entries are accurate
-          - [ ] CI passes
-
-          After merging, a git tag will be automatically created and npm publish will be triggered." \
+            --body-file /tmp/pr-body.md \
             --base main \
             --head release/v$VERSION \
             --label release
