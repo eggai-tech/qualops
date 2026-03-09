@@ -96,7 +96,7 @@ jobs:
           echo "CHANGELOG.md has been updated"
 
   qualops:
-    if: false # Disabled for now
+    if: true # Disabled for now
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -134,14 +134,15 @@ jobs:
         if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node dist/github/run-integration.js
+        working-directory: .qualops
+        run: node ../dist/github/run-integration.js
 
       - name: Upload QualOps Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: qualops-reports
-          path: reports/
+          path: .qualops/reports/
 
   all-checks-passed:
     if: always()
