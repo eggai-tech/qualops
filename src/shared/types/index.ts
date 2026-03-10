@@ -35,8 +35,10 @@ export type Metrics = {
   cacheMisses?: number;
 };
 
+export type AIProviderName = 'anthropic' | 'bedrock' | 'openai' | 'github';
+
 export type AIStageConfig = {
-  provider: string;
+  provider: AIProviderName;
   model: string;
   inputPerMillion: number;
   outputPerMillion: number;
