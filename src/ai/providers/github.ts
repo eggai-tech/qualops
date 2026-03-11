@@ -5,6 +5,7 @@ import { envConfig } from '@/config/env';
 import type { AIStageConfig } from '@/shared/types';
 import { logger } from '@/shared/utils/logger';
 
+import { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions/completions';
 import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
 
 export class GithubModelsProvider implements AIProvider {
@@ -162,12 +163,19 @@ export class GithubModelsProvider implements AIProvider {
         });
       }
 
-      const response = await this.client.chat.completions.create({
+      const options: ChatCompletionCreateParamsNonStreaming = {
         model,
-        max_tokens: maxTokens,
-        temperature,
         messages: openaiMessages,
-      });
+      };
+
+      if (model.includes('gpt-5')) {
+        options.max_completion_tokens = maxTokens;
+      } else {
+        options.max_tokens = maxTokens;
+        options.temperature = temperature;
+      }
+
+      const response = await this.client.chat.completions.create(options);
 
       const content = response.choices[0]?.message?.content || '';
       const inputTokens = response.usage?.prompt_tokens || estimateTokens(JSON.stringify(messages));

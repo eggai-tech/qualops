@@ -1,0 +1,247 @@
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "github",
+      "model": "openai/gpt-4.1-mini",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0.1
+    },
+    "fixStage": {
+      "provider": "github",
+      "model": "openai/gpt-4.1-mini",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "github",
+      "model": "openai/gpt-4.1-mini",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "performance": {
+    "maxFileSizeKB": 500,
+    "maxFilesPerBatch": 15,
+    "maxTokensPerFile": 4000,
+    "timeoutSeconds": 300,
+    "throttling": {
+      "enabled": true,
+      "maxRequestsPerMinute": 15
+    }
+  },
+  "review": {
+    "minConfidence": 7,
+    "maxConcurrentFiles": 3,
+    "validation": {
+      "enabled": true,
+      "minConfidence": 7,
+      "prompt": "typescript-quality/validation.md"
+    },
+    "deduplication": {
+      "enabled": true,
+      "prompt": "deduplication.md"
+    },
+    "pipeline": [
+      {
+        "name": "typescriptQualityReview",
+        "enabled": true,
+        "validation": {
+          "enabled": true,
+          "minConfidence": 7,
+          "prompt": "typescript-quality/validation.md"
+        },
+        "passes": [
+          {
+            "name": "Error Handling & Exceptions",
+            "enabled": true,
+            "prompt": "typescript-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "try\\s*\\{",
+                "catch\\s*\\(",
+                "throw\\s+new",
+                "Promise\\.reject",
+                "process\\.exit",
+                "Error",
+                "logger\\.error",
+                "logger\\.warn"
+              ],
+              "filePatterns": ["**/*.{ts,tsx,js,mjs,cjs}"],
+              "excludePatterns": ["**/*.spec.*", "**/*.test.*", "**/__tests__/**"]
+            }
+          },
+          {
+            "name": "Async/Await Patterns",
+            "enabled": true,
+            "prompt": "typescript-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "async\\s+function",
+                "await ",
+                "Promise\\.",
+                "new\\s+Promise",
+                "Promise\\.all",
+                "setTimeout",
+                "AbortController",
+                "for\\s+await"
+              ],
+              "filePatterns": ["**/*.{ts,tsx,js,mjs,cjs}"],
+              "excludePatterns": ["**/*.spec.*", "**/*.test.*", "**/__tests__/**"]
+            }
+          },
+          {
+            "name": "HTTP Endpoints & Middleware",
+            "enabled": true,
+            "prompt": "typescript-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "express\\(",
+                "Router\\(",
+                "app\\.(get|post|put|patch|delete)",
+                "router\\.(get|post|put|patch|delete)",
+                "Request",
+                "Response",
+                "NextFunction",
+                "res\\.status",
+                "req\\.(params|query|body)",
+                "zod"
+              ],
+              "filePatterns": [
+                "**/api/**/*.{ts,tsx,js,mjs,cjs}",
+                "**/routes/**/*.{ts,tsx,js,mjs,cjs}",
+                "**/*router*.{ts,tsx,js,mjs,cjs}",
+                "**/*controller*.{ts,tsx,js,mjs,cjs}",
+                "**/server.{ts,js}",
+                "**/main.{ts,js}"
+              ],
+              "excludePatterns": ["**/*.spec.*", "**/*.test.*", "**/__tests__/**"]
+            }
+          },
+          {
+            "name": "Type Safety & Validation",
+            "enabled": true,
+            "prompt": "typescript-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "interface\\s+",
+                "type\\s+",
+                "enum\\s+",
+                ": ",
+                "as\\s+",
+                "any",
+                "unknown",
+                "z\\.object",
+                "Joi\\.",
+                "class-validator"
+              ],
+              "filePatterns": ["**/*.{ts,tsx}"],
+              "excludePatterns": ["**/*.spec.*", "**/*.test.*", "**/__tests__/**"]
+            }
+          },
+          {
+            "name": "Logging & Observability",
+            "enabled": true,
+            "prompt": "typescript-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "logger\\.",
+                "console\\.",
+                "debug",
+                "pino",
+                "winston",
+                "traceId",
+                "requestId"
+              ],
+              "filePatterns": ["**/*.{ts,tsx,js,mjs,cjs}"],
+              "excludePatterns": ["**/*.spec.*", "**/*.test.*", "**/__tests__/**"]
+            }
+          },
+          {
+            "name": "Database & Persistence",
+            "enabled": true,
+            "prompt": "typescript-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "execute\\(",
+                "executemany\\(",
+                "query\\(",
+                "findOne",
+                "findMany",
+                "save\\(",
+                "transaction",
+                "prisma\\.",
+                "typeorm",
+                "SELECT",
+                "INSERT",
+                "UPDATE",
+                "DELETE",
+                "WHERE",
+                "connection",
+                "knex"
+              ],
+              "filePatterns": [
+                "**/repository/**/*.{ts,tsx,js,mjs,cjs}",
+                "**/persistence/**/*.{ts,tsx,js,mjs,cjs}",
+                "**/database/**/*.{ts,tsx,js,mjs,cjs}",
+                "**/db/**/*.{ts,tsx,js,mjs,cjs}",
+                "**/models/**/*.{ts,tsx,js,mjs,cjs}",
+                "**/*repository*.{ts,tsx,js,mjs,cjs}"
+              ],
+              "excludePatterns": [
+                "**/*.spec.*",
+                "**/*.test.*",
+                "**/__tests__/**",
+                "**/migrations/**"
+              ]
+            }
+          },
+          {
+            "name": "Configuration & Settings",
+            "enabled": true,
+            "prompt": "typescript-quality/review-system-message.md",
+            "filters": {
+              "detectionTriggers": [
+                "process\\.env",
+                "dotenv",
+                "import\\.meta\\.env",
+                "settings",
+                "config",
+                "SECRET",
+                "API_KEY",
+                "PASSWORD",
+                "TOKEN"
+              ],
+              "filePatterns": [
+                "**/config/**/*.{ts,tsx,js,mjs,cjs}",
+                "**/settings/**/*.{ts,tsx,js,mjs,cjs}",
+                "**/*config*.{ts,tsx,js,mjs,cjs}",
+                "**/*settings*.{ts,tsx,js,mjs,cjs}"
+              ],
+              "excludePatterns": ["**/*.spec.*", "**/*.test.*", "**/__tests__/**"]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "fix": {
+    "enabled": true,
+    "prompt": "fix-system-message.md",
+    "severities": ["high", "medium"],
+    "minConfidence": 8,
+    "maxConcurrentFixes": 5
+  },
+  "gitlab": {
+    "enabled": false,
+    "postComments": false,
+    "skipOnDraft": false,
+    "blockPipeline": false
+  },
+  "report": {
+    "includedSeverities": ["critical", "high", "medium"],
+    "enableRootCauseExtraction": false
+  }
+}
