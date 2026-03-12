@@ -96,7 +96,6 @@ jobs:
           echo "CHANGELOG.md has been updated"
 
   qualops:
-    if: false # Disabled for now
     runs-on: ubuntu-latest
     permissions:
       contents: read
