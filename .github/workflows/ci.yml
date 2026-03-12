@@ -123,6 +123,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_API_KEY: ${{ secrets.GITHUB_TOKEN }}
         run: |
           node dist/cli.js all \
             --base origin/${{ github.base_ref }} \
