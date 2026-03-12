@@ -204,8 +204,11 @@ export class GitHubModelsProvider implements AIProvider {
         model: response.model,
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`GitHub Models completion failed: ${message}`);
+      if (error instanceof Error) {
+        error.message = `GitHub Models completion failed: ${error.message}`;
+        throw error;
+      }
+      throw new Error(`GitHub Models completion failed: ${String(error)}`);
     }
   }
 
