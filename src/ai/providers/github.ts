@@ -166,21 +166,19 @@ export class GithubModelsProvider implements AIProvider {
       const options: ChatCompletionCreateParamsNonStreaming = {
         model,
         messages: openaiMessages,
+        max_completion_tokens: maxTokens,
       };
 
-      if (model.includes('gpt-5')) {
-        options.max_completion_tokens = maxTokens;
-      } else {
-        options.max_tokens = maxTokens;
+      if (!model.includes('gpt-5')) {
         options.temperature = temperature;
       }
 
       const response = await this.client.chat.completions.create(options);
 
       const content = response.choices[0]?.message?.content || '';
-      const inputTokens = response.usage?.prompt_tokens || estimateTokens(JSON.stringify(messages));
-      const outputTokens = response.usage?.completion_tokens || estimateTokens(content);
-      const cachedTokens = response.usage?.prompt_tokens_details?.cached_tokens || 0;
+      const inputTokens = response.usage?.prompt_tokens ?? estimateTokens(JSON.stringify(messages));
+      const outputTokens = response.usage?.completion_tokens ?? estimateTokens(content);
+      const cachedTokens = response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
 
       // Log cache hits for visibility
       if (cachedTokens > 0) {

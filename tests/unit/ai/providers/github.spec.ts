@@ -192,7 +192,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 5,
           total_tokens: 15,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -207,14 +207,14 @@ describe('GithubModelsProvider', () => {
         totalTokens: 15,
         cachedTokens: 0,
       });
-      expect(result.model).toBe('gpt-4o');
+      expect(result.model).toBe('openai/gpt-4o');
     });
 
     it('should handle system prompt parameter', async () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -237,7 +237,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -257,7 +257,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -277,7 +277,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -297,7 +297,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -344,7 +344,7 @@ describe('GithubModelsProvider', () => {
             cached_tokens: 100,
           },
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -358,7 +358,7 @@ describe('GithubModelsProvider', () => {
     it('should estimate tokens when usage is missing', async () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -373,7 +373,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: '' } }],
         usage: { prompt_tokens: 10, completion_tokens: 0, total_tokens: 10 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -388,7 +388,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [],
         usage: { prompt_tokens: 10, completion_tokens: 0, total_tokens: 10 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -403,7 +403,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: null } }],
         usage: { prompt_tokens: 10, completion_tokens: 0, total_tokens: 10 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -466,7 +466,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 50,
           total_tokens: 150,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -489,7 +489,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 1_000_000,
           total_tokens: 2_000_000,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -512,7 +512,7 @@ describe('GithubModelsProvider', () => {
             cached_tokens: 1_000_000,
           },
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -528,7 +528,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -548,7 +548,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -578,7 +578,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: '```json\n{"key": "value"}\n```' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -594,7 +594,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: '{"key": "value"}' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -616,7 +616,7 @@ describe('GithubModelsProvider', () => {
           },
         ],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -633,7 +633,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'invalid json' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -649,7 +649,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: '{}' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -665,7 +665,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: '[1, 2, 3]' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -681,7 +681,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: '{"key": "value"}' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -690,7 +690,13 @@ describe('GithubModelsProvider', () => {
         schema: {},
       });
 
-      expect(mockOpenAIClient.chat.completions.create).toHaveBeenCalled();
+      expect(mockOpenAIClient.chat.completions.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          response_format: expect.objectContaining({
+            type: 'json_object',
+          }),
+        }),
+      );
     });
   });
 
@@ -705,7 +711,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -723,7 +729,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -740,7 +746,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -757,7 +763,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -773,7 +779,7 @@ describe('GithubModelsProvider', () => {
       expect(provider.isAvailable()).toBe(true);
     });
 
-    it('should return false when API key is empty', () => {
+    it('should throw when API key is empty', () => {
       mockEnvConfig.get.mockReturnValue('');
       expect(() => new GithubModelsProvider(validStageConfig)).toThrow();
     });
@@ -830,7 +836,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 50,
           total_tokens: 150,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -864,7 +870,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 50,
           total_tokens: 150,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -893,7 +899,7 @@ describe('GithubModelsProvider', () => {
             cached_tokens: 50,
           },
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -936,7 +942,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 50,
           total_tokens: 150,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -957,7 +963,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 50_000_000,
           total_tokens: 150_000_000,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -971,7 +977,7 @@ describe('GithubModelsProvider', () => {
     it('should not log in production environment', async () => {
       mockEnvConfig.isDevelopment.mockReturnValue(false);
       mockEnvConfig.get.mockImplementation((key: string) => {
-        if (key === 'openaiApiKey') return validApiKey;
+        if (key === 'githubApiKey') return validApiKey;
         if (key === 'nodeEnv') return 'production';
         return undefined;
       });
@@ -983,7 +989,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 50,
           total_tokens: 150,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -1007,7 +1013,7 @@ describe('GithubModelsProvider', () => {
             cached_tokens: 100,
           },
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -1036,7 +1042,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 0,
           total_tokens: 0,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -1056,7 +1062,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 5_000_000,
           total_tokens: 15_000_000,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -1072,7 +1078,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -1092,7 +1098,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -1112,7 +1118,7 @@ describe('GithubModelsProvider', () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -1126,7 +1132,7 @@ describe('GithubModelsProvider', () => {
     it('should handle response with undefined usage', async () => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -1143,7 +1149,7 @@ describe('GithubModelsProvider', () => {
         usage: {
           prompt_tokens: 10,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -1165,7 +1171,7 @@ describe('GithubModelsProvider', () => {
             cached_tokens: 0,
           },
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
@@ -1184,7 +1190,7 @@ describe('GithubModelsProvider', () => {
           completion_tokens: 50,
           total_tokens: 150,
         },
-        model: 'gpt-4o',
+        model: 'openai/gpt-4o',
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
