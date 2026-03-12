@@ -2,21 +2,21 @@
   "ai": {
     "reviewStage": {
       "provider": "github",
-      "model": "openai/gpt-4o",
+      "model": "openai/gpt-4.1-mini",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
-      "temperature": 0
+      "temperature": 0.1
     },
     "fixStage": {
       "provider": "github",
-      "model": "openai/gpt-4o",
+      "model": "openai/gpt-4.1-mini",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
     },
     "judgeStage": {
       "provider": "github",
-      "model": "openai/gpt-4o",
+      "model": "openai/gpt-4.1-mini",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
@@ -25,11 +25,11 @@
   "performance": {
     "maxFileSizeKB": 500,
     "maxFilesPerBatch": 15,
-    "maxTokensPerFile": 8000,
+    "maxTokensPerFile": 4000,
     "timeoutSeconds": 300,
     "throttling": {
       "enabled": true,
-      "maxRequestsPerMinute": 50
+      "maxRequestsPerMinute": 15
     }
   },
   "review": {
