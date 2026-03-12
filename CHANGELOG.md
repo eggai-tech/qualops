@@ -15,8 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Security analysis subagent for vulnerability detection
 - Custom agent support via configuration or markdown files in `.qualops/agents/`
 - GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
-- GitHub-focused config template at `.qualops/.qualopsrc.github.json`
-- TypeScript quality review profile example with dedicated review and validation prompts
 
 ### Changed
 
