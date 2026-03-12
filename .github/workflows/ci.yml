@@ -101,6 +101,9 @@ jobs:
       contents: read
       pull-requests: write
       checks: write
+    concurrency:
+      group: 'qualops-analysis'
+      cancel-in-progress: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
