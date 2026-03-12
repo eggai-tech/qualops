@@ -166,10 +166,12 @@ export class GitHubModelsProvider implements AIProvider {
       const options: ChatCompletionCreateParamsNonStreaming = {
         model,
         messages: openaiMessages,
-        max_completion_tokens: maxTokens,
       };
 
-      if (!model.includes('gpt-5')) {
+      if (model.includes('gpt-5')) {
+        options.max_completion_tokens = maxTokens;
+      } else {
+        options.max_tokens = maxTokens;
         options.temperature = temperature;
       }
 

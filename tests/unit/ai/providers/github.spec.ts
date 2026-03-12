@@ -39,13 +39,13 @@ describe('GitHubModelsProvider', () => {
   let mockLogger: any;
   let mockEstimateTokens: jest.Mock;
 
-  const validStageConfig: AIStageConfig = {
+  const getValidStageConfig = (model = 'openai/gpt-4.1'): AIStageConfig => ({
     provider: 'github',
-    model: 'openai/gpt-4.1',
+    model,
     temperature: 0,
     inputPerMillion: 2.5,
     outputPerMillion: 10.0,
-  };
+  });
 
   const validApiKey = 'gho_test-key-1234567890';
 
@@ -80,54 +80,54 @@ describe('GitHubModelsProvider', () => {
 
   describe('constructor', () => {
     it('should create instance with valid config', () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       expect(provider).toBeInstanceOf(GitHubModelsProvider);
       expect(provider.name).toBe('github');
     });
 
     it('should throw error when API key is missing', () => {
       mockEnvConfig.get.mockReturnValue('');
-      expect(() => new GitHubModelsProvider(validStageConfig)).toThrow(
+      expect(() => new GitHubModelsProvider(getValidStageConfig())).toThrow(
         'GITHUB_API_KEY environment variable is required for github provider',
       );
     });
 
     it('should throw error when API key format is invalid', () => {
       mockEnvConfig.get.mockReturnValue('invalid-key');
-      expect(() => new GitHubModelsProvider(validStageConfig)).toThrow(
+      expect(() => new GitHubModelsProvider(getValidStageConfig())).toThrow(
         'Invalid GitHub API key format',
       );
     });
 
     it('should accept API key starting with gho_', () => {
       mockEnvConfig.get.mockReturnValue('gho_validkey');
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       expect(provider).toBeInstanceOf(GitHubModelsProvider);
     });
 
     it('should throw error when provider is missing from config', () => {
-      const { provider: _provider, ...invalidConfig } = validStageConfig;
+      const { provider: _provider, ...invalidConfig } = getValidStageConfig();
       expect(() => new GitHubModelsProvider(invalidConfig as any)).toThrow(
         'Missing required GitHub Models config: provider',
       );
     });
 
     it('should throw error when model is missing from config', () => {
-      const { model: _model, ...invalidConfig } = validStageConfig;
+      const { model: _model, ...invalidConfig } = getValidStageConfig();
       expect(() => new GitHubModelsProvider(invalidConfig as any)).toThrow(
         'Missing required GitHub Models config: model',
       );
     });
 
     it('should throw error when inputPerMillion is missing from config', () => {
-      const { inputPerMillion: _inputPerMillion, ...invalidConfig } = validStageConfig;
+      const { inputPerMillion: _inputPerMillion, ...invalidConfig } = getValidStageConfig();
       expect(() => new GitHubModelsProvider(invalidConfig as any)).toThrow(
         'Missing required GitHub Models config: inputPerMillion',
       );
     });
 
     it('should throw error when outputPerMillion is missing from config', () => {
-      const { outputPerMillion: _outputPerMillion, ...invalidConfig } = validStageConfig;
+      const { outputPerMillion: _outputPerMillion, ...invalidConfig } = getValidStageConfig();
       expect(() => new GitHubModelsProvider(invalidConfig as any)).toThrow(
         'Missing required GitHub Models config: outputPerMillion',
       );
@@ -143,7 +143,7 @@ describe('GitHubModelsProvider', () => {
 
   describe('initialize', () => {
     beforeEach(() => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
     });
 
     it('should initialize client successfully', async () => {
@@ -172,7 +172,7 @@ describe('GitHubModelsProvider', () => {
 
   describe('complete', () => {
     beforeEach(async () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       await provider.initialize();
       (provider as any).client = mockOpenAIClient;
     });
@@ -292,7 +292,11 @@ describe('GitHubModelsProvider', () => {
       );
     });
 
-    it('should handle custom maxTokens', async () => {
+    it.each([
+      { model: 'gpt-5', expectObject: { max_completion_tokens: 1000 } },
+      { model: 'gpt-4', expectObject: { max_tokens: 1000 } },
+      { model: 'any', expectObject: { max_tokens: 1000 } },
+    ])('should handle custom maxTokens for model $model', async ({ model, expectObject }) => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
@@ -300,15 +304,15 @@ describe('GitHubModelsProvider', () => {
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
+      (provider as any).stageConfig.model = model;
+
       await provider.complete({
         messages: [{ role: 'user', content: 'Hello' }],
         maxTokens: 1000,
       });
 
       expect(mockOpenAIClient.chat.completions.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          max_completion_tokens: 1000,
-        }),
+        expect.objectContaining(expectObject),
       );
     });
 
@@ -551,7 +555,7 @@ describe('GitHubModelsProvider', () => {
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
-      const uninitializedProvider = new GitHubModelsProvider(validStageConfig);
+      const uninitializedProvider = new GitHubModelsProvider(getValidStageConfig());
       const _originalInitialize = uninitializedProvider.initialize.bind(uninitializedProvider);
       uninitializedProvider.initialize = jest.fn(async () => {
         (uninitializedProvider as any).client = mockOpenAIClient;
@@ -568,7 +572,7 @@ describe('GitHubModelsProvider', () => {
 
   describe('completeWithStructure', () => {
     beforeEach(async () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       await provider.initialize();
       (provider as any).client = mockOpenAIClient;
     });
@@ -705,7 +709,7 @@ describe('GitHubModelsProvider', () => {
 
   describe('invoke', () => {
     beforeEach(async () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       await provider.initialize();
       (provider as any).client = mockOpenAIClient;
     });
@@ -728,7 +732,11 @@ describe('GitHubModelsProvider', () => {
       );
     });
 
-    it('should invoke with custom maxTokens', async () => {
+    it.each([
+      { model: 'gpt-5', expectObject: { max_completion_tokens: 2000 } },
+      { model: 'gpt-4', expectObject: { max_tokens: 2000 } },
+      { model: 'any', expectObject: { max_tokens: 2000 } },
+    ])('should invoke with custom maxTokens for model $model', async ({ model, expectObject }) => {
       const mockResponse = {
         choices: [{ message: { content: 'Response' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
@@ -736,31 +744,37 @@ describe('GitHubModelsProvider', () => {
       } as Partial<ChatCompletion> as ChatCompletion;
       jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
+      (provider as any).stageConfig.model = model;
       await provider.invoke('Hello', 2000);
 
       expect(mockOpenAIClient.chat.completions.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          max_completion_tokens: 2000,
-        }),
+        expect.objectContaining(expectObject),
       );
     });
 
-    it('should use default maxTokens when not specified', async () => {
-      const mockResponse = {
-        choices: [{ message: { content: 'Response' } }],
-        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
-        model: 'openai/gpt-4o',
-      } as Partial<ChatCompletion> as ChatCompletion;
-      jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
+    it.each([
+      { model: 'gpt-5', expectObject: { max_completion_tokens: 8000 } },
+      { model: 'gpt-4', expectObject: { max_tokens: 8000 } },
+      { model: 'any', expectObject: { max_tokens: 8000 } },
+    ])(
+      'should use default maxTokens when not specified for model $model',
+      async ({ model, expectObject }) => {
+        const mockResponse = {
+          choices: [{ message: { content: 'Response' } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+          model: 'model',
+        } as Partial<ChatCompletion> as ChatCompletion;
+        jest.mocked(mockOpenAIClient.chat.completions.create).mockResolvedValue(mockResponse);
 
-      await provider.invoke('Hello');
+        (provider as any).stageConfig.model = model;
 
-      expect(mockOpenAIClient.chat.completions.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          max_completion_tokens: 8000,
-        }),
-      );
-    });
+        await provider.invoke('Hello');
+
+        expect(mockOpenAIClient.chat.completions.create).toHaveBeenCalledWith(
+          expect.objectContaining(expectObject),
+        );
+      },
+    );
 
     it('should handle options parameter', async () => {
       const mockResponse = {
@@ -778,24 +792,24 @@ describe('GitHubModelsProvider', () => {
 
   describe('isAvailable', () => {
     it('should return true when API key is present', () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       expect(provider.isAvailable()).toBe(true);
     });
 
     it('should throw when API key is empty', () => {
       mockEnvConfig.get.mockReturnValue('');
-      expect(() => new GitHubModelsProvider(validStageConfig)).toThrow();
+      expect(() => new GitHubModelsProvider(getValidStageConfig())).toThrow();
     });
   });
 
   describe('getModelName', () => {
     it('should return configured model name', () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       expect(provider.getModelName()).toBe('openai/gpt-4.1');
     });
 
     it('should return different model name for different config', () => {
-      const config = { ...validStageConfig, model: 'gpt-4-turbo' };
+      const config = { ...getValidStageConfig(), model: 'gpt-4-turbo' };
       provider = new GitHubModelsProvider(config);
       expect(provider.getModelName()).toBe('gpt-4-turbo');
     });
@@ -803,14 +817,14 @@ describe('GitHubModelsProvider', () => {
 
   describe('getMaxTokens', () => {
     it('should return default max tokens', () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       expect(provider.getMaxTokens()).toBe(8000);
     });
   });
 
   describe('getTokenStats', () => {
     beforeEach(async () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       await provider.initialize();
       (provider as any).client = mockOpenAIClient;
     });
@@ -860,7 +874,7 @@ describe('GitHubModelsProvider', () => {
 
   describe('resetTokenStats', () => {
     beforeEach(async () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       await provider.initialize();
       (provider as any).client = mockOpenAIClient;
     });
@@ -931,7 +945,7 @@ describe('GitHubModelsProvider', () => {
 
   describe('token logging', () => {
     beforeEach(async () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       await provider.initialize();
       (provider as any).client = mockOpenAIClient;
       mockEnvConfig.isDevelopment.mockReturnValue(true);
@@ -1032,7 +1046,7 @@ describe('GitHubModelsProvider', () => {
 
   describe('edge cases', () => {
     beforeEach(async () => {
-      provider = new GitHubModelsProvider(validStageConfig);
+      provider = new GitHubModelsProvider(getValidStageConfig());
       await provider.initialize();
       (provider as any).client = mockOpenAIClient;
     });
