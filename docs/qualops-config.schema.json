@@ -7,6 +7,7 @@
   "required": ["ai", "review"],
   "properties": {
     "ai": {
+      "description": "AI provider/model settings per pipeline stage. reviewStage and fixStage are required at runtime.",
       "type": "object",
       "additionalProperties": false,
       "required": ["reviewStage", "fixStage"],
@@ -17,212 +18,280 @@
       }
     },
     "review": {
+      "description": "Review pipeline configuration. Must include at least one pipeline job.",
       "$ref": "#/$defs/reviewConfig"
     },
     "performance": {
+      "description": "Performance and safety limits for file size, token budgets, retries, and timeouts.",
       "$ref": "#/$defs/performanceConfig"
     },
     "fix": {
+      "description": "Fix generation behaviour and thresholds for the fix stage.",
       "$ref": "#/$defs/fixConfig"
     },
     "report": {
+      "description": "Report output and filtering options used by report and CI integrations.",
       "$ref": "#/$defs/reportConfig"
     },
     "github": {
+      "description": "GitHub PR integration options for comments, annotations, and quality gating.",
       "$ref": "#/$defs/githubConfig"
     },
     "gitlab": {
+      "description": "GitLab MR integration options for comments and pipeline blocking.",
       "$ref": "#/$defs/gitlabConfig"
     },
     "paths": {
+      "description": "Optional overrides for sessions, cache, and output directories.",
       "$ref": "#/$defs/pathsConfig"
     },
     "logger": {
+      "description": "Logger behaviour for console output (level, colors, timestamps, prefix).",
       "$ref": "#/$defs/loggerConfig"
     },
     "skipPatterns": {
+      "description": "Glob patterns to skip during analysis/review file discovery.",
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
       "default": ["node_modules/**", ".git/**", "dist/**", "build/**", "coverage/**"]
     },
     "includePatterns": {
+      "description": "Optional allowlist glob patterns to include for processing.",
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
     },
     "maxFilesPerBatch": {
+      "description": "Global batch size used when processing files.",
       "type": "integer",
       "minimum": 1,
       "default": 7
     },
     "maxConcurrency": {
+      "description": "Global concurrency limit used by shared processing utilities.",
       "type": "integer",
       "minimum": 1,
       "default": 3
     },
     "cacheEnabled": {
+      "description": "Enable or disable cache usage where supported.",
       "type": "boolean",
       "default": true
     },
     "cacheTTL": {
+      "description": "Cache TTL in milliseconds for in-memory cache decisions.",
       "type": "integer",
       "minimum": 1,
       "default": 300000
     },
     "outputFormat": {
+      "description": "Global output format preference.",
       "type": "string",
       "enum": ["json", "html", "markdown"],
       "default": "html"
     },
     "outputPath": {
+      "description": "Optional custom output path for generated artifacts.",
       "type": "string",
       "minLength": 1
     },
     "verbose": {
+      "description": "Enable verbose logging.",
       "type": "boolean",
       "default": false
     },
     "debug": {
+      "description": "Enable debug logging and diagnostics.",
       "type": "boolean",
       "default": false
     },
     "maxFileSizeKB": {
+      "description": "Maximum file size (KB) accepted for processing.",
       "type": "integer",
       "minimum": 1,
       "default": 500
     },
     "maxTokensPerFile": {
+      "description": "Maximum token budget per file for AI context construction.",
       "type": "integer",
       "minimum": 1,
       "default": 1000000
     },
     "maxReactSteps": {
+      "description": "Maximum ReAct/tool-usage steps for supported flows.",
       "type": "integer",
       "minimum": 1,
       "default": 5
     },
     "throttling": {
+      "description": "Global throttling config consumed by review rate limiting.",
       "$ref": "#/$defs/throttlingConfig"
     }
   },
   "$defs": {
     "severity": {
+      "description": "Standard issue severity levels used across review, fix, and reporting.",
       "type": "string",
       "enum": ["critical", "high", "medium", "low"]
     },
     "issueType": {
+      "description": "Canonical issue categories emitted by review stages.",
       "type": "string",
       "enum": ["bug", "security", "performance", "maintainability"]
     },
     "aiProvider": {
+      "description": "Supported AI provider identifiers accepted by provider factory.",
       "type": "string",
       "enum": ["anthropic", "openai", "bedrock"]
     },
     "aiStageConfig": {
+      "description": "Per-stage AI configuration used to instantiate the provider client.",
       "type": "object",
       "additionalProperties": true,
       "required": ["provider", "model", "inputPerMillion", "outputPerMillion"],
       "properties": {
-        "provider": { "$ref": "#/$defs/aiProvider" },
+        "provider": {
+          "description": "AI provider for this stage.",
+          "$ref": "#/$defs/aiProvider"
+        },
         "model": {
+          "description": "Model name passed to the selected provider.",
           "type": "string",
           "minLength": 1
         },
         "inputPerMillion": {
+          "description": "Estimated input token cost per million tokens.",
           "type": "number",
           "minimum": 0
         },
         "outputPerMillion": {
+          "description": "Estimated output token cost per million tokens.",
           "type": "number",
           "minimum": 0
         },
         "temperature": {
+          "description": "Sampling temperature used by compatible providers.",
           "type": "number",
           "minimum": 0
         },
         "maxTokens": {
+          "description": "Optional model output token cap.",
           "type": "integer",
           "minimum": 1
         }
       }
     },
     "promptConfig": {
+      "description": "Object-based prompt reference with optional metadata.",
       "type": "object",
       "additionalProperties": false,
       "required": ["file"],
       "properties": {
         "file": {
+          "description": "Prompt file path relative to .qualops/prompts.",
           "type": "string",
           "minLength": 1
         },
         "meta": {
+          "description": "Optional prompt metadata available to template/rendering workflows.",
           "type": "object",
           "additionalProperties": true
         }
       }
     },
     "promptRef": {
+      "description": "Prompt reference as a relative path string or { file, meta } object.",
       "anyOf": [{ "type": "string", "minLength": 1 }, { "$ref": "#/$defs/promptConfig" }]
     },
     "validationConfig": {
+      "description": "Validation stage settings used to filter/adjust detected issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
+        "enabled": {
+          "description": "Enable validation pass for this scope.",
+          "type": "boolean"
+        },
         "minConfidence": {
+          "description": "Minimum confidence required before/after validation.",
           "type": "integer",
           "minimum": 1,
           "maximum": 10
         },
-        "prompt": { "$ref": "#/$defs/promptRef" }
+        "prompt": {
+          "description": "Prompt used by AI validation resolver.",
+          "$ref": "#/$defs/promptRef"
+        }
       }
     },
     "deduplicationConfig": {
+      "description": "Deduplication settings used to remove repeated issues per file.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "prompt": { "$ref": "#/$defs/promptRef" }
+        "enabled": {
+          "description": "Enable deduplication for this scope.",
+          "type": "boolean"
+        },
+        "prompt": {
+          "description": "Prompt used by AI deduplication resolver.",
+          "$ref": "#/$defs/promptRef"
+        }
       }
     },
     "reviewPassFilters": {
+      "description": "File/content filters used to decide whether a pass should review a file.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "detectionTriggers": {
+          "description": "Regex patterns tested against file content; at least one match is required.",
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         },
         "filePatterns": {
+          "description": "Glob patterns a file path must match to be reviewed.",
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         },
         "excludePatterns": {
+          "description": "Glob patterns that exclude matching files from the pass.",
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         }
       }
     },
     "reviewPass": {
+      "description": "Single review pass executed within a file-by-file pipeline job.",
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "enabled", "prompt"],
       "properties": {
         "name": {
+          "description": "Display name for logging and report grouping.",
           "type": "string",
           "minLength": 1
         },
         "enabled": {
+          "description": "Set false to disable this pass without removing it.",
           "type": "boolean"
         },
         "docs": {
+          "description": "Optional docs reference used to build doc-aware review prompts.",
           "type": "string",
           "minLength": 1
         },
-        "prompt": { "$ref": "#/$defs/promptRef" },
-        "filters": { "$ref": "#/$defs/reviewPassFilters" }
+        "prompt": {
+          "description": "Prompt reference loaded by PromptLoader.",
+          "$ref": "#/$defs/promptRef"
+        },
+        "filters": {
+          "description": "Optional filters to limit this pass to relevant files/content.",
+          "$ref": "#/$defs/reviewPassFilters"
+        }
       }
     },
     "agenticSubagentType": {
+      "description": "Built-in subagent identifiers supported in agentic mode.",
       "type": "string",
       "enum": [
         "dependency-tracer",
@@ -232,23 +301,28 @@
       ]
     },
     "customAgentDefinition": {
+      "description": "Custom subagent definition merged with built-in agentic subagents.",
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "description", "prompt"],
       "properties": {
         "name": {
+          "description": "Unique custom agent name.",
           "type": "string",
           "minLength": 1
         },
         "description": {
+          "description": "Human-readable purpose of the custom agent.",
           "type": "string",
           "minLength": 1
         },
         "prompt": {
+          "description": "System instructions for the custom agent.",
           "type": "string",
           "minLength": 1
         },
         "tools": {
+          "description": "Allowed tool names for the custom agent.",
           "type": "array",
           "items": {
             "type": "string",
@@ -256,53 +330,65 @@
           }
         },
         "model": {
+          "description": "Optional model tier override for this custom agent.",
           "type": "string",
           "enum": ["sonnet", "opus", "haiku"]
         }
       }
     },
     "agenticConfig": {
+      "description": "Settings for agentic review execution (cross-file analysis with tools/subagents).",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "maxTurns": {
+          "description": "Maximum message/tool-call turns for the agentic run.",
           "type": "integer",
           "minimum": 1
         },
         "maxBudgetUsd": {
+          "description": "Optional budget guardrail for agentic execution.",
           "type": "number",
           "minimum": 0
         },
         "enabledSubagents": {
+          "description": "Subset of built-in subagents to enable.",
           "type": "array",
           "items": { "$ref": "#/$defs/agenticSubagentType" }
         },
         "customAgents": {
+          "description": "Custom agents loaded from config and optional agents directory.",
           "type": "array",
           "items": { "$ref": "#/$defs/customAgentDefinition" }
         },
         "agentsDir": {
+          "description": "Directory containing external custom agent files.",
           "type": "string",
           "minLength": 1
         },
         "systemPrompt": {
+          "description": "Additional system instructions appended to the default agentic prompt.",
           "type": "string"
         },
         "contextMode": {
+          "description": "How file context is sent: diff, full file content, or auto mode.",
           "type": "string",
           "enum": ["diff", "full", "auto"]
         },
         "maxTokensPerFile": {
+          "description": "Per-file token budget when building agentic context.",
           "type": "integer",
           "minimum": 1
         },
         "maxTotalTokens": {
+          "description": "Total token budget for all file contexts in one agentic run.",
           "type": "integer",
           "minimum": 1
         }
       }
     },
     "pipelineJobFileByFile": {
+      "description": "Pipeline job in file-by-file mode. Requires at least one pass.",
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "enabled", "passes"],
@@ -329,6 +415,7 @@
       }
     },
     "pipelineJobAgentic": {
+      "description": "Pipeline job in agentic mode. Passes are optional in this mode.",
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "enabled", "mode"],
@@ -354,39 +441,47 @@
       }
     },
     "pipelineJob": {
+      "description": "Union type for supported pipeline job modes.",
       "oneOf": [
         { "$ref": "#/$defs/pipelineJobAgentic" },
         { "$ref": "#/$defs/pipelineJobFileByFile" }
       ]
     },
     "reviewConfig": {
+      "description": "Top-level review stage configuration and job pipeline.",
       "type": "object",
       "additionalProperties": false,
       "required": ["pipeline"],
       "properties": {
         "minConfidence": {
+          "description": "Base confidence threshold used by review and template rendering contexts.",
           "type": "integer",
           "minimum": 1,
           "maximum": 10
         },
         "sessionBased": {
+          "description": "Legacy/session processing toggle used by older review flows.",
           "type": "boolean"
         },
         "maxFilesBeforeReset": {
+          "description": "Legacy cap controlling periodic reset behaviour in older flows.",
           "type": "integer",
           "minimum": 1
         },
         "maxContextTokens": {
+          "description": "Legacy global review context token cap.",
           "type": "integer",
           "minimum": 1
         },
         "maxConcurrentFiles": {
+          "description": "Concurrent file reviews for file-by-file pass execution.",
           "type": "integer",
           "minimum": 1
         },
         "validation": { "$ref": "#/$defs/validationConfig" },
         "deduplication": { "$ref": "#/$defs/deduplicationConfig" },
         "pipeline": {
+          "description": "Ordered list of review jobs to execute.",
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/pipelineJob" }
@@ -394,6 +489,7 @@
       }
     },
     "throttlingConfig": {
+      "description": "API rate-limit settings. apiCallsPerMinute is used by runtime rate limiter; maxRequestsPerMinute is accepted for compatibility.",
       "type": "object",
       "additionalProperties": false,
       "oneOf": [
@@ -421,30 +517,37 @@
       ]
     },
     "performanceConfig": {
+      "description": "Performance constraints used by config helpers and stage limit calculations.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "maxFileSizeKB": {
+          "description": "Maximum file size allowed for processing.",
           "type": "integer",
           "minimum": 1
         },
         "maxFilesPerBatch": {
+          "description": "Maximum files processed per batch.",
           "type": "integer",
           "minimum": 1
         },
         "maxFilesPerProject": {
+          "description": "Project-level cap for files considered in a run.",
           "type": "integer",
           "minimum": 1
         },
         "timeoutSeconds": {
+          "description": "Timeout budget for long-running operations.",
           "type": "integer",
           "minimum": 1
         },
         "maxTokensPerFile": {
+          "description": "Per-file token ceiling used for AI prompt/context construction.",
           "type": "integer",
           "minimum": 1
         },
         "maxRetries": {
+          "description": "Retry count for retryable operations.",
           "type": "integer",
           "minimum": 0
         },
@@ -454,115 +557,163 @@
       }
     },
     "fixConfig": {
+      "description": "Fix stage controls for severity filtering, confidence threshold, and apply behaviour.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "enabled": {
+          "description": "Enable fix stage behaviours.",
           "type": "boolean"
         },
         "prompt": {
+          "description": "Optional fix prompt override used by fix generation workflows.",
           "type": "string",
           "minLength": 1
         },
         "severities": {
+          "description": "Severities eligible for fix generation.",
           "type": "array",
           "items": { "$ref": "#/$defs/severity" },
           "minItems": 1,
           "uniqueItems": true
         },
         "minConfidence": {
+          "description": "Minimum issue confidence required before generating fixes.",
           "type": "integer",
           "minimum": 1,
           "maximum": 10
         },
         "maxConcurrentFixes": {
+          "description": "Maximum number of fixes generated concurrently.",
           "type": "integer",
           "minimum": 1
         },
         "autoApply": {
+          "description": "If true, enables automatic application of generated fixes when requested by stage options.",
           "type": "boolean"
         }
       }
     },
     "reportConfig": {
+      "description": "Report rendering and severity filtering settings used by report and CI outputs.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "outputFormat": {
+          "description": "Preferred report format.",
           "type": "string",
           "enum": ["json", "html", "markdown"]
         },
         "includedSeverities": {
+          "description": "Only issues with these severities are included in report outputs.",
           "type": "array",
           "items": { "$ref": "#/$defs/severity" },
           "minItems": 1,
           "uniqueItems": true
         },
         "generateIssueMarkdown": {
+          "description": "Generate per-issue markdown files alongside reports.",
           "type": "boolean"
         },
         "enableRootCauseExtraction": {
+          "description": "Enable post-processing that classifies issues into root-cause buckets.",
           "type": "boolean"
         }
       }
     },
     "githubConfig": {
+      "description": "GitHub integration configuration loaded by GitHub integration runtime.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "postComments": { "type": "boolean" },
-        "skipOnDraft": { "type": "boolean" },
-        "blockPipeline": { "type": "boolean" },
+        "enabled": {
+          "description": "Enable GitHub integration behaviour.",
+          "type": "boolean"
+        },
+        "postComments": {
+          "description": "Post or update a QualOps PR comment.",
+          "type": "boolean"
+        },
+        "skipOnDraft": {
+          "description": "Skip commenting/check updates for draft PRs.",
+          "type": "boolean"
+        },
+        "blockPipeline": {
+          "description": "Fail status/check when configured quality conditions are not met.",
+          "type": "boolean"
+        },
         "maxInlineComments": {
+          "description": "Maximum number of inline annotations/comments created per run.",
           "type": "integer",
           "minimum": 1
         }
       }
     },
     "gitlabConfig": {
+      "description": "GitLab integration configuration loaded by GitLab integration runtime.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": { "type": "boolean" },
-        "postComments": { "type": "boolean" },
-        "skipOnDraft": { "type": "boolean" },
-        "blockPipeline": { "type": "boolean" }
+        "enabled": {
+          "description": "Enable GitLab integration behaviour.",
+          "type": "boolean"
+        },
+        "postComments": {
+          "description": "Post or update a QualOps MR note.",
+          "type": "boolean"
+        },
+        "skipOnDraft": {
+          "description": "Skip MR updates for draft merge requests when supported.",
+          "type": "boolean"
+        },
+        "blockPipeline": {
+          "description": "Fail CI pipeline when configured quality conditions are not met.",
+          "type": "boolean"
+        }
       }
     },
     "pathsConfig": {
+      "description": "Directory path overrides consumed by ConfigService.getDirectories().",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "sessionsDir": {
+          "description": "Base directory for per-session outputs.",
           "type": "string",
           "minLength": 1
         },
         "cacheDir": {
+          "description": "Directory used for cache artifacts.",
           "type": "string",
           "minLength": 1
         },
         "outputDir": {
+          "description": "Root output directory for generated reports/assets.",
           "type": "string",
           "minLength": 1
         }
       }
     },
     "loggerConfig": {
+      "description": "Logger output formatting options used by shared logger initialization.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "level": {
+          "description": "Minimum log level to emit.",
           "type": "string",
           "enum": ["debug", "info", "warn", "error"]
         },
         "enableColors": {
+          "description": "Enable ANSI colorized logs.",
           "type": "boolean"
         },
         "enableTimestamps": {
+          "description": "Prefix logs with ISO timestamps.",
           "type": "boolean"
         },
         "prefix": {
+          "description": "Optional static prefix added to each log line.",
           "type": "string"
         }
       }

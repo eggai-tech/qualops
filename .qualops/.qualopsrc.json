@@ -1,4 +1,5 @@
 {
+  "$schema": "../docs/qualops-config.schema.json",
   "ai": {
     "reviewStage": {
       "provider": "anthropic",
@@ -216,7 +217,11 @@
           "contextMode": "auto",
           "maxTokensPerFile": 8000,
           "maxTotalTokens": 50000,
-          "enabledSubagents": ["security-analyzer", "dependency-tracer", "breaking-change-detector"],
+          "enabledSubagents": [
+            "security-analyzer",
+            "dependency-tracer",
+            "breaking-change-detector"
+          ],
           "systemPrompt": "You are a security-focused code reviewer analyzing the QualOps codebase. Focus on:\n1. Command injection vulnerabilities in shell executions\n2. Path traversal in file operations\n3. Credential exposure in logs or error messages\n4. Unsafe deserialization or eval usage\n5. Cross-file security implications"
         },
         "validation": {
