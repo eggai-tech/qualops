@@ -1,10 +1,9 @@
 import { jest } from '@jest/globals';
-
 import type OpenAI from 'openai';
+import type { ChatCompletion } from 'openai/resources/chat/completions/completions';
 
 import { GithubModelsProvider } from '@/ai/providers/github';
 import type { AIStageConfig } from '@/shared/types';
-import { ChatCompletion } from 'openai/resources/chat/completions/completions';
 
 jest.mock('@/config/env');
 jest.mock('@/config/config');

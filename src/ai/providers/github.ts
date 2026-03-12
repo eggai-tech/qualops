@@ -1,11 +1,11 @@
 import type OpenAI from 'openai';
+import type { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions/completions';
 
 import { estimateTokens } from '@/ai/shared/token-utils';
 import { envConfig } from '@/config/env';
 import type { AIStageConfig } from '@/shared/types';
 import { logger } from '@/shared/utils/logger';
 
-import { ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions/completions';
 import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
 
 export class GithubModelsProvider implements AIProvider {

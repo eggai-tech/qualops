@@ -1,9 +1,9 @@
-import { ConfigService } from '../../config/config';
 import { AnthropicProvider } from './anthropic';
 import { BedrockProvider } from './bedrock';
 import { GithubModelsProvider } from './github';
 import { OpenAIProvider } from './openai';
 import type { AIProvider } from './provider';
+import { ConfigService } from '../../config/config';
 
 export const AIProviderType = {
   ANTHROPIC: 'anthropic',
