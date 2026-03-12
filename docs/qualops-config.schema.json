@@ -1,0 +1,571 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://egg-ai.com/schemas/qualops-config.schema.json",
+  "title": "QualOps Configuration",
+  "description": "Schema for QualOps project configuration. This schema reflects runtime behaviour in the current codebase.",
+  "type": "object",
+  "required": ["ai", "review"],
+  "properties": {
+    "ai": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reviewStage", "fixStage"],
+      "properties": {
+        "reviewStage": { "$ref": "#/$defs/aiStageConfig" },
+        "fixStage": { "$ref": "#/$defs/aiStageConfig" },
+        "judgeStage": { "$ref": "#/$defs/aiStageConfig" }
+      }
+    },
+    "review": {
+      "$ref": "#/$defs/reviewConfig"
+    },
+    "performance": {
+      "$ref": "#/$defs/performanceConfig"
+    },
+    "fix": {
+      "$ref": "#/$defs/fixConfig"
+    },
+    "report": {
+      "$ref": "#/$defs/reportConfig"
+    },
+    "github": {
+      "$ref": "#/$defs/githubConfig"
+    },
+    "gitlab": {
+      "$ref": "#/$defs/gitlabConfig"
+    },
+    "paths": {
+      "$ref": "#/$defs/pathsConfig"
+    },
+    "logger": {
+      "$ref": "#/$defs/loggerConfig"
+    },
+    "skipPatterns": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": ["node_modules/**", ".git/**", "dist/**", "build/**", "coverage/**"]
+    },
+    "includePatterns": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "maxFilesPerBatch": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 7
+    },
+    "maxConcurrency": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 3
+    },
+    "cacheEnabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "cacheTTL": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 300000
+    },
+    "outputFormat": {
+      "type": "string",
+      "enum": ["json", "html", "markdown"],
+      "default": "html"
+    },
+    "outputPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "verbose": {
+      "type": "boolean",
+      "default": false
+    },
+    "debug": {
+      "type": "boolean",
+      "default": false
+    },
+    "maxFileSizeKB": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 500
+    },
+    "maxTokensPerFile": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1000000
+    },
+    "maxReactSteps": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 5
+    },
+    "throttling": {
+      "$ref": "#/$defs/throttlingConfig"
+    }
+  },
+  "$defs": {
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "issueType": {
+      "type": "string",
+      "enum": ["bug", "security", "performance", "maintainability"]
+    },
+    "aiProvider": {
+      "type": "string",
+      "enum": ["anthropic", "openai", "bedrock"]
+    },
+    "aiStageConfig": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["provider", "model", "inputPerMillion", "outputPerMillion"],
+      "properties": {
+        "provider": { "$ref": "#/$defs/aiProvider" },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inputPerMillion": {
+          "type": "number",
+          "minimum": 0
+        },
+        "outputPerMillion": {
+          "type": "number",
+          "minimum": 0
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0
+        },
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "promptConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file"],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "promptRef": {
+      "anyOf": [{ "type": "string", "minLength": 1 }, { "$ref": "#/$defs/promptConfig" }]
+    },
+    "validationConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "minConfidence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "prompt": { "$ref": "#/$defs/promptRef" }
+      }
+    },
+    "deduplicationConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "prompt": { "$ref": "#/$defs/promptRef" }
+      }
+    },
+    "reviewPassFilters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "detectionTriggers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "filePatterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "excludePatterns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "reviewPass": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "enabled", "prompt"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "docs": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prompt": { "$ref": "#/$defs/promptRef" },
+        "filters": { "$ref": "#/$defs/reviewPassFilters" }
+      }
+    },
+    "agenticSubagentType": {
+      "type": "string",
+      "enum": [
+        "dependency-tracer",
+        "breaking-change-detector",
+        "security-analyzer",
+        "pattern-validator"
+      ]
+    },
+    "customAgentDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description", "prompt"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "model": {
+          "type": "string",
+          "enum": ["sonnet", "opus", "haiku"]
+        }
+      }
+    },
+    "agenticConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxTurns": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxBudgetUsd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "enabledSubagents": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/agenticSubagentType" }
+        },
+        "customAgents": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/customAgentDefinition" }
+        },
+        "agentsDir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "systemPrompt": {
+          "type": "string"
+        },
+        "contextMode": {
+          "type": "string",
+          "enum": ["diff", "full", "auto"]
+        },
+        "maxTokensPerFile": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxTotalTokens": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "pipelineJobFileByFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "enabled", "passes"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["file-by-file"]
+        },
+        "agentic": { "$ref": "#/$defs/agenticConfig" },
+        "validation": { "$ref": "#/$defs/validationConfig" },
+        "deduplication": { "$ref": "#/$defs/deduplicationConfig" },
+        "passes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reviewPass" }
+        }
+      }
+    },
+    "pipelineJobAgentic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "enabled", "mode"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["agentic"]
+        },
+        "agentic": { "$ref": "#/$defs/agenticConfig" },
+        "validation": { "$ref": "#/$defs/validationConfig" },
+        "deduplication": { "$ref": "#/$defs/deduplicationConfig" },
+        "passes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewPass" }
+        }
+      }
+    },
+    "pipelineJob": {
+      "oneOf": [
+        { "$ref": "#/$defs/pipelineJobAgentic" },
+        { "$ref": "#/$defs/pipelineJobFileByFile" }
+      ]
+    },
+    "reviewConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pipeline"],
+      "properties": {
+        "minConfidence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "sessionBased": {
+          "type": "boolean"
+        },
+        "maxFilesBeforeReset": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxContextTokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxConcurrentFiles": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "validation": { "$ref": "#/$defs/validationConfig" },
+        "deduplication": { "$ref": "#/$defs/deduplicationConfig" },
+        "pipeline": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/pipelineJob" }
+        }
+      }
+    },
+    "throttlingConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": ["apiCallsPerMinute"],
+          "properties": {
+            "apiCallsPerMinute": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "required": ["maxRequestsPerMinute"],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "maxRequestsPerMinute": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    },
+    "performanceConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxFileSizeKB": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxFilesPerBatch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxFilesPerProject": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxTokensPerFile": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxRetries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "throttling": {
+          "$ref": "#/$defs/throttlingConfig"
+        }
+      }
+    },
+    "fixConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/severity" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "minConfidence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "maxConcurrentFixes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "autoApply": {
+          "type": "boolean"
+        }
+      }
+    },
+    "reportConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "outputFormat": {
+          "type": "string",
+          "enum": ["json", "html", "markdown"]
+        },
+        "includedSeverities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/severity" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "generateIssueMarkdown": {
+          "type": "boolean"
+        },
+        "enableRootCauseExtraction": {
+          "type": "boolean"
+        }
+      }
+    },
+    "githubConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "postComments": { "type": "boolean" },
+        "skipOnDraft": { "type": "boolean" },
+        "blockPipeline": { "type": "boolean" },
+        "maxInlineComments": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "gitlabConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "postComments": { "type": "boolean" },
+        "skipOnDraft": { "type": "boolean" },
+        "blockPipeline": { "type": "boolean" }
+      }
+    },
+    "pathsConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sessionsDir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cacheDir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outputDir": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "loggerConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"]
+        },
+        "enableColors": {
+          "type": "boolean"
+        },
+        "enableTimestamps": {
+          "type": "boolean"
+        },
+        "prefix": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
