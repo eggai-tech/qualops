@@ -1,22 +1,22 @@
 {
   "ai": {
     "reviewStage": {
-      "provider": "github",
-      "model": "openai/gpt-4.1-mini",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0.1
     },
     "fixStage": {
-      "provider": "github",
-      "model": "openai/gpt-4.1-mini",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
     },
     "judgeStage": {
-      "provider": "github",
-      "model": "openai/gpt-4.1-mini",
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
