@@ -23,18 +23,17 @@
     }
   },
   "performance": {
-    "maxFileSizeKB": 500,
-    "maxFilesPerBatch": 15,
-    "maxTokensPerFile": 4000,
+    "maxFileSizeKB": 250,
+    "maxFilesPerBatch": 4,
+    "maxTokensPerFile": 2500,
     "timeoutSeconds": 300,
     "throttling": {
-      "enabled": true,
-      "maxRequestsPerMinute": 15
+      "apiCallsPerMinute": 6
     }
   },
   "review": {
     "minConfidence": 7,
-    "maxConcurrentFiles": 3,
+    "maxConcurrentFiles": 1,
     "validation": {
       "enabled": true,
       "minConfidence": 7,
@@ -212,10 +211,10 @@
         "enabled": true,
         "mode": "agentic",
         "agentic": {
-          "maxTurns": 15,
+          "maxTurns": 6,
           "contextMode": "auto",
           "maxTokensPerFile": 8000,
-          "maxTotalTokens": 50000,
+          "maxTotalTokens": 20000,
           "enabledSubagents": [
             "security-analyzer",
             "dependency-tracer",
@@ -235,7 +234,7 @@
     "enabled": true,
     "severities": ["critical", "high"],
     "minConfidence": 8,
-    "maxConcurrentFixes": 5,
+    "maxConcurrentFixes": 1,
     "autoApply": false
   },
   "report": {
