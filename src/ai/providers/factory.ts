@@ -1,6 +1,6 @@
 import { AnthropicProvider } from './anthropic';
 import { BedrockProvider } from './bedrock';
-import { GithubModelsProvider } from './github';
+import { GitHubModelsProvider } from './github';
 import { OpenAIProvider } from './openai';
 import type { AIProvider } from './provider';
 import { ConfigService } from '../../config/config';
@@ -42,7 +42,7 @@ export class AIFactory {
         provider = new OpenAIProvider(stageConfig);
         break;
       case AIProviderType.GITHUB:
-        provider = new GithubModelsProvider(stageConfig);
+        provider = new GitHubModelsProvider(stageConfig);
         break;
       default: {
         const _exhaustiveCheck: never = stageConfig.provider;

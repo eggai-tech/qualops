@@ -7,7 +7,7 @@ import {
   getGlobalAIProvider,
   initializeGlobalAIProviderForStage,
 } from '@/ai/providers/factory';
-import { GithubModelsProvider } from '@/ai/providers/github';
+import { GitHubModelsProvider } from '@/ai/providers/github';
 import { OpenAIProvider } from '@/ai/providers/openai';
 import type { AIProvider } from '@/ai/providers/provider';
 import { ConfigService } from '@/config/config';
@@ -22,7 +22,7 @@ jest.mock('@/shared/utils/logger');
 const mockAnthropicProvider = AnthropicProvider as jest.MockedClass<typeof AnthropicProvider>;
 const mockBedrockProvider = BedrockProvider as jest.MockedClass<typeof BedrockProvider>;
 const mockOpenAIProvider = OpenAIProvider as jest.MockedClass<typeof OpenAIProvider>;
-const mockGitHubProvider = GithubModelsProvider as jest.MockedClass<typeof GithubModelsProvider>;
+const mockGitHubProvider = GitHubModelsProvider as jest.MockedClass<typeof GitHubModelsProvider>;
 
 describe('AIFactory', () => {
   let mockConfigInstance: jest.Mocked<ConfigService>;

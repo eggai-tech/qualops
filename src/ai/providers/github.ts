@@ -8,7 +8,7 @@ import { logger } from '@/shared/utils/logger';
 
 import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
 
-export class GithubModelsProvider implements AIProvider {
+export class GitHubModelsProvider implements AIProvider {
   readonly name = 'github';
 
   private client: OpenAI | null = null;
