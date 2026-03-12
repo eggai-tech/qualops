@@ -1,22 +1,22 @@
 {
   "ai": {
     "reviewStage": {
-      "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
+      "provider": "github",
+      "model": "openai/gpt-4o",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
     },
     "fixStage": {
-      "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
+      "provider": "github",
+      "model": "openai/gpt-4o",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
     },
     "judgeStage": {
-      "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
+      "provider": "github",
+      "model": "openai/gpt-4o",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
@@ -216,7 +216,11 @@
           "contextMode": "auto",
           "maxTokensPerFile": 8000,
           "maxTotalTokens": 50000,
-          "enabledSubagents": ["security-analyzer", "dependency-tracer", "breaking-change-detector"],
+          "enabledSubagents": [
+            "security-analyzer",
+            "dependency-tracer",
+            "breaking-change-detector"
+          ],
           "systemPrompt": "You are a security-focused code reviewer analyzing the QualOps codebase. Focus on:\n1. Command injection vulnerabilities in shell executions\n2. Path traversal in file operations\n3. Credential exposure in logs or error messages\n4. Unsafe deserialization or eval usage\n5. Cross-file security implications"
         },
         "validation": {
