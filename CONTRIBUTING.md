@@ -66,7 +66,7 @@ Add your changes under the appropriate subsection:
 - Removed feature description
 ```
 
-If your change doesn't warrant a changelog entry (docs, CI, dependency updates), add the `skip-changelog` label to your PR.
+PRs that only touch `docs/`, `.github/`, `examples/`, or root config files are auto-skipped by CI — no label needed.
 
 ## Pull Request Process
 
