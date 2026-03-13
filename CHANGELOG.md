@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Dependabot integration with grouped updates and auto-merge for patch/minor
-
 - Agentic reviewer mode using Claude Agent SDK for PR-level analysis
 - Context preloading: inject diffs/content directly into agent prompt (70% fewer tool calls)
 - Cross-file dependency tracing with `find_usages` tool
@@ -22,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom agent support via configuration or markdown files in `.qualops/agents/`
 
 ### Changed
+- Upgrade all AI SDKs: @anthropic-ai/sdk 0.78, openai 6, claude-agent-sdk 0.2, zod 4
+- Upgrade GitHub Actions: checkout v6, setup-node v6, upload-artifact v7, download-artifact v8
 - Pipeline jobs now support `mode: 'file-by-file' | 'agentic'` configuration
 - Extended `AgenticConfig` with `contextMode`, `maxTokensPerFile`, `maxTotalTokens` options
 - `init-claude` command now bundles LLM context locally (works with private repos)
