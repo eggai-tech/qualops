@@ -64,7 +64,7 @@
     "qualops:judge": "node --env-file=.env --experimental-strip-types src/cli.ts judge"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.74",
+    "@anthropic-ai/claude-agent-sdk": "~0.1.76",
     "@anthropic-ai/sdk": "0.32.1",
     "@aws-sdk/client-bedrock-runtime": "^3.1008.0",
     "@octokit/rest": "^22.0.1",
