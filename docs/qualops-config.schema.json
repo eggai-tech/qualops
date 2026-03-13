@@ -18,11 +18,16 @@
       "additionalProperties": false,
       "required": ["reviewStage"],
       "properties": {
-        "reviewStage": { "$ref": "#/$defs/aiStageConfig" },
-        "fixStage": { "$ref": "#/$defs/aiStageConfig" },
+        "reviewStage": {
+          "description": "Settings for the review stage runtime. Although stages can be skipped, a previous review is always required for a fix stage, therefore this setting is required.",
+          "$ref": "#/$defs/aiStageConfig"
+        },
+        "fixStage": {
+          "description": "Settings for the fix stage runtime.",
+          "$ref": "#/$defs/aiStageConfig"
+        },
         "judgeStage": {
-          "description": "Legacy setting currently not used by the judge stage runtime.",
-          "deprecated": true,
+          "description": "Planned settings (currently unused) for configuring the judge stage (not yet implemented).",
           "$ref": "#/$defs/aiStageConfig"
         }
       }
