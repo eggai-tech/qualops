@@ -7,14 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Fixed
+- Resolve all npm audit vulnerabilities (diff, @aws-sdk/client-bedrock-runtime, transitive deps)
+- Release PR workflow: add Node.js setup, sync package-lock.json after version bump
+- Release PR body: clarify tagging is a manual step
 
+### Added
+- GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
+- Dependabot integration with grouped updates and auto-merge for patch/minor
 - Agentic reviewer mode using Claude Agent SDK for PR-level analysis
 - Context preloading: inject diffs/content directly into agent prompt (70% fewer tool calls)
 - Cross-file dependency tracing with `find_usages` tool
 - Security analysis subagent for vulnerability detection
 - Custom agent support via configuration or markdown files in `.qualops/agents/`
-- GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
 
 ### Changed
 

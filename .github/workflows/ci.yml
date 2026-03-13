@@ -50,7 +50,7 @@ jobs:
         run: npm test
 
   changelog:
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -58,7 +58,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check if changelog is required
+        id: needs-changelog
+        run: |
+          # Changelog is required if the PR touches source code or tests.
+          # PRs that only touch .github/, docs/, examples/, or root config files
+          # are auto-skipped — no label needed.
+          git fetch origin main
+          CHANGED=$(git diff origin/main --name-only)
+          CODE_CHANGED=$(echo "$CHANGED" | grep -E "^(src/|tests/|package\.json)" | grep -v "^CHANGELOG.md" || true)
+
+          if [ -z "$CODE_CHANGED" ]; then
+            echo "required=false" >> $GITHUB_OUTPUT
+            echo "No code changes — changelog not required."
+          else
+            echo "required=true" >> $GITHUB_OUTPUT
+            echo "Code changed — changelog required:"
+            echo "$CODE_CHANGED"
+          fi
+
       - name: Check changelog updated
+        if: steps.needs-changelog.outputs.required == 'true'
         run: |
           # Check if this is a release PR
           if echo "${{ github.head_ref }}" | grep -qE '^release/v'; then
@@ -75,25 +95,23 @@ jobs:
           fi
 
           # For regular PRs, check if [Unreleased] section has content
-          git fetch origin main
           CHANGELOG_DIFF=$(git diff origin/main...HEAD -- CHANGELOG.md)
           if [ -z "$CHANGELOG_DIFF" ]; then
-            echo "Error: CHANGELOG.md has not been updated"
-            echo ""
-            echo "Please add your changes under the [Unreleased] section:"
-            echo ""
-            echo "## [Unreleased]"
-            echo ""
-            echo "### Added"
-            echo "- Your new feature"
-            echo ""
-            echo "### Fixed"
-            echo "- Your bug fix"
-            echo ""
-            echo "If this change doesn't need a changelog entry, add the 'skip-changelog' label."
+            echo "::error::CHANGELOG.md must be updated. Add your changes under [Unreleased] section."
             exit 1
           fi
-          echo "CHANGELOG.md has been updated"
+
+          # Require at least one bullet entry under [Unreleased]
+          UNRELEASED=$(sed -n '/^## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | tail -n +2 | head -n -1)
+          if ! echo "$UNRELEASED" | grep -qE "^### "; then
+            echo "::error::Add a category header (### Added, ### Fixed, etc.) under [Unreleased] in CHANGELOG.md"
+            exit 1
+          fi
+          if ! echo "$UNRELEASED" | grep -qE "^- "; then
+            echo "::error::Add at least one entry (- description) under [Unreleased] in CHANGELOG.md"
+            exit 1
+          fi
+          echo "Changelog check passed!"
 
   qualops:
     runs-on: ubuntu-latest
@@ -162,7 +180,7 @@ jobs:
             echo "Test job failed"
             exit 1
           fi
-          # Changelog is optional (can be skipped with label or on main push)
+          # Changelog is optional (skipped on push to main or when no code changes)
           if [ "${{ needs.changelog.result }}" != "success" ] && [ "${{ needs.changelog.result }}" != "skipped" ]; then
             echo "Changelog job failed"
             exit 1
