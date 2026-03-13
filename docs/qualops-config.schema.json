@@ -4,13 +4,19 @@
   "title": "QualOps Configuration",
   "description": "Schema for QualOps project configuration. This schema reflects runtime behaviour in the current codebase.",
   "type": "object",
+  "additionalProperties": false,
   "required": ["ai", "review"],
   "properties": {
+    "$schema": {
+      "description": "Optional JSON Schema reference for editor/validator tooling.",
+      "type": "string",
+      "format": "uri-reference"
+    },
     "ai": {
-      "description": "AI provider/model settings per pipeline stage. reviewStage and fixStage are required at runtime.",
+      "description": "AI provider/model settings per pipeline stage. reviewStage is required for review runs; fixStage is required only when fix stage is executed.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["reviewStage", "fixStage"],
+      "required": ["reviewStage"],
       "properties": {
         "reviewStage": { "$ref": "#/$defs/aiStageConfig" },
         "fixStage": { "$ref": "#/$defs/aiStageConfig" },
@@ -42,89 +48,100 @@
       "$ref": "#/$defs/gitlabConfig"
     },
     "paths": {
-      "description": "Optional overrides for sessions, cache, and output directories.",
+      "description": "Optional directory overrides read by ConfigService.getDirectories(). Current runtime flow does not actively consume getDirectories(), so this is effectively a compatibility/forward-use field.",
+      "deprecated": true,
       "$ref": "#/$defs/pathsConfig"
     },
     "logger": {
-      "description": "Logger behaviour for console output (level, colors, timestamps, prefix).",
+      "description": "Logger behaviour for console output (level, colors, timestamps, prefix). Note: logger currently reads root .qualopsrc.json in logger module, not the default .qualops/.qualopsrc.json path.",
+      "deprecated": true,
       "$ref": "#/$defs/loggerConfig"
     },
     "skipPatterns": {
-      "description": "Glob patterns to skip during analysis/review file discovery.",
+      "description": "Legacy setting currently not merged from file by ConfigService.loadConfig(). Kept for backward compatibility.",
+      "deprecated": true,
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
       "default": ["node_modules/**", ".git/**", "dist/**", "build/**", "coverage/**"]
     },
     "includePatterns": {
-      "description": "Optional allowlist glob patterns to include for processing.",
+      "description": "Legacy setting currently not merged from file by ConfigService.loadConfig(). Kept for backward compatibility.",
+      "deprecated": true,
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
     },
     "maxFilesPerBatch": {
-      "description": "Global batch size used when processing files.",
+      "description": "Legacy top-level override. Runtime primarily reads this from performance.maxFilesPerBatch; top-level value is not merged from file.",
+      "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 7
     },
     "maxConcurrency": {
-      "description": "Global concurrency limit used by shared processing utilities.",
+      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig().",
+      "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 3
     },
     "cacheEnabled": {
-      "description": "Enable or disable cache usage where supported.",
+      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig().",
+      "deprecated": true,
       "type": "boolean",
       "default": true
     },
     "cacheTTL": {
-      "description": "Cache TTL in milliseconds for in-memory cache decisions.",
+      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig().",
+      "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 300000
     },
     "outputFormat": {
-      "description": "Global output format preference.",
+      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig().",
+      "deprecated": true,
       "type": "string",
       "enum": ["json", "html", "markdown"],
       "default": "html"
     },
     "outputPath": {
-      "description": "Optional custom output path for generated artifacts.",
+      "description": "Legacy top-level override currently unused by runtime stage implementations.",
+      "deprecated": true,
       "type": "string",
       "minLength": 1
     },
     "verbose": {
-      "description": "Enable verbose logging.",
+      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig() (env vars still apply).",
+      "deprecated": true,
       "type": "boolean",
       "default": false
     },
     "debug": {
-      "description": "Enable debug logging and diagnostics.",
+      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig() (env vars still apply).",
+      "deprecated": true,
       "type": "boolean",
       "default": false
     },
     "maxFileSizeKB": {
-      "description": "Maximum file size (KB) accepted for processing.",
+      "description": "Legacy top-level override. Runtime primarily reads this from performance.maxFileSizeKB; top-level value is not merged from file.",
+      "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 500
     },
     "maxTokensPerFile": {
-      "description": "Maximum token budget per file for AI context construction.",
+      "description": "Legacy top-level override. Runtime primarily reads this from performance.maxTokensPerFile; top-level value is not merged from file.",
+      "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 1000000
     },
     "maxReactSteps": {
-      "description": "Maximum ReAct/tool-usage steps for supported flows.",
+      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig().",
+      "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 5
-    },
-    "throttling": {
-      "description": "Global throttling config consumed by review rate limiting.",
-      "$ref": "#/$defs/throttlingConfig"
     }
   },
   "$defs": {
@@ -496,6 +513,9 @@
         {
           "required": ["apiCallsPerMinute"],
           "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
             "apiCallsPerMinute": {
               "type": "integer",
               "minimum": 1
@@ -509,6 +529,7 @@
               "type": "boolean"
             },
             "maxRequestsPerMinute": {
+              "deprecated": true,
               "type": "integer",
               "minimum": 1
             }
@@ -563,15 +584,18 @@
       "properties": {
         "enabled": {
           "description": "Enable fix stage behaviours.",
+          "deprecated": true,
           "type": "boolean"
         },
         "prompt": {
           "description": "Optional fix prompt override used by fix generation workflows.",
+          "deprecated": true,
           "type": "string",
           "minLength": 1
         },
         "severities": {
           "description": "Severities eligible for fix generation.",
+          "deprecated": true,
           "type": "array",
           "items": { "$ref": "#/$defs/severity" },
           "minItems": 1,
@@ -579,6 +603,7 @@
         },
         "minConfidence": {
           "description": "Minimum issue confidence required before generating fixes.",
+          "deprecated": true,
           "type": "integer",
           "minimum": 1,
           "maximum": 10
@@ -590,6 +615,7 @@
         },
         "autoApply": {
           "description": "If true, enables automatic application of generated fixes when requested by stage options.",
+          "deprecated": true,
           "type": "boolean"
         }
       }
@@ -601,6 +627,7 @@
       "properties": {
         "outputFormat": {
           "description": "Preferred report format.",
+          "deprecated": true,
           "type": "string",
           "enum": ["json", "html", "markdown"]
         },
@@ -628,6 +655,7 @@
       "properties": {
         "enabled": {
           "description": "Enable GitHub integration behaviour.",
+          "deprecated": true,
           "type": "boolean"
         },
         "postComments": {
@@ -650,20 +678,23 @@
       }
     },
     "gitlabConfig": {
-      "description": "GitLab integration configuration loaded by GitLab integration runtime.",
+      "description": "GitLab integration configuration. Note: current GitLab integration reads root .qualopsrc.json directly, not the default .qualops/.qualopsrc.json path.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "enabled": {
           "description": "Enable GitLab integration behaviour.",
+          "deprecated": true,
           "type": "boolean"
         },
         "postComments": {
           "description": "Post or update a QualOps MR note.",
+          "deprecated": true,
           "type": "boolean"
         },
         "skipOnDraft": {
           "description": "Skip MR updates for draft merge requests when supported.",
+          "deprecated": true,
           "type": "boolean"
         },
         "blockPipeline": {
@@ -673,22 +704,22 @@
       }
     },
     "pathsConfig": {
-      "description": "Directory path overrides consumed by ConfigService.getDirectories().",
+      "description": "Directory path overrides returned by ConfigService.getDirectories() (sessionsDir, cacheDir, outputDir). Note: getDirectories() currently has no active call sites in src runtime flow.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "sessionsDir": {
-          "description": "Base directory for per-session outputs.",
+          "description": "Override for sessions directory returned by getDirectories().",
           "type": "string",
           "minLength": 1
         },
         "cacheDir": {
-          "description": "Directory used for cache artifacts.",
+          "description": "Override for cache directory returned by getDirectories().",
           "type": "string",
           "minLength": 1
         },
         "outputDir": {
-          "description": "Root output directory for generated reports/assets.",
+          "description": "Override for output directory returned by getDirectories().",
           "type": "string",
           "minLength": 1
         }
