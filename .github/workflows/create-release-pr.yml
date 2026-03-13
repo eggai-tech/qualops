@@ -90,15 +90,17 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
           fi
 
-      - name: Commit changes
+      - name: Commit and push
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           git add package.json package-lock.json CHANGELOG.md
           git commit -m "chore: release v$VERSION"
-          git push origin release/v$VERSION
+          git push https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git release/v$VERSION
 
       - name: Create Pull Request
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
           CHANGELOG_BODY: ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
         run: |
           printf '%s\n' "## Release v$VERSION" "" "$CHANGELOG_BODY" "" "---" "**Checklist:**" "- [ ] Version bump looks correct" "- [ ] Changelog entries are accurate" "- [ ] CI passes" "" "After merging, run the **Tag and Publish Release** workflow to create the git tag and trigger npm publish." > /tmp/pr-body.md
