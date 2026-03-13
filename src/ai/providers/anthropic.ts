@@ -156,9 +156,8 @@ export class AnthropicProvider implements AIProvider {
           ? systemMessages.map((m) => ({
               type: 'text' as const,
               text: m.content,
-
               ...('cache_control' in m && m.cache_control
-                ? { cache_control: m.cache_control }
+                ? { cache_control: m.cache_control as { type: 'ephemeral' } }
                 : {}),
             }))
           : undefined;

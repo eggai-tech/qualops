@@ -22,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom agent support via configuration or markdown files in `.qualops/agents/`
 
 ### Changed
-
+- Upgrade all AI SDKs: @anthropic-ai/sdk 0.78, openai 6, claude-agent-sdk 0.2, zod 4
+- Upgrade GitHub Actions: checkout v6, setup-node v6, upload-artifact v7, download-artifact v8
 - Pipeline jobs now support `mode: 'file-by-file' | 'agentic'` configuration
 - Extended `AgenticConfig` with `contextMode`, `maxTokensPerFile`, `maxTotalTokens` options
 - `init-claude` command now bundles LLM context locally (works with private repos)
@@ -33,24 +34,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.1] - 2025-01-06
 
 ### Added
-
 - `.qualops/` folder structure for configuration and examples
 - LLM context distribution with `init-claude` command
 - GitHub integration with PR comments and checks API
 
 ### Changed
-
 - Moved configuration from root `.qualopsrc.json` to `.qualops/.qualopsrc.json`
 - Moved examples to `.qualops/examples/`
 
 ### Fixed
-
 - ESLint and Prettier configuration alignment
 
 ## [0.1.0] - 2025-01-05
 
 ### Added
-
 - Initial release of QualOps
 - Multi-stage pipeline: analyze, review, fix, report, judge
 - AI-powered code review with Claude, GPT-4, and AWS Bedrock support
