@@ -96,7 +96,7 @@ runs:
 
     - name: Upload QualOps Reports
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: qualops-reports
         path: .qualops/reports/
