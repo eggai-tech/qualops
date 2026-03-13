@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-file dependency tracing with `find_usages` tool
 - Security analysis subagent for vulnerability detection
 - Custom agent support via configuration or markdown files in `.qualops/agents/`
+- Add configuration JSON schema file and update the existing configuration to reference this schema file
 
 ### Changed
 - Pipeline jobs now support `mode: 'file-by-file' | 'agentic'` configuration
