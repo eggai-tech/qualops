@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extended `AgenticConfig` with `contextMode`, `maxTokensPerFile`, `maxTotalTokens` options
 - `init-claude` command now bundles LLM context locally (works with private repos)
 - Updated documentation with agentic mode examples and configuration
+- Fixed logger config loading to read from `${cwd}/.qualops/.qualopsrc.json`
 
 ## [0.1.1] - 2025-01-06
 
