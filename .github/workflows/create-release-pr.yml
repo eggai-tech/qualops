@@ -21,6 +21,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+
       - name: Validate version format
         run: |
           VERSION="${{ github.event.inputs.version }}"
@@ -62,7 +68,8 @@ jobs:
       - name: Update package.json version
         run: |
           npm version $VERSION --no-git-tag-version
-          echo "Updated package.json to version $VERSION"
+          npm install --package-lock-only
+          echo "Updated package.json and package-lock.json to version $VERSION"
 
       - name: Update changelog for stable release
         if: env.IS_PRERELEASE == 'false'
@@ -94,7 +101,7 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           CHANGELOG_BODY: ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
         run: |
-          printf '%s\n' "## Release v$VERSION" "" "$CHANGELOG_BODY" "" "---" "**Checklist:**" "- [ ] Version bump looks correct" "- [ ] Changelog entries are accurate" "- [ ] CI passes" "" "After merging, a git tag will be automatically created and npm publish will be triggered." > /tmp/pr-body.md
+          printf '%s\n' "## Release v$VERSION" "" "$CHANGELOG_BODY" "" "---" "**Checklist:**" "- [ ] Version bump looks correct" "- [ ] Changelog entries are accurate" "- [ ] CI passes" "" "After merging, run the **Tag and Publish Release** workflow to create the git tag and trigger npm publish." > /tmp/pr-body.md
           gh pr create \
             --title "chore: release v$VERSION" \
             --body-file /tmp/pr-body.md \
