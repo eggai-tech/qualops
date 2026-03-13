@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://egg-ai.com/schemas/qualops-config.schema.json",
   "title": "QualOps Configuration",
-  "description": "Schema for QualOps project configuration. This schema reflects runtime behaviour in the current codebase.",
+  "description": "Schema for QualOps project configuration.",
   "type": "object",
   "additionalProperties": false,
   "required": ["ai", "review"],
@@ -13,14 +13,18 @@
       "format": "uri-reference"
     },
     "ai": {
-      "description": "AI provider/model settings per pipeline stage. reviewStage is required for review runs; fixStage is required only when fix stage is executed.",
+      "description": "AI provider and model settings for each stage.",
       "type": "object",
       "additionalProperties": false,
       "required": ["reviewStage"],
       "properties": {
         "reviewStage": { "$ref": "#/$defs/aiStageConfig" },
         "fixStage": { "$ref": "#/$defs/aiStageConfig" },
-        "judgeStage": { "$ref": "#/$defs/aiStageConfig" }
+        "judgeStage": {
+          "description": "Legacy setting currently not used by the judge stage runtime.",
+          "deprecated": true,
+          "$ref": "#/$defs/aiStageConfig"
+        }
       }
     },
     "review": {
@@ -28,7 +32,7 @@
       "$ref": "#/$defs/reviewConfig"
     },
     "performance": {
-      "description": "Performance and safety limits for file size, token budgets, retries, and timeouts.",
+      "description": "Compatibility settings for performance limits. In current runtime behavior, only throttling.apiCallsPerMinute is actively applied.",
       "$ref": "#/$defs/performanceConfig"
     },
     "fix": {
@@ -48,57 +52,54 @@
       "$ref": "#/$defs/gitlabConfig"
     },
     "paths": {
-      "description": "Optional directory overrides read by ConfigService.getDirectories(). Current runtime flow does not actively consume getDirectories(), so this is effectively a compatibility/forward-use field.",
+      "description": "Legacy directory overrides retained for compatibility. Current pipeline execution does not apply these values.",
       "deprecated": true,
       "$ref": "#/$defs/pathsConfig"
     },
     "logger": {
-      "description": "Logger behaviour for console output (level, colors, timestamps, prefix). Note: logger currently reads root .qualopsrc.json in logger module, not the default .qualops/.qualopsrc.json path.",
-      "deprecated": true,
+      "description": "Logger behavior for console output (level, colors, timestamps, prefix). This is read from a root .qualopsrc.json file.",
       "$ref": "#/$defs/loggerConfig"
     },
     "skipPatterns": {
-      "description": "Legacy setting currently not merged from file by ConfigService.loadConfig(). Kept for backward compatibility.",
+      "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
-      "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "$ref": "#/$defs/nonEmptyStringArray",
       "default": ["node_modules/**", ".git/**", "dist/**", "build/**", "coverage/**"]
     },
     "includePatterns": {
-      "description": "Legacy setting currently not merged from file by ConfigService.loadConfig(). Kept for backward compatibility.",
+      "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
-      "type": "array",
-      "items": { "type": "string", "minLength": 1 }
+      "$ref": "#/$defs/nonEmptyStringArray"
     },
     "maxFilesPerBatch": {
-      "description": "Legacy top-level override. Runtime primarily reads this from performance.maxFilesPerBatch; top-level value is not merged from file.",
+      "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 7
     },
     "maxConcurrency": {
-      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig().",
+      "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 3
     },
     "cacheEnabled": {
-      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig().",
+      "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
       "type": "boolean",
       "default": true
     },
     "cacheTTL": {
-      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig().",
+      "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 300000
     },
     "outputFormat": {
-      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig().",
+      "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
       "type": "string",
       "enum": ["json", "html", "markdown"],
@@ -111,33 +112,33 @@
       "minLength": 1
     },
     "verbose": {
-      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig() (env vars still apply).",
+      "description": "Legacy compatibility field. Values from config files are currently ignored (environment variables still apply).",
       "deprecated": true,
       "type": "boolean",
       "default": false
     },
     "debug": {
-      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig() (env vars still apply).",
+      "description": "Legacy compatibility field. Values from config files are currently ignored (environment variables still apply).",
       "deprecated": true,
       "type": "boolean",
       "default": false
     },
     "maxFileSizeKB": {
-      "description": "Legacy top-level override. Runtime primarily reads this from performance.maxFileSizeKB; top-level value is not merged from file.",
+      "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 500
     },
     "maxTokensPerFile": {
-      "description": "Legacy top-level override. Runtime primarily reads this from performance.maxTokensPerFile; top-level value is not merged from file.",
+      "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
       "type": "integer",
       "minimum": 1,
       "default": 1000000
     },
     "maxReactSteps": {
-      "description": "Legacy top-level override not merged from file by ConfigService.loadConfig().",
+      "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
       "type": "integer",
       "minimum": 1,
@@ -145,6 +146,25 @@
     }
   },
   "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" }
+    },
+    "confidenceScore": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "severityList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/severity" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
     "severity": {
       "description": "Standard issue severity levels used across review, fix, and reporting.",
       "type": "string",
@@ -156,12 +176,12 @@
       "enum": ["bug", "security", "performance", "maintainability"]
     },
     "aiProvider": {
-      "description": "Supported AI provider identifiers accepted by provider factory.",
+      "description": "Supported AI provider names.",
       "type": "string",
       "enum": ["anthropic", "openai", "bedrock"]
     },
     "aiStageConfig": {
-      "description": "Per-stage AI configuration used to instantiate the provider client.",
+      "description": "AI configuration for a specific stage.",
       "type": "object",
       "additionalProperties": true,
       "required": ["provider", "model", "inputPerMillion", "outputPerMillion"],
@@ -198,7 +218,7 @@
       }
     },
     "promptConfig": {
-      "description": "Object-based prompt reference with optional metadata.",
+      "description": "Prompt reference object with optional metadata.",
       "type": "object",
       "additionalProperties": false,
       "required": ["file"],
@@ -209,7 +229,7 @@
           "minLength": 1
         },
         "meta": {
-          "description": "Optional prompt metadata available to template/rendering workflows.",
+          "description": "Optional metadata that can be used by prompt templates.",
           "type": "object",
           "additionalProperties": true
         }
@@ -230,12 +250,10 @@
         },
         "minConfidence": {
           "description": "Minimum confidence required before/after validation.",
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 10
+          "$ref": "#/$defs/confidenceScore"
         },
         "prompt": {
-          "description": "Prompt used by AI validation resolver.",
+          "description": "Prompt used for AI-assisted validation.",
           "$ref": "#/$defs/promptRef"
         }
       }
@@ -250,7 +268,7 @@
           "type": "boolean"
         },
         "prompt": {
-          "description": "Prompt used by AI deduplication resolver.",
+          "description": "Prompt used for AI-assisted deduplication.",
           "$ref": "#/$defs/promptRef"
         }
       }
@@ -262,18 +280,15 @@
       "properties": {
         "detectionTriggers": {
           "description": "Regex patterns tested against file content; at least one match is required.",
-          "type": "array",
-          "items": { "type": "string", "minLength": 1 }
+          "$ref": "#/$defs/nonEmptyStringArray"
         },
         "filePatterns": {
           "description": "Glob patterns a file path must match to be reviewed.",
-          "type": "array",
-          "items": { "type": "string", "minLength": 1 }
+          "$ref": "#/$defs/nonEmptyStringArray"
         },
         "excludePatterns": {
           "description": "Glob patterns that exclude matching files from the pass.",
-          "type": "array",
-          "items": { "type": "string", "minLength": 1 }
+          "$ref": "#/$defs/nonEmptyStringArray"
         }
       }
     },
@@ -298,7 +313,7 @@
           "minLength": 1
         },
         "prompt": {
-          "description": "Prompt reference loaded by PromptLoader.",
+          "description": "Prompt reference used by this review pass.",
           "$ref": "#/$defs/promptRef"
         },
         "filters": {
@@ -340,11 +355,7 @@
         },
         "tools": {
           "description": "Allowed tool names for the custom agent.",
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+          "$ref": "#/$defs/nonEmptyStringArray"
         },
         "model": {
           "description": "Optional model tier override for this custom agent.",
@@ -472,21 +483,22 @@
       "properties": {
         "minConfidence": {
           "description": "Base confidence threshold used by review and template rendering contexts.",
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 10
+          "$ref": "#/$defs/confidenceScore"
         },
         "sessionBased": {
-          "description": "Legacy/session processing toggle used by older review flows.",
+          "description": "Legacy compatibility setting currently ignored by the active review pipeline.",
+          "deprecated": true,
           "type": "boolean"
         },
         "maxFilesBeforeReset": {
-          "description": "Legacy cap controlling periodic reset behaviour in older flows.",
+          "description": "Legacy compatibility setting currently ignored by the active review pipeline.",
+          "deprecated": true,
           "type": "integer",
           "minimum": 1
         },
         "maxContextTokens": {
-          "description": "Legacy global review context token cap.",
+          "description": "Legacy compatibility setting currently ignored by the active review pipeline.",
+          "deprecated": true,
           "type": "integer",
           "minimum": 1
         },
@@ -506,69 +518,66 @@
       }
     },
     "throttlingConfig": {
-      "description": "API rate-limit settings. apiCallsPerMinute is used by runtime rate limiter; maxRequestsPerMinute is accepted for compatibility.",
+      "description": "API rate-limit settings for review-time AI calls.",
       "type": "object",
       "additionalProperties": false,
-      "oneOf": [
-        {
-          "required": ["apiCallsPerMinute"],
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            },
-            "apiCallsPerMinute": {
-              "type": "integer",
-              "minimum": 1
-            }
-          }
+      "properties": {
+        "enabled": {
+          "description": "Legacy compatibility field currently ignored.",
+          "deprecated": true,
+          "type": "boolean"
         },
-        {
-          "required": ["maxRequestsPerMinute"],
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            },
-            "maxRequestsPerMinute": {
-              "deprecated": true,
-              "type": "integer",
-              "minimum": 1
-            }
-          }
+        "apiCallsPerMinute": {
+          "description": "Maximum review-time AI calls per minute. If omitted, runtime defaults to 2.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "maxRequestsPerMinute": {
+          "description": "Legacy compatibility alias currently ignored at runtime.",
+          "deprecated": true,
+          "type": "integer",
+          "minimum": 1
         }
-      ]
+      }
     },
     "performanceConfig": {
-      "description": "Performance constraints used by config helpers and stage limit calculations.",
+      "description": "Compatibility fields for performance tuning. In the current runtime, throttling.apiCallsPerMinute is the only actively applied setting.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "maxFileSizeKB": {
-          "description": "Maximum file size allowed for processing.",
+          "description": "Legacy compatibility field currently not applied by active stages.",
+          "deprecated": true,
           "type": "integer",
           "minimum": 1
         },
         "maxFilesPerBatch": {
-          "description": "Maximum files processed per batch.",
+          "description": "Legacy compatibility field currently not applied by active stages.",
+          "deprecated": true,
           "type": "integer",
           "minimum": 1
         },
         "maxFilesPerProject": {
-          "description": "Project-level cap for files considered in a run.",
+          "description": "Legacy compatibility field currently not applied by active stages.",
+          "deprecated": true,
           "type": "integer",
           "minimum": 1
         },
         "timeoutSeconds": {
-          "description": "Timeout budget for long-running operations.",
+          "description": "Legacy compatibility field currently not applied by active stages.",
+          "deprecated": true,
           "type": "integer",
           "minimum": 1
         },
         "maxTokensPerFile": {
-          "description": "Per-file token ceiling used for AI prompt/context construction.",
+          "description": "Legacy compatibility field currently not applied by active stages.",
+          "deprecated": true,
           "type": "integer",
           "minimum": 1
         },
         "maxRetries": {
-          "description": "Retry count for retryable operations.",
+          "description": "Legacy compatibility field currently not applied by active stages.",
+          "deprecated": true,
           "type": "integer",
           "minimum": 0
         },
@@ -596,17 +605,12 @@
         "severities": {
           "description": "Severities eligible for fix generation.",
           "deprecated": true,
-          "type": "array",
-          "items": { "$ref": "#/$defs/severity" },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/severityList"
         },
         "minConfidence": {
           "description": "Minimum issue confidence required before generating fixes.",
           "deprecated": true,
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 10
+          "$ref": "#/$defs/confidenceScore"
         },
         "maxConcurrentFixes": {
           "description": "Maximum number of fixes generated concurrently.",
@@ -633,10 +637,7 @@
         },
         "includedSeverities": {
           "description": "Only issues with these severities are included in report outputs.",
-          "type": "array",
-          "items": { "$ref": "#/$defs/severity" },
-          "minItems": 1,
-          "uniqueItems": true
+          "$ref": "#/$defs/severityList"
         },
         "generateIssueMarkdown": {
           "description": "Generate per-issue markdown files alongside reports.",
@@ -649,7 +650,7 @@
       }
     },
     "githubConfig": {
-      "description": "GitHub integration configuration loaded by GitHub integration runtime.",
+      "description": "GitHub pull request integration settings.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -678,7 +679,7 @@
       }
     },
     "gitlabConfig": {
-      "description": "GitLab integration configuration. Note: current GitLab integration reads root .qualopsrc.json directly, not the default .qualops/.qualopsrc.json path.",
+      "description": "GitLab merge request integration settings. This section is read from a root .qualopsrc.json file.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -704,22 +705,22 @@
       }
     },
     "pathsConfig": {
-      "description": "Directory path overrides returned by ConfigService.getDirectories() (sessionsDir, cacheDir, outputDir). Note: getDirectories() currently has no active call sites in src runtime flow.",
+      "description": "Legacy directory override settings retained for compatibility.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "sessionsDir": {
-          "description": "Override for sessions directory returned by getDirectories().",
+          "description": "Custom sessions directory path.",
           "type": "string",
           "minLength": 1
         },
         "cacheDir": {
-          "description": "Override for cache directory returned by getDirectories().",
+          "description": "Custom cache directory path.",
           "type": "string",
           "minLength": 1
         },
         "outputDir": {
-          "description": "Override for output directory returned by getDirectories().",
+          "description": "Custom output directory path.",
           "type": "string",
           "minLength": 1
         }
