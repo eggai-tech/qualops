@@ -507,6 +507,16 @@
           "type": "integer",
           "minimum": 1
         },
+        "enableValidation": {
+          "description": "Legacy compatibility alias for review.validation.enabled.",
+          "deprecated": true,
+          "type": "boolean"
+        },
+        "enableDeduplication": {
+          "description": "Legacy compatibility alias for review.deduplication.enabled.",
+          "deprecated": true,
+          "type": "boolean"
+        },
         "maxConcurrentFiles": {
           "description": "Concurrent file reviews for file-by-file pass execution.",
           "type": "integer",
@@ -585,6 +595,12 @@
           "deprecated": true,
           "type": "integer",
           "minimum": 0
+        },
+        "maxConcurrentFiles": {
+          "description": "Legacy compatibility field currently not applied by active stages.",
+          "deprecated": true,
+          "type": "integer",
+          "minimum": 1
         },
         "throttling": {
           "$ref": "#/$defs/throttlingConfig"
