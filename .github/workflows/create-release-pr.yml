@@ -94,9 +94,10 @@ jobs:
             echo "CHANGELOG_CONTENT=Pre-release version $VERSION" >> $GITHUB_OUTPUT
           else
             CONTENT=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | tail -n +2 | head -n -1)
-            echo "CHANGELOG_CONTENT<<EOF" >> $GITHUB_OUTPUT
+            DELIMITER=$(openssl rand -hex 8)
+            echo "CHANGELOG_CONTENT<<${DELIMITER}" >> $GITHUB_OUTPUT
             echo "$CONTENT" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            echo "${DELIMITER}" >> $GITHUB_OUTPUT
           fi
 
       - name: Commit and push

@@ -9,6 +9,9 @@ on:
       - main
     types: [opened, synchronize, reopened, labeled]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -79,11 +82,13 @@ jobs:
 
       - name: Check changelog updated
         if: steps.needs-changelog.outputs.required == 'true'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           # Check if this is a release PR
-          if echo "${{ github.head_ref }}" | grep -qE '^release/v'; then
+          if echo "$HEAD_REF" | grep -qE '^release/v'; then
             echo "Release PR detected, checking for version entry..."
-            VERSION=$(echo "${{ github.head_ref }}" | sed 's/release\/v//')
+            VERSION=$(echo "$HEAD_REF" | sed 's/release\/v//')
             if grep -qE "^## \[$VERSION\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md; then
               echo "Found version entry for $VERSION"
               exit 0
@@ -142,10 +147,12 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           node dist/cli.js all \
-            --base origin/${{ github.base_ref }} \
-            --head ${{ github.event.pull_request.head.sha }} \
+            --base "origin/$BASE_REF" \
+            --head "$HEAD_SHA" \
             --stages analyze,review,report
 
       - name: Post GitHub Integration
@@ -167,17 +174,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs passed
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          CHANGELOG_RESULT: ${{ needs.changelog.result }}
         run: |
-          if [ "${{ needs.lint.result }}" != "success" ]; then
+          if [ "$LINT_RESULT" != "success" ]; then
             echo "Lint job failed"
             exit 1
           fi
-          if [ "${{ needs.test.result }}" != "success" ]; then
+          if [ "$TEST_RESULT" != "success" ]; then
             echo "Test job failed"
             exit 1
           fi
           # Changelog is optional (skipped on push to main or when no code changes)
-          if [ "${{ needs.changelog.result }}" != "success" ] && [ "${{ needs.changelog.result }}" != "skipped" ]; then
+          if [ "$CHANGELOG_RESULT" != "success" ] && [ "$CHANGELOG_RESULT" != "skipped" ]; then
             echo "Changelog job failed"
             exit 1
           fi
