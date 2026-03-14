@@ -127,7 +127,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
     environment:
       name: npm
       url: https://www.npmjs.com/package/@eggai/qualops
@@ -142,7 +141,7 @@ jobs:
           node-version: 22.x
           registry-url: https://registry.npmjs.org
 
-      - name: Upgrade npm for OIDC trusted publishing
+      - name: Upgrade npm
         run: npm install -g npm@latest
 
       - name: Install dependencies
@@ -152,7 +151,9 @@ jobs:
         run: npm run build
 
       - name: Publish to npm
-        run: npm publish --access public --provenance
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Verify publish
         env:
