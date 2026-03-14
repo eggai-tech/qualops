@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Resolve all npm audit vulnerabilities (diff, @aws-sdk/client-bedrock-runtime, transitive deps)
 - Release PR workflow: add Node.js setup, sync package-lock.json after version bump
-- Release PR body: clarify tagging is a manual step
+- Fix script injection vulnerability in release workflow version inputs
+- Fix `@aggai/qualops` package name typo in qualops-llm.txt
 
 ### Added
 - Dependabot integration with grouped updates and auto-merge for patch/minor
@@ -21,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom agent support via configuration or markdown files in `.qualops/agents/`
 
 ### Changed
+- Release workflows: migrate from PAT to GitHub App token, auto-publish on release PR merge
+- Refactor qualops-llm.txt: add multi-provider support, updated models/pricing, 47% size reduction
 - Upgrade all AI SDKs: @anthropic-ai/sdk 0.78, openai 6, claude-agent-sdk 0.2, zod 4
 - Upgrade GitHub Actions: checkout v6, setup-node v6, upload-artifact v7, download-artifact v8
 - Pipeline jobs now support `mode: 'file-by-file' | 'agentic'` configuration
