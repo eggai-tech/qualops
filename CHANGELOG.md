@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Release workflows: migrate from PAT to GitHub App token with auto-publish on merge
+- Pin all GitHub Actions to SHA digests for supply chain security
+- Enable npm trusted publishing with OIDC provenance (repo now public)
+- Replace softprops/action-gh-release with native gh CLI
+
+### Fixed
+- Script injection vulnerabilities in CI and release workflow inputs
+- Remove unnecessary contents:write permission from dependabot auto-merge
+- EOF heredoc injection in changelog extraction (random delimiter)
+- Add npm pre-flight check for idempotent publish retries
+- Add failure notification job (auto-creates GitHub issue on release failure)
+
 ## [0.2.0] - 2026-03-14
 
 ### Fixed
