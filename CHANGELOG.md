@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace softprops/action-gh-release with native gh CLI
 
 ### Fixed
+- Update the logger config loading to read from `${cwd}/.qualops/.qualopsrc.json` instead of CWD
 - Script injection vulnerabilities in CI and release workflow inputs
 - Remove unnecessary contents:write permission from dependabot auto-merge
 - EOF heredoc injection in changelog extraction (random delimiter)
