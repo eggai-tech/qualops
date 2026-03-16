@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
 import { z } from 'zod';
 
 const schemaPath = join(__dirname, '../../docs/qualops-config.schema.json');
