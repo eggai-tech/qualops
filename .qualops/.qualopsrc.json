@@ -3,22 +3,22 @@
     "reviewStage": {
       "provider": "github",
       "model": "openai/gpt-4.1-mini",
-      "inputPerMillion": 0.40,
-      "outputPerMillion": 1.60,
+      "inputPerMillion": 0.4,
+      "outputPerMillion": 1.6,
       "temperature": 0.1
     },
     "fixStage": {
       "provider": "github",
       "model": "openai/gpt-4.1-mini",
-      "inputPerMillion": 0.40,
-      "outputPerMillion": 1.60,
+      "inputPerMillion": 0.4,
+      "outputPerMillion": 1.6,
       "temperature": 0
     },
     "judgeStage": {
       "provider": "github",
       "model": "openai/gpt-4.1-mini",
-      "inputPerMillion": 0.40,
-      "outputPerMillion": 1.60,
+      "inputPerMillion": 0.4,
+      "outputPerMillion": 1.6,
       "temperature": 0
     }
   },
@@ -28,7 +28,7 @@
     "maxTokensPerFile": 2500,
     "timeoutSeconds": 300,
     "throttling": {
-      "apiCallsPerMinute": 6
+      "apiCallsPerMinute": 2
     }
   },
   "review": {
