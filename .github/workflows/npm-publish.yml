@@ -1,12 +1,19 @@
 name: Publish to npm
 
 on:
-  push:
-    tags:
-      - 'v*'
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
-  build:
+  prepare:
+    if: >
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/v')
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
@@ -15,40 +22,63 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20.x
-          cache: npm
-
-      - name: Extract version from tag
+      - name: Extract version from branch name
         id: version
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          VERSION=${HEAD_REF#release/v}
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           if echo "$VERSION" | grep -qE '\-(rc|alpha|beta)\.[0-9]+$'; then
             echo "PRERELEASE=true" >> $GITHUB_OUTPUT
           else
             echo "PRERELEASE=false" >> $GITHUB_OUTPUT
           fi
-          echo "Version: $VERSION, Prerelease: $PRERELEASE"
+          echo "Version: $VERSION"
+
+      - name: Validate version matches package.json
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if [ "$VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "::error::Version mismatch: branch=$VERSION, package.json=$PACKAGE_VERSION"
+            exit 1
+          fi
 
       - name: Extract changelog
         id: changelog
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          PRERELEASE: ${{ steps.version.outputs.PRERELEASE }}
         run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          if [ "${{ steps.version.outputs.PRERELEASE }}" = "true" ]; then
+          if [ "$PRERELEASE" = "true" ]; then
             echo "CONTENT=Pre-release version $VERSION" >> $GITHUB_OUTPUT
           else
             CONTENT=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | tail -n +2 | head -n -1)
-            echo "CONTENT<<EOF" >> $GITHUB_OUTPUT
+            DELIMITER=$(openssl rand -hex 8)
+            echo "CONTENT<<${DELIMITER}" >> $GITHUB_OUTPUT
             echo "$CONTENT" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            echo "${DELIMITER}" >> $GITHUB_OUTPUT
           fi
+
+  build-and-test:
+    needs: prepare
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: 22.x
+          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -63,13 +93,39 @@ jobs:
         run: npm pack
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: npm-package
           path: '*.tgz'
+          retention-days: 7
+
+  create-tag:
+    needs: [prepare, build-and-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Create and push tag
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          TAG="v$VERSION"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+          echo "Created and pushed tag: $TAG"
 
   publish-npm:
-    needs: build
+    needs: [prepare, build-and-test, create-tag]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -79,60 +135,102 @@ jobs:
       url: https://www.npmjs.com/package/@eggai/qualops
 
     steps:
+      - name: Check if already published
+        id: check
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://registry.npmjs.org/@eggai%2fqualops/$VERSION)
+          echo "exists=$([ "$STATUS" = "200" ] && echo true || echo false)" >> $GITHUB_OUTPUT
+
       - name: Checkout repository
-        uses: actions/checkout@v6
+        if: steps.check.outputs.exists == 'false'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        if: steps.check.outputs.exists == 'false'
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
-          node-version: 20.x
+          node-version: 22.x
           registry-url: https://registry.npmjs.org
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v8
-        with:
-          name: npm-package
+      - name: Upgrade npm
+        if: steps.check.outputs.exists == 'false'
+        run: npm install -g npm@latest
 
       - name: Install dependencies
+        if: steps.check.outputs.exists == 'false'
         run: npm ci
 
       - name: Build
+        if: steps.check.outputs.exists == 'false'
         run: npm run build
 
       - name: Publish to npm
+        if: steps.check.outputs.exists == 'false'
         run: npm publish --access public --provenance
+
+      - name: Verify publish
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          echo "Waiting for npm to index the package..."
+          sleep 10
+          npm view @eggai/qualops@$VERSION version
+          echo "Successfully published @eggai/qualops@$VERSION"
 
   github-release:
-    needs: build
+    needs: [prepare, build-and-test, create-tag]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: npm-package
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: v${{ needs.build.outputs.version }}
-          body: |
-            ## What's Changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+          CHANGELOG_BODY: ${{ needs.prepare.outputs.changelog }}
+        run: |
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "Release v$VERSION already exists, uploading artifacts."
+            gh release upload "v$VERSION" *.tgz --clobber
+          else
+            PRERELEASE_FLAG=""
+            if [ "$PRERELEASE" = "true" ]; then
+              PRERELEASE_FLAG="--prerelease"
+            fi
+            printf '%s\n' "## What's Changed" "" "$CHANGELOG_BODY" "" "## Installation" "" '```bash' "npm install @eggai/qualops@$VERSION" '```' > /tmp/notes.md
+            gh release create "v$VERSION" *.tgz \
+              --title "v$VERSION" \
+              --notes-file /tmp/notes.md \
+              $PRERELEASE_FLAG
+          fi
 
-            ${{ needs.build.outputs.changelog }}
+  notify-failure:
+    needs: [prepare, build-and-test, create-tag, publish-npm, github-release]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
 
-            ## Installation
-
-            ```bash
-            npm install @eggai/qualops@${{ needs.build.outputs.version }}
-            ```
-          files: '*.tgz'
-          draft: false
-          prerelease: ${{ needs.build.outputs.prerelease == 'true' }}
+    steps:
+      - name: Create failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Release v$VERSION failed" \
+            --body "Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --label "bug"

@@ -7,10 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-14
+
+### Changed
+- Release workflows: migrate from PAT to GitHub App token with auto-publish on merge
+- Pin all GitHub Actions to SHA digests for supply chain security
+- Enable npm trusted publishing with OIDC provenance (repo now public)
+- Replace softprops/action-gh-release with native gh CLI
+
+### Fixed
+- Script injection vulnerabilities in CI and release workflow inputs
+- Remove unnecessary contents:write permission from dependabot auto-merge
+- EOF heredoc injection in changelog extraction (random delimiter)
+- Add npm pre-flight check for idempotent publish retries
+- Add failure notification job (auto-creates GitHub issue on release failure)
+
+## [0.2.0] - 2026-03-14
+
 ### Fixed
 - Resolve all npm audit vulnerabilities (diff, @aws-sdk/client-bedrock-runtime, transitive deps)
 - Release PR workflow: add Node.js setup, sync package-lock.json after version bump
-- Release PR body: clarify tagging is a manual step
+- Fix script injection vulnerability in release workflow version inputs
+- Fix `@aggai/qualops` package name typo in qualops-llm.txt
 
 ### Added
 - GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
@@ -22,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom agent support via configuration or markdown files in `.qualops/agents/`
 
 ### Changed
+- Release workflows: migrate from PAT to GitHub App token, auto-publish on release PR merge
+- Refactor qualops-llm.txt: add multi-provider support, updated models/pricing, 47% size reduction
 - Upgrade all AI SDKs: @anthropic-ai/sdk 0.78, openai 6, claude-agent-sdk 0.2, zod 4
 - Upgrade GitHub Actions: checkout v6, setup-node v6, upload-artifact v7, download-artifact v8
 - Pipeline jobs now support `mode: 'file-by-file' | 'agentic'` configuration
