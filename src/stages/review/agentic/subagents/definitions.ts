@@ -5,6 +5,8 @@ export interface AgentDefinition {
   prompt: string;
   tools: string[];
   model?: 'sonnet' | 'opus' | 'haiku';
+  maxTurns?: number;
+  disallowedTools?: string[];
 }
 
 const SUBAGENT_DEFINITIONS: Record<AgenticSubagentType, AgentDefinition> = {
@@ -39,6 +41,7 @@ Return issues in this JSON format:
 If no dependency issues are found, return an empty array: []`,
     tools: ['Read', 'Grep', 'Glob'],
     model: 'sonnet',
+    maxTurns: 20,
   },
 
   'breaking-change-detector': {
@@ -80,6 +83,7 @@ If no breaking changes are found, return an empty array: []`,
       'mcp__qualops-agentic-tools__list_changed_files',
     ],
     model: 'sonnet',
+    maxTurns: 25,
   },
 
   'security-analyzer': {
@@ -119,6 +123,7 @@ Return issues in this JSON format:
 If no security issues are found, return an empty array: []`,
     tools: ['Read', 'Grep', 'Glob'],
     model: 'sonnet',
+    maxTurns: 20,
   },
 
   'pattern-validator': {
@@ -155,6 +160,7 @@ Return issues in this JSON format:
 If no pattern violations are found, return an empty array: []`,
     tools: ['Read', 'Grep', 'Glob'],
     model: 'haiku',
+    maxTurns: 10,
   },
 };
 

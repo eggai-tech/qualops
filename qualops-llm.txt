@@ -248,19 +248,82 @@ Each stage (`reviewStage`, `fixStage`, `judgeStage`) has the same shape:
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `maxTurns` | number | 100 | Maximum agent conversation turns |
-| `maxBudgetUsd` | number | 10.0 | Cost limit for agentic session |
-| `contextMode` | `"diff"` \| `"full"` \| `"auto"` | — | How file context is provided |
-| `maxTokensPerFile` | number | — | Token limit per file in context |
-| `maxTotalTokens` | number | — | Total token limit for context |
-| `enabledSubagents` | string[] | all four | Which built-in subagents to use |
-| `customAgents` | CustomAgent[] | — | Additional custom agents |
-| `agentsDir` | string | `".qualops/agents"` | Directory for agent definition files |
-| `systemPrompt` | string | — | Custom system prompt for the review |
+| `maxTurns` | number | 100 | Maximum coordinator conversation turns |
+| `maxBudgetUsd` | number | 3.0 | Cost limit — aborts via AbortController when reached |
+| `model` | string | — | Coordinator model override |
+| `contextMode` | `"diff"` \| `"full"` \| `"auto"` | `"auto"` | How file context is provided to coordinator |
+| `maxTokensPerFile` | number | 8000 | Token limit per file in context |
+| `maxTotalTokens` | number | 50000 | Total token limit for all file context |
+| `enabledSubagents` | string[] | all four | Which built-in subagents to activate |
+| `coordinatorPrompt` | string | — | Path to markdown file that fully replaces the default coordinator prompt |
+| `systemPrompt` | string | — | Extra instructions appended to the default coordinator prompt (ignored if `coordinatorPrompt` is set) |
+| `subagentOverrides` | Record<string, SubagentOverride> | — | Per-subagent field patches (model, tools, maxTurns, etc.) |
+| `customAgents` | CustomAgent[] | — | Additional inline custom agents |
+| `agentsDir` | string | `".qualops/agents"` | Directory for agent definition markdown files |
 
-Built-in subagents: `"dependency-tracer"`, `"breaking-change-detector"`, `"security-analyzer"`, `"pattern-validator"`
+#### Built-in subagents
 
-Custom agent shape:
+| Name | Default Model | Default maxTurns | Tools |
+|------|--------------|-----------------|-------|
+| `dependency-tracer` | sonnet | 20 | Read, Grep, Glob |
+| `breaking-change-detector` | sonnet | 25 | Read, Grep, Glob, git_diff, git_show, list_changed_files |
+| `security-analyzer` | sonnet | 20 | Read, Grep, Glob |
+| `pattern-validator` | haiku | 10 | Read, Grep, Glob |
+
+#### MCP tools available to agents
+
+| Tool | Description |
+|------|-------------|
+| `mcp__qualops-agentic-tools__git_diff` | Git diff between refs, optional file filter and stat mode |
+| `mcp__qualops-agentic-tools__git_show` | Show file contents at a specific git ref |
+| `mcp__qualops-agentic-tools__list_changed_files` | List files changed between refs with A/M/D status |
+
+#### Prompt override tiers
+
+**Coordinator prompt** (3 tiers):
+1. No config → hardcoded default with dynamic agent list
+2. `"systemPrompt": "Focus on OWASP"` → default + appended instructions
+3. `"coordinatorPrompt": ".qualops/prompts/coordinator.md"` → file replaces everything
+
+**Subagent prompts** (3 tiers):
+1. No config → hardcoded defaults
+2. `"subagentOverrides": { "security-analyzer": { "model": "opus", "maxTurns": 15 } }` → patches fields, keeps default prompt
+3. Create `.qualops/agents/security-analyzer.md` → full replacement (custom agents override built-ins by name)
+
+#### SubagentOverride shape
+
+```json
+{
+  "security-analyzer": {
+    "prompt": ".qualops/prompts/owasp-security.md",
+    "model": "opus",
+    "maxTurns": 15,
+    "tools": ["Read", "Grep", "Glob"],
+    "disallowedTools": ["mcp__qualops-agentic-tools__git_diff"]
+  }
+}
+```
+
+All fields are optional — only specified fields override the default.
+
+#### Custom agent markdown format
+
+Place in `.qualops/agents/` directory (or custom `agentsDir`):
+
+```markdown
+---
+description: Analyzes Flask applications for OWASP vulnerabilities
+tools: [Read, Grep, Glob]
+model: sonnet
+---
+
+You are a Flask security specialist...
+```
+
+To override a built-in subagent, name the file the same as the built-in (e.g., `.qualops/agents/security-analyzer.md`).
+
+#### Inline custom agent shape
+
 ```json
 {
   "name": "migration-checker",
@@ -271,7 +334,7 @@ Custom agent shape:
 }
 ```
 
-Model options for custom agents: `"sonnet"`, `"opus"`, `"haiku"`
+Model options: `"sonnet"`, `"opus"`, `"haiku"`
 
 ## PROMPT AUTHORING
 
@@ -677,13 +740,14 @@ Use file-by-file mode for: simple code quality checks, single-file analysis, hig
         "enabled": true,
         "mode": "agentic",
         "agentic": {
-          "maxTurns": 15,
-          "maxBudgetUsd": 5.0,
+          "maxTurns": 30,
+          "maxBudgetUsd": 3.0,
           "contextMode": "auto",
-          "maxTokensPerFile": 8000,
-          "maxTotalTokens": 50000,
           "enabledSubagents": ["security-analyzer", "dependency-tracer"],
-          "systemPrompt": "You are a security-focused code reviewer. Focus on:\n1. Command injection vulnerabilities\n2. Path traversal in file operations\n3. Credential exposure in logs\n4. Unsafe deserialization\n5. Cross-file security implications"
+          "systemPrompt": "Focus on OWASP Top 10 and cross-file security implications",
+          "subagentOverrides": {
+            "security-analyzer": { "model": "opus", "maxTurns": 15 }
+          }
         },
         "validation": {
           "enabled": true,
@@ -716,10 +780,11 @@ You can run both modes in the same pipeline:
         "enabled": true,
         "mode": "agentic",
         "agentic": {
-          "maxTurns": 15,
+          "maxTurns": 30,
+          "maxBudgetUsd": 3.0,
           "contextMode": "auto",
           "enabledSubagents": ["security-analyzer", "dependency-tracer"],
-          "systemPrompt": "Focus on cross-file security implications..."
+          "systemPrompt": "Focus on cross-file security implications"
         }
       },
       {

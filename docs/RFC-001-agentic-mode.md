@@ -1,6 +1,6 @@
 # RFC-001: QualOps Agentic Review Mode
 
-**Status:** Draft
+**Status:** Phase 1 shipped (PR #67)
 **Author:** Stefano Tucci
 **Date:** 2026-03-16
 **Version:** 0.3.0 target

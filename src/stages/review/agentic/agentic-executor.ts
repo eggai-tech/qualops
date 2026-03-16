@@ -1,3 +1,6 @@
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import {
   query,
   type AgentDefinition as SDKAgentDefinition,
@@ -95,6 +98,7 @@ export class AgenticExecutor {
 
     const toolServer = createAgenticTools(this.cwd);
     const builtInAgents = createSubagentDefinitions(this.config);
+    this.applySubagentOverrides(builtInAgents);
     const customAgents = this.agentLoader.loadCustomAgents(this.config);
     const allAgents: Record<string, AgentDefinition> = { ...builtInAgents, ...customAgents };
 
@@ -313,7 +317,41 @@ export class AgenticExecutor {
     }
   }
 
+  private applySubagentOverrides(agents: Record<string, AgentDefinition>): void {
+    const overrides = this.config.subagentOverrides;
+    if (!overrides) return;
+
+    for (const [name, override] of Object.entries(overrides)) {
+      if (!agents[name]) continue;
+
+      if (override.prompt) {
+        const promptPath = resolve(this.cwd, override.prompt);
+        if (existsSync(promptPath)) {
+          agents[name].prompt = readFileSync(promptPath, 'utf-8');
+          logger.info(`[Agentic] Overriding ${name} prompt from ${override.prompt}`);
+        } else {
+          logger.warn(`[Agentic] Prompt override not found: ${promptPath}`);
+        }
+      }
+
+      if (override.description) agents[name].description = override.description;
+      if (override.model) agents[name].model = override.model as AgentDefinition['model'];
+      if (override.tools) agents[name].tools = override.tools;
+      if (override.disallowedTools) agents[name].disallowedTools = override.disallowedTools;
+      if (override.maxTurns) agents[name].maxTurns = override.maxTurns;
+    }
+  }
+
   private buildSystemPrompt(allAgents: Record<string, AgentDefinition>): string {
+    if (this.config.coordinatorPrompt) {
+      const promptPath = resolve(this.cwd, this.config.coordinatorPrompt);
+      if (existsSync(promptPath)) {
+        logger.info(`[Agentic] Using coordinator prompt from ${this.config.coordinatorPrompt}`);
+        return readFileSync(promptPath, 'utf-8');
+      }
+      logger.warn(`[Agentic] Coordinator prompt not found: ${promptPath}, using default`);
+    }
+
     const customPrompt = this.config.systemPrompt || '';
     const agentList = Object.entries(allAgents)
       .map(([name, def]) => `- **${name}**: ${def.description}`)

@@ -14,6 +14,15 @@ export interface CustomAgentDefinition {
   model?: 'sonnet' | 'opus' | 'haiku';
 }
 
+export interface SubagentOverride {
+  prompt?: string;
+  description?: string;
+  model?: string;
+  tools?: string[];
+  disallowedTools?: string[];
+  maxTurns?: number;
+}
+
 export interface AgenticConfig {
   maxTurns?: number;
   maxBudgetUsd?: number;
@@ -21,7 +30,9 @@ export interface AgenticConfig {
   enabledSubagents?: AgenticSubagentType[];
   customAgents?: CustomAgentDefinition[];
   agentsDir?: string;
+  coordinatorPrompt?: string;
   systemPrompt?: string;
+  subagentOverrides?: Record<string, SubagentOverride>;
   contextMode?: 'diff' | 'full' | 'auto';
   maxTokensPerFile?: number;
   maxTotalTokens?: number;
