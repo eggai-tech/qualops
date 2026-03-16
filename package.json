@@ -52,7 +52,7 @@
     "build:check": "tsc -p tsconfig.lib.json --noEmit",
     "dev": "tsx --env-file=.env src/cli.ts",
     "test": "LC_ALL=en_US jest",
-    "test:integration": "jest --config jest.integration.config.ts",
+    "test:integration": "jest --config jest.integration.config.js",
     "lint": "eslint src tests",
     "lint:fix": "npm run lint -- --fix",
     "qualops": "node --env-file=.env --experimental-strip-types src/cli.ts",
@@ -61,7 +61,10 @@
     "qualops:review": "node --env-file=.env --experimental-strip-types src/cli.ts review",
     "qualops:fix": "node --env-file=.env --experimental-strip-types src/cli.ts fix",
     "qualops:report": "node --env-file=.env --experimental-strip-types src/cli.ts report",
-    "qualops:judge": "node --env-file=.env --experimental-strip-types src/cli.ts judge"
+    "qualops:judge": "node --env-file=.env --experimental-strip-types src/cli.ts judge",
+    "eval": "node evals/promptfoo/run-eval.js",
+    "eval:convert": "node evals/promptfoo/convert-dataset.js",
+    "eval:view": "npx promptfoo view"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.75",
@@ -89,6 +92,7 @@
     "jest": "^30.3.0",
     "minimatch": "^10.0.1",
     "prettier": "^3.8.1",
+    "promptfoo": "^0.121.2",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.16",
