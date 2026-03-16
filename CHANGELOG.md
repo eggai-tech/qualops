@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
+
+### Changed
+- AI provider types/factory now include `github` and use stricter provider typing
+- Environment config and test setup now include `GITHUB_API_KEY`
+
 ## [0.2.1] - 2026-03-14
 
 ### Changed
@@ -31,7 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `@aggai/qualops` package name typo in qualops-llm.txt
 
 ### Added
-- GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
 - Dependabot integration with grouped updates and auto-merge for patch/minor
 - Agentic reviewer mode using Claude Agent SDK for PR-level analysis
 - Context preloading: inject diffs/content directly into agent prompt (70% fewer tool calls)
@@ -48,8 +54,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extended `AgenticConfig` with `contextMode`, `maxTokensPerFile`, `maxTotalTokens` options
 - `init-claude` command now bundles LLM context locally (works with private repos)
 - Updated documentation with agentic mode examples and configuration
-- AI provider types/factory now include `github` and use stricter provider typing
-- Environment config and test setup now include `GITHUB_API_KEY`
 
 ## [0.1.1] - 2025-01-06
 
