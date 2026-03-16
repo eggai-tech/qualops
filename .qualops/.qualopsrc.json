@@ -1,39 +1,40 @@
 {
   "ai": {
     "reviewStage": {
-      "provider": "github",
-      "model": "openai/gpt-4.1-mini",
-      "inputPerMillion": 0.4,
-      "outputPerMillion": 1.6,
-      "temperature": 0.1
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
     },
     "fixStage": {
-      "provider": "github",
-      "model": "openai/gpt-4.1-mini",
-      "inputPerMillion": 0.4,
-      "outputPerMillion": 1.6,
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
       "temperature": 0
     },
     "judgeStage": {
-      "provider": "github",
-      "model": "openai/gpt-4.1-mini",
-      "inputPerMillion": 0.4,
-      "outputPerMillion": 1.6,
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-5-20250929",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
       "temperature": 0
     }
   },
   "performance": {
-    "maxFileSizeKB": 250,
-    "maxFilesPerBatch": 4,
-    "maxTokensPerFile": 2500,
+    "maxFileSizeKB": 500,
+    "maxFilesPerBatch": 15,
+    "maxTokensPerFile": 8000,
     "timeoutSeconds": 300,
     "throttling": {
-      "apiCallsPerMinute": 2
+      "enabled": true,
+      "maxRequestsPerMinute": 50
     }
   },
   "review": {
     "minConfidence": 7,
-    "maxConcurrentFiles": 1,
+    "maxConcurrentFiles": 3,
     "validation": {
       "enabled": true,
       "minConfidence": 7,
@@ -211,15 +212,11 @@
         "enabled": true,
         "mode": "agentic",
         "agentic": {
-          "maxTurns": 6,
+          "maxTurns": 15,
           "contextMode": "auto",
           "maxTokensPerFile": 8000,
-          "maxTotalTokens": 20000,
-          "enabledSubagents": [
-            "security-analyzer",
-            "dependency-tracer",
-            "breaking-change-detector"
-          ],
+          "maxTotalTokens": 50000,
+          "enabledSubagents": ["security-analyzer", "dependency-tracer", "breaking-change-detector"],
           "systemPrompt": "You are a security-focused code reviewer analyzing the QualOps codebase. Focus on:\n1. Command injection vulnerabilities in shell executions\n2. Path traversal in file operations\n3. Credential exposure in logs or error messages\n4. Unsafe deserialization or eval usage\n5. Cross-file security implications"
         },
         "validation": {
@@ -234,7 +231,7 @@
     "enabled": true,
     "severities": ["critical", "high"],
     "minConfidence": 8,
-    "maxConcurrentFixes": 1,
+    "maxConcurrentFixes": 5,
     "autoApply": false
   },
   "report": {
@@ -243,8 +240,8 @@
     "enableRootCauseExtraction": false
   },
   "github": {
-    "enabled": true,
-    "postComments": true,
+    "enabled": false,
+    "postComments": false,
     "skipOnDraft": false,
     "blockPipeline": false,
     "maxInlineComments": 50
