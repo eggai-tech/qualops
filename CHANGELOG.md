@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add JSON Schema for QualOps configuration file with comprehensive integration tests
+
+### Changed
+- Update documentation to reference the new JSON Schema and provide configuration examples
+
 ## [0.2.1] - 2026-03-14
 
 ### Changed
@@ -37,7 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-file dependency tracing with `find_usages` tool
 - Security analysis subagent for vulnerability detection
 - Custom agent support via configuration or markdown files in `.qualops/agents/`
-- Add configuration JSON schema file and update the existing configuration to reference this schema file
 
 ### Changed
 - Release workflows: migrate from PAT to GitHub App token, auto-publish on release PR merge
