@@ -17,30 +17,3 @@ export interface SubagentResult {
     tokensUsed: number;
   };
 }
-
-export interface DependencyTrace {
-  filePath: string;
-  imports: string[];
-  importedBy: string[];
-  exports: string[];
-}
-
-export interface BreakingChangeResult {
-  file: string;
-  changeType: 'api-signature' | 'interface-change' | 'export-removal' | 'behavior-change';
-  description: string;
-  affectedFiles: string[];
-  severity: 'critical' | 'high' | 'medium';
-}
-
-export interface ExportComparison {
-  added: string[];
-  removed: string[];
-  modified: string[];
-}
-
-export interface ToolResult {
-  success: boolean;
-  data?: unknown;
-  error?: string;
-}

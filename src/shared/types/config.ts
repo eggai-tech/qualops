@@ -17,6 +17,7 @@ export interface CustomAgentDefinition {
 export interface AgenticConfig {
   maxTurns?: number;
   maxBudgetUsd?: number;
+  model?: string;
   enabledSubagents?: AgenticSubagentType[];
   customAgents?: CustomAgentDefinition[];
   agentsDir?: string;

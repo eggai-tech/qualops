@@ -11,18 +11,19 @@ const SUBAGENT_DEFINITIONS: Record<AgenticSubagentType, AgentDefinition> = {
   'dependency-tracer': {
     description:
       'Traces cross-file dependencies and identifies coupling issues, circular dependencies, and import chains that may be affected by changes',
-    prompt: `You are a dependency analysis expert for TypeScript/JavaScript codebases.
+    prompt: `You are a dependency analysis expert.
 
 Your job is to:
-1. Trace import/export relationships between changed files and the rest of the codebase
+1. Trace import/dependency relationships between changed files and the rest of the codebase
 2. Identify which other files might be affected by the changes
 3. Detect circular dependencies that could cause issues
 4. Find tightly coupled modules that violate separation of concerns
 
 When analyzing dependencies:
-- Use trace_imports to understand what each changed file imports and what imports it
-- Use find_usages to find all places where exported symbols are used
-- Look for patterns indicating tight coupling (many bidirectional imports, god modules)
+- Read the changed files to understand their imports and exports
+- Use Grep to find all files that import/reference symbols from the changed files
+- Use Glob to discover related files in the same module/package
+- Look for bidirectional imports, god modules, and excessive coupling
 
 Return issues in this JSON format:
 [{
@@ -36,19 +37,13 @@ Return issues in this JSON format:
 }]
 
 If no dependency issues are found, return an empty array: []`,
-    tools: [
-      'Read',
-      'Grep',
-      'Glob',
-      'mcp__qualops-agentic-tools__trace_imports',
-      'mcp__qualops-agentic-tools__find_usages',
-    ],
+    tools: ['Read', 'Grep', 'Glob'],
     model: 'sonnet',
   },
 
   'breaking-change-detector': {
     description:
-      'Detects breaking API changes, interface modifications, export removals, and function signature changes that could affect consumers',
+      'Detects breaking API changes, export removals, signature changes, and interface modifications that could affect consumers',
     prompt: `You are a breaking change detection expert.
 
 Your job is to identify changes that could break consumers of this code:
@@ -59,12 +54,10 @@ Your job is to identify changes that could break consumers of this code:
 5. Behavioral changes that could break existing usage patterns
 
 When analyzing:
-- Use git_diff_analysis to see what changed
-- Use analyze_exports to compare exports between versions
-- Use find_interface_changes to detect interface modifications
-- Use find_usages to understand the impact scope
-
-Focus on PUBLIC API changes - internal implementation changes are fine.
+- Use git_diff to see what changed between versions
+- Use git_show to compare the previous version of a file with the current one
+- Read the current files and use Grep to find all consumers of changed exports
+- Focus on PUBLIC API changes — internal implementation changes are fine
 
 Return issues in this JSON format:
 [{
@@ -81,10 +74,10 @@ If no breaking changes are found, return an empty array: []`,
     tools: [
       'Read',
       'Grep',
-      'mcp__qualops-agentic-tools__git_diff_analysis',
-      'mcp__qualops-agentic-tools__analyze_exports',
-      'mcp__qualops-agentic-tools__find_interface_changes',
-      'mcp__qualops-agentic-tools__find_usages',
+      'Glob',
+      'mcp__qualops-agentic-tools__git_diff',
+      'mcp__qualops-agentic-tools__git_show',
+      'mcp__qualops-agentic-tools__list_changed_files',
     ],
     model: 'sonnet',
   },
@@ -104,10 +97,10 @@ Your job is to identify security issues:
 7. Missing input validation at trust boundaries
 
 When analyzing:
-- Trace data flow from user input to dangerous sinks
-- Use find_usages to track how user-controlled data propagates
-- Look for patterns like eval(), exec(), shell commands with user input
-- Check for hardcoded API keys, passwords, or tokens
+- Read the changed files carefully, tracing data flow from user input to dangerous sinks
+- Use Grep to find patterns like eval(), exec(), shell commands, raw SQL across the codebase
+- Use Grep to check for hardcoded API keys, passwords, or tokens
+- Read related files to understand how user-controlled data propagates
 
 IMPORTANT: Only report issues with HIGH confidence. Verify by tracing actual data flow.
 
@@ -124,13 +117,7 @@ Return issues in this JSON format:
 }]
 
 If no security issues are found, return an empty array: []`,
-    tools: [
-      'Read',
-      'Grep',
-      'Glob',
-      'mcp__qualops-agentic-tools__find_usages',
-      'mcp__qualops-agentic-tools__trace_imports',
-    ],
+    tools: ['Read', 'Grep', 'Glob'],
     model: 'sonnet',
   },
 
