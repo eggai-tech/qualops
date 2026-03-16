@@ -32,7 +32,7 @@ class Logger {
     const defaultConfig = this.loadConfigFromFile();
 
     this.config = {
-      level: 'debug',
+      level: 'info',
       enableColors: true,
       enableTimestamps: true,
       ...defaultConfig,
