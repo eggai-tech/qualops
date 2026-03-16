@@ -1,6 +1,6 @@
+import { OpenAICompatibleProvider } from './openai-compatible-provider';
 import { envConfig } from '../../config/env';
 import type { AIStageConfig } from '../../shared/types';
-import { OpenAICompatibleProvider } from './openai-compatible-provider';
 
 export class OpenAIProvider extends OpenAICompatibleProvider {
   constructor(stageConfig: AIStageConfig) {
@@ -8,7 +8,6 @@ export class OpenAIProvider extends OpenAICompatibleProvider {
       name: 'openai',
       friendlyName: 'OpenAI',
       apiKey: envConfig.get('openaiApiKey') || '',
-      baseURL: 'https://api.openai.com/v1',
     });
   }
 

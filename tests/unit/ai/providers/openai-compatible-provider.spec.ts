@@ -87,7 +87,9 @@ describe('OpenAICompatibleProvider', () => {
 
     it('should throw when provider is missing from config', () => {
       const { provider: _p, ...invalid } = validStageConfig;
-      expect(() => new TestProvider(invalid as any)).toThrow('Missing required Test config: provider');
+      expect(() => new TestProvider(invalid as any)).toThrow(
+        'Missing required Test config: provider',
+      );
     });
 
     it('should throw when model is missing from config', () => {
@@ -156,7 +158,12 @@ describe('OpenAICompatibleProvider', () => {
       });
 
       expect(result.content).toBe('Hello, world!');
-      expect(result.usage).toEqual({ promptTokens: 10, completionTokens: 5, totalTokens: 15, cachedTokens: 0 });
+      expect(result.usage).toEqual({
+        promptTokens: 10,
+        completionTokens: 5,
+        totalTokens: 15,
+        cachedTokens: 0,
+      });
       expect(result.model).toBe('test-model');
     });
 
@@ -416,7 +423,10 @@ describe('OpenAICompatibleProvider', () => {
       });
 
       await expect(
-        provider.completeWithStructure({ messages: [{ role: 'user', content: 'Hello' }], schema: {} }),
+        provider.completeWithStructure({
+          messages: [{ role: 'user', content: 'Hello' }],
+          schema: {},
+        }),
       ).rejects.toThrow('Failed to parse structured response');
     });
   });
@@ -623,7 +633,11 @@ describe('OpenAICompatibleProvider', () => {
     it('should log when estimated cost exceeds $1', async () => {
       mockOpenAIClient.chat.completions.create.mockResolvedValue({
         choices: [{ message: { content: 'Response' } }],
-        usage: { prompt_tokens: 100_000_000, completion_tokens: 50_000_000, total_tokens: 150_000_000 },
+        usage: {
+          prompt_tokens: 100_000_000,
+          completion_tokens: 50_000_000,
+          total_tokens: 150_000_000,
+        },
         model: 'test-model',
       });
 

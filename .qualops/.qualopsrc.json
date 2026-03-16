@@ -3,22 +3,22 @@
     "reviewStage": {
       "provider": "github",
       "model": "openai/gpt-4.1-mini",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "inputPerMillion": 0.40,
+      "outputPerMillion": 1.60,
       "temperature": 0.1
     },
     "fixStage": {
       "provider": "github",
       "model": "openai/gpt-4.1-mini",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "inputPerMillion": 0.40,
+      "outputPerMillion": 1.60,
       "temperature": 0
     },
     "judgeStage": {
       "provider": "github",
       "model": "openai/gpt-4.1-mini",
-      "inputPerMillion": 3.0,
-      "outputPerMillion": 15.0,
+      "inputPerMillion": 0.40,
+      "outputPerMillion": 1.60,
       "temperature": 0
     }
   },
