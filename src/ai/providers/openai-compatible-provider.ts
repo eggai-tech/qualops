@@ -1,4 +1,5 @@
 import type OpenAI from 'openai';
+import { APIError } from 'openai';
 import type { ChatCompletionCreateParams } from 'openai/resources/chat/completions/completions';
 
 import { estimateTokens } from '@/ai/shared/token-utils';
@@ -226,6 +227,13 @@ export abstract class OpenAICompatibleProvider implements AIProvider {
     } catch (error) {
       if (error instanceof Error) {
         error.message = `${this.friendlyName} completion failed: ${error.message}`;
+        if (error instanceof APIError) {
+          logger.debug(
+            `[${this.friendlyName} API Error] ${error.status}, Code: ${error.code})\n` +
+              `   ${error.headers ? JSON.stringify(error.headers, null, 2) : ''}\n` +
+              `   ${error.message}`,
+          );
+        }
         throw error;
       }
       throw new Error(`${this.friendlyName} completion failed: ${String(error)}`);
