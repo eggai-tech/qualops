@@ -70,39 +70,39 @@ const DEF_REQUIRED_FIELDS: Record<string, string[]> = {
 
 describe('qualops-config.schema.json integrity', () => {
   let raw: unknown;
-  let schema: z.infer<typeof topLevelSchema>;
+  let parseResult: ReturnType<typeof topLevelSchema.safeParse>;
 
   beforeAll(() => {
     const content = readFileSync(schemaPath, 'utf-8');
     raw = JSON.parse(content);
-    schema = topLevelSchema.parse(raw);
+    parseResult = topLevelSchema.safeParse(raw);
   });
 
   it('parses as valid JSON and matches top-level schema shape', () => {
-    expect(schema).toBeDefined();
+    expect(parseResult.success).toBe(true);
   });
 
   it('has the correct $schema and $id', () => {
-    expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
-    expect(schema.$id).toContain('qualops-config.schema.json');
+    expect(parseResult.data!.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(parseResult.data!.$id).toContain('qualops-config.schema.json');
   });
 
   it('requires "ai" and "review" at the top level', () => {
     for (const field of REQUIRED_TOP_LEVEL_REQUIRED) {
-      expect(schema.required).toContain(field);
+      expect(parseResult.data!.required).toContain(field);
     }
   });
 
   it('has all expected $defs', () => {
     for (const def of REQUIRED_DEFS) {
-      expect(schema.$defs).toHaveProperty(def);
+      expect(parseResult.data!.$defs).toHaveProperty(def);
     }
   });
 
   it.each(Object.entries(DEF_REQUIRED_FIELDS))(
     '$defs.%s has the expected required fields',
     (defName, requiredFields) => {
-      const def = schema.$defs[defName];
+      const def = parseResult.data!.$defs[defName];
       expect(def).toBeDefined();
       for (const field of requiredFields) {
         expect(def.required).toContain(field);
@@ -111,24 +111,24 @@ describe('qualops-config.schema.json integrity', () => {
   );
 
   it('aiProvider enum contains the three supported providers', () => {
-    const aiProvider = schema.$defs['aiProvider'];
+    const aiProvider = parseResult.data!.$defs['aiProvider'];
     expect(aiProvider.enum).toEqual(expect.arrayContaining(['anthropic', 'openai', 'bedrock']));
   });
 
   it('severity enum contains all four severity levels', () => {
-    const severity = schema.$defs['severity'];
+    const severity = parseResult.data!.$defs['severity'];
     expect(severity.enum).toEqual(expect.arrayContaining(['critical', 'high', 'medium', 'low']));
   });
 
   it('issueType enum contains all four issue types', () => {
-    const issueType = schema.$defs['issueType'];
+    const issueType = parseResult.data!.$defs['issueType'];
     expect(issueType.enum).toEqual(
       expect.arrayContaining(['bug', 'security', 'performance', 'maintainability']),
     );
   });
 
   it('pipelineJob uses oneOf referencing agentic and file-by-file variants', () => {
-    const pipelineJob = schema.$defs['pipelineJob'];
+    const pipelineJob = parseResult.data!.$defs['pipelineJob'];
     expect(pipelineJob.oneOf).toBeDefined();
     expect(pipelineJob.oneOf).toHaveLength(2);
     const refs = (pipelineJob.oneOf as Array<{ $ref: string }>).map((o) => o.$ref);
@@ -138,14 +138,14 @@ describe('qualops-config.schema.json integrity', () => {
 
   it('all $ref values within $defs point to existing definitions or valid paths', () => {
     const refPattern = /^#\/\$defs\/(.+)$/;
-    for (const [defName, def] of Object.entries(schema.$defs)) {
+    for (const [defName, def] of Object.entries(parseResult.data!.$defs)) {
       const checkRefs = (node: unknown, path: string) => {
         if (node === null || typeof node !== 'object') return;
         const obj = node as Record<string, unknown>;
         if ('$ref' in obj && typeof obj.$ref === 'string') {
           const match = obj.$ref.match(refPattern);
           if (match) {
-            expect(schema.$defs).toHaveProperty(
+            expect(parseResult.data!.$defs).toHaveProperty(
               match[1],
               // include path for easier debugging
             );
@@ -161,12 +161,12 @@ describe('qualops-config.schema.json integrity', () => {
 
   it('top-level properties that use $ref point to existing $defs', () => {
     const refPattern = /^#\/\$defs\/(.+)$/;
-    for (const [_propName, propValue] of Object.entries(schema.properties)) {
+    for (const [_propName, propValue] of Object.entries(parseResult.data!.properties)) {
       const prop = propValue as Record<string, unknown>;
       if (typeof prop.$ref === 'string') {
         const match = prop.$ref.match(refPattern);
         if (match) {
-          expect(schema.$defs).toHaveProperty(match[1]);
+          expect(parseResult.data!.$defs).toHaveProperty(match[1]);
         }
       }
     }
