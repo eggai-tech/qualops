@@ -6,7 +6,6 @@ export default {
   roots: ['<rootDir>/tests/integration'],
   globals: {},
   coverageDirectory: './coverage/integration',
-  testMatch: ['<rootDir>/tests/integration/**/*.integration.spec.ts'],
   collectCoverageFrom: [
     '<rootDir>/src/**/*.ts',
     '!<rootDir>/src/**/*.{spec,test,mock,config,routes}.ts',
@@ -14,6 +13,7 @@ export default {
     '!<rootDir>/src/**/types/**',
     '!<rootDir>/src/**/constants/**',
   ],
+  testMatch: ['<rootDir>/tests/integration/**/*.integration.spec.ts'],
   transform: {
     '^.+\\.(ts|mjs|js)$': [
       'ts-jest',
