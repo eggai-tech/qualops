@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-14
+
+### Changed
+- Release workflows: migrate from PAT to GitHub App token with auto-publish on merge
+- Pin all GitHub Actions to SHA digests for supply chain security
+- Enable npm trusted publishing with OIDC provenance (repo now public)
+- Replace softprops/action-gh-release with native gh CLI
+
+### Fixed
+- Script injection vulnerabilities in CI and release workflow inputs
+- Remove unnecessary contents:write permission from dependabot auto-merge
+- EOF heredoc injection in changelog extraction (random delimiter)
+- Add npm pre-flight check for idempotent publish retries
+- Add failure notification job (auto-creates GitHub issue on release failure)
+
+## [0.2.0] - 2026-03-14
+
+### Fixed
+- Resolve all npm audit vulnerabilities (diff, @aws-sdk/client-bedrock-runtime, transitive deps)
+- Release PR workflow: add Node.js setup, sync package-lock.json after version bump
+- Fix script injection vulnerability in release workflow version inputs
+- Fix `@aggai/qualops` package name typo in qualops-llm.txt
+
 ### Added
+- Dependabot integration with grouped updates and auto-merge for patch/minor
 - Agentic reviewer mode using Claude Agent SDK for PR-level analysis
 - Context preloading: inject diffs/content directly into agent prompt (70% fewer tool calls)
 - Cross-file dependency tracing with `find_usages` tool
@@ -15,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Custom agent support via configuration or markdown files in `.qualops/agents/`
 
 ### Changed
+- Release workflows: migrate from PAT to GitHub App token, auto-publish on release PR merge
+- Refactor qualops-llm.txt: add multi-provider support, updated models/pricing, 47% size reduction
+- Upgrade all AI SDKs: @anthropic-ai/sdk 0.78, openai 6, claude-agent-sdk 0.2, zod 4
+- Upgrade GitHub Actions: checkout v6, setup-node v6, upload-artifact v7, download-artifact v8
 - Pipeline jobs now support `mode: 'file-by-file' | 'agentic'` configuration
 - Extended `AgenticConfig` with `contextMode`, `maxTokensPerFile`, `maxTotalTokens` options
 - `init-claude` command now bundles LLM context locally (works with private repos)

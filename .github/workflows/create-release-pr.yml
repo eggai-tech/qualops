@@ -16,14 +16,29 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: Generate app token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: 20.x
+          cache: npm
 
       - name: Validate version format
+        env:
+          VERSION: ${{ github.event.inputs.version }}
         run: |
-          VERSION="${{ github.event.inputs.version }}"
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z]+\.[0-9]+)?$'; then
             echo "Error: Invalid version format '$VERSION'"
             echo "Expected format: X.Y.Z or X.Y.Z-rc.N (e.g., 0.2.0 or 0.2.0-rc.1)"
@@ -54,15 +69,16 @@ jobs:
 
       - name: Create release branch
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "eggai-release-bot[bot]"
+          git config user.email "eggai-release-bot[bot]@users.noreply.github.com"
           git checkout -b release/v$VERSION
           echo "Created branch release/v$VERSION"
 
       - name: Update package.json version
         run: |
           npm version $VERSION --no-git-tag-version
-          echo "Updated package.json to version $VERSION"
+          npm install --package-lock-only
+          echo "Updated package.json and package-lock.json to version $VERSION"
 
       - name: Update changelog for stable release
         if: env.IS_PRERELEASE == 'false'
@@ -78,12 +94,13 @@ jobs:
             echo "CHANGELOG_CONTENT=Pre-release version $VERSION" >> $GITHUB_OUTPUT
           else
             CONTENT=$(sed -n "/^## \[$VERSION\]/,/^## \[/p" CHANGELOG.md | tail -n +2 | head -n -1)
-            echo "CHANGELOG_CONTENT<<EOF" >> $GITHUB_OUTPUT
+            DELIMITER=$(openssl rand -hex 8)
+            echo "CHANGELOG_CONTENT<<${DELIMITER}" >> $GITHUB_OUTPUT
             echo "$CONTENT" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            echo "${DELIMITER}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Commit changes
+      - name: Commit and push
         run: |
           git add package.json package-lock.json CHANGELOG.md
           git commit -m "chore: release v$VERSION"
@@ -91,10 +108,10 @@ jobs:
 
       - name: Create Pull Request
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           CHANGELOG_BODY: ${{ steps.changelog.outputs.CHANGELOG_CONTENT }}
         run: |
-          printf '%s\n' "## Release v$VERSION" "" "$CHANGELOG_BODY" "" "---" "**Checklist:**" "- [ ] Version bump looks correct" "- [ ] Changelog entries are accurate" "- [ ] CI passes" "" "After merging, a git tag will be automatically created and npm publish will be triggered." > /tmp/pr-body.md
+          printf '%s\n' "## Release v$VERSION" "" "$CHANGELOG_BODY" "" "---" "**Checklist:**" "- [ ] Version bump looks correct" "- [ ] Changelog entries are accurate" "- [ ] CI passes" "" "After merging, the release will be automatically tagged and published to npm." > /tmp/pr-body.md
           gh pr create \
             --title "chore: release v$VERSION" \
             --body-file /tmp/pr-body.md \

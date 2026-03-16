@@ -9,15 +9,18 @@ on:
       - main
     types: [opened, synchronize, reopened, labeled]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 20.x
           cache: npm
@@ -32,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 20.x
           cache: npm
@@ -50,20 +53,42 @@ jobs:
         run: npm test
 
   changelog:
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
+      - name: Check if changelog is required
+        id: needs-changelog
+        run: |
+          # Changelog is required if the PR touches source code or tests.
+          # PRs that only touch .github/, docs/, examples/, or root config files
+          # are auto-skipped — no label needed.
+          git fetch origin main
+          CHANGED=$(git diff origin/main --name-only)
+          CODE_CHANGED=$(echo "$CHANGED" | grep -E "^(src/|tests/|package\.json)" | grep -v "^CHANGELOG.md" || true)
+
+          if [ -z "$CODE_CHANGED" ]; then
+            echo "required=false" >> $GITHUB_OUTPUT
+            echo "No code changes — changelog not required."
+          else
+            echo "required=true" >> $GITHUB_OUTPUT
+            echo "Code changed — changelog required:"
+            echo "$CODE_CHANGED"
+          fi
+
       - name: Check changelog updated
+        if: steps.needs-changelog.outputs.required == 'true'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           # Check if this is a release PR
-          if echo "${{ github.head_ref }}" | grep -qE '^release/v'; then
+          if echo "$HEAD_REF" | grep -qE '^release/v'; then
             echo "Release PR detected, checking for version entry..."
-            VERSION=$(echo "${{ github.head_ref }}" | sed 's/release\/v//')
+            VERSION=$(echo "$HEAD_REF" | sed 's/release\/v//')
             if grep -qE "^## \[$VERSION\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md; then
               echo "Found version entry for $VERSION"
               exit 0
@@ -75,25 +100,23 @@ jobs:
           fi
 
           # For regular PRs, check if [Unreleased] section has content
-          git fetch origin main
           CHANGELOG_DIFF=$(git diff origin/main...HEAD -- CHANGELOG.md)
           if [ -z "$CHANGELOG_DIFF" ]; then
-            echo "Error: CHANGELOG.md has not been updated"
-            echo ""
-            echo "Please add your changes under the [Unreleased] section:"
-            echo ""
-            echo "## [Unreleased]"
-            echo ""
-            echo "### Added"
-            echo "- Your new feature"
-            echo ""
-            echo "### Fixed"
-            echo "- Your bug fix"
-            echo ""
-            echo "If this change doesn't need a changelog entry, add the 'skip-changelog' label."
+            echo "::error::CHANGELOG.md must be updated. Add your changes under [Unreleased] section."
             exit 1
           fi
-          echo "CHANGELOG.md has been updated"
+
+          # Require at least one bullet entry under [Unreleased]
+          UNRELEASED=$(sed -n '/^## \[Unreleased\]/,/^## \[/p' CHANGELOG.md | tail -n +2 | head -n -1)
+          if ! echo "$UNRELEASED" | grep -qE "^### "; then
+            echo "::error::Add a category header (### Added, ### Fixed, etc.) under [Unreleased] in CHANGELOG.md"
+            exit 1
+          fi
+          if ! echo "$UNRELEASED" | grep -qE "^- "; then
+            echo "::error::Add at least one entry (- description) under [Unreleased] in CHANGELOG.md"
+            exit 1
+          fi
+          echo "Changelog check passed!"
 
   qualops:
     if: false # Disabled for now
@@ -104,12 +127,12 @@ jobs:
       checks: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 20.x
           cache: npm
@@ -124,10 +147,12 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           node dist/cli.js all \
-            --base origin/${{ github.base_ref }} \
-            --head ${{ github.event.pull_request.head.sha }} \
+            --base "origin/$BASE_REF" \
+            --head "$HEAD_SHA" \
             --stages analyze,review,report
 
       - name: Post GitHub Integration
@@ -138,7 +163,7 @@ jobs:
 
       - name: Upload QualOps Reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: qualops-reports
           path: reports/
@@ -149,17 +174,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check all jobs passed
+        env:
+          LINT_RESULT: ${{ needs.lint.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          CHANGELOG_RESULT: ${{ needs.changelog.result }}
         run: |
-          if [ "${{ needs.lint.result }}" != "success" ]; then
+          if [ "$LINT_RESULT" != "success" ]; then
             echo "Lint job failed"
             exit 1
           fi
-          if [ "${{ needs.test.result }}" != "success" ]; then
+          if [ "$TEST_RESULT" != "success" ]; then
             echo "Test job failed"
             exit 1
           fi
-          # Changelog is optional (can be skipped with label or on main push)
-          if [ "${{ needs.changelog.result }}" != "success" ] && [ "${{ needs.changelog.result }}" != "skipped" ]; then
+          # Changelog is optional (skipped on push to main or when no code changes)
+          if [ "$CHANGELOG_RESULT" != "success" ] && [ "$CHANGELOG_RESULT" != "skipped" ]; then
             echo "Changelog job failed"
             exit 1
           fi
