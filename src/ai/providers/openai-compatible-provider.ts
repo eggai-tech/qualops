@@ -9,10 +9,10 @@ import { logger } from '@/shared/utils/logger';
 import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
 
 interface OpenAICompatibleProviderConfig {
-  /** Internal name of the provider, e.g. github, openai */
-  name: string;
-  /** Friendly name of the provider, e.g. GitHub Models, OpenAI */
-  friendlyName: string;
+  /** Internal name of the provider */
+  name: 'github' | 'openai' | (string & {});
+  /** Friendly name of the provider, used in error messages */
+  friendlyName: 'GitHub Models' | 'OpenAI' | (string & {});
   /**
    * Provider API Key..
    *
@@ -28,8 +28,8 @@ interface OpenAICompatibleProviderConfig {
 }
 
 export abstract class OpenAICompatibleProvider implements AIProvider {
-  readonly name: string;
-  private readonly friendlyName: string;
+  readonly name: OpenAICompatibleProviderConfig['name'];
+  private readonly friendlyName: OpenAICompatibleProviderConfig['friendlyName'];
 
   private client: OpenAI | null = null;
   private initialized = false;
