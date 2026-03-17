@@ -125,6 +125,9 @@ jobs:
       contents: read
       pull-requests: write
       checks: write
+    concurrency:
+      group: 'qualops-analysis'
+      cancel-in-progress: false
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -157,16 +160,17 @@ jobs:
 
       - name: Post GitHub Integration
         if: always()
+        working-directory: .qualops
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node dist/github/run-integration.js
+        run: node ../dist/github/run-integration.js
 
       - name: Upload QualOps Reports
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: qualops-reports
-          path: reports/
+          path: .qualops/reports/
 
   all-checks-passed:
     if: always()

@@ -9,6 +9,7 @@ process.env.AWS_REGION = 'us-east-1';
 process.env.AWS_ACCESS_KEY_ID = 'test-access-key';
 process.env.AWS_SECRET_ACCESS_KEY = 'test-secret-key';
 process.env.OPENAI_API_KEY = 'sk-test-key-mock';
+process.env.GITHUB_API_KEY = 'gho_test-key-mock';
 
 const TEST_FIXTURES_DIR = join(__dirname, '../test-fixtures');
 const TEST_OUTPUT_BASE_DIR = join(__dirname, '../test-output');

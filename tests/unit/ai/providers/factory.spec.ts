@@ -7,6 +7,7 @@ import {
   getGlobalAIProvider,
   initializeGlobalAIProviderForStage,
 } from '@/ai/providers/factory';
+import { GitHubModelsProvider } from '@/ai/providers/github';
 import { OpenAIProvider } from '@/ai/providers/openai';
 import type { AIProvider } from '@/ai/providers/provider';
 import { ConfigService } from '@/config/config';
@@ -15,11 +16,13 @@ jest.mock('@/config/config');
 jest.mock('@/ai/providers/anthropic');
 jest.mock('@/ai/providers/bedrock');
 jest.mock('@/ai/providers/openai');
+jest.mock('@/ai/providers/github');
 jest.mock('@/shared/utils/logger');
 
 const mockAnthropicProvider = AnthropicProvider as jest.MockedClass<typeof AnthropicProvider>;
 const mockBedrockProvider = BedrockProvider as jest.MockedClass<typeof BedrockProvider>;
 const mockOpenAIProvider = OpenAIProvider as jest.MockedClass<typeof OpenAIProvider>;
+const mockGitHubProvider = GitHubModelsProvider as jest.MockedClass<typeof GitHubModelsProvider>;
 
 describe('AIFactory', () => {
   let mockConfigInstance: jest.Mocked<ConfigService>;
@@ -54,6 +57,7 @@ describe('AIFactory', () => {
     );
     mockBedrockProvider.mockImplementation(() => createMockProvider(AIProviderType.BEDROCK) as any);
     mockOpenAIProvider.mockImplementation(() => createMockProvider(AIProviderType.OPENAI) as any);
+    mockGitHubProvider.mockImplementation(() => createMockProvider(AIProviderType.GITHUB) as any);
   });
 
   describe('createForStage', () => {
@@ -64,7 +68,7 @@ describe('AIFactory', () => {
         inputPerMillion: 3,
         outputPerMillion: 15,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+      mockConfigInstance.getAIStageConfig.mockReturnValueOnce(stageConfig);
 
       const provider = await AIFactory.createForStage('review');
 
@@ -81,7 +85,7 @@ describe('AIFactory', () => {
         inputPerMillion: 2.5,
         outputPerMillion: 10,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+      mockConfigInstance.getAIStageConfig.mockReturnValueOnce(stageConfig);
 
       const provider = await AIFactory.createForStage('analyze');
 
@@ -98,7 +102,7 @@ describe('AIFactory', () => {
         inputPerMillion: 5,
         outputPerMillion: 15,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+      mockConfigInstance.getAIStageConfig.mockReturnValueOnce(stageConfig);
 
       const provider = await AIFactory.createForStage('fix');
 
@@ -106,6 +110,23 @@ describe('AIFactory', () => {
       expect(mockOpenAIProvider).toHaveBeenCalledWith(stageConfig);
       expect(provider.initialize).toHaveBeenCalled();
       expect(provider.name).toBe(AIProviderType.OPENAI);
+    });
+
+    it('should create GitHub provider for github stage config', async () => {
+      const stageConfig = {
+        provider: AIProviderType.GITHUB,
+        model: 'openai/gpt-4.1',
+        inputPerMillion: 5,
+        outputPerMillion: 15,
+      };
+      mockConfigInstance.getAIStageConfig.mockReturnValueOnce(stageConfig);
+
+      const provider = await AIFactory.createForStage('other');
+
+      expect(mockConfigInstance.getAIStageConfig).toHaveBeenCalledWith('other');
+      expect(mockGitHubProvider).toHaveBeenCalledWith(stageConfig);
+      expect(provider.initialize).toHaveBeenCalled();
+      expect(provider.name).toBe(AIProviderType.GITHUB);
     });
 
     it('should throw error for unknown provider', async () => {
@@ -263,13 +284,14 @@ describe('AIFactory', () => {
         AIProviderType.ANTHROPIC,
         AIProviderType.BEDROCK,
         AIProviderType.OPENAI,
+        AIProviderType.GITHUB,
       ]);
     });
 
     it('should return array with correct length', () => {
       const providers = AIFactory.getAvailableProviders();
 
-      expect(providers).toHaveLength(3);
+      expect(providers).toHaveLength(4);
     });
 
     it('should return array containing anthropic provider', () => {
@@ -288,6 +310,12 @@ describe('AIFactory', () => {
       const providers = AIFactory.getAvailableProviders();
 
       expect(providers).toContain(AIProviderType.OPENAI);
+    });
+
+    it('should return array containing github provider', () => {
+      const providers = AIFactory.getAvailableProviders();
+
+      expect(providers).toContain(AIProviderType.GITHUB);
     });
   });
 
