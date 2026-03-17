@@ -28,7 +28,7 @@ jest.mock('@/shared/runtime/session-context', () => ({
 }));
 
 jest.mock('@/shared/utils/file-utils', () => {
-  const actual = jest.requireActual('../../shared/utils/file-utils');
+  const actual = jest.requireActual('@/shared/utils/file-utils');
   return {
     ...actual,
     writeMetadataFile: (...args: unknown[]) => mockWriteMetadataFile(...args),
@@ -208,7 +208,7 @@ describe('Review Stage Integration', () => {
     expect(result.summary.totalIssues).toBe(0);
   });
 
-  it('should skip spec files', async () => {
+  it('should review all files provided by the analysis manifest, including spec files', async () => {
     addFile(testProject, 'src/component.ts', SAMPLE_COMPONENTS.goodComponent);
     addFile(testProject, 'src/component.spec.ts', 'describe("test", () => {});');
 
@@ -231,7 +231,7 @@ describe('Review Stage Integration', () => {
     const result = await reviewProjects();
 
     expect(result).toBeDefined();
-    expect(result.filesReviewed).toBe(1);
+    expect(result.filesReviewed).toBe(2);
   });
 
   it('should categorize issues by severity', async () => {

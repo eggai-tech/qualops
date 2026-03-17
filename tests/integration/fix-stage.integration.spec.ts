@@ -25,7 +25,7 @@ jest.mock('@/shared/runtime/session-context', () => ({
 }));
 
 jest.mock('@/shared/utils/file-utils', () => {
-  const actual = jest.requireActual('../../shared/utils/file-utils');
+  const actual = jest.requireActual('@/shared/utils/file-utils');
   return {
     ...actual,
     writeMetadataFile: (...args: unknown[]) => mockWriteMetadataFile(...args),
@@ -71,6 +71,8 @@ describe('Fix Stage Integration', () => {
     mockCreateFixBatchRollbackPoint.mockReturnValue('rollback-point-id');
     mockGenerateDiffHTML.mockResolvedValue(undefined);
     mockGenerateFix.mockReset();
+
+    jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
