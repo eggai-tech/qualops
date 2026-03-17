@@ -42,7 +42,7 @@ class Logger {
 
   private loadConfigFromFile(): Partial<LoggerConfig> {
     try {
-      const configPath = join(process.cwd(), '.qualopsrc.json');
+      const configPath = join(process.cwd(), '.qualops/.qualopsrc.json');
       const configFile = readFileSync(configPath, 'utf8');
       const config = JSON.parse(configFile);
       return config.logger || {};

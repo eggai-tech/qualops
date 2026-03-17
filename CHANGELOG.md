@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Update the logger config loading to read from `${cwd}/.qualops/.qualopsrc.json` instead of CWD
+
 ### Added
 - GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
 - Add JSON Schema for QualOps configuration file with comprehensive integration tests
