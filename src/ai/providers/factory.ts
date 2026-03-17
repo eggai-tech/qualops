@@ -1,5 +1,6 @@
 import { AnthropicProvider } from './anthropic';
 import { BedrockProvider } from './bedrock';
+import { GitHubModelsProvider } from './github';
 import { OpenAIProvider } from './openai';
 import type { AIProvider } from './provider';
 import { ConfigService } from '../../config/config';
@@ -8,6 +9,7 @@ export const AIProviderType = {
   ANTHROPIC: 'anthropic',
   BEDROCK: 'bedrock',
   OPENAI: 'openai',
+  GITHUB: 'github',
 } as const;
 
 export class AIFactory {
@@ -39,8 +41,13 @@ export class AIFactory {
       case AIProviderType.OPENAI:
         provider = new OpenAIProvider(stageConfig);
         break;
-      default:
-        throw new Error(`Unknown AI provider: ${stageConfig.provider}`);
+      case AIProviderType.GITHUB:
+        provider = new GitHubModelsProvider(stageConfig);
+        break;
+      default: {
+        const _exhaustiveCheck: never = stageConfig.provider;
+        throw new Error(`Unknown AI provider: ${_exhaustiveCheck}`);
+      }
     }
 
     await provider.initialize();

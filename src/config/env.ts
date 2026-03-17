@@ -5,6 +5,7 @@ interface EnvironmentConfig {
   awsRegion?: string;
   awsAccessKeyId?: string;
   awsSecretAccessKey?: string;
+  githubApiKey?: string;
 
   // Feature Flags
   enableReAct?: boolean;
@@ -66,6 +67,7 @@ class EnvironmentConfigService {
       awsRegion: process.env.AWS_REGION,
       awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
       awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      githubApiKey: process.env.GITHUB_API_KEY,
 
       // Feature Flags
       enableReAct: process.env.QUALOPS_ENABLE_REACT === 'true',
