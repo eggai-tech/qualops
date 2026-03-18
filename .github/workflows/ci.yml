@@ -119,7 +119,7 @@ jobs:
           echo "Changelog check passed!"
 
   qualops:
-    if: false # Disabled for now
+    # if: false # Disabled for now
     runs-on: ubuntu-latest
     permissions:
       contents: read
