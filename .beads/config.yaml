@@ -53,4 +53,8 @@
 # - github.org
 # - github.repo
 
-sync.branch: "beads-sync"
+dolt:
+  server_mode: true
+
+sync:
+  mode: dolt-native
