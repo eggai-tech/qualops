@@ -58,3 +58,7 @@ dolt:
 
 sync:
   mode: dolt-native
+
+backup:
+  enabled: true
+  git-push: true
