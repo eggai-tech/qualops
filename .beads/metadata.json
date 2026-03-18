@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "qualops",
+  "project_id": "35985187-ef50-44fb-b1cb-c4745a18193d"
+}

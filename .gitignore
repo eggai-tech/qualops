@@ -36,3 +36,7 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
