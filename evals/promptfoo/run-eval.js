@@ -2,10 +2,21 @@
 
 /**
  * Usage:
- *   node run-eval.js                                      # QualOps dataset
- *   node run-eval.js --source=kodus --lang=tsjs            # Kodus TS/JS only
- *   node run-eval.js --source=kodus --lang=all --limit=5   # All Kodus, 5 per lang
- *   node run-eval.js --source=kodus --dataset-type=normal  # Kodus non-crossfile
+ *   node run-eval.js                                          # QualOps dataset
+ *   node run-eval.js --source=kodus --lang=tsjs               # Kodus TS/JS only
+ *   node run-eval.js --source=kodus --lang=all --limit=5      # All Kodus, 5 per lang
+ *   node run-eval.js --source=kodus --dataset-type=normal     # Kodus non-crossfile
+ *   node run-eval.js --source=crb                             # Code Review Bench (all repos)
+ *   node run-eval.js --source=crb --repo=sentry               # CRB sentry (python) only
+ *   node run-eval.js --source=crb --repo=grafana --limit=3    # CRB grafana, 3 PRs
+ *   node run-eval.js --source=crb --repo=keycloak             # CRB keycloak (java) only
+ *
+ * CRB repos: sentry (python), grafana (go), cal_dot_com (typescript),
+ *            discourse (ruby), keycloak (java)
+ *
+ * Fetch CRB dataset first (requires gh CLI):
+ *   npm run eval:fetch-crb
+ *   npm run eval:fetch-crb -- --repo=sentry
  */
 
 const { execSync } = require('child_process');
@@ -21,7 +32,7 @@ try {
   // dotenv not installed; rely on shell env
 }
 
-const CONVERT_FLAGS = ['--source', '--lang', '--limit', '--dir', '--dataset-type'];
+const CONVERT_FLAGS = ['--source', '--lang', '--limit', '--dir', '--dataset-type', '--repo'];
 const convertArgs = [];
 const promptfooArgs = [];
 

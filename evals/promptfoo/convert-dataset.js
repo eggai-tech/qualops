@@ -16,11 +16,13 @@ const source = args.source || 'qualops';
 const lang = args.lang || 'all';
 const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
 const datasetType = args['dataset-type'] || 'all';
+const repo = args.repo || 'all';
 
 const QUALOPS_DATASETS_DIR = path.join(__dirname, '../datasets');
 const KODUS_DATASETS_DIR =
   args.dir ||
   path.join(__dirname, '../datasets/kodus');
+const CRB_DATASETS_DIR = path.join(__dirname, '../datasets/crb');
 
 const OUTPUT_FILE = path.join(__dirname, 'datasets', 'tests.json');
 
@@ -188,6 +190,42 @@ function mapKodusSeverity(severity) {
   return severity || 'medium';
 }
 
+function convertCrbCase(data, index) {
+  const expected = (data.expected || []).map((e) => ({
+    line: e.line,
+    lineEnd: e.lineEnd,
+    type: e.type || 'bug',
+    severity: e.severity || 'medium',
+    description: e.description || '',
+  }));
+
+  const referenceBugs = expected.map((e) => ({
+    relevantFile: data.pr_url,
+    relevantLinesStart: e.line,
+    relevantLinesEnd: e.lineEnd,
+    type: e.type,
+    severity: e.severity,
+    description: e.description,
+  }));
+
+  return {
+    description: `[crb] ${data.id || `case-${index + 1}`}: ${data.pr_title || data.pr_url}`,
+    vars: {
+      caseId: data.id || `crb-${index + 1}`,
+      source: 'crb',
+      filePath: data.pr_url || 'unknown',
+      language: data.language || 'unknown',
+      fullContent: '',
+      diff: escapeTemplatePatterns(data.diff || ''),
+      fileContent: '',
+      patchWithLinesStr: '',
+      referenceBugs: JSON.stringify(referenceBugs),
+      referenceExpected: JSON.stringify(expected),
+    },
+    assert: ASSERTIONS,
+  };
+}
+
 let tests = [];
 
 if (source === 'qualops') {
@@ -217,8 +255,34 @@ if (source === 'qualops') {
     const lines = readJsonlLines(filePath, limit);
     tests.push(...lines.map((l, i) => convertKodusCase(JSON.parse(l), i)));
   }
+} else if (source === 'crb') {
+  const CRB_REPOS = {
+    sentry: 'python',
+    grafana: 'go',
+    cal_dot_com: 'typescript',
+    discourse: 'ruby',
+    keycloak: 'java',
+  };
+
+  const repos =
+    repo === 'all'
+      ? Object.keys(CRB_REPOS)
+      : CRB_REPOS[repo]
+        ? [repo]
+        : (() => {
+            console.error(
+              `Unknown repo: ${repo}. Options: ${Object.keys(CRB_REPOS).join(', ')}, all`,
+            );
+            process.exit(1);
+          })();
+
+  for (const r of repos) {
+    const filePath = path.join(CRB_DATASETS_DIR, `${r}.jsonl`);
+    const lines = readJsonlLines(filePath, limit);
+    tests.push(...lines.map((l, i) => convertCrbCase(JSON.parse(l), i)));
+  }
 } else {
-  console.error(`Unknown source: ${source}. Options: qualops, kodus`);
+  console.error(`Unknown source: ${source}. Options: qualops, kodus, crb`);
   process.exit(1);
 }
 
