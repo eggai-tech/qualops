@@ -53,7 +53,10 @@ program
 program
   .command('init-claude')
   .description('Create Claude Code command for QualOps setup')
-  .action(() => initClaudeCommand());
+  .option('--provider <provider>', 'AI provider (anthropic|openai|bedrock)', 'anthropic')
+  .action((options: { provider?: string }) =>
+    initClaudeCommand(options as { provider?: 'anthropic' | 'openai' | 'bedrock' }),
+  );
 
 // Add help examples
 program.addHelpText('after', formatHelpText());
