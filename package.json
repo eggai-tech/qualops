@@ -52,6 +52,7 @@
     "build:check": "tsc -p tsconfig.lib.json --noEmit",
     "dev": "tsx --env-file=.env src/cli.ts",
     "test": "LC_ALL=en_US jest",
+    "test:evals": "jest --config evals/jest.config.js",
     "test:integration": "jest --config jest.integration.config.js",
     "lint": "eslint src tests",
     "lint:fix": "npm run lint -- --fix",

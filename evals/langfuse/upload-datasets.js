@@ -247,7 +247,11 @@ async function main() {
   console.log('\nDone. View datasets at: ' + langfuseHost);
 }
 
-main().catch((err) => {
-  console.error('Fatal:', err.message || err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Fatal:', err.message || err);
+    process.exit(1);
+  });
+}
+
+module.exports = { buildQualOpsItem, buildCrbItem, readJsonlLines, CRB_REPOS };

@@ -201,7 +201,17 @@ async function runWithConcurrency(tasks, limit) {
 
 // ─── Main eval loop ───────────────────────────────────────────────────────────
 
-async function runEvalItem(langfuse, item, itemIndex, total) {
+async function runEvalItem(langfuse, item, itemIndex, total, datasetName) {
+  try {
+    return await _runEvalItem(langfuse, item, itemIndex, total, datasetName);
+  } catch (err) {
+    console.error(`  [${itemIndex + 1}/${total}] UNCAUGHT ERROR: ${err.message || err}`);
+    console.error('  Stack:', err.stack || String(err));
+    return { caseId: item.id, issues: [], reviewError: err.message || String(err) };
+  }
+}
+
+async function _runEvalItem(langfuse, item, itemIndex, total, datasetName) {
   const itemInput = item.input;
   const itemExpected = item.expectedOutput || {};
   const referenceBugs = itemExpected.referenceBugs || [];
@@ -261,15 +271,23 @@ async function runEvalItem(langfuse, item, itemIndex, total) {
     generation.end({ output: { error: reviewError }, level: 'ERROR', statusMessage: reviewError });
     trace.update({ output: { error: reviewError } });
     console.error(`  [${itemIndex + 1}/${total}] ${caseId} ERROR: ${reviewError}`);
+    console.error('  Stack:', err.stack || err);
   }
 
+  // Flush so the trace/generation exist before linking
+  await langfuse.flushAsync();
+
   // Link trace to dataset run item
-  await langfuse.api.datasetRunItemsCreate({
-    datasetItemId: item.id,
-    observationId: generation.id,
-    runName: experimentName,
-    metadata: { durationMs },
-  });
+  try {
+    await langfuse.api.datasetRunItemsCreate({
+      datasetItemId: item.id,
+      traceId: trace.id,
+      runName: experimentName,
+      metadata: { durationMs },
+    });
+  } catch (err) {
+    console.error(`  Failed to link dataset run item: ${err.message || JSON.stringify(err)}`);
+  }
 
   // Score
   if (!reviewError) {
@@ -338,7 +356,7 @@ async function runDataset(langfuse, datasetName) {
 
   const results = { total: allItems.length, passed: 0, errors: 0 };
 
-  const tasks = allItems.map((item, i) => () => runEvalItem(langfuse, item, i, allItems.length));
+  const tasks = allItems.map((item, i) => () => runEvalItem(langfuse, item, i, allItems.length, datasetName));
   const runResults = await runWithConcurrency(tasks, concurrency);
 
   for (const r of runResults) {
@@ -395,7 +413,11 @@ async function main() {
   console.log('──────────────────────────────────────────────────');
 }
 
-main().catch((err) => {
-  console.error('Fatal:', err.message || err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Fatal:', err.message || err);
+    process.exit(1);
+  });
+}
+
+module.exports = { normalizeKodusContent, parseDiffLines, resolveDatasets, CRB_REPOS };
