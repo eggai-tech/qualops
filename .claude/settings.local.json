@@ -1,11 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(bd show *)",
-      "Bash(bd view *)",
+      "Bash(bd show:*)",
+      "Bash(bd view:*)",
       "Bash(bd ready)",
-      "Bash(bd list)",
-      "Bash(bd children *)"
+      "Bash(bd list:*)",
+      "Bash(bd children:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run build)",
+      "Bash(npm run build:check 2>&1)",
+      "Bash(npm run lint 2>&1:*)",
+      "Bash(npx jest:*)",
+      "Bash(npm audit)"
     ]
   }
 }
