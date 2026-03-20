@@ -66,47 +66,12 @@ function loadEnv() {
   } catch { /* already loaded */ }
 }
 
-function normalizeKodusContent(content) {
-  const lines = content.split('\n');
-  const hasNumberedLines = lines.some((l) => /^\d+: ?/.test(l));
-  if (!hasNumberedLines) return content;
-
-  const byLineNumber = {};
-  let maxLineNumber = 0;
-  for (const line of lines) {
-    const m = line.match(/^(\d+): ?(.*)/);
-    if (m) {
-      const lineNo = parseInt(m[1], 10);
-      byLineNumber[lineNo] = m[2];
-      if (lineNo > maxLineNumber) maxLineNumber = lineNo;
-    }
-  }
-
-  const output = [];
-  for (let i = 1; i <= maxLineNumber; i++) {
-    output.push(i in byLineNumber ? byLineNumber[i] : '');
-  }
-  return output.join('\n');
-}
-
 function parseDiffLines(diffStr) {
   const additions = new Set();
   const deletions = new Set();
   const modifications = new Set();
 
   if (!diffStr) return { additions, deletions, modifications };
-
-  const isKodus = /^\d+ [+\- ]/.test(diffStr.split('\n').find((l) => /^\d+ /.test(l)) || '');
-
-  if (isKodus) {
-    for (const line of diffStr.split('\n')) {
-      const addMatch = line.match(/^(\d+) \+/);
-      if (addMatch) { additions.add(parseInt(addMatch[1], 10)); continue; }
-      const delMatch = line.match(/^(\d+) -/);
-      if (delMatch) deletions.add(parseInt(delMatch[1], 10));
-    }
-    return { additions, deletions, modifications };
-  }
 
   let newLineNumber = 0;
   for (const line of diffStr.split('\n')) {
@@ -148,30 +113,58 @@ async function ensureInit() {
   _initialized = true;
 }
 
+/**
+ * Split a multi-file unified diff into per-file FileInfo objects.
+ * Used for CRB dataset items which contain full PR diffs.
+ */
+function splitMultiFileDiff(rawDiff) {
+  const files = [];
+  const fileHeaderRe = /^diff --git a\/.+ b\/(.+)$/m;
+  const chunks = rawDiff.split(/^(?=diff --git )/m).filter(Boolean);
+
+  for (const chunk of chunks) {
+    const match = chunk.match(fileHeaderRe);
+    if (!match) continue;
+    const filePath = match[1];
+    const diff = parseDiffLines(chunk);
+    files.push({ path: filePath, content: '', diff, rawDiff: chunk });
+  }
+
+  return files;
+}
+
 async function runReviewForItem(itemInput) {
   await ensureInit();
-
-  const { runReview } = require('../src/provider');
-
-  const rawContent = itemInput.fullContent || itemInput.fileContent || '';
-  const rawDiff = itemInput.diff || itemInput.patchWithLinesStr || '';
-  const content = normalizeKodusContent(rawContent);
-  const diff = parseDiffLines(rawDiff);
-
-  const evalCase = {
-    id: itemInput.caseId || 'langfuse-case',
-    language: itemInput.language || 'typescript',
-    filePath: itemInput.filePath || 'unknown.ts',
-    diff: rawDiff,
-    fullContent: content,
-    expected: [],
-  };
 
   const evalConfig = {
     name: `langfuse:${model}:${mode}`,
     model,
     mode,
     provider,
+  };
+
+  // CRB items have no fullContent — split the multi-file diff into per-file FileInfos
+  if (itemInput.source === 'crb' || (!itemInput.fullContent && !itemInput.fileContent)) {
+    const { runReviewMultiFile } = require('../src/provider');
+    const rawDiff = itemInput.diff || '';
+    const files = splitMultiFileDiff(rawDiff);
+    if (files.length === 0) {
+      return { issues: [], durationMs: 0 };
+    }
+    return runReviewMultiFile(files, evalConfig);
+  }
+
+  const { runReview } = require('../src/provider');
+  const rawContent = itemInput.fullContent || '';
+  const rawDiff = itemInput.diff || '';
+
+  const evalCase = {
+    id: itemInput.caseId || 'langfuse-case',
+    language: itemInput.language || 'typescript',
+    filePath: itemInput.filePath || 'unknown.ts',
+    diff: rawDiff,
+    fullContent: rawContent,
+    expected: [],
   };
 
   return runReview(evalCase, evalConfig);
@@ -291,23 +284,22 @@ async function _runEvalItem(langfuse, item, itemIndex, total, datasetName) {
 
   // Score
   if (!reviewError) {
-    const scorers = skipJudge
-      ? [
-          { name: 'parse', fn: () => ({ score: scoreParser(issues).score, reason: scoreParser(issues).reason }) },
-          { name: 'line_accuracy', fn: () => scoreLineAccuracy(issues, referenceBugs) },
-          { name: 'coverage', fn: () => scoreCoverage(issues, referenceExpected) },
-          { name: 'severity', fn: () => scoreSeverity(issues, referenceExpected) },
-        ]
-      : null;
+    const source = itemInput.source;
 
     let scores;
     if (skipJudge) {
-      scores = scorers.map(({ name, fn }) => {
-        const r = fn();
-        return { name, value: r.score, comment: r.reason || r.comment };
-      });
+      const parseResult = scoreParser(issues);
+      const lineResult = scoreLineAccuracy(issues, referenceBugs);
+      const coverageResult = scoreCoverage(issues, referenceExpected);
+      const severityResult = scoreSeverity(issues, referenceExpected);
+      scores = [
+        { name: 'parse', value: parseResult.score, comment: parseResult.reason },
+        { name: 'line_accuracy', value: lineResult.score, comment: lineResult.reason },
+        { name: 'coverage', value: coverageResult.score, comment: coverageResult.reason },
+        { name: 'severity', value: severityResult.score, comment: severityResult.reason },
+      ].filter((s) => s.value !== null);
     } else {
-      scores = await runAllScorers(issues, { referenceBugs, referenceExpected });
+      scores = await runAllScorers(issues, { referenceBugs, referenceExpected, source });
     }
 
     for (const score of scores) {
@@ -420,4 +412,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { normalizeKodusContent, parseDiffLines, resolveDatasets, CRB_REPOS };
+module.exports = { parseDiffLines, resolveDatasets, CRB_REPOS };

@@ -32,8 +32,9 @@ CLAUDE.local.md
 .DS_Store
 Thumbs.db
 
-# Eval results (persistent, local only)
-evals/promptfoo/results/
+# Eval results and large fetched data (local only)
+evals/langfuse/results/
+evals/datasets/crb/benchmark_data.json
 
 # Logs
 *.log

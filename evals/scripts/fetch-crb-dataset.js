@@ -154,8 +154,44 @@ if (ghCheck.status !== 0) {
   process.exit(1);
 }
 
+// Fetch benchmark_data.json (tool reviews + golden comments combined).
+// Too large for the contents API — use raw download instead.
+function fetchBenchmarkData() {
+  const outFile = path.join(OUT_DIR, 'benchmark_data.json');
+  if (fs.existsSync(outFile)) {
+    console.log('\n[benchmark_data] Already exists, skipping (delete to re-fetch)');
+    return;
+  }
+  console.log('\n[benchmark_data] Downloading from GitHub raw...');
+  const result = spawnSync(
+    'gh',
+    ['api', `repos/${CRB_GITHUB_REPO}/git/blobs/:tree_sha`,
+      '--header', 'Accept: application/vnd.github.raw',
+    ],
+    { encoding: 'utf-8', env: process.env },
+  );
+  // Use curl via gh auth token as fallback for large files
+  const token = spawnSync('gh', ['auth', 'token'], { encoding: 'utf-8', env: process.env });
+  if (token.status !== 0) {
+    console.warn('  WARN: could not get gh token, skipping benchmark_data.json');
+    return;
+  }
+  const rawUrl = `https://raw.githubusercontent.com/${CRB_GITHUB_REPO}/main/offline/results/benchmark_data.json`;
+  const dl = spawnSync(
+    'curl',
+    ['-fsSL', '-H', `Authorization: Bearer ${token.stdout.trim()}`, rawUrl, '-o', outFile],
+    { encoding: 'utf-8', env: process.env },
+  );
+  if (dl.status !== 0) {
+    console.warn(`  WARN: could not download benchmark_data.json: ${dl.stderr?.trim()}`);
+    return;
+  }
+  console.log(`  Written ${outFile}`);
+}
+
 console.log(`Fetching CRB dataset (repos: ${repos.join(', ')})...`);
 for (const repo of repos) {
   processRepo(repo);
 }
+fetchBenchmarkData();
 console.log('\nDone.');
