@@ -2,25 +2,22 @@
 
 /**
  * Fetch Code Review Bench (CRB) dataset from GitHub and convert to JSONL.
+ * Also clones source repos so agentic evals can access the full codebase.
  *
  * Usage:
  *   node fetch-crb-dataset.js                          # all 50 PRs
  *   node fetch-crb-dataset.js --repo=sentry            # one repo subset
  *   node fetch-crb-dataset.js --repo=grafana --limit=3 # limit per repo
+ *   node fetch-crb-dataset.js --skip-repos             # skip repo cloning
  *
  * Repos: sentry (python), grafana (go), cal_dot_com (typescript),
  *        discourse (ruby), keycloak (java)
  *
  * Requires: gh CLI authenticated (gh auth login)
  *
- * Output: evals/datasets/crb/<repo>.jsonl (one file per repo)
- *
- * Each JSONL line matches the shape expected by convert-dataset.js source=crb:
- * {
- *   id, pr_url, pr_title, source_repo, language,
- *   diff,         // unified diff string fetched from GitHub
- *   expected: [{ line, lineEnd, type, severity, description }]
- * }
+ * Output:
+ *   evals/datasets/crb/<repo>.jsonl  — dataset with diffs, golden comments, git refs
+ *   evals/repos/<owner>/<repo>/      — shallow-cloned source repos (cached)
  */
 
 const { spawnSync } = require('child_process');
@@ -30,6 +27,7 @@ const path = require('path');
 const SCRIPT_DIR = __dirname;
 const QUALOPS_ROOT = path.join(SCRIPT_DIR, '../..');
 const OUT_DIR = path.join(QUALOPS_ROOT, 'evals/datasets/crb');
+const REPOS_DIR = path.join(OUT_DIR, 'repos');
 
 // Golden comments are fetched directly from the upstream CRB repo
 const CRB_GITHUB_REPO = 'withmartian/code-review-benchmark';
@@ -54,8 +52,13 @@ const args = Object.fromEntries(
 
 const filterRepo = args.repo || null;
 const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
+const skipRepos = args['skip-repos'] === 'true';
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
+
+// ─── gh helper (clears GITHUB_TOKEN to use default gh auth) ─────────────────
+
+const ghEnv = { ...process.env, GITHUB_TOKEN: '' };
 
 function ghFetchDiff(prUrl) {
   // Extract owner/repo/pull-number from URL
@@ -66,7 +69,7 @@ function ghFetchDiff(prUrl) {
   const result = spawnSync(
     'gh',
     ['api', `repos/${owner}/${repo}/pulls/${number}`, '--header', 'Accept: application/vnd.github.diff'],
-    { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, env: process.env },
+    { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, env: ghEnv },
   );
 
   if (result.status !== 0) {
@@ -76,13 +79,89 @@ function ghFetchDiff(prUrl) {
   return result.stdout;
 }
 
+function parsePrUrl(prUrl) {
+  const m = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+  if (!m) return null;
+  return { owner: m[1], repo: m[2], number: parseInt(m[3], 10) };
+}
+
+function ghFetchPrRefs(prUrl) {
+  const pr = parsePrUrl(prUrl);
+  if (!pr) return null;
+
+  const result = spawnSync(
+    'gh',
+    ['api', `repos/${pr.owner}/${pr.repo}/pulls/${pr.number}`,
+      '--jq', '{base_sha: .base.sha, head_sha: .head.sha, base_ref: .base.ref, head_ref: .head.ref, clone_url: .head.repo.clone_url}',
+    ],
+    { encoding: 'utf-8', env: ghEnv },
+  );
+
+  if (result.status !== 0) {
+    console.warn(`  WARN: could not fetch PR refs for ${prUrl}: ${result.stderr?.trim()}`);
+    return null;
+  }
+
+  try {
+    return JSON.parse(result.stdout.trim());
+  } catch {
+    console.warn(`  WARN: invalid JSON from PR refs for ${prUrl}`);
+    return null;
+  }
+}
+
+// ─── Repo cloning ────────────────────────────────────────────────────────────
+
+function ensureRepoCloned(owner, repo, cloneUrl) {
+  const repoDir = path.join(REPOS_DIR, owner, repo);
+  if (fs.existsSync(path.join(repoDir, '.git'))) {
+    return repoDir;
+  }
+
+  console.log(`  Cloning ${owner}/${repo} (shallow)...`);
+  fs.mkdirSync(path.join(REPOS_DIR, owner), { recursive: true });
+
+  const url = cloneUrl || `https://github.com/${owner}/${repo}.git`;
+  const result = spawnSync(
+    'git',
+    ['clone', '--depth=1', '--no-single-branch', '--filter=blob:none', url, repoDir],
+    { encoding: 'utf-8', stdio: 'pipe', env: ghEnv },
+  );
+
+  if (result.status !== 0) {
+    console.warn(`  WARN: clone failed for ${owner}/${repo}: ${result.stderr?.trim()}`);
+    return null;
+  }
+
+  return repoDir;
+}
+
+function fetchCommit(repoDir, sha) {
+  // Check if commit already exists locally
+  const check = spawnSync('git', ['cat-file', '-t', sha], { cwd: repoDir, encoding: 'utf-8', stdio: 'pipe' });
+  if (check.status === 0) return true;
+
+  // Fetch the specific commit
+  const result = spawnSync(
+    'git',
+    ['fetch', '--depth=1', 'origin', sha],
+    { cwd: repoDir, encoding: 'utf-8', stdio: 'pipe', env: ghEnv },
+  );
+
+  if (result.status !== 0) {
+    console.warn(`  WARN: could not fetch commit ${sha.slice(0, 8)}: ${result.stderr?.trim()}`);
+    return false;
+  }
+  return true;
+}
+
 function fetchGoldenComments(repoSlug) {
   const result = spawnSync(
     'gh',
     ['api', `repos/${CRB_GITHUB_REPO}/contents/${CRB_GOLDEN_PATH}/${repoSlug}.json`,
       '--jq', '.content',
     ],
-    { encoding: 'utf-8', env: process.env },
+    { encoding: 'utf-8', env: ghEnv },
   );
   if (result.status !== 0) {
     console.warn(`  WARN: could not fetch golden comments for ${repoSlug}: ${result.stderr?.trim()}`);
@@ -118,9 +197,21 @@ function processRepo(repoSlug) {
       continue;
     }
 
+    // Fetch PR git refs (base/head SHAs) for repo checkout
+    const prRefs = ghFetchPrRefs(url);
+    const pr = parsePrUrl(url);
+
+    // Clone repo and fetch commits (unless --skip-repos)
+    let repoPath = null;
+    if (!skipRepos && pr && prRefs) {
+      repoPath = ensureRepoCloned(pr.owner, pr.repo, prRefs.clone_url);
+      if (repoPath) {
+        fetchCommit(repoPath, prRefs.base_sha);
+        fetchCommit(repoPath, prRefs.head_sha);
+      }
+    }
+
     const expected = comments.map((c) => ({
-      // No line numbers in CRB golden comments — line matching is N/A for this dataset.
-      // Line accuracy assertion will skip gracefully when line=null.
       line: null,
       lineEnd: null,
       type: 'bug',
@@ -137,6 +228,15 @@ function processRepo(repoSlug) {
         language,
         diff,
         expected,
+        git: prRefs ? {
+          base_sha: prRefs.base_sha,
+          head_sha: prRefs.head_sha,
+          base_ref: prRefs.base_ref,
+          head_ref: prRefs.head_ref,
+          owner: pr?.owner,
+          repo: pr?.repo,
+          repo_path: repoPath ? path.relative(QUALOPS_ROOT, repoPath) : null,
+        } : null,
       }),
     );
   }
@@ -148,7 +248,7 @@ function processRepo(repoSlug) {
 const repos = filterRepo ? [filterRepo] : Object.keys(REPO_LANGUAGE);
 
 // Check gh is available
-const ghCheck = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', env: process.env });
+const ghCheck = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', env: ghEnv });
 if (ghCheck.status !== 0) {
   console.error('ERROR: gh CLI not authenticated. Run: gh auth login');
   process.exit(1);
@@ -168,10 +268,10 @@ function fetchBenchmarkData() {
     ['api', `repos/${CRB_GITHUB_REPO}/git/blobs/:tree_sha`,
       '--header', 'Accept: application/vnd.github.raw',
     ],
-    { encoding: 'utf-8', env: process.env },
+    { encoding: 'utf-8', env: ghEnv },
   );
   // Use curl via gh auth token as fallback for large files
-  const token = spawnSync('gh', ['auth', 'token'], { encoding: 'utf-8', env: process.env });
+  const token = spawnSync('gh', ['auth', 'token'], { encoding: 'utf-8', env: ghEnv });
   if (token.status !== 0) {
     console.warn('  WARN: could not get gh token, skipping benchmark_data.json');
     return;
@@ -180,7 +280,7 @@ function fetchBenchmarkData() {
   const dl = spawnSync(
     'curl',
     ['-fsSL', '-H', `Authorization: Bearer ${token.stdout.trim()}`, rawUrl, '-o', outFile],
-    { encoding: 'utf-8', env: process.env },
+    { encoding: 'utf-8', env: ghEnv },
   );
   if (dl.status !== 0) {
     console.warn(`  WARN: could not download benchmark_data.json: ${dl.stderr?.trim()}`);
