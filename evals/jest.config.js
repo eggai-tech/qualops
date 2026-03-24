@@ -4,5 +4,6 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>'],
   testMatch: ['**/*.spec.js'],
+  modulePathIgnorePatterns: ['<rootDir>/datasets/crb/repos/'],
   verbose: true,
 };

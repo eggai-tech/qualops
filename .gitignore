@@ -34,6 +34,7 @@ Thumbs.db
 
 # Eval results and large fetched data (local only)
 evals/langfuse/results/
+evals/langfuse/logs/
 evals/datasets/crb/benchmark_data.json
 evals/datasets/crb/repos/
 

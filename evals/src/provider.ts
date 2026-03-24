@@ -34,7 +34,7 @@ export async function runReview(
   if (config.mode === 'pipeline') {
     rawIssues = await runPipelineReview([fileInfo], config);
   } else if (config.mode === 'agentic') {
-    rawIssues = await runAgenticReview(fileInfo, config);
+    rawIssues = await runAgenticReview([fileInfo], config);
   } else {
     rawIssues = await runFileByFileReview(fileInfo, config);
   }
@@ -65,7 +65,7 @@ export async function runReviewMultiFile(
   if (config.mode === 'pipeline') {
     rawIssues = await runPipelineReview(files, config);
   } else if (config.mode === 'agentic') {
-    rawIssues = await runAgenticReview(files[0], config);
+    rawIssues = await runAgenticReview(files, config);
   } else {
     rawIssues = [];
     for (const file of files) {
@@ -117,7 +117,7 @@ async function runPipelineReview(
 
 // Only works with anthropic provider (requires Claude Agent SDK).
 async function runAgenticReview(
-  fileInfo: FileInfo,
+  files: FileInfo[],
   config: EvalConfig,
 ): Promise<ReviewIssue[]> {
   if (config.provider && config.provider !== 'anthropic') {
@@ -141,8 +141,9 @@ async function runAgenticReview(
 
   // Lazy: claude-agent-sdk is ESM
   const { AgenticExecutor } = await import('@/stages/review/agentic/agentic-executor');
-  const executor = new AgenticExecutor(job, QUALOPS_ROOT);
-  return executor.execute([fileInfo]);
+  const cwd = config.cwd || QUALOPS_ROOT;
+  const executor = new AgenticExecutor(job, cwd);
+  return executor.execute(files);
 }
 
 function evalCaseToFileInfo(evalCase: EvalCase): FileInfo {

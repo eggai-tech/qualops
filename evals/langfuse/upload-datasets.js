@@ -129,6 +129,7 @@ function buildCrbItem(data, index, repoName) {
       prTitle: data.pr_title,
       prUrl: data.pr_url,
       sourceRepo: data.source_repo,
+      git: data.git || null,
     },
     expectedOutput: { referenceBugs, referenceExpected },
     metadata: {

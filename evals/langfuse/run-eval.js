@@ -50,6 +50,75 @@ const concurrency = args.concurrency ? parseInt(args.concurrency, 10) : 3;
 
 const CRB_REPOS = ['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak'];
 
+const LOGS_DIR = path.join(QUALOPS_ROOT, 'evals/langfuse/logs');
+
+// ─── Run log collector ───────────────────────────────────────────────────────
+
+function createRunLog() {
+  const startedAt = new Date().toISOString();
+  const entries = [];
+
+  return {
+    add(entry) {
+      entries.push({ timestamp: new Date().toISOString(), ...entry });
+    },
+    write() {
+      fs.mkdirSync(LOGS_DIR, { recursive: true });
+
+      const errors = entries.filter((e) => e.level === 'error');
+      const warnings = entries.filter((e) => e.level === 'warn');
+      const successes = entries.filter((e) => e.level === 'info' && e.event === 'item_complete');
+
+      const summary = {
+        experiment: experimentName,
+        model,
+        mode,
+        provider,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        totals: {
+          items: successes.length + errors.length,
+          successes: successes.length,
+          errors: errors.length,
+          warnings: warnings.length,
+        },
+        errorBreakdown: {},
+        warningBreakdown: {},
+        entries,
+      };
+
+      for (const e of errors) {
+        const code = e.errorCode || 'UNKNOWN';
+        summary.errorBreakdown[code] = (summary.errorBreakdown[code] || 0) + 1;
+      }
+
+      for (const w of warnings) {
+        const code = w.warnCode || 'UNKNOWN';
+        summary.warningBreakdown[code] = (summary.warningBreakdown[code] || 0) + 1;
+      }
+
+      const slug = experimentName.replace(/[/:]/g, '_');
+      const logFile = path.join(LOGS_DIR, `${slug}.json`);
+      fs.writeFileSync(logFile, JSON.stringify(summary, null, 2) + '\n');
+      return logFile;
+    },
+  };
+}
+
+function classifyError(err) {
+  const msg = (err.message || String(err)).toLowerCase();
+  if (msg.includes('rate') || msg.includes('429')) return 'RATE_LIMITED';
+  if (msg.includes('401') || msg.includes('403') || msg.includes('auth') || msg.includes('credentials')) return 'AUTH_FAILED';
+  if (msg.includes('timeout') || msg.includes('timed out') || msg.includes('aborted')) return 'TIMEOUT';
+  if (msg.includes('budget')) return 'BUDGET_EXHAUSTED';
+  if (msg.includes('parse') || msg.includes('json') || msg.includes('unexpected token')) return 'PARSE_ERROR';
+  if (msg.includes('econnrefused') || msg.includes('enotfound') || msg.includes('fetch failed')) return 'NETWORK_ERROR';
+  if (msg.includes('500') || msg.includes('502') || msg.includes('503') || msg.includes('overloaded')) return 'API_ERROR';
+  return 'UNKNOWN';
+}
+
+const runLog = createRunLog();
+
 function resolveDatasets() {
   if (args.dataset) return [args.dataset];
   if (args.source === 'crb') return CRB_REPOS.map((r) => `qualops/crb-${r}`);
@@ -133,14 +202,62 @@ function splitMultiFileDiff(rawDiff) {
   return files;
 }
 
+function resolveRepoCwd(itemInput) {
+  if (!itemInput.git?.repo_path) {
+    runLog.add({
+      level: 'warn',
+      event: 'missing_git_metadata',
+      warnCode: 'NO_REPO_PATH',
+      caseId: itemInput.caseId,
+      message: 'Dataset item has no git.repo_path — agentic tools will use qualops root',
+    });
+    return null;
+  }
+  const repoPath = path.resolve(QUALOPS_ROOT, itemInput.git.repo_path);
+  if (!fs.existsSync(repoPath)) {
+    console.warn(`  WARN: repo path not found: ${repoPath} (run npm run eval:fetch:crb to clone repos)`);
+    runLog.add({
+      level: 'warn',
+      event: 'repo_not_found',
+      warnCode: 'REPO_NOT_CLONED',
+      caseId: itemInput.caseId,
+      repoPath: itemInput.git.repo_path,
+      message: `Repo not cloned at ${repoPath} — agentic tools will use qualops root`,
+    });
+    return null;
+  }
+  // Checkout the PR head commit so agentic tools see the right code
+  if (itemInput.git.head_sha) {
+    const { spawnSync } = require('child_process');
+    const result = spawnSync('git', ['checkout', '--quiet', itemInput.git.head_sha], {
+      cwd: repoPath, encoding: 'utf-8', stdio: 'pipe',
+    });
+    if (result.status !== 0) {
+      console.warn(`  WARN: could not checkout ${itemInput.git.head_sha.slice(0, 8)}: ${result.stderr?.trim()}`);
+      runLog.add({
+        level: 'warn',
+        event: 'checkout_failed',
+        warnCode: 'CHECKOUT_FAILED',
+        caseId: itemInput.caseId,
+        sha: itemInput.git.head_sha,
+        message: result.stderr?.trim() || 'git checkout failed',
+      });
+    }
+  }
+  return repoPath;
+}
+
 async function runReviewForItem(itemInput) {
   await ensureInit();
+
+  const repoCwd = resolveRepoCwd(itemInput);
 
   const evalConfig = {
     name: `langfuse:${model}:${mode}`,
     model,
     mode,
     provider,
+    ...(repoCwd && { cwd: repoCwd }),
   };
 
   // CRB items have no fullContent — split the multi-file diff into per-file FileInfos
@@ -198,8 +315,17 @@ async function runEvalItem(langfuse, item, itemIndex, total, datasetName) {
   try {
     return await _runEvalItem(langfuse, item, itemIndex, total, datasetName);
   } catch (err) {
-    console.error(`  [${itemIndex + 1}/${total}] UNCAUGHT ERROR: ${err.message || err}`);
-    console.error('  Stack:', err.stack || String(err));
+    const errorCode = classifyError(err);
+    console.error(`  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${err.message || err}`);
+    runLog.add({
+      level: 'error',
+      event: 'uncaught_error',
+      errorCode,
+      dataset: datasetName,
+      caseId: item.input?.caseId || item.id,
+      message: err.message || String(err),
+      stack: err.stack || null,
+    });
     return { caseId: item.id, issues: [], reviewError: err.message || String(err) };
   }
 }
@@ -261,10 +387,20 @@ async function _runEvalItem(langfuse, item, itemIndex, total, datasetName) {
     trace.update({ output: issues });
   } catch (err) {
     reviewError = err.message || String(err);
-    generation.end({ output: { error: reviewError }, level: 'ERROR', statusMessage: reviewError });
-    trace.update({ output: { error: reviewError } });
-    console.error(`  [${itemIndex + 1}/${total}] ${caseId} ERROR: ${reviewError}`);
-    console.error('  Stack:', err.stack || err);
+    const errorCode = classifyError(err);
+    generation.end({ output: { error: reviewError, errorCode }, level: 'ERROR', statusMessage: reviewError });
+    trace.update({ output: { error: reviewError, errorCode } });
+    console.error(`  [${itemIndex + 1}/${total}] ${caseId} ERROR [${errorCode}]: ${reviewError}`);
+    runLog.add({
+      level: 'error',
+      event: 'review_error',
+      errorCode,
+      dataset: datasetName,
+      caseId,
+      traceId: trace.id,
+      message: reviewError,
+      stack: err.stack || null,
+    });
   }
 
   // Flush so the trace/generation exist before linking
@@ -280,6 +416,14 @@ async function _runEvalItem(langfuse, item, itemIndex, total, datasetName) {
     });
   } catch (err) {
     console.error(`  Failed to link dataset run item: ${err.message || JSON.stringify(err)}`);
+    runLog.add({
+      level: 'error',
+      event: 'langfuse_link_error',
+      errorCode: 'LANGFUSE_API',
+      dataset: datasetName,
+      caseId,
+      message: err.message || JSON.stringify(err),
+    });
   }
 
   // Score
@@ -313,8 +457,20 @@ async function _runEvalItem(langfuse, item, itemIndex, total, datasetName) {
       });
     }
 
+    const scoreMap = Object.fromEntries(scores.map((s) => [s.name, s.value]));
     const summary = scores.map((s) => `${s.name}=${s.value.toFixed(3)}`).join(' ');
     console.log(`  [${itemIndex + 1}/${total}] ${caseId} issues=${issues.length} ${summary}`);
+
+    runLog.add({
+      level: 'info',
+      event: 'item_complete',
+      dataset: datasetName,
+      caseId,
+      traceId: trace.id,
+      issueCount: issues.length,
+      durationMs,
+      scores: scoreMap,
+    });
   }
 
   return { caseId, issues, reviewError };
@@ -326,8 +482,16 @@ async function runDataset(langfuse, datasetName) {
   try {
     await langfuse.api.datasetsGet(encodeURIComponent(datasetName));
   } catch (err) {
-    console.error(`Error: could not fetch dataset "${datasetName}": ${err.message}`);
+    const errorCode = classifyError(err);
+    console.error(`Error: could not fetch dataset "${datasetName}" [${errorCode}]: ${err.message}`);
     console.error('Make sure to upload the dataset first: npm run eval:upload:all');
+    runLog.add({
+      level: 'error',
+      event: 'dataset_fetch_error',
+      errorCode,
+      dataset: datasetName,
+      message: err.message || String(err),
+    });
     return { total: 0, errors: 1 };
   }
 
@@ -398,18 +562,41 @@ async function main() {
 
   await langfuse.shutdownAsync();
 
+  const logFile = runLog.write();
+
+  const logData = JSON.parse(fs.readFileSync(logFile, 'utf-8'));
+  const warnCount = logData.totals.warnings;
+
   console.log('\n─── Results ───────────────────────────────────────');
-  console.log(`Datasets: ${datasets.length} | Total: ${totals.total} | Errors: ${totals.errors}`);
+  console.log(`Datasets: ${datasets.length} | Total: ${totals.total} | Errors: ${totals.errors} | Warnings: ${warnCount}`);
   console.log(`Experiment: ${experimentName}`);
   console.log(`View at: ${langfuseHost}`);
+  console.log(`Run log: ${logFile}`);
+  if (warnCount > 0) {
+    const codes = Object.entries(logData.warningBreakdown).map(([k, v]) => `${k}=${v}`).join(' ');
+    console.log(`Warnings: ${codes}`);
+  }
+  if (totals.errors > 0) {
+    const codes = Object.entries(logData.errorBreakdown).map(([k, v]) => `${k}=${v}`).join(' ');
+    console.log(`Errors: ${codes}`);
+  }
   console.log('──────────────────────────────────────────────────');
 }
 
 if (require.main === module) {
   main().catch((err) => {
-    console.error('Fatal:', err.message || err);
+    runLog.add({
+      level: 'error',
+      event: 'fatal',
+      errorCode: classifyError(err),
+      message: err.message || String(err),
+      stack: err.stack || null,
+    });
+    const logFile = runLog.write();
+    console.error(`Fatal: ${err.message || err}`);
+    console.error(`Run log: ${logFile}`);
     process.exit(1);
   });
 }
 
-module.exports = { parseDiffLines, resolveDatasets, CRB_REPOS };
+module.exports = { parseDiffLines, resolveDatasets, classifyError, createRunLog, CRB_REPOS };
