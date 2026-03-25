@@ -5,7 +5,7 @@ import { z } from 'zod';
 
 import { qualopsConfigSchema } from '@/config/config-schema';
 
-const schemaPath = join(__dirname, '../../docs/qualops-config.schema.json');
+const schemaPath = join(__dirname, '../../qualops-config.schema.json');
 
 describe('qualops-config.schema.json integrity (Zod-generated)', () => {
   let schema: Record<string, unknown>;

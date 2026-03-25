@@ -1,7 +1,7 @@
 import Ajv2020 from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 
-import schema from '../../../docs/qualops-config.schema.json';
+import schema from '../../../qualops-config.schema.json';
 
 const ajv = new Ajv2020({ allErrors: true });
 addFormats(ajv);
