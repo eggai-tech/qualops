@@ -1,5 +1,5 @@
 {
-  "$schema": "../docs/qualops-config.schema.json",
+  "$schema": "../qualops-config.schema.json",
   "ai": {
     "reviewStage": {
       "provider": "anthropic",

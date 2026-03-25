@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, mkdirSync, writeFileSync, rmSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -109,8 +109,9 @@ describe('initClaudeCommand', () => {
     const packageRoot = getPackageRoot();
     const llmSource = join(packageRoot, 'qualops-llm.txt');
     if (!existsSync(llmSource)) {
-      // Skip if the source doesn't exist in the build environment
-      return;
+      throw new Error(
+        `Required file qualops-llm.txt not found at ${llmSource} — this file must be present for init scaffolding.`,
+      );
     }
 
     await initClaudeCommand();

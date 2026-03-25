@@ -41,6 +41,7 @@
     "config",
     "action.yml",
     "qualops-llm.txt",
+    "qualops-config.schema.json",
     "examples"
   ],
   "publishConfig": {

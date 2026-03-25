@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 
 import { executeAllStages } from './cli/commands/all-command';
 import { generateIndexCommand } from './cli/commands/generate-index-command';
@@ -53,9 +53,11 @@ program
 program
   .command('init-claude')
   .description('Create Claude Code command for QualOps setup')
-  .option('--provider <provider>', 'AI provider (anthropic|openai|bedrock)', 'anthropic')
-  .action((options: { provider?: string }) =>
-    initClaudeCommand(options as { provider?: 'anthropic' | 'openai' | 'bedrock' }),
+  .addOption(
+    new Option('--provider <provider>', 'AI provider').choices(['anthropic', 'openai', 'bedrock']).default('anthropic'),
+  )
+  .action((options: { provider: 'anthropic' | 'openai' | 'bedrock' }) =>
+    initClaudeCommand(options),
   );
 
 // Add help examples

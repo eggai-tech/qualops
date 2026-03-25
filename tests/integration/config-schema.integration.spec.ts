@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { z } from 'zod';
 
-const schemaPath = join(__dirname, '../../docs/qualops-config.schema.json');
+const schemaPath = join(__dirname, '../../qualops-config.schema.json');
 
 // Zod definitions mirroring the JSON Schema meta-structure
 // Note that future support for JSON schema is in preview: https://zod.dev/json-schema

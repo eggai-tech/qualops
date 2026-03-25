@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync, copyFileSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 import { logger } from '../../shared/utils/logger';
@@ -131,7 +131,7 @@ export function generateDefaultConfig(provider: Provider) {
   const defaults = PROVIDER_DEFAULTS[provider];
   return {
     $schema:
-      'https://raw.githubusercontent.com/eggai-tech/qualops/main/docs/qualops-config.schema.json',
+      'https://raw.githubusercontent.com/eggai-tech/qualops/main/qualops-config.schema.json',
     ai: {
       reviewStage: {
         provider,
@@ -206,6 +206,8 @@ export async function initClaudeCommand(options?: { provider?: Provider }): Prom
     if (!result.valid) {
       logger.error('Generated config failed schema validation:');
       result.errors.forEach((err) => logger.error(`  ${err}`));
+      logger.error('Aborting initialization due to invalid generated configuration.');
+      process.exitCode = 1;
       return;
     }
     writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
@@ -219,8 +221,9 @@ export async function initClaudeCommand(options?: { provider?: Provider }): Prom
   }
 
   // Create or update the Claude command
+  const commandAction = existsSync(commandFile) ? 'Updated' : 'Created';
   writeFileSync(commandFile, COMMAND_TEMPLATE);
-  logger.info('Created .claude/commands/qualops-setup.md');
+  logger.info(`${commandAction} .claude/commands/qualops-setup.md`);
 
   logger.info('');
   logger.info('Use /qualops-setup in Claude Code to customize your QualOps configuration');
