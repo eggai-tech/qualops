@@ -41,9 +41,20 @@ You are helping a user customize their QualOps configuration. A valid default co
 ## Instructions
 
 1. **Read the existing config** at \`.qualops/.qualopsrc.json\`
-2. **Ask which customization** the user wants from the menu below
-3. **Apply the change** using the concrete snippets provided
-4. **Validate** the final config is valid JSON before writing
+2. **Use the \`AskUserQuestion\` tool** to ask which customization the user wants, with these options (header: "Customize", multiSelect: false):
+   - "Add Security Pass" — Add a security-focused review pass to the pipeline
+   - "Switch to Agentic" — Enable agentic mode with sub-agents for deeper analysis
+   - "Change Provider" — Switch AI provider or model (Anthropic, OpenAI, Bedrock)
+   - "Add CI Workflow" — Set up GitHub Actions or GitLab CI integration
+3. If they pick "Add CI Workflow", follow up with another \`AskUserQuestion\` (header: "CI platform", multiSelect: false):
+   - "GitHub Actions (Recommended)" — Add a \`.github/workflows/qualops.yml\` workflow
+   - "GitLab CI" — Add a \`qualops-review\` job to \`.gitlab-ci.yml\`
+4. If they pick "Change Provider", follow up with another \`AskUserQuestion\` (header: "Provider", multiSelect: false):
+   - "Anthropic (Recommended)" — Claude Sonnet 4.6 ($3/$15 per million tokens)
+   - "OpenAI" — GPT-4.1 ($2/$8 per million tokens)
+   - "Bedrock" — Claude Sonnet 4.6 via AWS ($3/$15 per million tokens)
+5. **Apply the change** using the concrete snippets provided below
+6. **Validate** the final config is valid JSON before writing
 
 ## Customization Menu
 

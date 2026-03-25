@@ -11,11 +11,23 @@ You are helping a user set up QualOps in their project. Use the comprehensive gu
 
 ## Interactive Process
 
-Start by asking:
-1. What type of code review do they need? (security, performance, quality, migration, custom)
-2. What language/framework is their codebase? (TypeScript, Python, etc.)
-3. Do they want CI integration? (GitHub Actions, GitLab CI, or none)
-4. What severity levels matter? (critical only, critical+high, all)
+Use the `AskUserQuestion` tool to gather requirements with predefined choices. Ask all 3 questions in a single call:
+
+1. **Review type** (header: "Review type", multiSelect: true)
+   - "Quality" — Bug detection, maintainability, and code clarity
+   - "Security" — Injection, auth issues, data exposure, insecure defaults
+   - "Performance" — N+1 queries, unnecessary allocations, missing indexes
+   - "Migration" — Breaking changes, deprecated APIs, upgrade compatibility
+
+2. **CI integration** (header: "CI", multiSelect: false)
+   - "GitHub Actions (Recommended)" — Add a `.github/workflows/qualops.yml` workflow
+   - "GitLab CI" — Add a `qualops-review` job to `.gitlab-ci.yml`
+   - "None" — Skip CI integration for now
+
+3. **Severity filter** (header: "Severity", multiSelect: false)
+   - "Critical + High (Recommended)" — Focus on impactful issues only
+   - "Critical only" — Only flag showstoppers
+   - "All severities" — Include medium and low findings too
 
 Then generate the appropriate files based on their answers.
 
