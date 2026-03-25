@@ -69,7 +69,8 @@ function buildConfig(args) {
   }
 
   const mode = args.mode || presetMeta.mode || 'file-by-file';
-  const model = args.model || presetMeta.model || 'claude-sonnet-4-6';
+  const modelOverride = args.model || null;
+  const model = modelOverride || presetMeta.model || 'claude-sonnet-4-6';
   const provider = args.provider || 'anthropic';
   const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
   const skipJudge = args['no-judge'] === 'true';
@@ -81,6 +82,7 @@ function buildConfig(args) {
   return {
     mode,
     model,
+    modelOverride,
     provider,
     limit,
     skipJudge,

@@ -25,12 +25,14 @@ export class AgenticExecutor {
   private config: AgenticConfig;
   private job: PipelineJob;
   private cwd: string;
+  private model: string | undefined;
   private agentLoader: AgentLoader;
 
-  constructor(job: PipelineJob, cwd?: string) {
+  constructor(job: PipelineJob, cwd?: string, model?: string) {
     this.job = job;
     this.config = { ...DEFAULT_CONFIG, ...job.agentic };
     this.cwd = cwd || process.cwd();
+    this.model = model;
     this.agentLoader = new AgentLoader(this.cwd);
   }
 
@@ -83,6 +85,8 @@ export class AgenticExecutor {
           },
           agents: allAgents,
           maxTurns: this.config.maxTurns || 100,
+          ...(this.config.maxBudgetUsd && { maxBudgetUsd: this.config.maxBudgetUsd }),
+          ...(this.model && { model: this.model }),
           cwd: this.cwd,
           permissionMode: 'bypassPermissions',
         },

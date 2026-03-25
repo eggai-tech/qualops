@@ -34,7 +34,7 @@ export interface ReviewResult {
 
 export interface EvalConfig {
   name: string;
-  model: string;
+  model?: string;
   mode: 'file-by-file' | 'agentic' | 'pipeline';
   provider?: 'anthropic' | 'openai' | 'bedrock';
   cwd?: string;

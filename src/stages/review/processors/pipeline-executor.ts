@@ -12,6 +12,7 @@ import type { FileInfo, PipelineJob, ReviewConfig, ReviewPass } from '../../../s
 import { processConcurrently } from '../../../shared/utils/concurrency';
 import { logger } from '../../../shared/utils/logger';
 import { AgenticExecutor } from '../agentic';
+import { ConfigService } from '../../../config/config';
 import { ConfigLoader } from '../loaders/config-loader';
 import { DocDiscovery } from '../loaders/doc-discovery';
 import { FilterMatcher } from '../loaders/filter-matcher';
@@ -69,7 +70,11 @@ export class PipelineExecutor {
   private async executeAgenticJob(job: PipelineJob, files: FileInfo[]): Promise<ReviewIssue[]> {
     logger.info(`[Pipeline] Starting agentic review for job: ${job.name}`);
 
-    const executor = new AgenticExecutor(job);
+    let model: string | undefined;
+    try {
+      model = ConfigService.getInstance().getAIStageConfig('review').model;
+    } catch {}
+    const executor = new AgenticExecutor(job, undefined, model);
     const rawIssues = await executor.execute(files);
 
     this.preValidationDump[job.name] = rawIssues;

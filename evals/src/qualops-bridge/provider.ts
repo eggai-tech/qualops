@@ -157,10 +157,18 @@ async function runAgenticReview(
     passes: [],
   };
 
-  // Lazy: claude-agent-sdk is ESM
   const { AgenticExecutor } = await import('@/stages/review/agentic/agentic-executor');
   const cwd = config.cwd || QUALOPS_ROOT;
-  const executor = new AgenticExecutor(job, cwd);
+
+  // Resolve model: CLI override > qualopsrc > undefined (SDK default)
+  let model = config.model;
+  if (!model) {
+    try {
+      model = ConfigService.getInstance().getAIStageConfig('review').model;
+    } catch {}
+  }
+
+  const executor = new AgenticExecutor(job, cwd, model);
   return executor.execute(files);
 }
 
@@ -226,7 +234,7 @@ async function createProvider(config: EvalConfig): Promise<AIProvider> {
   } catch {
     stageConfig = {
       provider: config.provider ?? 'anthropic',
-      model: config.model,
+      model: config.model || 'claude-sonnet-4-6',
       inputPerMillion: 0,
       outputPerMillion: 0,
       temperature: 0,
