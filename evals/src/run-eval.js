@@ -104,6 +104,7 @@ async function _runEvalItem(langfuse, item, itemIndex, total, datasetName) {
 
   const trace = langfuse.trace({
     name: traceName,
+    sessionId: config.experimentName,
     input: itemInput,
     metadata: {
       dataset: datasetName,
