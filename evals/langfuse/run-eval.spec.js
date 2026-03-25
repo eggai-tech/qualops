@@ -2,7 +2,7 @@
 
 jest.mock('langfuse', () => ({ Langfuse: jest.fn() }));
 
-const { parseDiffLines, resolveDatasets, classifyError, createRunLog, CRB_REPOS } = require('./run-eval');
+const { parseDiffLines, resolveDatasets, classifyError, createRunLog, resolvePreset, listPresets, CRB_REPOS } = require('./run-eval');
 
 // ─── parseDiffLines ──────────────────────────────────────────────────────────
 
@@ -150,5 +150,115 @@ describe('createRunLog', () => {
     expect(written.entries[0].timestamp).toBeDefined();
     expect(written.startedAt).toBeDefined();
     expect(written.finishedAt).toBeDefined();
+  });
+});
+
+// ─── presets ────────────────────────────────────────────────────────────────
+
+describe('listPresets', () => {
+  it('returns array of preset names from evals/qualopsrc/', () => {
+    const presets = listPresets();
+    expect(Array.isArray(presets)).toBe(true);
+    expect(presets).toContain('fast');
+    expect(presets).toContain('thorough');
+    expect(presets).toContain('security');
+    expect(presets).toContain('sonnet-agentic');
+  });
+});
+
+describe('resolvePreset', () => {
+  const fs = require('fs');
+  const path = require('path');
+
+  it('returns null for default preset', () => {
+    expect(resolvePreset(null)).toBeNull();
+    expect(resolvePreset('default')).toBeNull();
+  });
+
+  it('returns file path for known preset', () => {
+    const result = resolvePreset('fast');
+    expect(result).toMatch(/evals\/qualopsrc\/fast\.json$/);
+  });
+
+  it('throws for unknown preset', () => {
+    expect(() => resolvePreset('nonexistent')).toThrow(/Unknown preset.*nonexistent/);
+  });
+
+  it('returned path points to a valid JSON file', () => {
+    const presetPath = resolvePreset('thorough');
+    const content = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
+    expect(content.ai).toBeDefined();
+    expect(content.ai.reviewStage.model).toBeDefined();
+    expect(content.review.pipeline).toBeDefined();
+  });
+
+  it('preset config has an enabled agentic job', () => {
+    const presetPath = resolvePreset('sonnet-agentic');
+    const content = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
+    const agenticJob = content.review.pipeline.find((j) => j.mode === 'agentic' && j.enabled);
+    expect(agenticJob).toBeDefined();
+    expect(agenticJob.agentic.maxTurns).toBeGreaterThan(0);
+  });
+
+  it('presets differ from each other in meaningful ways', () => {
+    const fast = JSON.parse(fs.readFileSync(resolvePreset('fast'), 'utf-8'));
+    const thorough = JSON.parse(fs.readFileSync(resolvePreset('thorough'), 'utf-8'));
+
+    const fastJob = fast.review.pipeline.find((j) => j.enabled);
+    const thoroughJob = thorough.review.pipeline.find((j) => j.enabled);
+
+    // Thorough should allow more turns and higher budget
+    expect(thoroughJob.agentic.maxTurns).toBeGreaterThan(fastJob.agentic.maxTurns);
+    expect(thoroughJob.agentic.maxBudgetUsd).toBeGreaterThan(fastJob.agentic.maxBudgetUsd);
+
+    // Fast should disable validation
+    expect(fast.review.validation.enabled).toBe(false);
+    expect(thorough.review.validation.enabled).toBe(true);
+  });
+
+  it('preset configs differ from default qualopsrc in expected ways', () => {
+    const QUALOPS_ROOT = path.join(__dirname, '../..');
+    const defaultRc = JSON.parse(fs.readFileSync(path.join(QUALOPS_ROOT, '.qualops/.qualopsrc.json'), 'utf-8'));
+    const fastRc = JSON.parse(fs.readFileSync(resolvePreset('fast'), 'utf-8'));
+    const thoroughRc = JSON.parse(fs.readFileSync(resolvePreset('thorough'), 'utf-8'));
+
+    // Default has validation enabled, fast disables it
+    expect(defaultRc.review.validation.enabled).toBe(true);
+    expect(fastRc.review.validation.enabled).toBe(false);
+
+    // Thorough allows more turns and budget than fast
+    const fastJob = fastRc.review.pipeline.find((j) => j.mode === 'agentic' && j.enabled);
+    const thoroughJob = thoroughRc.review.pipeline.find((j) => j.mode === 'agentic' && j.enabled);
+    expect(thoroughJob.agentic.maxTurns).toBeGreaterThan(fastJob.agentic.maxTurns);
+    expect(thoroughJob.agentic.maxBudgetUsd).toBeGreaterThan(fastJob.agentic.maxBudgetUsd);
+
+    // Fast uses diff-only context, thorough uses full
+    expect(fastJob.agentic.contextMode).toBe('diff');
+    expect(thoroughJob.agentic.contextMode).toBe('full');
+
+    // Thorough has lower confidence threshold than default
+    expect(thoroughRc.review.minConfidence).toBeLessThan(defaultRc.review.minConfidence);
+  });
+
+  it('each preset has the required config structure for qualops', () => {
+    for (const name of listPresets()) {
+      const presetPath = resolvePreset(name);
+      const config = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
+
+      // Must have AI config with a review stage
+      expect(config.ai).toBeDefined();
+      expect(config.ai.reviewStage).toBeDefined();
+      expect(config.ai.reviewStage.provider).toBeDefined();
+      expect(config.ai.reviewStage.model).toBeDefined();
+
+      // Must have review config with a pipeline
+      expect(config.review).toBeDefined();
+      expect(config.review.pipeline).toBeDefined();
+      expect(config.review.pipeline.length).toBeGreaterThan(0);
+
+      // Must have at least one enabled job
+      const enabledJob = config.review.pipeline.find((j) => j.enabled);
+      expect(enabledJob).toBeDefined();
+    }
   });
 });

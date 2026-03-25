@@ -38,6 +38,7 @@ export interface EvalConfig {
   mode: 'file-by-file' | 'agentic' | 'pipeline';
   provider?: 'anthropic' | 'openai' | 'bedrock';
   cwd?: string;
+  configPath?: string;
 }
 
 export interface JudgeResult {

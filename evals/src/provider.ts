@@ -10,6 +10,7 @@ import { FileReviewer } from '@/stages/review/processors/file-reviewer';
 import { PipelineExecutor } from '@/stages/review/processors/pipeline-executor';
 import { setCurrentSession } from '@/shared/runtime/session-context';
 import { ConfigLoader } from '@/stages/review/loaders/config-loader';
+import { ConfigService } from '@/config/config';
 import type { ReviewIssue } from '@/shared/types';
 import type { AIStageConfig } from '@/shared/types';
 import type { FileInfo, PipelineJob } from '@/shared/types/config';
@@ -22,10 +23,21 @@ const DEFAULT_SYSTEM_PROMPT_PATH = join(
   '.qualops/prompts/qualops-self-review/review-system-message.md',
 );
 
+/**
+ * Load a qualopsrc preset config file. Resets both ConfigService and
+ * ConfigLoader so all downstream code reads from the preset.
+ */
+function loadPresetConfig(configPath: string): void {
+  ConfigService.setConfigPath(configPath);
+  ConfigLoader.getInstance().reset();
+}
+
 export async function runReview(
   evalCase: EvalCase,
   config: EvalConfig,
 ): Promise<ReviewResult> {
+  if (config.configPath) loadPresetConfig(config.configPath);
+
   const start = Date.now();
 
   const fileInfo = evalCaseToFileInfo(evalCase);
@@ -58,6 +70,8 @@ export async function runReviewMultiFile(
   files: FileInfo[],
   config: EvalConfig,
 ): Promise<ReviewResult> {
+  if (config.configPath) loadPresetConfig(config.configPath);
+
   const start = Date.now();
 
   let rawIssues: ReviewIssue[];
@@ -127,7 +141,11 @@ async function runAgenticReview(
     );
   }
 
-  const job: PipelineJob = {
+  // Try to load an agentic job from the qualopsrc config
+  const configuredJobs = ConfigLoader.getInstance().getEnabledJobs();
+  const agenticJob = configuredJobs.find((j) => j.mode === 'agentic');
+
+  const job: PipelineJob = agenticJob || {
     name: 'eval-agentic',
     enabled: true,
     mode: 'agentic',
@@ -196,13 +214,24 @@ function parseLineNumber(location: string): number {
 }
 
 async function createProvider(config: EvalConfig): Promise<AIProvider> {
-  const stageConfig: AIStageConfig = {
-    provider: config.provider ?? 'anthropic',
-    model: config.model,
-    inputPerMillion: 0,
-    outputPerMillion: 0,
-    temperature: 0,
-  };
+  // Use AI config from qualopsrc if loaded, with EvalConfig as override
+  let stageConfig: AIStageConfig;
+  try {
+    const fromRc = ConfigService.getInstance().getAIStageConfig('review');
+    stageConfig = {
+      ...fromRc,
+      provider: config.provider ?? fromRc.provider,
+      model: config.model || fromRc.model,
+    };
+  } catch {
+    stageConfig = {
+      provider: config.provider ?? 'anthropic',
+      model: config.model,
+      inputPerMillion: 0,
+      outputPerMillion: 0,
+      temperature: 0,
+    };
+  }
 
   let provider: AIProvider;
 

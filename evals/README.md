@@ -32,31 +32,55 @@ npm run eval:run:crb:calcom
 npm run eval:run:crb:discourse
 npm run eval:run:crb:keycloak
 
-# Direct invocation with options
+# With presets
+node evals/langfuse/run-eval.js --preset=thorough --source=crb
+node evals/langfuse/run-eval.js --preset=fast --dataset=qualops/crb-sentry
+node evals/langfuse/run-eval.js --preset=security --source=crb --no-judge
+
+# Direct invocation with options (override preset values)
 node evals/langfuse/run-eval.js --source=all --limit=5
 node evals/langfuse/run-eval.js --dataset=qualops/crb-sentry --mode=agentic --no-judge
 node evals/langfuse/run-eval.js --model=claude-opus-4-20250514 --concurrency=2
+
+# List available presets
+node evals/langfuse/run-eval.js --list-presets
 ```
 
 ### Options
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `--preset` | `default` | Named config preset from `evals/qualopsrc/` |
 | `--source` | `qualops` | Dataset source: `qualops`, `crb`, `all` |
 | `--dataset` | — | Specific Langfuse dataset name (overrides `--source`) |
-| `--mode` | `file-by-file` | Review mode: `file-by-file`, `agentic`, `pipeline` |
-| `--model` | `claude-sonnet-4-20250514` | Model to use |
+| `--mode` | from preset | Review mode: `file-by-file`, `agentic`, `pipeline` |
+| `--model` | from preset | Model to use (overrides preset) |
 | `--provider` | `anthropic` | AI provider: `anthropic`, `openai`, `bedrock` |
 | `--limit` | all | Max items per dataset |
 | `--concurrency` | `3` | Parallel review workers |
 | `--no-judge` | off | Skip LLM judge scorer |
 | `--experiment` | auto-generated | Custom experiment name |
+| `--list-presets` | — | Show available presets and exit |
 
 ## Viewing results
 
 Results are tracked in Langfuse as dataset runs. Each eval item creates a trace with scores attached. View experiments and compare runs at your Langfuse dashboard.
 
 Run logs are written locally to `evals/langfuse/logs/<experiment>.json` with error/warning breakdowns.
+
+## Presets
+
+Presets are full `.qualopsrc.json` config files stored in `evals/qualopsrc/`. They control the model, agentic parameters, subagents, system prompt, validation, and all other review settings. CLI flags (`--model`, `--mode`) override preset values.
+
+| Preset | Description |
+|--------|-------------|
+| `default` | Uses `.qualops/.qualopsrc.json` (no preset file) |
+| `sonnet-agentic` | Sonnet with balanced agentic settings (50 turns, all subagents) |
+| `thorough` | Deep analysis: 100 turns, full context, lower confidence threshold |
+| `fast` | Quick iteration: 15 turns, diff-only context, no validation |
+| `security` | Security-focused: custom system prompt, security+dependency subagents only |
+
+To create a new preset, add a `.json` file to `evals/qualopsrc/` following the `.qualopsrc.json` format.
 
 ## Review modes
 

@@ -5,16 +5,19 @@
  * Run QualOps evals against a Langfuse dataset.
  *
  * Usage:
- *   node run-eval.js                                             # qualops dataset, file-by-file
- *   node run-eval.js --source=crb                                # all CRB per-repo datasets
+ *   node run-eval.js                                             # qualops dataset, default preset
+ *   node run-eval.js --preset=thorough --source=crb              # named preset + CRB datasets
  *   node run-eval.js --source=all                                # qualops + all CRB datasets
  *   node run-eval.js --dataset=qualops/crb-sentry --mode=agentic # specific dataset
- *   node run-eval.js --dataset=qualops/kodus-python --limit=5
- *   node run-eval.js --model=claude-opus-4-20250514
+ *   node run-eval.js --model=claude-opus-4-20250514              # override model
  *   node run-eval.js --no-judge                                  # skip LLM judge scorer
+ *   node run-eval.js --list-presets                              # show available presets
+ *
+ * Presets are qualopsrc config files in evals/qualopsrc/.
+ * CLI flags (--model, --mode, --provider) override preset values.
  *
  * Datasets must be uploaded first:
- *   node upload-datasets.js --source=kodus --lang=tsjs
+ *   node upload-datasets.js --source=all
  */
 
 const path = require('path');
@@ -40,15 +43,78 @@ const args = Object.fromEntries(
     }),
 );
 
-const mode = args.mode || 'file-by-file';
-const model = args.model || 'claude-sonnet-4-20250514';
+const CRB_REPOS = ['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak'];
+
+// ─── Preset resolution ──────────────────────────────────────────────────────
+
+const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
+const DEFAULT_QUALOPSRC = '.qualops/.qualopsrc.json';
+
+function resolvePreset(name) {
+  if (!name || name === 'default') return null; // use default .qualopsrc.json
+  const presetFile = path.join(PRESETS_DIR, `${name}.json`);
+  if (!fs.existsSync(presetFile)) {
+    const available = listPresets().join(', ') || '(none)';
+    throw new Error(`Unknown preset: "${name}". Available: ${available}`);
+  }
+  return presetFile;
+}
+
+function listPresets() {
+  if (!fs.existsSync(PRESETS_DIR)) return [];
+  return fs.readdirSync(PRESETS_DIR)
+    .filter((f) => f.endsWith('.json'))
+    .map((f) => f.replace('.json', ''));
+}
+
+function readPresetMeta(presetFile) {
+  try {
+    const config = JSON.parse(fs.readFileSync(presetFile, 'utf-8'));
+    return {
+      model: config.ai?.reviewStage?.model,
+      mode: config.review?.pipeline?.find((j) => j.enabled)?.mode || 'file-by-file',
+    };
+  } catch {
+    return {};
+  }
+}
+
+if (args['list-presets'] === 'true') {
+  const presets = listPresets();
+  if (presets.length === 0) {
+    console.log('No presets found. Add .json files to evals/qualopsrc/');
+  } else {
+    console.log('Available presets:\n');
+    for (const name of presets) {
+      const meta = readPresetMeta(path.join(PRESETS_DIR, `${name}.json`));
+      console.log(`  ${name}${meta.model ? ` (${meta.model}, ${meta.mode})` : ''}`);
+    }
+    console.log('\n  default  (uses .qualops/.qualopsrc.json)');
+  }
+  process.exit(0);
+}
+
+const presetName = args.preset || null;
+const presetFile = resolvePreset(presetName);
+
+// Read model/mode defaults from preset if available
+let presetMeta = {};
+if (presetFile) {
+  presetMeta = readPresetMeta(presetFile);
+}
+
+// CLI flags override preset values
+const mode = args.mode || presetMeta.mode || 'file-by-file';
+const model = args.model || presetMeta.model || 'claude-sonnet-4-20250514';
 const provider = args.provider || 'anthropic';
 const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
 const skipJudge = args['no-judge'] === 'true';
-const experimentName = args.experiment || `${model}:${mode}:${new Date().toISOString().slice(0, 16)}`;
+const presetLabel = presetName || 'default';
+const experimentName = args.experiment || `${presetLabel}:${model}:${mode}:${new Date().toISOString().slice(0, 16)}`;
 const concurrency = args.concurrency ? parseInt(args.concurrency, 10) : 3;
 
-const CRB_REPOS = ['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak'];
+// Relative path from qualops root for ConfigService.setConfigPath()
+const configPath = presetFile ? path.relative(QUALOPS_ROOT, presetFile) : DEFAULT_QUALOPSRC;
 
 const LOGS_DIR = path.join(QUALOPS_ROOT, 'evals/langfuse/logs');
 
@@ -71,6 +137,8 @@ function createRunLog() {
 
       const summary = {
         experiment: experimentName,
+        preset: presetLabel,
+        configPath,
         model,
         mode,
         provider,
@@ -257,6 +325,7 @@ async function runReviewForItem(itemInput) {
     model,
     mode,
     provider,
+    configPath,
     ...(repoCwd && { cwd: repoCwd }),
   };
 
@@ -547,6 +616,7 @@ async function main() {
   const datasets = resolveDatasets();
 
   console.log(`Langfuse host: ${langfuseHost}`);
+  console.log(`Preset: ${presetLabel} (${configPath})`);
   console.log(`Datasets: ${datasets.join(', ')}`);
   console.log(`Experiment: ${experimentName}`);
   console.log(`Model: ${model} | Mode: ${mode} | Provider: ${provider}`);
@@ -599,4 +669,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { parseDiffLines, resolveDatasets, classifyError, createRunLog, CRB_REPOS };
+module.exports = { parseDiffLines, resolveDatasets, classifyError, createRunLog, resolvePreset, listPresets, CRB_REPOS };

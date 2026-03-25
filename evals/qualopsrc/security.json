@@ -1,0 +1,65 @@
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-20250514",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-20250514",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "performance": {
+    "maxFileSizeKB": 500,
+    "maxFilesPerBatch": 15,
+    "maxTokensPerFile": 10000,
+    "timeoutSeconds": 600,
+    "throttling": {
+      "enabled": true,
+      "maxRequestsPerMinute": 30
+    }
+  },
+  "review": {
+    "minConfidence": 5,
+    "maxConcurrentFiles": 2,
+    "validation": {
+      "enabled": true,
+      "minConfidence": 5,
+      "prompt": "qualops-self-review/validation.md"
+    },
+    "deduplication": {
+      "enabled": true,
+      "prompt": "deduplication.md"
+    },
+    "pipeline": [
+      {
+        "name": "agenticSecurity",
+        "enabled": true,
+        "mode": "agentic",
+        "agentic": {
+          "maxTurns": 80,
+          "maxBudgetUsd": 8.0,
+          "contextMode": "full",
+          "maxTokensPerFile": 10000,
+          "maxTotalTokens": 80000,
+          "enabledSubagents": ["security-analyzer", "dependency-tracer"],
+          "systemPrompt": "Focus exclusively on security vulnerabilities. Ignore style, maintainability, and performance issues unless they have direct security implications. Pay special attention to: injection attacks, authentication/authorization flaws, credential exposure, unsafe deserialization, path traversal, and cross-site scripting."
+        },
+        "validation": {
+          "enabled": true,
+          "minConfidence": 5,
+          "prompt": "qualops-self-review/validation.md"
+        }
+      }
+    ]
+  },
+  "skipPatterns": [
+    "node_modules/**", ".git/**", "dist/**", "build/**", "coverage/**"
+  ]
+}
