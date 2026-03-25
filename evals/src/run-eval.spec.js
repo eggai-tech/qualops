@@ -2,9 +2,9 @@
 
 jest.mock('langfuse', () => ({ Langfuse: jest.fn() }));
 
-const { parseDiffLines, resolveDatasets, classifyError, createRunLog, resolvePreset, listPresets, CRB_REPOS } = require('./run-eval');
-
-// ─── parseDiffLines ──────────────────────────────────────────────────────────
+const { parseDiffLines } = require('./reviewer');
+const { resolveDatasets, resolvePreset, listPresets, CRB_REPOS } = require('./config');
+const { classifyError, createRunLog } = require('./run-log');
 
 describe('parseDiffLines', () => {
   it('returns empty sets for empty/null input', () => {
@@ -41,8 +41,6 @@ describe('parseDiffLines', () => {
   });
 });
 
-// ─── resolveDatasets ─────────────────────────────────────────────────────────
-
 describe('resolveDatasets', () => {
   it('returns qualops by default', () => {
     const datasets = resolveDatasets();
@@ -53,8 +51,6 @@ describe('resolveDatasets', () => {
     expect(CRB_REPOS).toEqual(['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak']);
   });
 });
-
-// ─── classifyError ──────────────────────────────────────────────────────────
 
 describe('classifyError', () => {
   it('classifies rate limit errors', () => {
@@ -101,8 +97,6 @@ describe('classifyError', () => {
   });
 });
 
-// ─── createRunLog ───────────────────────────────────────────────────────────
-
 describe('createRunLog', () => {
   const fs = require('fs');
   const path = require('path');
@@ -115,7 +109,7 @@ describe('createRunLog', () => {
     const mkdirSpy = jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
     const writeSpy = jest.spyOn(fs, 'writeFileSync').mockReturnValue(undefined);
 
-    const log = createRunLog();
+    const log = createRunLog({ experimentName: 'test', presetLabel: 'default', configPath: '', model: '', mode: '', provider: '' });
     log.add({ level: 'info', event: 'item_complete', caseId: 'a' });
     log.add({ level: 'error', event: 'review_error', errorCode: 'TIMEOUT', caseId: 'b' });
     log.add({ level: 'error', event: 'review_error', errorCode: 'TIMEOUT', caseId: 'c' });
@@ -142,7 +136,7 @@ describe('createRunLog', () => {
     jest.spyOn(fs, 'mkdirSync').mockReturnValue(undefined);
     jest.spyOn(fs, 'writeFileSync').mockReturnValue(undefined);
 
-    const log = createRunLog();
+    const log = createRunLog({ experimentName: 'test', presetLabel: 'default', configPath: '', model: '', mode: '', provider: '' });
     log.add({ level: 'info', event: 'test' });
     log.write();
 
@@ -152,8 +146,6 @@ describe('createRunLog', () => {
     expect(written.finishedAt).toBeDefined();
   });
 });
-
-// ─── presets ────────────────────────────────────────────────────────────────
 
 describe('listPresets', () => {
   it('returns array of preset names from evals/qualopsrc/', () => {
@@ -207,11 +199,9 @@ describe('resolvePreset', () => {
     const fastJob = fast.review.pipeline.find((j) => j.enabled);
     const thoroughJob = thorough.review.pipeline.find((j) => j.enabled);
 
-    // Thorough should allow more turns and higher budget
     expect(thoroughJob.agentic.maxTurns).toBeGreaterThan(fastJob.agentic.maxTurns);
     expect(thoroughJob.agentic.maxBudgetUsd).toBeGreaterThan(fastJob.agentic.maxBudgetUsd);
 
-    // Fast should disable validation
     expect(fast.review.validation.enabled).toBe(false);
     expect(thorough.review.validation.enabled).toBe(true);
   });
@@ -222,21 +212,17 @@ describe('resolvePreset', () => {
     const fastRc = JSON.parse(fs.readFileSync(resolvePreset('fast'), 'utf-8'));
     const thoroughRc = JSON.parse(fs.readFileSync(resolvePreset('thorough'), 'utf-8'));
 
-    // Default has validation enabled, fast disables it
     expect(defaultRc.review.validation.enabled).toBe(true);
     expect(fastRc.review.validation.enabled).toBe(false);
 
-    // Thorough allows more turns and budget than fast
     const fastJob = fastRc.review.pipeline.find((j) => j.mode === 'agentic' && j.enabled);
     const thoroughJob = thoroughRc.review.pipeline.find((j) => j.mode === 'agentic' && j.enabled);
     expect(thoroughJob.agentic.maxTurns).toBeGreaterThan(fastJob.agentic.maxTurns);
     expect(thoroughJob.agentic.maxBudgetUsd).toBeGreaterThan(fastJob.agentic.maxBudgetUsd);
 
-    // Fast uses diff-only context, thorough uses full
     expect(fastJob.agentic.contextMode).toBe('diff');
     expect(thoroughJob.agentic.contextMode).toBe('full');
 
-    // Thorough has lower confidence threshold than default
     expect(thoroughRc.review.minConfidence).toBeLessThan(defaultRc.review.minConfidence);
   });
 
@@ -245,18 +231,15 @@ describe('resolvePreset', () => {
       const presetPath = resolvePreset(name);
       const config = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
 
-      // Must have AI config with a review stage
       expect(config.ai).toBeDefined();
       expect(config.ai.reviewStage).toBeDefined();
       expect(config.ai.reviewStage.provider).toBeDefined();
       expect(config.ai.reviewStage.model).toBeDefined();
 
-      // Must have review config with a pipeline
       expect(config.review).toBeDefined();
       expect(config.review.pipeline).toBeDefined();
       expect(config.review.pipeline.length).toBeGreaterThan(0);
 
-      // Must have at least one enabled job
       const enabledJob = config.review.pipeline.find((j) => j.enabled);
       expect(enabledJob).toBeDefined();
     }

@@ -2,8 +2,6 @@
 
 const { scoreParser, scoreLineAccuracy, scoreCoverage, scoreSeverity } = require('./scorers');
 
-// ─── scoreParser ─────────────────────────────────────────────────────────────
-
 describe('scoreParser', () => {
   it('returns 0 for non-array input', () => {
     expect(scoreParser('not an array').score).toBe(0);
@@ -41,8 +39,6 @@ describe('scoreParser', () => {
     expect(r.reason).toContain('missing line');
   });
 });
-
-// ─── scoreLineAccuracy ───────────────────────────────────────────────────────
 
 describe('scoreLineAccuracy', () => {
   it('returns 1 when no reference bugs', () => {
@@ -91,8 +87,6 @@ describe('scoreLineAccuracy', () => {
     expect(r.score).toBe(1);
   });
 });
-
-// ─── scoreCoverage ───────────────────────────────────────────────────────────
 
 describe('scoreCoverage', () => {
   it('returns 1 when no expected issues', () => {
@@ -150,8 +144,6 @@ describe('scoreCoverage', () => {
     expect(r.score).toBe(0);
   });
 });
-
-// ─── scoreSeverity ───────────────────────────────────────────────────────────
 
 describe('scoreSeverity', () => {
   it('returns 0 when no expected issues', () => {

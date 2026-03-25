@@ -4,8 +4,6 @@ jest.mock('langfuse', () => ({ Langfuse: jest.fn() }));
 
 const { buildQualOpsItem, buildCrbItem } = require('./upload-datasets');
 
-// ─── buildQualOpsItem ────────────────────────────────────────────────────────
-
 describe('buildQualOpsItem', () => {
   it('builds item with all fields', () => {
     const data = {
@@ -63,8 +61,6 @@ describe('buildQualOpsItem', () => {
     expect(item.expectedOutput.referenceExpected).toEqual([]);
   });
 });
-
-// ─── buildCrbItem ────────────────────────────────────────────────────────────
 
 describe('buildCrbItem', () => {
   it('builds item with repo metadata', () => {

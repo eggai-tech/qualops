@@ -56,12 +56,7 @@ const skipRepos = args['skip-repos'] === 'true';
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-// ─── gh helper (clears GITHUB_TOKEN to use default gh auth) ─────────────────
-
-const ghEnv = { ...process.env, GITHUB_TOKEN: '' };
-
 function ghFetchDiff(prUrl) {
-  // Extract owner/repo/pull-number from URL
   const m = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
   if (!m) return null;
   const [, owner, repo, number] = m;
@@ -69,7 +64,7 @@ function ghFetchDiff(prUrl) {
   const result = spawnSync(
     'gh',
     ['api', `repos/${owner}/${repo}/pulls/${number}`, '--header', 'Accept: application/vnd.github.diff'],
-    { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, env: ghEnv },
+    { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 },
   );
 
   if (result.status !== 0) {
@@ -110,7 +105,6 @@ function ghFetchPrRefs(prUrl) {
   }
 }
 
-// ─── Repo cloning ────────────────────────────────────────────────────────────
 
 function ensureRepoCloned(owner, repo, cloneUrl) {
   const repoDir = path.join(REPOS_DIR, owner, repo);

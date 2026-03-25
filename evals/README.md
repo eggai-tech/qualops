@@ -33,17 +33,17 @@ npm run eval:run:crb:discourse
 npm run eval:run:crb:keycloak
 
 # With presets
-node evals/langfuse/run-eval.js --preset=thorough --source=crb
-node evals/langfuse/run-eval.js --preset=fast --dataset=qualops/crb-sentry
-node evals/langfuse/run-eval.js --preset=security --source=crb --no-judge
+node evals/src/run-eval.js --preset=thorough --source=crb
+node evals/src/run-eval.js --preset=fast --dataset=qualops/crb-sentry
+node evals/src/run-eval.js --preset=security --source=crb --no-judge
 
 # Direct invocation with options (override preset values)
-node evals/langfuse/run-eval.js --source=all --limit=5
-node evals/langfuse/run-eval.js --dataset=qualops/crb-sentry --mode=agentic --no-judge
-node evals/langfuse/run-eval.js --model=claude-opus-4-20250514 --concurrency=2
+node evals/src/run-eval.js --source=all --limit=5
+node evals/src/run-eval.js --dataset=qualops/crb-sentry --mode=agentic --no-judge
+node evals/src/run-eval.js --model=claude-opus-4-20250514 --concurrency=2
 
 # List available presets
-node evals/langfuse/run-eval.js --list-presets
+node evals/src/run-eval.js --list-presets
 ```
 
 ### Options
@@ -66,21 +66,95 @@ node evals/langfuse/run-eval.js --list-presets
 
 Results are tracked in Langfuse as dataset runs. Each eval item creates a trace with scores attached. View experiments and compare runs at your Langfuse dashboard.
 
-Run logs are written locally to `evals/langfuse/logs/<experiment>.json` with error/warning breakdowns.
+Run logs are written locally to `evals/src/logs/<experiment>.json` with error/warning breakdowns.
 
 ## Presets
 
-Presets are full `.qualopsrc.json` config files stored in `evals/qualopsrc/`. They control the model, agentic parameters, subagents, system prompt, validation, and all other review settings. CLI flags (`--model`, `--mode`) override preset values.
+Presets are full `.qualopsrc.json` config files stored in `evals/qualopsrc/`. When a preset is selected, the eval runner loads it via `ConfigService.setConfigPath()`, replacing the default config for that run. This means every setting QualOps supports — model, pipeline jobs, subagents, validation, system prompts, confidence thresholds — can vary between eval runs.
 
-| Preset | Description |
-|--------|-------------|
-| `default` | Uses `.qualops/.qualopsrc.json` (no preset file) |
-| `sonnet-agentic` | Sonnet with balanced agentic settings (50 turns, all subagents) |
-| `thorough` | Deep analysis: 100 turns, full context, lower confidence threshold |
-| `fast` | Quick iteration: 15 turns, diff-only context, no validation |
-| `security` | Security-focused: custom system prompt, security+dependency subagents only |
+| Preset | Model | Turns | Budget | Context | Subagents | Validation |
+|--------|-------|-------|--------|---------|-----------|------------|
+| `default` | from `.qualops/.qualopsrc.json` | 15 | — | auto | security, dependency, breaking-change | on |
+| `fast` | sonnet | 15 | $2 | diff-only | security only | off |
+| `sonnet-agentic` | sonnet | 50 | $5 | auto | all | on |
+| `thorough` | sonnet | 100 | $10 | full | all | on (minConf: 5) |
+| `security` | sonnet | 80 | $8 | full | security + dependency | on (minConf: 5) |
 
-To create a new preset, add a `.json` file to `evals/qualopsrc/` following the `.qualopsrc.json` format.
+CLI flags override preset values: `--preset=fast --model=claude-opus-4-20250514` uses the fast config but swaps the model.
+
+### Creating a new preset
+
+1. Copy an existing preset or the default config as a starting point:
+   ```bash
+   cp evals/qualopsrc/fast.json evals/qualopsrc/my-experiment.json
+   ```
+
+2. Edit the config. Key sections to tune:
+
+   ```jsonc
+   {
+     "ai": {
+       "reviewStage": {
+         "provider": "anthropic",        // anthropic | openai | bedrock
+         "model": "claude-sonnet-4-20250514"
+       }
+     },
+     "review": {
+       "minConfidence": 7,               // lower = more findings reported
+       "validation": { "enabled": true }, // self-review pass to filter noise
+       "deduplication": { "enabled": true },
+       "pipeline": [{
+         "name": "myJob",
+         "enabled": true,
+         "mode": "agentic",
+         "agentic": {
+           "maxTurns": 50,               // agent conversation turns
+           "maxBudgetUsd": 5.0,          // cost cap per item
+           "contextMode": "full",        // full | diff | auto
+           "enabledSubagents": [          // which specialist agents to use
+             "security-analyzer",
+             "dependency-tracer",
+             "breaking-change-detector"
+           ],
+           "systemPrompt": "..."         // optional custom instructions
+         }
+       }]
+     }
+   }
+   ```
+
+3. Run it:
+   ```bash
+   node evals/src/run-eval.js --preset=my-experiment --source=crb
+   ```
+
+### Comparing configurations
+
+Each preset run creates a separate Langfuse experiment with the preset name in it (e.g. `fast:claude-sonnet-4-20250514:agentic:2026-03-25T10:00`). To compare two configurations:
+
+1. Run both against the same dataset:
+   ```bash
+   node evals/src/run-eval.js --preset=fast --source=crb
+   node evals/src/run-eval.js --preset=thorough --source=crb
+   ```
+
+2. Compare in Langfuse: open the dataset, select both runs, and compare scores side-by-side. Key metrics:
+   - **crb_recall** — did the config find the known issues?
+   - **crb_precision** — how much noise did it produce?
+   - **crb_f1** — overall balance
+
+3. Check local run logs for cost and error differences:
+   ```bash
+   cat evals/src/logs/fast_*.json | jq '.totals, .errorBreakdown'
+   cat evals/src/logs/thorough_*.json | jq '.totals, .errorBreakdown'
+   ```
+
+Typical comparisons:
+- **Model A vs Model B**: same preset, override model with `--model=...`
+- **Fast vs thorough**: measures how much extra turns/budget improves recall
+- **With vs without validation**: toggle `validation.enabled` to see noise impact
+- **Subagent combinations**: enable/disable specific subagents to measure their contribution
+- **Confidence thresholds**: lower `minConfidence` for more findings, higher for less noise
 
 ## Review modes
 
@@ -154,7 +228,7 @@ CRB scoring uses a pairwise LLM judge for semantic matching (golden comments hav
 
 ## Run logs
 
-Each eval run writes a structured JSON log to `evals/langfuse/logs/`:
+Each eval run writes a structured JSON log to `evals/src/logs/`:
 
 ```json
 {
