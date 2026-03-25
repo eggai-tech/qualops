@@ -75,10 +75,10 @@ Presets are full `.qualopsrc.json` config files stored in `evals/qualopsrc/`. Wh
 | Preset | Model | Turns | Budget | Context | Subagents | Validation |
 |--------|-------|-------|--------|---------|-----------|------------|
 | `default` | from `.qualops/.qualopsrc.json` | 15 | — | auto | security, dependency, breaking-change | on |
-| `fast` | sonnet | 15 | $2 | diff-only | security only | off |
-| `sonnet-agentic` | sonnet | 50 | $5 | auto | all | on |
-| `thorough` | sonnet | 100 | $10 | full | all | on (minConf: 5) |
-| `security` | sonnet | 80 | $8 | full | security + dependency | on (minConf: 5) |
+| `fast` | sonnet 4.6 | 15 | $2 | diff-only | security only | off |
+| `sonnet-agentic` | sonnet 4.6 | 50 | $5 | auto | all | on |
+| `thorough` | opus 4.6 | 100 | $10 | full | all | on (minConf: 5) |
+| `security` | sonnet 4.6 | 80 | $8 | full | security + dependency | on (minConf: 5) |
 
 CLI flags override preset values: `--preset=fast --model=claude-opus-4-20250514` uses the fast config but swaps the model.
 
