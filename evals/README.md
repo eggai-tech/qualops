@@ -122,8 +122,8 @@ Options: `--repo=sentry`, `--limit=3`, `--skip-repos`
 | Scorer | What it measures |
 |--------|-----------------|
 | `parse` | Output is valid JSON with required fields |
-| `crb_precision` | Fraction of detected issues semantically matching golden comments |
-| `crb_recall` | Fraction of golden comments matched by detected issues |
+| `crb_recall` | Fraction of golden comments matched by detected issues (USE THIS PRIMARILY)|
+| `crb_precision` | Fraction of detected issues semantically matching golden comments (penalizes qualops for finding issues that humans have not found) |
 | `crb_f1` | Harmonic mean of CRB precision and recall |
 
 CRB scoring uses a pairwise LLM judge for semantic matching (golden comments have no line numbers).
