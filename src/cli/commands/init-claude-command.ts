@@ -34,104 +34,51 @@ For each issue found, provide:
 4. A suggested fix
 `;
 
-const COMMAND_TEMPLATE = `# QualOps Setup Customizer
+const COMMAND_TEMPLATE = `# QualOps Setup Wizard
 
-You are helping a user customize their QualOps configuration. A valid default config has already been generated.
+You are running a setup wizard that walks the user through configuring QualOps for their project. This is a single guided flow — collect all answers first, then apply everything at the end.
 
-## Instructions
+## Wizard Flow
 
-1. **Read the existing config** at \`.qualops/.qualopsrc.json\`
-2. **Use the \`AskUserQuestion\` tool** to ask which customization the user wants, with these options (header: "Customize", multiSelect: false):
-   - "Add Security Pass" — Add a security-focused review pass to the pipeline
-   - "Switch to Agentic" — Enable agentic mode with sub-agents for deeper analysis
-   - "Change Provider" — Switch AI provider or model (Anthropic, OpenAI, Bedrock)
-   - "Add CI Workflow" — Set up GitHub Actions or GitLab CI integration
-3. If they pick "Add CI Workflow", follow up with another \`AskUserQuestion\` (header: "CI platform", multiSelect: false):
-   - "GitHub Actions (Recommended)" — Add a \`.github/workflows/qualops.yml\` workflow
-   - "GitLab CI" — Add a \`qualops-review\` job to \`.gitlab-ci.yml\`
-4. If they pick "Change Provider", follow up with another \`AskUserQuestion\` (header: "Provider", multiSelect: false):
-   - "Anthropic (Recommended)" — Claude Sonnet 4.6 ($3/$15 per million tokens)
-   - "OpenAI" — GPT-4.1 ($2/$8 per million tokens)
-   - "Bedrock" — Claude Sonnet 4.6 via AWS ($3/$15 per million tokens)
-5. **Apply the change** using the concrete snippets provided below
-6. **Validate** the final config is valid JSON before writing
+Walk through each step in order using the \`AskUserQuestion\` tool. Ask one question at a time, wait for the answer, then move to the next step. Do NOT generate any files until all steps are complete.
 
-## Customization Menu
+**Step 1** — Ask what review types to enable (header: "Review type", multiSelect: true):
+- "Quality (Recommended)" — Bug detection, maintainability, and code clarity
+- "Security" — Injection, auth issues, data exposure, insecure defaults
+- "Performance" — N+1 queries, unnecessary allocations, missing indexes
+- "Migration" — Breaking changes, deprecated APIs, upgrade compatibility
 
-### 1. Add a Security Review Pass
-Add this to the \`passes\` array inside the first pipeline job:
-\`\`\`json
-{
-  "name": "security",
-  "enabled": true,
-  "prompt": "review/security.md"
-}
-\`\`\`
-Then create \`.qualops/prompts/review/security.md\` with a security-focused prompt.
+**Step 2** — Ask about CI integration (header: "CI", multiSelect: false):
+- "GitHub Actions (Recommended)" — Add a \`.github/workflows/qualops.yml\` workflow
+- "GitLab CI" — Add a \`qualops-review\` job to \`.gitlab-ci.yml\`
+- "None" — Skip CI integration for now
 
-### 2. Switch to Agentic Mode
-Replace the pipeline job with:
-\`\`\`json
-{
-  "name": "agenticReview",
-  "enabled": true,
-  "mode": "agentic",
-  "agentic": {
-    "maxTurns": 10,
-    "enabledSubagents": ["dependency-tracer", "security-analyzer"]
-  },
-  "passes": [{
-    "name": "quality",
-    "enabled": true,
-    "prompt": "review/quality.md"
-  }]
-}
-\`\`\`
+**Step 3** — Ask about severity filtering (header: "Severity", multiSelect: false):
+- "Critical + High (Recommended)" — Focus on impactful issues only
+- "Critical only" — Only flag showstoppers
+- "All severities" — Include medium and low findings too
 
-### 3. Change AI Provider/Model
-Update the \`ai.reviewStage\` section. Valid providers and their recommended models:
-- **anthropic**: \`claude-sonnet-4-6\` ($3/$15 per million tokens)
-- **openai**: \`gpt-4.1\` ($2/$8 per million tokens)
-- **bedrock**: \`us.anthropic.claude-sonnet-4-6-v1:0\` ($3/$15 per million tokens)
+## Apply
 
-### 4. Add CI Workflow
+Once all 3 answers are collected, read the existing \`.qualops/.qualopsrc.json\` config, then apply changes using the reference guide below:
 
-**GitHub Actions** — create \`.github/workflows/qualops.yml\`:
-\`\`\`yaml
-name: QualOps Review
-on:
-  pull_request:
-    types: [opened, synchronize]
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: eggai-tech/qualops@v1
-        with:
-          anthropic_api_key: \${{ secrets.ANTHROPIC_API_KEY }}
-\`\`\`
+### Review types → pipeline passes
+For each selected review type, add a pass to \`review.pipeline[0].passes\`:
+- **Quality** — already exists as \`review/quality.md\` (skip if present)
+- **Security** — add pass with \`"prompt": "review/security.md"\`, create \`.qualops/prompts/review/security.md\` with a security-focused prompt
+- **Performance** — add pass with \`"prompt": "review/performance.md"\`, create \`.qualops/prompts/review/performance.md\` with a performance-focused prompt
+- **Migration** — add pass with \`"prompt": "review/migration.md"\`, create \`.qualops/prompts/review/migration.md\` with a migration-focused prompt
 
-**GitLab CI** — add to \`.gitlab-ci.yml\`:
-\`\`\`yaml
-qualops-review:
-  image: node:20
-  script:
-    - npx @eggai/qualops --base $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-\`\`\`
+### Severity → report config
+- **Critical + High** → \`"report": { "includedSeverities": ["critical", "high"] }\`
+- **Critical only** → \`"report": { "includedSeverities": ["critical"] }\`
+- **All severities** → \`"report": { "includedSeverities": ["critical", "high", "medium", "low"] }\`
 
-### 5. Add Validation & Deduplication
-Add to a pipeline job:
-\`\`\`json
-{
-  "validation": { "enabled": true, "minConfidence": 7 },
-  "deduplication": { "enabled": true }
-}
-\`\`\`
+### CI workflow
+If selected, create the workflow file using the CI templates in the reference guide below. Skip if "None" was chosen.
+
+### Validation
+Validate the final config is valid JSON before writing. Use the checklist in the reference guide to verify all required fields are present.
 
 ---
 

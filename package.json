@@ -37,6 +37,7 @@
     "./cli": "./dist/cli.js"
   },
   "files": [
+    ".claude/commands/qualops-setup.md",
     "dist",
     "config",
     "action.yml",
