@@ -79,7 +79,7 @@
   },
   "devDependencies": {
     "@types/diff": "^7.0.2",
-    "@types/glob": "8.1.0",
+    "@types/glob": "9.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^25.5.0",
     "eslint": "^9.39.4",
