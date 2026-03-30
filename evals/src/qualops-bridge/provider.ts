@@ -1,5 +1,5 @@
 import { readFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { AnthropicProvider } from '@/ai/providers/anthropic';
@@ -18,6 +18,24 @@ import type { FileInfo, PipelineJob } from '@/shared/types/config';
 import type { EvalCase, EvalConfig, DetectedIssue, ReviewResult } from './types.js';
 
 const QUALOPS_ROOT = join(__dirname, '../..');
+
+// Allowed base directories for agentic cwd. config.cwd must resolve to one of these prefixes.
+const ALLOWED_CWD_PREFIXES = [QUALOPS_ROOT];
+
+/**
+ * Resolve and validate a cwd value for the agentic executor.
+ * Prevents path traversal by asserting the resolved path starts with an allowed prefix.
+ * Falls back to QUALOPS_ROOT if cwd is not provided.
+ */
+function resolveSafeCwd(cwd: string | undefined): string {
+  const resolved = resolve(cwd || QUALOPS_ROOT);
+  const allowed = ALLOWED_CWD_PREFIXES.some((prefix) => resolved === prefix || resolved.startsWith(prefix + '/'));
+  if (!allowed) {
+    throw new Error(`Unsafe cwd rejected: "${resolved}" is outside allowed directories`);
+  }
+  return resolved;
+}
+
 const DEFAULT_SYSTEM_PROMPT_PATH = join(
   QUALOPS_ROOT,
   '.qualops/prompts/qualops-self-review/review-system-message.md',
@@ -158,7 +176,7 @@ async function runAgenticReview(
   };
 
   const { AgenticExecutor } = await import('@/stages/review/agentic/agentic-executor');
-  const cwd = config.cwd || QUALOPS_ROOT;
+  const cwd = resolveSafeCwd(config.cwd);
 
   // Resolve model: CLI override > qualopsrc > undefined (SDK default)
   let model = config.model;
