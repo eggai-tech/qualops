@@ -83,7 +83,7 @@ function resolveRepoCwd(itemInput, runLog) {
       caseId: itemInput.caseId,
       message: 'Dataset item has no git.repo_path — agentic tools will use qualops root',
     });
-    return null;
+    return { cwd: null, cleanup: null };
   }
   const repoPath = path.resolve(QUALOPS_ROOT, itemInput.git.repo_path);
   if (!fs.existsSync(repoPath)) {
@@ -96,33 +96,50 @@ function resolveRepoCwd(itemInput, runLog) {
       repoPath: itemInput.git.repo_path,
       message: `Repo not cloned at ${repoPath} — agentic tools will use qualops root`,
     });
-    return null;
+    return { cwd: null, cleanup: null };
   }
-  if (itemInput.git.head_sha) {
-    const { spawnSync } = require('child_process');
-    const result = spawnSync('git', ['checkout', '--quiet', itemInput.git.head_sha], {
-      cwd: repoPath, encoding: 'utf-8', stdio: 'pipe',
+  if (!itemInput.git.head_sha) {
+    return { cwd: repoPath, cleanup: null };
+  }
+
+  const { spawnSync } = require('child_process');
+  const worktreeDir = path.join(
+    repoPath, '.worktrees',
+    `eval-${itemInput.caseId || Date.now()}-${itemInput.git.head_sha.slice(0, 8)}`,
+  );
+
+  const add = spawnSync('git', ['worktree', 'add', '--detach', worktreeDir, itemInput.git.head_sha], {
+    cwd: repoPath, encoding: 'utf-8', stdio: 'pipe',
+  });
+  if (add.status !== 0) {
+    console.warn(`  WARN: could not create worktree for ${itemInput.git.head_sha.slice(0, 8)}: ${add.stderr?.trim()}`);
+    runLog.add({
+      level: 'warn',
+      event: 'worktree_failed',
+      warnCode: 'WORKTREE_FAILED',
+      caseId: itemInput.caseId,
+      sha: itemInput.git.head_sha,
+      message: add.stderr?.trim() || 'git worktree add failed',
     });
-    if (result.status !== 0) {
-      console.warn(`  WARN: could not checkout ${itemInput.git.head_sha.slice(0, 8)}: ${result.stderr?.trim()}`);
-      runLog.add({
-        level: 'warn',
-        event: 'checkout_failed',
-        warnCode: 'CHECKOUT_FAILED',
-        caseId: itemInput.caseId,
-        sha: itemInput.git.head_sha,
-        message: result.stderr?.trim() || 'git checkout failed',
-      });
-    }
+    return { cwd: repoPath, cleanup: null };
   }
-  return repoPath;
+
+  const cleanup = () => {
+    try {
+      spawnSync('git', ['worktree', 'remove', '--force', worktreeDir], {
+        cwd: repoPath, encoding: 'utf-8', stdio: 'pipe',
+      });
+    } catch {}
+  };
+
+  return { cwd: worktreeDir, cleanup };
 }
 
 async function runReviewForItem(itemInput, ctx) {
   const { config, runLog } = ctx;
   await ensureInit();
 
-  const repoCwd = resolveRepoCwd(itemInput, runLog);
+  const { cwd: repoCwd, cleanup } = resolveRepoCwd(itemInput, runLog);
 
   const evalConfig = {
     name: `langfuse:${config.model}:${config.mode}`,
@@ -133,30 +150,34 @@ async function runReviewForItem(itemInput, ctx) {
     ...(repoCwd && { cwd: repoCwd }),
   };
 
-  if (itemInput.source === 'crb' || (!itemInput.fullContent && !itemInput.fileContent)) {
-    const { runReviewMultiFile } = require('./qualops-bridge/provider');
-    const rawDiff = itemInput.diff || '';
-    const files = splitMultiFileDiff(rawDiff);
-    if (files.length === 0) {
-      return { issues: [], durationMs: 0 };
+  try {
+    if (itemInput.source === 'crb' || (!itemInput.fullContent && !itemInput.fileContent)) {
+      const { runReviewMultiFile } = require('./qualops-bridge/provider');
+      const rawDiff = itemInput.diff || '';
+      const files = splitMultiFileDiff(rawDiff);
+      if (files.length === 0) {
+        return { issues: [], durationMs: 0 };
+      }
+      return await runReviewMultiFile(files, evalConfig);
     }
-    return runReviewMultiFile(files, evalConfig);
+
+    const { runReview } = require('./qualops-bridge/provider');
+    const rawContent = itemInput.fullContent || '';
+    const rawDiff = itemInput.diff || '';
+
+    const evalCase = {
+      id: itemInput.caseId || 'langfuse-case',
+      language: itemInput.language || 'typescript',
+      filePath: itemInput.filePath || 'unknown.ts',
+      diff: rawDiff,
+      fullContent: rawContent,
+      expected: [],
+    };
+
+    return await runReview(evalCase, evalConfig);
+  } finally {
+    if (cleanup) cleanup();
   }
-
-  const { runReview } = require('./qualops-bridge/provider');
-  const rawContent = itemInput.fullContent || '';
-  const rawDiff = itemInput.diff || '';
-
-  const evalCase = {
-    id: itemInput.caseId || 'langfuse-case',
-    language: itemInput.language || 'typescript',
-    filePath: itemInput.filePath || 'unknown.ts',
-    diff: rawDiff,
-    fullContent: rawContent,
-    expected: [],
-  };
-
-  return runReview(evalCase, evalConfig);
 }
 
 module.exports = { parseDiffLines, splitMultiFileDiff, resolveRepoCwd, runReviewForItem, ensureInit };
