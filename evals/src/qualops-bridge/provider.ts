@@ -188,7 +188,11 @@ async function runAgenticReview(
   if (!model) {
     try {
       model = ConfigService.getInstance().getAIStageConfig('review').model;
-    } catch {}
+    } catch {
+      // catch is required because createProvider crashes when no .qualopsrc.json exists
+      // The config-missing warning is already emitted by ConfigService.loadRawConfig
+      // this get's run for every eval
+    }
   }
 
   const executor = new AgenticExecutor(job, cwd, model);
