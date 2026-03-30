@@ -44,8 +44,13 @@ const DEFAULT_SYSTEM_PROMPT_PATH = join(
 /**
  * Load a qualopsrc preset config file. Resets both ConfigService and
  * ConfigLoader so all downstream code reads from the preset.
+ * Rejects paths outside the project root to prevent reading arbitrary files.
  */
 function loadPresetConfig(configPath: string): void {
+  const resolved = resolve(configPath);
+  if (resolved !== QUALOPS_ROOT && !resolved.startsWith(QUALOPS_ROOT + '/')) {
+    throw new Error(`Unsafe configPath rejected: "${resolved}" is outside the project root`);
+  }
   ConfigService.setConfigPath(configPath);
   ConfigLoader.getInstance().reset();
 }
