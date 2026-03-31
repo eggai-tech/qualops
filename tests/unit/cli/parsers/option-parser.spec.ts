@@ -9,7 +9,7 @@ import {
 describe('parseStageOptions', () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    jest.setSystemTime(new Date('2024-01-15T10:30:45.123Z'));
+    jest.setSystemTime(new Date('2024-01-15T10:30:45.123Z').getTime());
   });
 
   afterEach(() => {
@@ -124,7 +124,7 @@ describe('parseStageOptions', () => {
   });
 
   it('should generate consistent session name format', () => {
-    jest.setSystemTime(new Date('2023-12-31T23:59:59.999Z'));
+    jest.setSystemTime(new Date('2023-12-31T23:59:59.999Z').getTime());
     const options: QualOpsOptions = { base: '.' };
     const result: ParsedStageOptions = parseStageOptions(options);
 
@@ -132,7 +132,7 @@ describe('parseStageOptions', () => {
   });
 
   it('should handle different timestamp formats', () => {
-    jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z'));
+    jest.setSystemTime(new Date('2024-01-01T00:00:00.000Z').getTime());
     const options: QualOpsOptions = { base: '.' };
     const result: ParsedStageOptions = parseStageOptions(options);
 

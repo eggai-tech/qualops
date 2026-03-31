@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Upgrade TypeScript from 5.9 to 6.0 with tsconfig migration (`moduleResolution: bundler`, `baseUrl` removal)
+- Upgrade eslint from 9.x to 10.x, migrate `eslint-plugin-import` to `eslint-plugin-import-x`
 
 ### Added
 - GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
