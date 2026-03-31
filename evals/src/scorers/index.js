@@ -96,16 +96,20 @@ async function scoreFor(source, issues, ctx) {
   const skipNames = ctx.skipNames instanceof Set ? ctx.skipNames : new Set();
   const applicable = [..._registry.entries()].filter(
     ([name, s]) => !skipNames.has(name) && (s.datasets === '*' || s.datasets.includes(source)),
-  ).map(([, s]) => s);
+  );
 
   const results = await Promise.allSettled(
-    applicable.map((s) => s.fn(issues, ctx)),
+    applicable.map(([, s]) => s.fn(issues, ctx)),
   );
 
   const scores = [];
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
-    if (r.status === 'rejected') continue;
+    if (r.status === 'rejected') {
+      const scorerName = applicable[i][0];
+      console.error(`[scoreFor] Scorer "${scorerName}" failed: ${r.reason}`);
+      continue;
+    }
     const val = r.value;
     if (Array.isArray(val)) {
       scores.push(...val);
