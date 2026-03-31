@@ -1,4 +1,5 @@
 import type { AIProvider } from '../../../ai/providers/provider';
+import { fixMalformedJson } from '../../../ai/shared/parsers/json-parser';
 import type { ReviewIssue } from '../../../shared/types';
 import type { FileInfo } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
@@ -139,7 +140,7 @@ Do NOT report issues in unchanged code unless they are directly related to the c
 
     try {
       // Try to fix common JSON issues: unescaped newlines in string values
-      const fixedJson = this.fixMalformedJson(jsonString);
+      const fixedJson = fixMalformedJson(jsonString);
       const parsed = JSON.parse(fixedJson);
       const issueArray = Array.isArray(parsed) ? parsed : [];
 
@@ -165,54 +166,6 @@ Do NOT report issues in unchanged code unless they are directly related to the c
       logger.warn(`[FileReviewer] JSON preview: ${jsonString.slice(0, 300)}...`);
       return [];
     }
-  }
-
-  private fixMalformedJson(json: string): string {
-    // Fix unescaped newlines inside string values
-    // This is a common issue when AI outputs multi-line strings
-    let inString = false;
-    let escaped = false;
-    let result = '';
-
-    for (let i = 0; i < json.length; i++) {
-      const char = json[i];
-
-      if (escaped) {
-        result += char;
-        escaped = false;
-        continue;
-      }
-
-      if (char === '\\') {
-        escaped = true;
-        result += char;
-        continue;
-      }
-
-      if (char === '"') {
-        inString = !inString;
-        result += char;
-        continue;
-      }
-
-      if (inString && char === '\n') {
-        result += '\\n';
-        continue;
-      }
-
-      if (inString && char === '\r') {
-        continue; // Skip carriage returns
-      }
-
-      if (inString && char === '\t') {
-        result += '\\t';
-        continue;
-      }
-
-      result += char;
-    }
-
-    return result;
   }
 
   private normalizeLocation(location: string | { line?: number }): string {

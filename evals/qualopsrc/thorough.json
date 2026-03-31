@@ -1,0 +1,64 @@
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-opus-4-6",
+      "inputPerMillion": 15.0,
+      "outputPerMillion": 75.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "performance": {
+    "maxFileSizeKB": 500,
+    "maxFilesPerBatch": 15,
+    "maxTokensPerFile": 12000,
+    "timeoutSeconds": 600,
+    "throttling": {
+      "enabled": true,
+      "maxRequestsPerMinute": 30
+    }
+  },
+  "review": {
+    "minConfidence": 5,
+    "maxConcurrentFiles": 2,
+    "validation": {
+      "enabled": true,
+      "minConfidence": 5,
+      "prompt": "qualops-self-review/validation.md"
+    },
+    "deduplication": {
+      "enabled": true,
+      "prompt": "deduplication.md"
+    },
+    "pipeline": [
+      {
+        "name": "agenticThorough",
+        "enabled": true,
+        "mode": "agentic",
+        "agentic": {
+          "maxTurns": 100,
+          "maxBudgetUsd": 10.0,
+          "contextMode": "full",
+          "maxTokensPerFile": 12000,
+          "maxTotalTokens": 100000,
+          "enabledSubagents": ["security-analyzer", "dependency-tracer", "breaking-change-detector", "pattern-validator"]
+        },
+        "validation": {
+          "enabled": true,
+          "minConfidence": 5,
+          "prompt": "qualops-self-review/validation.md"
+        }
+      }
+    ]
+  },
+  "skipPatterns": [
+    "node_modules/**", ".git/**", "dist/**", "build/**", "coverage/**"
+  ]
+}

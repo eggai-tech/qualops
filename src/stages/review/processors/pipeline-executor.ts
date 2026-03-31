@@ -6,6 +6,7 @@ import { DeduplicationResolver } from './dedup-resolver';
 import { FileReviewer } from './file-reviewer';
 import { ValidationResolver } from './validation-resolver';
 import type { AIProvider } from '../../../ai/providers/provider';
+import { ConfigService } from '../../../config/config';
 import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
 import type { ReviewIssue } from '../../../shared/types';
 import type { FileInfo, PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config';
@@ -69,7 +70,11 @@ export class PipelineExecutor {
   private async executeAgenticJob(job: PipelineJob, files: FileInfo[]): Promise<ReviewIssue[]> {
     logger.info(`[Pipeline] Starting agentic review for job: ${job.name}`);
 
-    const executor = new AgenticExecutor(job);
+    let model: string | undefined;
+    try {
+      model = ConfigService.getInstance().getAIStageConfig('review').model;
+    } catch {}
+    const executor = new AgenticExecutor(job, undefined, model);
     const rawIssues = await executor.execute(files);
 
     this.preValidationDump[job.name] = rawIssues;

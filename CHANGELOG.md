@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI provider types/factory now include `github` and use stricter provider typing
 - Environment config and test setup now include `GITHUB_API_KEY`
 - Update documentation to reference the new JSON Schema and provide configuration examples
+- Added eval suite
 
 ## [0.2.1] - 2026-03-14
 

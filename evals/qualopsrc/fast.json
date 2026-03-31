@@ -1,0 +1,59 @@
+{
+  "ai": {
+    "reviewStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    },
+    "judgeStage": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "inputPerMillion": 3.0,
+      "outputPerMillion": 15.0,
+      "temperature": 0
+    }
+  },
+  "performance": {
+    "maxFileSizeKB": 500,
+    "maxFilesPerBatch": 15,
+    "maxTokensPerFile": 4000,
+    "timeoutSeconds": 120,
+    "throttling": {
+      "enabled": true,
+      "maxRequestsPerMinute": 60
+    }
+  },
+  "review": {
+    "minConfidence": 7,
+    "maxConcurrentFiles": 5,
+    "validation": {
+      "enabled": false
+    },
+    "deduplication": {
+      "enabled": false
+    },
+    "pipeline": [
+      {
+        "name": "agenticFast",
+        "enabled": true,
+        "mode": "agentic",
+        "agentic": {
+          "maxTurns": 15,
+          "maxBudgetUsd": 2.0,
+          "contextMode": "diff",
+          "maxTokensPerFile": 4000,
+          "maxTotalTokens": 20000,
+          "enabledSubagents": ["security-analyzer"]
+        },
+        "validation": {
+          "enabled": false
+        }
+      }
+    ]
+  },
+  "skipPatterns": [
+    "node_modules/**", ".git/**", "dist/**", "build/**", "coverage/**"
+  ]
+}
