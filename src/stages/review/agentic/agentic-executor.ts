@@ -3,6 +3,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import { AgentLoader } from './loaders/agent-loader';
 import { createSubagentDefinitions, type AgentDefinition } from './subagents/definitions';
 import { createAgenticTools } from './tools';
+import { fixMalformedJson } from '../../../ai/shared/parsers/json-parser';
 import type { ReviewIssue } from '../../../shared/types';
 import type { FileInfo, PipelineJob, AgenticConfig } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
@@ -253,7 +254,7 @@ Return issues as JSON. If checking dependencies, use Grep/Glob tools.`;
       return [];
     }
 
-    const jsonStr = jsonMatch[1] || jsonMatch[0];
+    const jsonStr = fixMalformedJson(jsonMatch[1] || jsonMatch[0]);
 
     try {
       const parsed = JSON.parse(jsonStr);
@@ -264,6 +265,7 @@ Return issues as JSON. If checking dependencies, use Grep/Glob tools.`;
         .map((issue: any, index: number) => this.normalizeIssue(issue, index, files));
     } catch (error) {
       logger.warn(`[Agentic] Failed to parse issues: ${(error as Error).message}`);
+      logger.warn(`[Agentic] JSON preview: ${jsonStr.slice(0, 300)}...`);
       return [];
     }
   }
