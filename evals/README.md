@@ -66,7 +66,7 @@ node evals/src/run-eval.js --list-presets
 
 Results are tracked in Langfuse as dataset runs. Each eval item creates a trace with scores attached. View experiments and compare runs at your Langfuse dashboard.
 
-Run logs are written locally to `evals/src/logs/<experiment>.json` with error/warning breakdowns.
+Run logs are written locally to `evals/logs/<experiment>.json` with error/warning breakdowns.
 
 ## Presets
 
@@ -145,8 +145,8 @@ Each preset run creates a separate Langfuse experiment with the preset name in i
 
 3. Check local run logs for cost and error differences:
    ```bash
-   cat evals/src/logs/fast_*.json | jq '.totals, .errorBreakdown'
-   cat evals/src/logs/thorough_*.json | jq '.totals, .errorBreakdown'
+   cat evals/logs/fast_*.json | jq '.totals, .errorBreakdown'
+   cat evals/logs/thorough_*.json | jq '.totals, .errorBreakdown'
    ```
 
 Typical comparisons:
@@ -228,7 +228,7 @@ CRB scoring uses a pairwise LLM judge for semantic matching (golden comments hav
 
 ## Run logs
 
-Each eval run writes a structured JSON log to `evals/src/logs/`:
+Each eval run writes a structured JSON log to `evals/logs/`:
 
 ```json
 {

@@ -6,7 +6,7 @@ const fs = require('fs');
 const QUALOPS_ROOT = path.join(__dirname, '../..');
 const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
 const DEFAULT_QUALOPSRC = '.qualops/.qualopsrc.json';
-const LOGS_DIR = path.join(QUALOPS_ROOT, 'evals/src/logs');
+const LOGS_DIR = path.join(QUALOPS_ROOT, 'evals/logs');
 
 const CRB_REPOS = ['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak'];
 

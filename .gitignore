@@ -34,7 +34,7 @@ Thumbs.db
 
 # Eval results and large fetched data (local only)
 evals/src/results/
-evals/src/logs/
+evals/logs/
 evals/datasets/crb/benchmark_data.json
 evals/datasets/crb/repos/
 
