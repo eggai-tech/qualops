@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove unused `promptfoo` devDependency
 - Fix lint failure with `typescript-eslint` 8.58+ due to unused type predicate parameter
 
+### Changed
+- Upgrade TypeScript from 5.9 to 6.0 with tsconfig migration (`moduleResolution: bundler`, `baseUrl` removal)
+
 ### Added
 - GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
 - Add JSON Schema for QualOps configuration file with comprehensive integration tests
