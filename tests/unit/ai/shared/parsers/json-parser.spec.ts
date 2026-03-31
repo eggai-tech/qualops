@@ -359,7 +359,7 @@ describe('JsonParser', () => {
     });
 
     it('should handle validator throwing error', () => {
-      const throwingValidator = (data: unknown): data is TestType => {
+      const throwingValidator = (_data: unknown): _data is TestType => {
         throw new Error('Validation failed');
       };
       const data = { name: 'test' };

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Update the logger config loading to read from `${cwd}/.qualops/.qualopsrc.json` instead of CWD
 - Remove unused `promptfoo` devDependency
+- Fix lint failure with `typescript-eslint` 8.58+ due to unused type predicate parameter
 
 ### Added
 - GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
