@@ -65,6 +65,7 @@
     "qualops:judge": "node --env-file=.env --experimental-strip-types src/cli.ts judge",
     "eval:run:qualops": "node evals/src/run-eval.js --dataset=qualops/qualops",
     "eval:run:crb:all": "node evals/src/run-eval.js --source=crb --mode=agentic",
+    "eval:run:crb:critical": "node evals/src/run-eval.js --source=crb --severity=critical --mode=agentic",
     "eval:run:crb:sentry": "node evals/src/run-eval.js --dataset=qualops/crb-sentry --mode=agentic",
     "eval:run:crb:grafana": "node evals/src/run-eval.js --dataset=qualops/crb-grafana --mode=agentic",
     "eval:run:crb:calcom": "node evals/src/run-eval.js --dataset=qualops/crb-cal_dot_com --mode=agentic",

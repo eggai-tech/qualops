@@ -74,6 +74,9 @@ function buildConfig(args) {
   const provider = args.provider || 'anthropic';
   const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
   const skipJudge = args['no-judge'] === 'true';
+  const severityFilter = args.severity
+    ? new Set(args.severity.split(',').map((s) => s.trim().toLowerCase()))
+    : null;
   const presetLabel = presetName || 'default';
   const experimentName = args.experiment || `${presetLabel}:${model}:${mode}:${new Date().toISOString().slice(0, 16)}`;
   const concurrency = args.concurrency ? parseInt(args.concurrency, 10) : 3;
@@ -92,6 +95,7 @@ function buildConfig(args) {
     experimentName,
     concurrency,
     configPath,
+    severityFilter,
   };
 }
 
