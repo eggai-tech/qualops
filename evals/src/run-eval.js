@@ -10,6 +10,7 @@
  *   node run-eval.js --source=all                                # qualops + all CRB datasets
  *   node run-eval.js --dataset=qualops/crb-sentry --mode=agentic # specific dataset
  *   node run-eval.js --model=claude-opus-4-20250514              # override model
+ *   node run-eval.js --severity=critical,high                     # only cases with matching severity
  *   node run-eval.js --no-judge                                  # skip LLM judge scorer
  *   node run-eval.js --list-presets                              # show available presets
  *
@@ -291,6 +292,15 @@ async function runDataset(langfuse, datasetName) {
     page++;
   }
 
+  if (config.severityFilter) {
+    const before = allItems.length;
+    allItems = allItems.filter((item) => {
+      const expected = (item.expectedOutput || {}).referenceExpected || [];
+      return expected.some((e) => config.severityFilter.has((e.severity || '').toLowerCase()));
+    });
+    console.log(`Severity filter: ${[...config.severityFilter].join(',')} — ${allItems.length}/${before} items`);
+  }
+
   if (config.limit < Infinity) {
     allItems = allItems.slice(0, config.limit);
   }
@@ -338,6 +348,7 @@ async function main() {
   console.log(`Datasets: ${datasets.join(', ')}`);
   console.log(`Experiment: ${config.experimentName}`);
   console.log(`Model: ${config.model} | Mode: ${config.mode} | Provider: ${config.provider}`);
+  if (config.severityFilter) console.log(`Severity filter: ${[...config.severityFilter].join(', ')}`);
   if (config.skipJudge) console.log('Judge scorer: disabled');
 
   const totals = { total: 0, errors: 0 };
