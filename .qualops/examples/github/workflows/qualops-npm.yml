@@ -1,0 +1,46 @@
+# npm-based QualOps workflow
+# Use this instead of the GitHub Action when you need:
+#   - A pinned qualops version
+#   - Control over the Node.js version
+#   - npm caching for faster runs
+#   - The HTML report as a downloadable artifact
+
+name: QualOps Code Quality
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  qualops:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Full history for accurate git diff
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Install QualOps
+        run: npm install -g @eggai/qualops@~0.2
+
+      - name: Run QualOps
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: qualops --base=${{ github.base_ref }} --head=${{ github.sha }}
+
+      - name: Upload QualOps report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualops-report
+          path: .qualops/reports/
+          retention-days: 30

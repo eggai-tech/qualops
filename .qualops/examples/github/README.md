@@ -5,8 +5,9 @@ This directory contains example configurations and workflows for using QualOps w
 ## Files
 
 - **`.qualopsrc.json`** - Full-featured configuration example
-- **`workflows/qualops-basic.yml`** - Minimal workflow setup
+- **`workflows/qualops-basic.yml`** - Minimal workflow using the GitHub Action
 - **`workflows/qualops-advanced.yml`** - Advanced workflow with output handling
+- **`workflows/qualops-npm.yml`** - npm-based workflow with pinned version and artifact upload
 
 ## Quick Setup
 
