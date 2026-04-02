@@ -3,172 +3,138 @@ import { join } from 'node:path';
 
 import { z } from 'zod';
 
+import { qualopsConfigSchema } from '@/config/config-schema';
+
 const schemaPath = join(__dirname, '../../docs/qualops-config.schema.json');
 
-// Zod definitions mirroring the JSON Schema meta-structure
-// Note that future support for JSON schema is in preview: https://zod.dev/json-schema
-const jsonSchemaPrimitive = z.enum(['string', 'number', 'integer', 'boolean', 'object', 'array']);
-
-const defObject = z.object({
-  type: jsonSchemaPrimitive.optional(),
-  description: z.string().optional(),
-  properties: z.record(z.string(), z.unknown()).optional(),
-  required: z.array(z.string()).optional(),
-  $ref: z.string().optional(),
-  anyOf: z.array(z.unknown()).optional(),
-  oneOf: z.array(z.unknown()).optional(),
-  enum: z.array(z.unknown()).optional(),
-  items: z.unknown().optional(),
-});
-
-const topLevelSchema = z.object({
-  $schema: z.string().min(1),
-  $id: z.string().min(1),
-  title: z.string().min(1),
-  description: z.string().min(1),
-  type: z.literal('object'),
-  additionalProperties: z.boolean(),
-  required: z.array(z.string()).min(1),
-  properties: z.record(z.string(), z.unknown()),
-  $defs: z.record(z.string(), defObject),
-});
-
-// Required top-level property keys
-const REQUIRED_TOP_LEVEL_REQUIRED = ['ai', 'review'];
-
-// Required $defs keys
-const REQUIRED_DEFS = [
-  'aiStageConfig',
-  'aiProvider',
-  'reviewConfig',
-  'pipelineJob',
-  'pipelineJobFileByFile',
-  'pipelineJobAgentic',
-  'reviewPass',
-  'validationConfig',
-  'deduplicationConfig',
-  'performanceConfig',
-  'fixConfig',
-  'reportConfig',
-  'githubConfig',
-  'gitlabConfig',
-  'loggerConfig',
-  'severity',
-  'issueType',
-];
-
-// Required properties on specific $defs
-const DEF_REQUIRED_FIELDS: Record<string, string[]> = {
-  aiStageConfig: ['provider', 'model', 'inputPerMillion', 'outputPerMillion'],
-  reviewPass: ['name', 'enabled', 'prompt'],
-  pipelineJobFileByFile: ['name', 'enabled', 'passes'],
-  pipelineJobAgentic: ['name', 'enabled', 'mode'],
-  customAgentDefinition: ['name', 'description', 'prompt'],
-  promptConfig: ['file'],
-  reviewConfig: ['pipeline'],
-};
-
-describe('qualops-config.schema.json integrity', () => {
-  let raw: unknown;
-  let parseResult: ReturnType<typeof topLevelSchema.safeParse>;
+describe('qualops-config.schema.json integrity (Zod-generated)', () => {
+  let schema: Record<string, unknown>;
 
   beforeAll(() => {
     const content = readFileSync(schemaPath, 'utf-8');
-    raw = JSON.parse(content);
-    parseResult = topLevelSchema.safeParse(raw);
+    schema = JSON.parse(content);
   });
 
-  it('parses as valid JSON and matches top-level schema shape', () => {
-    expect(parseResult.success).toBe(true);
+  function resolveDef(prop: Record<string, unknown>): Record<string, unknown> {
+    const ref = prop.$ref as string | undefined;
+    if (!ref) return prop;
+    const name = ref.replace('#/$defs/', '');
+    return (schema.$defs as Record<string, Record<string, unknown>>)[name];
+  }
+
+  it('is valid JSON with expected top-level structure', () => {
+    expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
+    expect(schema.$id).toContain('qualops-config.schema.json');
+    expect(schema.title).toBe('QualOps Configuration');
+    expect(schema.type).toBe('object');
+    expect(schema.additionalProperties).toBe(false);
   });
 
-  it('has the correct $schema and $id', () => {
-    expect(parseResult.data!.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
-    expect(parseResult.data!.$id).toContain('qualops-config.schema.json');
+  it('requires "ai" and "review"', () => {
+    expect(schema.required).toEqual(expect.arrayContaining(['ai', 'review']));
   });
 
-  it('requires "ai" and "review" at the top level', () => {
-    for (const field of REQUIRED_TOP_LEVEL_REQUIRED) {
-      expect(parseResult.data!.required).toContain(field);
-    }
-  });
-
-  it('has all expected $defs', () => {
-    for (const def of REQUIRED_DEFS) {
-      expect(parseResult.data!.$defs).toHaveProperty(def);
-    }
-  });
-
-  it.each(Object.entries(DEF_REQUIRED_FIELDS))(
-    '$defs.%s has the expected required fields',
-    (defName, requiredFields) => {
-      const def = parseResult.data!.$defs[defName];
-      expect(def).toBeDefined();
-      for (const field of requiredFields) {
-        expect(def.required).toContain(field);
-      }
-    },
-  );
-
-  it('aiProvider enum contains the three supported providers', () => {
-    const aiProvider = parseResult.data!.$defs['aiProvider'];
-    expect(aiProvider.enum).toEqual(expect.arrayContaining(['anthropic', 'openai', 'bedrock']));
-  });
-
-  it('severity enum contains all four severity levels', () => {
-    const severity = parseResult.data!.$defs['severity'];
-    expect(severity.enum).toEqual(expect.arrayContaining(['critical', 'high', 'medium', 'low']));
-  });
-
-  it('issueType enum contains all four issue types', () => {
-    const issueType = parseResult.data!.$defs['issueType'];
-    expect(issueType.enum).toEqual(
-      expect.arrayContaining(['bug', 'security', 'performance', 'maintainability']),
+  it('has top-level properties for all config sections', () => {
+    const props = Object.keys(schema.properties as Record<string, unknown>);
+    expect(props).toEqual(
+      expect.arrayContaining([
+        '$schema',
+        'ai',
+        'review',
+        'performance',
+        'fix',
+        'report',
+        'github',
+        'gitlab',
+        'logger',
+        'paths',
+        'skipPatterns',
+      ]),
     );
   });
 
-  it('pipelineJob uses oneOf referencing agentic and file-by-file variants', () => {
-    const pipelineJob = parseResult.data!.$defs['pipelineJob'];
-    expect(pipelineJob.oneOf).toBeDefined();
-    expect(pipelineJob.oneOf).toHaveLength(2);
-    const refs = (pipelineJob.oneOf as Array<{ $ref: string }>).map((o) => o.$ref);
-    expect(refs).toContain('#/$defs/pipelineJobAgentic');
-    expect(refs).toContain('#/$defs/pipelineJobFileByFile');
-  });
-
-  it('all $ref values within $defs point to existing definitions or valid paths', () => {
-    const refPattern = /^#\/\$defs\/(.+)$/;
-    for (const [defName, def] of Object.entries(parseResult.data!.$defs)) {
-      const checkRefs = (node: unknown, path: string) => {
-        if (node === null || typeof node !== 'object') return;
-        const obj = node as Record<string, unknown>;
-        if ('$ref' in obj && typeof obj.$ref === 'string') {
-          const match = obj.$ref.match(refPattern);
-          if (match) {
-            expect(parseResult.data!.$defs).toHaveProperty(
-              match[1],
-              // include path for easier debugging
-            );
-          }
-        }
-        for (const value of Object.values(obj)) {
-          checkRefs(value, `${path} > ${JSON.stringify(value)?.slice(0, 40)}`);
-        }
-      };
-      checkRefs(def, defName);
+  it('marks deprecated top-level fields', () => {
+    const properties = schema.properties as Record<string, Record<string, unknown>>;
+    const deprecatedFields = [
+      'paths',
+      'skipPatterns',
+      'includePatterns',
+      'maxFilesPerBatch',
+      'maxConcurrency',
+      'cacheEnabled',
+      'cacheTTL',
+      'outputFormat',
+      'outputPath',
+      'verbose',
+      'debug',
+      'maxFileSizeKB',
+      'maxTokensPerFile',
+      'maxReactSteps',
+    ];
+    for (const field of deprecatedFields) {
+      expect(properties[field]?.deprecated).toBe(true);
     }
   });
 
-  it('top-level properties that use $ref point to existing $defs', () => {
+  it('ai.reviewStage has required fields: provider, model, inputPerMillion, outputPerMillion', () => {
+    const aiProp = (schema.properties as any).ai;
+    const aiDef = resolveDef(aiProp);
+    const reviewStageRef = aiDef.properties?.reviewStage?.$ref;
+    expect(reviewStageRef).toBeDefined();
+
+    const defName = reviewStageRef.replace('#/$defs/', '');
+    const def = (schema.$defs as Record<string, any>)[defName];
+    expect(def).toBeDefined();
+    expect(def.required).toEqual(
+      expect.arrayContaining(['provider', 'model', 'inputPerMillion', 'outputPerMillion']),
+    );
+  });
+
+  it('review section requires pipeline', () => {
+    const reviewProp = (schema.properties as any).review;
+    const reviewDef = resolveDef(reviewProp);
+    expect(reviewDef.required).toContain('pipeline');
+  });
+
+  it('all $ref values point to existing $defs', () => {
+    const defs = schema.$defs as Record<string, unknown>;
     const refPattern = /^#\/\$defs\/(.+)$/;
-    for (const [_propName, propValue] of Object.entries(parseResult.data!.properties)) {
-      const prop = propValue as Record<string, unknown>;
-      if (typeof prop.$ref === 'string') {
-        const match = prop.$ref.match(refPattern);
+
+    const checkRefs = (node: unknown) => {
+      if (node === null || typeof node !== 'object') return;
+      const obj = node as Record<string, unknown>;
+      if ('$ref' in obj && typeof obj.$ref === 'string') {
+        const match = obj.$ref.match(refPattern);
         if (match) {
-          expect(parseResult.data!.$defs).toHaveProperty(match[1]);
+          expect(defs).toHaveProperty(match[1]);
         }
       }
-    }
+      for (const value of Object.values(obj)) {
+        checkRefs(value);
+      }
+    };
+
+    checkRefs(schema);
+  });
+
+  it('matches the Zod schema via round-trip generation', () => {
+    // Generate the JSON Schema from the same Zod source
+    const generated = z.toJSONSchema(qualopsConfigSchema, {
+      reused: 'ref',
+    }) as Record<string, unknown>;
+
+    // The file should match the generated output (excluding metadata fields we add)
+    expect(schema.type).toBe(generated.type);
+    expect(schema.required).toEqual(generated.required);
+    expect(schema.additionalProperties).toBe(generated.additionalProperties);
+    expect(Object.keys(schema.properties as object).sort()).toEqual(
+      Object.keys(generated.properties as object).sort(),
+    );
+  });
+
+  it('accepts the actual .qualopsrc.json config via Zod parse', () => {
+    const configPath = join(__dirname, '../../.qualops/.qualopsrc.json');
+    const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+    expect(() => qualopsConfigSchema.parse(config)).not.toThrow();
   });
 });

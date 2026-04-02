@@ -28,15 +28,22 @@ jest.mock('@/config/env', () => ({
 }));
 jest.mock('node:fs');
 jest.mock('@/shared/utils/logger');
+jest.mock('@/config/schema-validator', () => ({
+  validateConfig: jest.fn(() => ({ deprecations: [] })),
+}));
 
 const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
 const mockReadFileSync = readFileSync as jest.MockedFunction<typeof readFileSync>;
 
 import { CACHE_CONFIG, ConfigService, CRITICAL_STAGES, FILE_NAMES } from '@/config/config';
 import { envConfig } from '@/config/env';
+import { validateConfig } from '@/config/schema-validator';
 import type { Config } from '@/shared/types';
+import { logger } from '@/shared/utils/logger';
 
 const mockEnvConfig = envConfig as jest.Mocked<typeof envConfig>;
+const mockValidateConfig = validateConfig as jest.MockedFunction<typeof validateConfig>;
+const mockLogger = logger as jest.Mocked<typeof logger>;
 
 describe('ConfigService', () => {
   let originalCwd: string;
@@ -650,6 +657,78 @@ describe('ConfigService', () => {
     it('should export CACHE_CONFIG constant', () => {
       const { CACHE_CONFIG } = require('@/config/config');
       expect(CACHE_CONFIG.VERSION).toBe('1.0.0');
+    });
+  });
+
+  describe('schema validation integration', () => {
+    it('should call validateConfig when config file exists', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify({ ai: {}, review: {} }));
+
+      ConfigService.getInstance();
+      expect(mockValidateConfig).toHaveBeenCalledWith({ ai: {}, review: {} });
+    });
+
+    it('should skip validation when config file does not exist', () => {
+      mockExistsSync.mockReturnValue(false);
+      ConfigService.getInstance();
+      expect(mockValidateConfig).not.toHaveBeenCalled();
+    });
+
+    it('should skip validation when config is empty (invalid JSON fallback)', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue('invalid json');
+      ConfigService.getInstance();
+      expect(mockValidateConfig).not.toHaveBeenCalled();
+    });
+
+    it('should throw when validateConfig throws', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify({ bad: true }));
+      mockValidateConfig.mockImplementationOnce(() => {
+        throw new Error('Schema validation failed');
+      });
+      expect(() => ConfigService.getInstance()).toThrow('Schema validation failed');
+    });
+
+    it('should log warnings for deprecations', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify({ ai: {}, review: {} }));
+      mockValidateConfig.mockReturnValueOnce({
+        deprecations: [
+          { path: 'verbose', description: 'Legacy field.' },
+          { path: 'skipPatterns', description: 'Legacy field.' },
+        ],
+      });
+
+      ConfigService.getInstance();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        '[CONFIG] Deprecated field "verbose": Legacy field.',
+      );
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        '[CONFIG] Deprecated field "skipPatterns": Legacy field.',
+      );
+    });
+
+    it('should not log warnings when there are no deprecations', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify({ ai: {}, review: {} }));
+      mockValidateConfig.mockReturnValueOnce({ deprecations: [] });
+
+      ConfigService.getInstance();
+      expect(mockValidateConfig).toHaveBeenCalledWith({ ai: {}, review: {} });
+      expect(mockLogger.warn).not.toHaveBeenCalled();
+    });
+
+    it('should validate on reset', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify({ ai: {}, review: {} }));
+
+      const instance = ConfigService.getInstance();
+      mockValidateConfig.mockClear();
+
+      instance.reset();
+      expect(mockValidateConfig).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -5,7 +5,10 @@
   "description": "Schema for QualOps project configuration.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["ai", "review"],
+  "required": [
+    "ai",
+    "review"
+  ],
   "properties": {
     "$schema": {
       "description": "Optional JSON Schema reference for editor/validator tooling.",
@@ -13,27 +16,9 @@
       "format": "uri-reference"
     },
     "ai": {
-      "description": "AI provider and model settings for each stage.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["reviewStage"],
-      "properties": {
-        "reviewStage": {
-          "description": "Settings for the review stage runtime. Although stages can be skipped, a previous review is always required for a fix stage, therefore this setting is required.",
-          "$ref": "#/$defs/aiStageConfig"
-        },
-        "fixStage": {
-          "description": "Settings for the fix stage runtime.",
-          "$ref": "#/$defs/aiStageConfig"
-        },
-        "judgeStage": {
-          "description": "Planned settings (currently unused) for configuring the judge stage (not yet implemented).",
-          "$ref": "#/$defs/aiStageConfig"
-        }
-      }
+      "$ref": "#/$defs/aiConfig"
     },
     "review": {
-      "description": "Review pipeline configuration. Must include at least one pipeline job.",
       "$ref": "#/$defs/reviewConfig"
     },
     "performance": {
@@ -69,7 +54,13 @@
       "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
       "$ref": "#/$defs/nonEmptyStringArray",
-      "default": ["node_modules/**", ".git/**", "dist/**", "build/**", "coverage/**"]
+      "default": [
+        "node_modules/**",
+        ".git/**",
+        "dist/**",
+        "build/**",
+        "coverage/**"
+      ]
     },
     "includePatterns": {
       "description": "Legacy compatibility field. Values from config files are currently ignored.",
@@ -106,15 +97,13 @@
     "outputFormat": {
       "description": "Legacy compatibility field. Values from config files are currently ignored.",
       "deprecated": true,
-      "type": "string",
-      "enum": ["json", "html", "markdown"],
+      "$ref": "#/$defs/outputFormat",
       "default": "html"
     },
     "outputPath": {
       "description": "Legacy top-level override currently unused by runtime stage implementations.",
       "deprecated": true,
-      "type": "string",
-      "minLength": 1
+      "$ref": "#/$defs/nonEmptyString"
     },
     "verbose": {
       "description": "Legacy compatibility field. Values from config files are currently ignored (environment variables still apply).",
@@ -151,344 +140,60 @@
     }
   },
   "$defs": {
-    "nonEmptyString": {
-      "type": "string",
-      "minLength": 1
-    },
-    "nonEmptyStringArray": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/nonEmptyString" }
-    },
-    "confidenceScore": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 10
-    },
-    "severityList": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/severity" },
-      "minItems": 1,
-      "uniqueItems": true
-    },
-    "severity": {
-      "description": "Standard issue severity levels used across review, fix, and reporting.",
-      "type": "string",
-      "enum": ["critical", "high", "medium", "low"]
-    },
-    "issueType": {
-      "description": "Canonical issue categories emitted by review stages.",
-      "type": "string",
-      "enum": ["bug", "security", "performance", "maintainability"]
-    },
-    "aiProvider": {
-      "description": "Supported AI provider names.",
-      "type": "string",
-      "enum": ["anthropic", "openai", "bedrock"]
-    },
-    "aiStageConfig": {
-      "description": "AI configuration for a specific stage.",
-      "type": "object",
-      "additionalProperties": true,
-      "required": ["provider", "model", "inputPerMillion", "outputPerMillion"],
-      "properties": {
-        "provider": {
-          "description": "AI provider for this stage.",
-          "$ref": "#/$defs/aiProvider"
-        },
-        "model": {
-          "description": "Model name passed to the selected provider.",
-          "type": "string",
-          "minLength": 1
-        },
-        "inputPerMillion": {
-          "description": "Estimated input token cost per million tokens.",
-          "type": "number",
-          "minimum": 0
-        },
-        "outputPerMillion": {
-          "description": "Estimated output token cost per million tokens.",
-          "type": "number",
-          "minimum": 0
-        },
-        "temperature": {
-          "description": "Sampling temperature used by compatible providers.",
-          "type": "number",
-          "minimum": 0
-        },
-        "maxTokens": {
-          "description": "Optional model output token cap.",
-          "type": "integer",
-          "minimum": 1
-        }
-      }
-    },
-    "promptConfig": {
-      "description": "Prompt reference object with optional metadata.",
+    "aiConfig": {
+      "description": "AI provider and model settings for each stage.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["file"],
+      "required": [
+        "reviewStage"
+      ],
       "properties": {
-        "file": {
-          "description": "Prompt file path relative to .qualops/prompts.",
-          "type": "string",
-          "minLength": 1
+        "reviewStage": {
+          "description": "Settings for the review stage runtime. Although stages can be skipped, a previous review is always required for a fix stage, therefore this setting is required.",
+          "$ref": "#/$defs/aiStageConfig"
         },
-        "meta": {
-          "description": "Optional metadata that can be used by prompt templates.",
-          "type": "object",
-          "additionalProperties": true
+        "fixStage": {
+          "description": "Settings for the fix stage runtime.",
+          "$ref": "#/$defs/aiStageConfig"
+        },
+        "judgeStage": {
+          "description": "Planned settings (currently unused) for configuring the judge stage (not yet implemented).",
+          "$ref": "#/$defs/aiStageConfig"
         }
       }
-    },
-    "promptRef": {
-      "description": "Prompt reference as a relative path string or { file, meta } object.",
-      "anyOf": [{ "type": "string", "minLength": 1 }, { "$ref": "#/$defs/promptConfig" }]
-    },
-    "validationConfig": {
-      "description": "Validation stage settings used to filter/adjust detected issues.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "enabled": {
-          "description": "Enable validation pass for this scope.",
-          "type": "boolean"
-        },
-        "minConfidence": {
-          "description": "Minimum confidence required before/after validation.",
-          "$ref": "#/$defs/confidenceScore"
-        },
-        "prompt": {
-          "description": "Prompt used for AI-assisted validation.",
-          "$ref": "#/$defs/promptRef"
-        }
-      }
-    },
-    "deduplicationConfig": {
-      "description": "Deduplication settings used to remove repeated issues per file.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "enabled": {
-          "description": "Enable deduplication for this scope.",
-          "type": "boolean"
-        },
-        "prompt": {
-          "description": "Prompt used for AI-assisted deduplication.",
-          "$ref": "#/$defs/promptRef"
-        }
-      }
-    },
-    "reviewPassFilters": {
-      "description": "File/content filters used to decide whether a pass should review a file.",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "detectionTriggers": {
-          "description": "Regex patterns tested against file content; at least one match is required.",
-          "$ref": "#/$defs/nonEmptyStringArray"
-        },
-        "filePatterns": {
-          "description": "Glob patterns a file path must match to be reviewed.",
-          "$ref": "#/$defs/nonEmptyStringArray"
-        },
-        "excludePatterns": {
-          "description": "Glob patterns that exclude matching files from the pass.",
-          "$ref": "#/$defs/nonEmptyStringArray"
-        }
-      }
-    },
-    "reviewPass": {
-      "description": "Single review pass executed within a file-by-file pipeline job.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "enabled", "prompt"],
-      "properties": {
-        "name": {
-          "description": "Display name for logging and report grouping.",
-          "type": "string",
-          "minLength": 1
-        },
-        "enabled": {
-          "description": "Set false to disable this pass without removing it.",
-          "type": "boolean"
-        },
-        "docs": {
-          "description": "Optional docs reference used to build doc-aware review prompts.",
-          "type": "string",
-          "minLength": 1
-        },
-        "prompt": {
-          "description": "Prompt reference used by this review pass.",
-          "$ref": "#/$defs/promptRef"
-        },
-        "filters": {
-          "description": "Optional filters to limit this pass to relevant files/content.",
-          "$ref": "#/$defs/reviewPassFilters"
-        }
-      }
-    },
-    "agenticSubagentType": {
-      "description": "Built-in subagent identifiers supported in agentic mode.",
-      "type": "string",
-      "enum": [
-        "dependency-tracer",
-        "breaking-change-detector",
-        "security-analyzer",
-        "pattern-validator"
-      ]
-    },
-    "customAgentDefinition": {
-      "description": "Custom subagent definition merged with built-in agentic subagents.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "description", "prompt"],
-      "properties": {
-        "name": {
-          "description": "Unique custom agent name.",
-          "type": "string",
-          "minLength": 1
-        },
-        "description": {
-          "description": "Human-readable purpose of the custom agent.",
-          "type": "string",
-          "minLength": 1
-        },
-        "prompt": {
-          "description": "System instructions for the custom agent.",
-          "type": "string",
-          "minLength": 1
-        },
-        "tools": {
-          "description": "Allowed tool names for the custom agent.",
-          "$ref": "#/$defs/nonEmptyStringArray"
-        },
-        "model": {
-          "description": "Optional model tier override for this custom agent.",
-          "type": "string",
-          "enum": ["sonnet", "opus", "haiku"]
-        }
-      }
-    },
-    "agenticConfig": {
-      "description": "Settings for agentic review execution (cross-file analysis with tools/subagents).",
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "maxTurns": {
-          "description": "Maximum message/tool-call turns for the agentic run.",
-          "type": "integer",
-          "minimum": 1
-        },
-        "maxBudgetUsd": {
-          "description": "Optional budget guardrail for agentic execution.",
-          "type": "number",
-          "minimum": 0
-        },
-        "enabledSubagents": {
-          "description": "Subset of built-in subagents to enable.",
-          "type": "array",
-          "items": { "$ref": "#/$defs/agenticSubagentType" }
-        },
-        "customAgents": {
-          "description": "Custom agents loaded from config and optional agents directory.",
-          "type": "array",
-          "items": { "$ref": "#/$defs/customAgentDefinition" }
-        },
-        "agentsDir": {
-          "description": "Directory containing external custom agent files.",
-          "type": "string",
-          "minLength": 1
-        },
-        "systemPrompt": {
-          "description": "Additional system instructions appended to the default agentic prompt.",
-          "type": "string"
-        },
-        "contextMode": {
-          "description": "How file context is sent: diff, full file content, or auto mode.",
-          "type": "string",
-          "enum": ["diff", "full", "auto"]
-        },
-        "maxTokensPerFile": {
-          "description": "Per-file token budget when building agentic context.",
-          "type": "integer",
-          "minimum": 1
-        },
-        "maxTotalTokens": {
-          "description": "Total token budget for all file contexts in one agentic run.",
-          "type": "integer",
-          "minimum": 1
-        }
-      }
-    },
-    "pipelineJobFileByFile": {
-      "description": "Pipeline job in file-by-file mode. Requires at least one pass.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "enabled", "passes"],
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "enabled": {
-          "type": "boolean"
-        },
-        "mode": {
-          "type": "string",
-          "enum": ["file-by-file"]
-        },
-        "agentic": { "$ref": "#/$defs/agenticConfig" },
-        "validation": { "$ref": "#/$defs/validationConfig" },
-        "deduplication": { "$ref": "#/$defs/deduplicationConfig" },
-        "passes": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/reviewPass" }
-        }
-      }
-    },
-    "pipelineJobAgentic": {
-      "description": "Pipeline job in agentic mode. Passes are optional in this mode.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["name", "enabled", "mode"],
-      "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "enabled": {
-          "type": "boolean"
-        },
-        "mode": {
-          "type": "string",
-          "enum": ["agentic"]
-        },
-        "agentic": { "$ref": "#/$defs/agenticConfig" },
-        "validation": { "$ref": "#/$defs/validationConfig" },
-        "deduplication": { "$ref": "#/$defs/deduplicationConfig" },
-        "passes": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/reviewPass" }
-        }
-      }
-    },
-    "pipelineJob": {
-      "description": "Union type for supported pipeline job modes.",
-      "oneOf": [
-        { "$ref": "#/$defs/pipelineJobAgentic" },
-        { "$ref": "#/$defs/pipelineJobFileByFile" }
-      ]
     },
     "reviewConfig": {
-      "description": "Top-level review stage configuration and job pipeline.",
+      "description": "Review pipeline configuration. Must include at least one pipeline job.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["pipeline"],
+      "required": [
+        "pipeline"
+      ],
       "properties": {
         "minConfidence": {
           "description": "Base confidence threshold used by review and template rendering contexts.",
           "$ref": "#/$defs/confidenceScore"
+        },
+        "maxConcurrentFiles": {
+          "description": "Concurrent file reviews for file-by-file pass execution.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "validation": {
+          "description": "Global validation settings applied to all pipeline jobs.",
+          "$ref": "#/$defs/validationConfig"
+        },
+        "deduplication": {
+          "description": "Global deduplication settings applied to all pipeline jobs.",
+          "$ref": "#/$defs/deduplicationConfig"
+        },
+        "pipeline": {
+          "description": "Ordered list of review jobs to execute.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/pipelineJob"
+          }
         },
         "sessionBased": {
           "description": "Legacy compatibility setting currently ignored by the active review pipeline.",
@@ -516,42 +221,388 @@
           "description": "Legacy compatibility alias for review.deduplication.enabled.",
           "deprecated": true,
           "type": "boolean"
-        },
-        "maxConcurrentFiles": {
-          "description": "Concurrent file reviews for file-by-file pass execution.",
-          "type": "integer",
-          "minimum": 1
-        },
-        "validation": { "$ref": "#/$defs/validationConfig" },
-        "deduplication": { "$ref": "#/$defs/deduplicationConfig" },
-        "pipeline": {
-          "description": "Ordered list of review jobs to execute.",
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/pipelineJob" }
         }
       }
     },
-    "throttlingConfig": {
-      "description": "API rate-limit settings for review-time AI calls.",
+    "aiProvider": {
+      "description": "Supported AI provider names.",
+      "type": "string",
+      "enum": [
+        "anthropic",
+        "openai",
+        "bedrock",
+        "github"
+      ]
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "aiStageConfig": {
+      "description": "AI configuration for a specific stage.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "provider",
+        "model",
+        "inputPerMillion",
+        "outputPerMillion"
+      ],
+      "properties": {
+        "provider": {
+          "$ref": "#/$defs/aiProvider"
+        },
+        "model": {
+          "description": "Model name passed to the selected provider.",
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "inputPerMillion": {
+          "description": "Estimated input token cost per million tokens.",
+          "type": "number",
+          "minimum": 0
+        },
+        "outputPerMillion": {
+          "description": "Estimated output token cost per million tokens.",
+          "type": "number",
+          "minimum": 0
+        },
+        "temperature": {
+          "description": "Sampling temperature used by compatible providers.",
+          "type": "number",
+          "minimum": 0
+        },
+        "maxTokens": {
+          "description": "Optional model output token cap.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "confidenceScore": {
+      "description": "Integer confidence score from 1 (lowest) to 10 (highest).",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "validationConfig": {
+      "description": "Validation stage settings used to filter/adjust detected issues.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "enabled": {
-          "description": "Legacy compatibility field currently ignored.",
-          "deprecated": true,
+          "description": "Enable validation pass for this scope.",
           "type": "boolean"
         },
-        "apiCallsPerMinute": {
-          "description": "Maximum review-time AI calls per minute. If omitted, runtime defaults to 2.",
+        "minConfidence": {
+          "description": "Minimum confidence required before/after validation.",
+          "$ref": "#/$defs/confidenceScore"
+        },
+        "prompt": {
+          "description": "Prompt used for AI-assisted validation.",
+          "$ref": "#/$defs/promptRef"
+        }
+      }
+    },
+    "promptRef": {
+      "description": "Prompt reference as a relative path string or { file, meta } object.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        {
+          "$ref": "#/$defs/promptConfig"
+        }
+      ]
+    },
+    "promptConfig": {
+      "description": "Prompt reference object with optional metadata.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "description": "Prompt file path relative to .qualops/prompts.",
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "meta": {
+          "description": "Optional metadata that can be used by prompt templates.",
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "deduplicationConfig": {
+      "description": "Deduplication settings used to remove repeated issues per file.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "description": "Enable deduplication for this scope.",
+          "type": "boolean"
+        },
+        "prompt": {
+          "description": "Prompt used for AI-assisted deduplication.",
+          "$ref": "#/$defs/promptRef"
+        }
+      }
+    },
+    "pipelineJob": {
+      "description": "Union type for supported pipeline job modes.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/pipelineJobAgentic"
+        },
+        {
+          "$ref": "#/$defs/pipelineJobFileByFile"
+        }
+      ]
+    },
+    "pipelineJobAgentic": {
+      "description": "Pipeline job in agentic mode. Passes are optional in this mode.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "enabled",
+        "mode"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "agentic": {
+          "$ref": "#/$defs/agenticConfig"
+        },
+        "validation": {
+          "$ref": "#/$defs/validationConfig"
+        },
+        "deduplication": {
+          "$ref": "#/$defs/deduplicationConfig"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "agentic"
+          ]
+        },
+        "passes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reviewPass"
+          }
+        }
+      }
+    },
+    "agenticConfig": {
+      "description": "Settings for agentic review execution (cross-file analysis with tools/subagents).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxTurns": {
+          "description": "Maximum message/tool-call turns for the agentic run.",
           "type": "integer",
           "minimum": 1
         },
-        "maxRequestsPerMinute": {
-          "description": "Legacy compatibility alias currently ignored at runtime.",
-          "deprecated": true,
+        "maxBudgetUsd": {
+          "description": "Optional budget guardrail for agentic execution.",
+          "type": "number",
+          "minimum": 0
+        },
+        "enabledSubagents": {
+          "description": "Subset of built-in subagents to enable.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/agenticSubagentType"
+          }
+        },
+        "customAgents": {
+          "description": "Custom agents loaded from config and optional agents directory.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/customAgentDefinition"
+          }
+        },
+        "agentsDir": {
+          "description": "Directory containing external custom agent files.",
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "systemPrompt": {
+          "description": "Additional system instructions appended to the default agentic prompt.",
+          "type": "string"
+        },
+        "contextMode": {
+          "$ref": "#/$defs/contextMode"
+        },
+        "maxTokensPerFile": {
+          "description": "Per-file token budget when building agentic context.",
           "type": "integer",
           "minimum": 1
+        },
+        "maxTotalTokens": {
+          "description": "Total token budget for all file contexts in one agentic run.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "agenticSubagentType": {
+      "description": "Built-in subagent identifiers supported in agentic mode.",
+      "type": "string",
+      "enum": [
+        "dependency-tracer",
+        "breaking-change-detector",
+        "security-analyzer",
+        "pattern-validator"
+      ]
+    },
+    "customAgentDefinition": {
+      "description": "Custom subagent definition merged with built-in agentic subagents.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "description",
+        "prompt"
+      ],
+      "properties": {
+        "description": {
+          "description": "Human-readable purpose of the custom agent.",
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "name": {
+          "description": "Unique custom agent name.",
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "prompt": {
+          "description": "System instructions for the custom agent.",
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "tools": {
+          "description": "Allowed tool names for the custom agent.",
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "model": {
+          "$ref": "#/$defs/agentModel"
+        }
+      }
+    },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nonEmptyString"
+      }
+    },
+    "agentModel": {
+      "description": "Optional model tier override for this custom agent.",
+      "type": "string",
+      "enum": [
+        "sonnet",
+        "opus",
+        "haiku"
+      ]
+    },
+    "contextMode": {
+      "description": "How file context is sent: diff, full file content, or auto mode.",
+      "type": "string",
+      "enum": [
+        "diff",
+        "full",
+        "auto"
+      ]
+    },
+    "reviewPass": {
+      "description": "Single review pass executed within a file-by-file pipeline job.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "enabled",
+        "prompt"
+      ],
+      "properties": {
+        "name": {
+          "description": "Display name for logging and report grouping.",
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "enabled": {
+          "description": "Set false to disable this pass without removing it.",
+          "type": "boolean"
+        },
+        "docs": {
+          "description": "Optional docs reference used to build doc-aware review prompts.",
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "prompt": {
+          "description": "Prompt reference used by this review pass.",
+          "$ref": "#/$defs/promptRef"
+        },
+        "filters": {
+          "description": "Optional filters to limit this pass to relevant files/content.",
+          "$ref": "#/$defs/reviewPassFilters"
+        }
+      }
+    },
+    "reviewPassFilters": {
+      "description": "File/content filters used to decide whether a pass should review a file.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "detectionTriggers": {
+          "description": "Regex patterns tested against file content; at least one match is required.",
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "filePatterns": {
+          "description": "Glob patterns a file path must match to be reviewed.",
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "excludePatterns": {
+          "description": "Glob patterns that exclude matching files from the pass.",
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      }
+    },
+    "pipelineJobFileByFile": {
+      "description": "Pipeline job in file-by-file mode. Requires at least one pass.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "enabled",
+        "passes"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "agentic": {
+          "$ref": "#/$defs/agenticConfig"
+        },
+        "validation": {
+          "$ref": "#/$defs/validationConfig"
+        },
+        "deduplication": {
+          "$ref": "#/$defs/deduplicationConfig"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "file-by-file"
+          ]
+        },
+        "passes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/reviewPass"
+          }
         }
       }
     },
@@ -560,6 +611,9 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "throttling": {
+          "$ref": "#/$defs/throttlingConfig"
+        },
         "maxFileSizeKB": {
           "description": "Legacy compatibility field currently not applied by active stages.",
           "deprecated": true,
@@ -601,9 +655,29 @@
           "deprecated": true,
           "type": "integer",
           "minimum": 1
+        }
+      }
+    },
+    "throttlingConfig": {
+      "description": "API rate-limit settings for review-time AI calls.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "apiCallsPerMinute": {
+          "description": "Maximum review-time AI calls per minute. If omitted, runtime defaults to 2.",
+          "type": "integer",
+          "minimum": 1
         },
-        "throttling": {
-          "$ref": "#/$defs/throttlingConfig"
+        "enabled": {
+          "description": "Legacy compatibility field currently ignored.",
+          "deprecated": true,
+          "type": "boolean"
+        },
+        "maxRequestsPerMinute": {
+          "description": "Legacy compatibility alias currently ignored at runtime.",
+          "deprecated": true,
+          "type": "integer",
+          "minimum": 1
         }
       }
     },
@@ -612,6 +686,11 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "maxConcurrentFixes": {
+          "description": "Maximum number of fixes generated concurrently.",
+          "type": "integer",
+          "minimum": 1
+        },
         "enabled": {
           "description": "Enable fix stage behaviours.",
           "deprecated": true,
@@ -620,8 +699,7 @@
         "prompt": {
           "description": "Optional fix prompt override used by fix generation workflows.",
           "deprecated": true,
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/nonEmptyString"
         },
         "severities": {
           "description": "Severities eligible for fix generation.",
@@ -633,11 +711,6 @@
           "deprecated": true,
           "$ref": "#/$defs/confidenceScore"
         },
-        "maxConcurrentFixes": {
-          "description": "Maximum number of fixes generated concurrently.",
-          "type": "integer",
-          "minimum": 1
-        },
         "autoApply": {
           "description": "If true, enables automatic application of generated fixes when requested by stage options.",
           "deprecated": true,
@@ -645,17 +718,30 @@
         }
       }
     },
+    "severityList": {
+      "description": "Non-empty array of severity levels.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/severity"
+      }
+    },
+    "severity": {
+      "description": "Standard issue severity levels used across review, fix, and reporting.",
+      "type": "string",
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "low"
+      ]
+    },
     "reportConfig": {
       "description": "Report rendering and severity filtering settings used by report and CI outputs.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "outputFormat": {
-          "description": "Preferred report format.",
-          "deprecated": true,
-          "type": "string",
-          "enum": ["json", "html", "markdown"]
-        },
         "includedSeverities": {
           "description": "Only issues with these severities are included in report outputs.",
           "$ref": "#/$defs/severityList"
@@ -667,19 +753,28 @@
         "enableRootCauseExtraction": {
           "description": "Enable post-processing that classifies issues into root-cause buckets.",
           "type": "boolean"
+        },
+        "outputFormat": {
+          "description": "Preferred report format.",
+          "deprecated": true,
+          "$ref": "#/$defs/outputFormat"
         }
       }
+    },
+    "outputFormat": {
+      "description": "Output format for reports and generated files.",
+      "type": "string",
+      "enum": [
+        "json",
+        "html",
+        "markdown"
+      ]
     },
     "githubConfig": {
       "description": "GitHub pull request integration settings.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled": {
-          "description": "Enable GitHub integration behaviour.",
-          "deprecated": true,
-          "type": "boolean"
-        },
         "postComments": {
           "description": "Post or update a QualOps PR comment.",
           "type": "boolean"
@@ -696,6 +791,11 @@
           "description": "Maximum number of inline annotations/comments created per run.",
           "type": "integer",
           "minimum": 1
+        },
+        "enabled": {
+          "description": "Enable GitHub integration behaviour.",
+          "deprecated": true,
+          "type": "boolean"
         }
       }
     },
@@ -704,6 +804,10 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "blockPipeline": {
+          "description": "Fail CI pipeline when configured quality conditions are not met.",
+          "type": "boolean"
+        },
         "enabled": {
           "description": "Enable GitLab integration behaviour.",
           "deprecated": true,
@@ -718,10 +822,6 @@
           "description": "Skip MR updates for draft merge requests when supported.",
           "deprecated": true,
           "type": "boolean"
-        },
-        "blockPipeline": {
-          "description": "Fail CI pipeline when configured quality conditions are not met.",
-          "type": "boolean"
         }
       }
     },
@@ -732,18 +832,15 @@
       "properties": {
         "sessionsDir": {
           "description": "Custom sessions directory path.",
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/nonEmptyString"
         },
         "cacheDir": {
           "description": "Custom cache directory path.",
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/nonEmptyString"
         },
         "outputDir": {
           "description": "Custom output directory path.",
-          "type": "string",
-          "minLength": 1
+          "$ref": "#/$defs/nonEmptyString"
         }
       }
     },
@@ -753,9 +850,7 @@
       "additionalProperties": false,
       "properties": {
         "level": {
-          "description": "Minimum log level to emit.",
-          "type": "string",
-          "enum": ["debug", "info", "warn", "error"]
+          "$ref": "#/$defs/logLevel"
         },
         "enableColors": {
           "description": "Enable ANSI colorized logs.",
@@ -770,6 +865,16 @@
           "type": "string"
         }
       }
+    },
+    "logLevel": {
+      "description": "Minimum log level to emit.",
+      "type": "string",
+      "enum": [
+        "debug",
+        "info",
+        "warn",
+        "error"
+      ]
     }
   }
 }

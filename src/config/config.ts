@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { envConfig } from './env';
+import { validateConfig } from './schema-validator';
 import type { AIStageConfig, Config } from '../shared/types';
 import { logger } from '../shared/utils/logger';
 
@@ -44,6 +45,7 @@ export class ConfigService {
 
   private constructor() {
     this.rawConfig = this.loadRawConfig();
+    this.validateAgainstSchema();
     this.config = this.loadConfig();
   }
 
@@ -76,6 +78,16 @@ export class ConfigService {
         `Failed to parse ${rcPath}: ${error instanceof Error ? error.message : String(error)}`,
       );
       return {};
+    }
+  }
+
+  private validateAgainstSchema(): void {
+    if (Object.keys(this.rawConfig).length === 0) return;
+
+    const result = validateConfig(this.rawConfig);
+
+    for (const dep of result.deprecations) {
+      logger.warn(`[CONFIG] Deprecated field "${dep.path}": ${dep.description}`);
     }
   }
 
@@ -137,6 +149,7 @@ export class ConfigService {
 
   reset(): void {
     this.rawConfig = this.loadRawConfig();
+    this.validateAgainstSchema();
     this.config = this.loadConfig();
   }
 
