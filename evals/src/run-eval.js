@@ -211,6 +211,39 @@ async function _runEvalItem(langfuse, item, itemIndex, total, datasetName) {
       });
     }
 
+    // Extract per-golden details from crb_recall metadata
+    const recallScore = scores.find((s) => s.name === 'crb_recall');
+    const goldenDetails = recallScore?.metadata?.goldenDetails || null;
+
+    if (goldenDetails) {
+      // Submit per-golden Langfuse scores
+      for (const gd of goldenDetails) {
+        langfuse.score({
+          traceId: trace.id,
+          observationId: generation.id,
+          name: `${caseId}:golden-${gd.goldenIndex}`,
+          value: gd.matched ? 1 : 0,
+          comment: `${gd.description}${gd.confidence ? ` (conf=${gd.confidence.toFixed(2)})` : ''}`,
+          dataType: 'NUMERIC',
+        });
+      }
+      // Store goldenDetails on trace metadata
+      trace.update({
+        metadata: {
+          dataset: datasetName,
+          experiment: config.experimentName,
+          model: config.model,
+          mode: config.mode,
+          provider: config.provider,
+          caseId,
+          source: itemInput.source,
+          filePath: itemInput.filePath,
+          language: itemInput.language,
+          goldenDetails,
+        },
+      });
+    }
+
     const scoreMap = Object.fromEntries(scores.map((s) => [s.name, s.value]));
     const summary = scores.map((s) => `${s.name}=${s.value.toFixed(3)}`).join(' ');
     console.log(`  [${itemIndex + 1}/${total}] ${caseId} issues=${issues.length} ${summary}`);
@@ -224,6 +257,7 @@ async function _runEvalItem(langfuse, item, itemIndex, total, datasetName) {
       issueCount: issues.length,
       durationMs,
       scores: scoreMap,
+      goldenDetails,
     });
   }
 

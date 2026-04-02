@@ -48,11 +48,33 @@ async function judgeOnePair(goldenComment, candidate) {
   return parsePairwiseResult(text);
 }
 
+function truncate(str, len = 120) {
+  if (!str || str.length <= len) return str || '';
+  return str.slice(0, len - 1) + '…';
+}
+
+function buildCrbGoldenCommentDetails(referenceExpected, goldenMatched) {
+  return referenceExpected.map((entry, idx) => {
+    const desc = entry.description || '';
+    const match = goldenMatched ? goldenMatched.get(desc) : null;
+    return {
+      goldenIndex: idx,
+      description: truncate(desc),
+      type: entry.type || null,
+      severity: entry.severity || null,
+      matched: match ? match.matched : false,
+      confidence: match ? match.confidence : 0,
+      matchedCandidate: match && match.candidate ? truncate(match.candidate) : null,
+    };
+  });
+}
+
 async function scoreCrb(issues, referenceExpected) {
   if (!hasJudgeKeys()) {
+    const goldenDetails = buildCrbGoldenCommentDetails(referenceExpected, null);
     return [
       { name: 'crb_precision', value: 0, comment: 'CRB_SKIP: No judge API keys configured' },
-      { name: 'crb_recall', value: 0, comment: 'CRB_SKIP: No judge API keys configured' },
+      { name: 'crb_recall', value: 0, comment: 'CRB_SKIP: No judge API keys configured', metadata: { goldenDetails } },
       { name: 'crb_f1', value: 0, comment: 'CRB_SKIP: No judge API keys configured' },
     ];
   }
@@ -61,9 +83,10 @@ async function scoreCrb(issues, referenceExpected) {
   const candidates = issues.map((i) => i.description || i.summary || '').filter(Boolean);
 
   if (candidates.length === 0) {
+    const goldenDetails = buildCrbGoldenCommentDetails(referenceExpected, null);
     return [
       { name: 'crb_precision', value: 0, comment: 'CRB: precision=0.000 (no candidates)' },
-      { name: 'crb_recall', value: 0, comment: 'CRB: recall=0.000 tp=0/' + goldenComments.length },
+      { name: 'crb_recall', value: 0, comment: 'CRB: recall=0.000 tp=0/' + goldenComments.length, metadata: { goldenDetails } },
       { name: 'crb_f1', value: 0, comment: 'CRB: f1=0.000' },
     ];
   }
@@ -71,12 +94,11 @@ async function scoreCrb(issues, referenceExpected) {
   if (goldenComments.length === 0) {
     return [
       { name: 'crb_precision', value: null, comment: 'CRB: skipped (no golden comments)' },
-      { name: 'crb_recall', value: null, comment: 'CRB: skipped (no golden comments)' },
+      { name: 'crb_recall', value: null, comment: 'CRB: skipped (no golden comments)', metadata: { goldenDetails: [] } },
       { name: 'crb_f1', value: null, comment: 'CRB: skipped (no golden comments)' },
     ];
   }
 
-  // Run pairwise judge for every (golden, candidate) combination
   const pairs = [];
   for (const golden of goldenComments) {
     for (const candidate of candidates) {
@@ -94,7 +116,6 @@ async function scoreCrb(issues, referenceExpected) {
     }),
   );
 
-  // For each golden: find best-confidence matching candidate
   const goldenMatched = new Map();
   for (const g of goldenComments) {
     goldenMatched.set(g, { matched: false, candidate: null, confidence: 0 });
@@ -122,11 +143,13 @@ async function scoreCrb(issues, referenceExpected) {
   const recall = tp / (tp + fn) || 0;
   const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
 
+  const goldenDetails = buildCrbGoldenCommentDetails(referenceExpected, goldenMatched);
+
   return [
     { name: 'crb_precision', value: precision, comment: `CRB: precision=${precision.toFixed(3)} tp=${tp} fp=${fp}` },
-    { name: 'crb_recall', value: recall, comment: `CRB: recall=${recall.toFixed(3)} tp=${tp} fn=${fn}` },
+    { name: 'crb_recall', value: recall, comment: `CRB: recall=${recall.toFixed(3)} tp=${tp} fn=${fn}`, metadata: { goldenDetails } },
     { name: 'crb_f1', value: f1, comment: `CRB: f1=${f1.toFixed(3)} precision=${precision.toFixed(3)} recall=${recall.toFixed(3)}` },
   ];
 }
 
-module.exports = { scoreCrb, buildPairwiseJudgePrompt, parsePairwiseResult };
+module.exports = { scoreCrb, buildCrbGoldenCommentDetails, buildPairwiseJudgePrompt, parsePairwiseResult };
