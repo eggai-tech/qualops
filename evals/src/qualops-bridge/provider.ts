@@ -17,7 +17,7 @@ import type { FileInfo, PipelineJob } from '@/shared/types/config';
 
 import type { EvalCase, EvalConfig, DetectedIssue, ReviewResult } from './types.js';
 
-const QUALOPS_ROOT = join(__dirname, '../..');
+const QUALOPS_ROOT = join(__dirname, '../../..');
 
 // Allowed base directories for agentic cwd. config.cwd must resolve to one of these prefixes.
 const ALLOWED_CWD_PREFIXES = [QUALOPS_ROOT];

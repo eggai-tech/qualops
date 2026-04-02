@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
 - Add JSON Schema for QualOps configuration file with comprehensive integration tests
+- Report on eval flakiness for Code Review Benchmark `npm run eval:recall-report` with filtering options `-- --severity=critical`
 
 ### Changed
 - AI provider types/factory now include `github` and use stricter provider typing

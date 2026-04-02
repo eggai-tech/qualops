@@ -73,7 +73,8 @@
     "eval:fetch:crb": "node evals/scripts/fetch-crb-dataset.js",
     "eval:upload:all": "node evals/src/upload-datasets.js --source=all",
     "eval:upload:qualops": "node evals/src/upload-datasets.js --source=qualops",
-    "eval:upload:crb:all": "node evals/src/upload-datasets.js --source=crb"
+    "eval:upload:crb:all": "node evals/src/upload-datasets.js --source=crb",
+    "eval:recall-report": "node evals/src/recall-report.js"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.75",
