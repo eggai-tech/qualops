@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { envConfig } from './env';
-import { validateConfig } from './schema-validator';
+import { assertValidConfig, collectConfigWarnings } from './schema-validator';
 import type { AIStageConfig, Config } from '../shared/types';
 import { logger } from '../shared/utils/logger';
 
@@ -84,10 +84,21 @@ export class ConfigService {
   private validateAgainstSchema(): void {
     if (Object.keys(this.rawConfig).length === 0) return;
 
-    const result = validateConfig(this.rawConfig);
+    // Throws ConfigValidationError on schema violations. The CLI's
+    // top-level error handler is responsible for catching it, formatting
+    // for the user, and exiting — this service should never call
+    // process.exit itself.
+    assertValidConfig(this.rawConfig);
 
-    for (const dep of result.deprecations) {
+    const warnings = collectConfigWarnings(this.rawConfig);
+    for (const dep of warnings.deprecations) {
       logger.warn(`[CONFIG] Deprecated field "${dep.path}": ${dep.description}`);
+    }
+    for (const unknown of warnings.unknownFields) {
+      logger.warn(
+        `[CONFIG] Unknown field "${unknown.field}" at ${unknown.path} — ignored. ` +
+          `If this is a provider-specific option it will still be passed through; otherwise check for a typo.`,
+      );
     }
   }
 

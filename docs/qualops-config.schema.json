@@ -276,7 +276,8 @@
           "type": "integer",
           "minimum": 1
         }
-      }
+      },
+      "passthrough": true
     },
     "confidenceScore": {
       "description": "Integer confidence score from 1 (lowest) to 10 (highest).",

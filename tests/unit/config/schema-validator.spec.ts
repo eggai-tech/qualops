@@ -1,6 +1,9 @@
-import { z } from 'zod';
-
-import { validateConfig } from '@/config/schema-validator';
+import {
+  CONFIG_VALIDATION_ERROR_CODE,
+  ConfigValidationError,
+  assertValidConfig,
+  collectConfigWarnings,
+} from '@/config/schema-validator';
 
 // Minimal valid config for tests
 const minimalValidConfig = {
@@ -23,10 +26,10 @@ const minimalValidConfig = {
   },
 };
 
-describe('validateConfig', () => {
+describe('assertValidConfig', () => {
   describe('valid configs', () => {
     it('accepts minimal valid config', () => {
-      expect(() => validateConfig(minimalValidConfig)).not.toThrow();
+      expect(() => assertValidConfig(minimalValidConfig)).not.toThrow();
     });
 
     it('accepts full config with all sections', () => {
@@ -39,12 +42,12 @@ describe('validateConfig', () => {
         gitlab: { blockPipeline: false },
         logger: { level: 'info', enableColors: true },
       };
-      expect(() => validateConfig(fullConfig)).not.toThrow();
+      expect(() => assertValidConfig(fullConfig)).not.toThrow();
     });
 
     it('accepts config with $schema field', () => {
       const config = { $schema: '../docs/qualops-config.schema.json', ...minimalValidConfig };
-      expect(() => validateConfig(config)).not.toThrow();
+      expect(() => assertValidConfig(config)).not.toThrow();
     });
 
     it('accepts agentic pipeline job without passes', () => {
@@ -61,7 +64,7 @@ describe('validateConfig', () => {
           ],
         },
       };
-      expect(() => validateConfig(config)).not.toThrow();
+      expect(() => assertValidConfig(config)).not.toThrow();
     });
 
     it('accepts AI stage config with extra provider-specific fields', () => {
@@ -76,77 +79,79 @@ describe('validateConfig', () => {
         },
         review: minimalValidConfig.review,
       };
-      expect(() => validateConfig(config)).not.toThrow();
+      expect(() => assertValidConfig(config)).not.toThrow();
     });
   });
 
   describe('schema violations (throws)', () => {
     it('throws when ai section is missing', () => {
-      expect(() => validateConfig({ review: minimalValidConfig.review })).toThrow(z.ZodError);
+      expect(() => assertValidConfig({ review: minimalValidConfig.review })).toThrow(
+        ConfigValidationError,
+      );
     });
 
     it('throws when review section is missing', () => {
-      expect(() => validateConfig({ ai: minimalValidConfig.ai })).toThrow(z.ZodError);
+      expect(() => assertValidConfig({ ai: minimalValidConfig.ai })).toThrow(ConfigValidationError);
     });
 
     it('throws on unknown top-level field', () => {
-      expect(() => validateConfig({ ...minimalValidConfig, unknownField: true })).toThrow(
-        z.ZodError,
+      expect(() => assertValidConfig({ ...minimalValidConfig, unknownField: true })).toThrow(
+        ConfigValidationError,
       );
     });
 
     it('throws on type mismatch (string instead of object)', () => {
-      expect(() => validateConfig({ ...minimalValidConfig, ai: 'not-an-object' })).toThrow(
-        z.ZodError,
+      expect(() => assertValidConfig({ ...minimalValidConfig, ai: 'not-an-object' })).toThrow(
+        ConfigValidationError,
       );
     });
 
     it('throws when ai.reviewStage is missing', () => {
-      expect(() => validateConfig({ ai: {}, review: minimalValidConfig.review })).toThrow(
-        z.ZodError,
+      expect(() => assertValidConfig({ ai: {}, review: minimalValidConfig.review })).toThrow(
+        ConfigValidationError,
       );
     });
 
     it('throws when pipeline is empty', () => {
-      expect(() => validateConfig({ ai: minimalValidConfig.ai, review: { pipeline: [] } })).toThrow(
-        z.ZodError,
-      );
+      expect(() =>
+        assertValidConfig({ ai: minimalValidConfig.ai, review: { pipeline: [] } }),
+      ).toThrow(ConfigValidationError);
     });
 
     it('throws when file-by-file job has no passes', () => {
       expect(() =>
-        validateConfig({
+        assertValidConfig({
           ai: minimalValidConfig.ai,
           review: {
             pipeline: [{ name: 'job', enabled: true }],
           },
         }),
-      ).toThrow(z.ZodError);
+      ).toThrow(ConfigValidationError);
     });
 
     it('throws when file-by-file job has empty passes', () => {
       expect(() =>
-        validateConfig({
+        assertValidConfig({
           ai: minimalValidConfig.ai,
           review: {
             pipeline: [{ name: 'job', enabled: true, passes: [] }],
           },
         }),
-      ).toThrow(z.ZodError);
+      ).toThrow(ConfigValidationError);
     });
 
     it('throws on unknown field inside review', () => {
       expect(() =>
-        validateConfig({
+        assertValidConfig({
           ...minimalValidConfig,
           review: { ...minimalValidConfig.review, foobar: true },
         }),
-      ).toThrow(z.ZodError);
+      ).toThrow(ConfigValidationError);
     });
 
     it('throws on invalid AI provider', () => {
       expect(() =>
-        validateConfig({
+        assertValidConfig({
           ai: {
             reviewStage: {
               provider: 'invalid-provider',
@@ -157,22 +162,169 @@ describe('validateConfig', () => {
           },
           review: minimalValidConfig.review,
         }),
-      ).toThrow(z.ZodError);
+      ).toThrow(ConfigValidationError);
     });
 
     it('throws on invalid confidence score (out of range)', () => {
       expect(() =>
-        validateConfig({
+        assertValidConfig({
           ...minimalValidConfig,
           review: { ...minimalValidConfig.review, minConfidence: 15 },
         }),
-      ).toThrow(z.ZodError);
+      ).toThrow(ConfigValidationError);
+    });
+  });
+
+  describe('error message formatting', () => {
+    it('prefixes message with a human-readable header', () => {
+      try {
+        assertValidConfig({ ...minimalValidConfig, unknownField: true });
+        fail('expected ConfigValidationError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ConfigValidationError);
+        expect((err as Error).message).toContain('Invalid .qualopsrc.json configuration:');
+      }
+    });
+
+    it('includes a bullet line with path and message per issue', () => {
+      try {
+        assertValidConfig({ ...minimalValidConfig, unknownField: true });
+        fail('expected ConfigValidationError');
+      } catch (err) {
+        const message = (err as Error).message;
+        expect(message).toMatch(/^ {2}- <root>: .*unknownField/m);
+      }
+    });
+
+    it('formats nested field paths with dot notation', () => {
+      try {
+        assertValidConfig({
+          ...minimalValidConfig,
+          ai: {
+            reviewStage: {
+              provider: 'not-a-provider',
+              model: 'm',
+              inputPerMillion: 0,
+              outputPerMillion: 0,
+            },
+          },
+        });
+        fail('expected ConfigValidationError');
+      } catch (err) {
+        const message = (err as Error).message;
+        expect(message).toContain('ai.reviewStage.provider');
+      }
+    });
+
+    it('exposes ZodIssue objects on the error instance', () => {
+      try {
+        assertValidConfig({ review: minimalValidConfig.review });
+        fail('expected ConfigValidationError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ConfigValidationError);
+        expect((err as ConfigValidationError).issues.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('exposes a stable machine-readable error code', () => {
+      try {
+        assertValidConfig({ review: minimalValidConfig.review });
+        fail('expected ConfigValidationError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ConfigValidationError);
+        expect((err as ConfigValidationError).errorCode).toBe(CONFIG_VALIDATION_ERROR_CODE);
+        expect((err as ConfigValidationError).errorCode).toBe('CONFIG_VALIDATION_ERROR');
+      }
+    });
+
+    it('marks the error as user-facing so the CLI can suppress the stack trace', () => {
+      try {
+        assertValidConfig({ review: minimalValidConfig.review });
+        fail('expected ConfigValidationError');
+      } catch (err) {
+        expect((err as ConfigValidationError).userFacing).toBe(true);
+      }
+    });
+  });
+});
+
+describe('collectConfigWarnings', () => {
+  describe('unknown passthrough field detection', () => {
+    it('returns no unknown fields for a clean config', () => {
+      const result = collectConfigWarnings(minimalValidConfig);
+      expect(result.unknownFields).toEqual([]);
+    });
+
+    it('detects unknown fields inside ai.reviewStage', () => {
+      const config = {
+        ...minimalValidConfig,
+        ai: {
+          reviewStage: {
+            ...minimalValidConfig.ai.reviewStage,
+            notARealField: 'oops',
+          },
+        },
+      };
+      const result = collectConfigWarnings(config);
+      expect(result.unknownFields).toContainEqual({
+        path: 'ai.reviewStage',
+        field: 'notARealField',
+      });
+    });
+
+    it('detects unknown fields inside ai.fixStage', () => {
+      const config = {
+        ...minimalValidConfig,
+        ai: {
+          ...minimalValidConfig.ai,
+          fixStage: {
+            provider: 'anthropic',
+            model: 'claude-sonnet-4-5-20250929',
+            inputPerMillion: 3,
+            outputPerMillion: 15,
+            misspelled: true,
+          },
+        },
+      };
+      const result = collectConfigWarnings(config);
+      expect(result.unknownFields).toContainEqual({
+        path: 'ai.fixStage',
+        field: 'misspelled',
+      });
+    });
+
+    it('flags every key not declared in the passthrough shape', () => {
+      const config = {
+        ...minimalValidConfig,
+        ai: {
+          reviewStage: {
+            ...minimalValidConfig.ai.reviewStage,
+            topP: 0.9,
+          },
+        },
+      };
+      const result = collectConfigWarnings(config);
+      // topP is provider-specific but undeclared — flagged as unknown.
+      // This is the intended tradeoff: every unknown key surfaces a warning,
+      // and provider-specific ones are simply expected noise.
+      expect(result.unknownFields.map((f) => f.field)).toEqual(['topP']);
+    });
+
+    it('throws (does not warn) for unknown keys inside strict objects', () => {
+      // Passthrough detection only fires inside `.passthrough()` schemas.
+      // Unknown keys in `.strict()` schemas are caught by `assertValidConfig`,
+      // not by warnings.
+      const config = {
+        ...minimalValidConfig,
+        review: { ...minimalValidConfig.review, notARealReviewField: true },
+      };
+      expect(() => assertValidConfig(config)).toThrow(ConfigValidationError);
     });
   });
 
   describe('deprecation detection', () => {
     it('returns no deprecations for config without deprecated fields', () => {
-      const result = validateConfig(minimalValidConfig);
+      const result = collectConfigWarnings(minimalValidConfig);
       expect(result.deprecations).toEqual([]);
     });
 
@@ -183,7 +335,7 @@ describe('validateConfig', () => {
         verbose: true,
         debug: false,
       };
-      const result = validateConfig(config);
+      const result = collectConfigWarnings(config);
       const paths = result.deprecations.map((d) => d.path);
       expect(paths).toContain('skipPatterns');
       expect(paths).toContain('verbose');
@@ -199,7 +351,7 @@ describe('validateConfig', () => {
           maxFilesBeforeReset: 100,
         },
       };
-      const result = validateConfig(config);
+      const result = collectConfigWarnings(config);
       const paths = result.deprecations.map((d) => d.path);
       expect(paths).toContain('review.sessionBased');
       expect(paths).toContain('review.maxFilesBeforeReset');
@@ -212,7 +364,7 @@ describe('validateConfig', () => {
           throttling: { enabled: true, maxRequestsPerMinute: 50 },
         },
       };
-      const result = validateConfig(config);
+      const result = collectConfigWarnings(config);
       const paths = result.deprecations.map((d) => d.path);
       expect(paths).toContain('performance.throttling.enabled');
       expect(paths).toContain('performance.throttling.maxRequestsPerMinute');
@@ -228,7 +380,7 @@ describe('validateConfig', () => {
           autoApply: false,
         },
       };
-      const result = validateConfig(config);
+      const result = collectConfigWarnings(config);
       const paths = result.deprecations.map((d) => d.path);
       expect(paths).toContain('fix.enabled');
       expect(paths).toContain('fix.severities');
@@ -241,7 +393,7 @@ describe('validateConfig', () => {
         ...minimalValidConfig,
         paths: { sessionsDir: 'custom/sessions' },
       };
-      const result = validateConfig(config);
+      const result = collectConfigWarnings(config);
       const paths = result.deprecations.map((d) => d.path);
       expect(paths).toContain('paths');
     });
@@ -251,7 +403,7 @@ describe('validateConfig', () => {
         ...minimalValidConfig,
         verbose: true,
       };
-      const result = validateConfig(config);
+      const result = collectConfigWarnings(config);
       const verboseWarning = result.deprecations.find((d) => d.path === 'verbose');
       expect(verboseWarning).toBeDefined();
       expect(verboseWarning!.description).toContain('Legacy');
@@ -262,7 +414,7 @@ describe('validateConfig', () => {
         ...minimalValidConfig,
         github: { enabled: true, postComments: true },
       };
-      const result = validateConfig(config);
+      const result = collectConfigWarnings(config);
       const paths = result.deprecations.map((d) => d.path);
       expect(paths).toContain('github.enabled');
     });
@@ -272,7 +424,7 @@ describe('validateConfig', () => {
         ...minimalValidConfig,
         github: { postComments: true },
       };
-      const result = validateConfig(config);
+      const result = collectConfigWarnings(config);
       const paths = result.deprecations.map((d) => d.path);
       expect(paths).not.toContain('github.enabled');
     });
@@ -384,11 +536,12 @@ describe('validateConfig', () => {
         skipPatterns: ['node_modules/**', '.git/**'],
       };
 
-      const result = validateConfig(config);
-      // Should pass but have deprecation warnings
-      expect(result.deprecations.length).toBeGreaterThan(0);
+      expect(() => assertValidConfig(config)).not.toThrow();
+      const warnings = collectConfigWarnings(config);
+      // Should have deprecation warnings
+      expect(warnings.deprecations.length).toBeGreaterThan(0);
       // Spot-check a few expected deprecations
-      const paths = result.deprecations.map((d) => d.path);
+      const paths = warnings.deprecations.map((d) => d.path);
       expect(paths).toContain('skipPatterns');
       expect(paths).toContain('fix.enabled');
       expect(paths).toContain('performance.throttling.enabled');

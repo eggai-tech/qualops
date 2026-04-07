@@ -1,9 +1,17 @@
 import { logger } from '../../shared/utils/logger';
 
+/** Errors with `userFacing: true` are displayed without a stack trace. */
+function isUserFacingError(error: unknown): error is Error & { userFacing: true } {
+  return error instanceof Error && (error as { userFacing?: unknown }).userFacing === true;
+}
+
 export function handleError(error: unknown, context?: string): never {
   const contextMsg = context ? `${context}: ` : '';
 
-  if (error instanceof Error) {
+  if (isUserFacingError(error)) {
+    // Pre-formatted, human-readable — print as-is, no stack trace.
+    logger.error(error.message);
+  } else if (error instanceof Error) {
     logger.error(`${contextMsg}${error.message}`);
     if (error.stack) {
       logger.error('Stack trace:', error.stack);
@@ -16,9 +24,14 @@ export function handleError(error: unknown, context?: string): never {
 }
 
 export function handleStageError(stage: string, error: unknown): never {
-  logger.error(`${stage} failed:`, error instanceof Error ? error.message : error);
-  if (error instanceof Error && error.stack) {
-    logger.error('Stack trace:', error.stack);
+  if (isUserFacingError(error)) {
+    // Pre-formatted, human-readable — print as-is, no stack trace or stage prefix.
+    logger.error(error.message);
+  } else {
+    logger.error(`${stage} failed:`, error instanceof Error ? error.message : error);
+    if (error instanceof Error && error.stack) {
+      logger.error('Stack trace:', error.stack);
+    }
   }
   process.exit(1);
 }

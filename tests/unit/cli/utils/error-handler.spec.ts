@@ -90,6 +90,46 @@ describe('handleError', () => {
     });
   });
 
+  describe('with user-facing errors', () => {
+    it('should print message as-is and skip stack trace', () => {
+      const error = Object.assign(
+        new Error('Invalid .qualopsrc.json configuration:\n  - foo: bar'),
+        {
+          userFacing: true as const,
+        },
+      );
+      error.stack = 'Error: Invalid ...\n    at someFile.ts:10:5';
+
+      handleError(error, 'qualops');
+
+      // Message printed verbatim — no context prefix, no stack trace.
+      expect(mockLogger.error).toHaveBeenCalledTimes(1);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Invalid .qualopsrc.json configuration:\n  - foo: bar',
+      );
+      expect(mockLogger.error).not.toHaveBeenCalledWith('Stack trace:', expect.anything());
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+
+    it('should still exit with code 1', () => {
+      const error = Object.assign(new Error('user-facing'), { userFacing: true as const });
+
+      handleError(error);
+
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+
+    it('should not treat plain errors as user-facing', () => {
+      const error = new Error('regular error');
+      error.stack = 'Error: regular error\n    at file.ts:1:1';
+
+      handleError(error);
+
+      // Stack trace IS logged for non-user-facing errors.
+      expect(mockLogger.error).toHaveBeenCalledWith('Stack trace:', expect.any(String));
+    });
+  });
+
   describe('with non-Error values', () => {
     it('should log string error without context', () => {
       handleError('String error message');
@@ -398,6 +438,28 @@ describe('handleStageError', () => {
     it('should exit with code 1 on null', () => {
       handleStageError('report', null);
 
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('with user-facing errors', () => {
+    it('should print message as-is and skip stack trace and stage prefix', () => {
+      const error = Object.assign(new Error('Invalid .qualopsrc.json configuration:\n  - foo'), {
+        userFacing: true as const,
+      });
+      error.stack = 'Error: Invalid ...\n    at someFile.ts:10:5';
+
+      handleStageError('review', error);
+
+      expect(mockLogger.error).toHaveBeenCalledTimes(1);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'Invalid .qualopsrc.json configuration:\n  - foo',
+      );
+      expect(mockLogger.error).not.toHaveBeenCalledWith('Stack trace:', expect.anything());
+      expect(mockLogger.error).not.toHaveBeenCalledWith(
+        expect.stringContaining('review failed:'),
+        expect.anything(),
+      );
       expect(mockProcessExit).toHaveBeenCalledWith(1);
     });
   });

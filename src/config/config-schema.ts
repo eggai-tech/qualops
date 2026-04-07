@@ -26,7 +26,9 @@ const outputFormat = z.enum(['json', 'html', 'markdown']).meta({
 });
 
 // --- AI stage config ---
-// .passthrough() because providers may have extra fields (e.g. topP, topK)
+// .passthrough() because providers may have extra fields (e.g. topP, topK).
+// The `passthrough: true` meta tag is read by the schema validator to find
+// passthrough objects without poking at Zod internals.
 const aiStageConfigSchema = z
   .object({
     provider: aiProvider,
@@ -47,7 +49,11 @@ const aiStageConfigSchema = z
     maxTokens: z.int().min(1).optional().meta({ description: 'Optional model output token cap.' }),
   })
   .passthrough()
-  .meta({ defName: 'aiStageConfig', description: 'AI configuration for a specific stage.' });
+  .meta({
+    defName: 'aiStageConfig',
+    description: 'AI configuration for a specific stage.',
+    passthrough: true,
+  });
 
 const aiConfigSchema = z
   .object({

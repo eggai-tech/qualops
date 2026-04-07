@@ -28,21 +28,33 @@ jest.mock('@/config/env', () => ({
 }));
 jest.mock('node:fs');
 jest.mock('@/shared/utils/logger');
-jest.mock('@/config/schema-validator', () => ({
-  validateConfig: jest.fn(() => ({ deprecations: [] })),
-}));
+jest.mock('@/config/schema-validator', () => {
+  const actual = jest.requireActual('@/config/schema-validator');
+  return {
+    ...actual,
+    assertValidConfig: jest.fn(() => undefined),
+    collectConfigWarnings: jest.fn(() => ({ deprecations: [], unknownFields: [] })),
+  };
+});
 
 const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
 const mockReadFileSync = readFileSync as jest.MockedFunction<typeof readFileSync>;
 
 import { CACHE_CONFIG, ConfigService, CRITICAL_STAGES, FILE_NAMES } from '@/config/config';
 import { envConfig } from '@/config/env';
-import { validateConfig } from '@/config/schema-validator';
+import {
+  assertValidConfig,
+  collectConfigWarnings,
+  ConfigValidationError,
+} from '@/config/schema-validator';
 import type { Config } from '@/shared/types';
 import { logger } from '@/shared/utils/logger';
 
 const mockEnvConfig = envConfig as jest.Mocked<typeof envConfig>;
-const mockValidateConfig = validateConfig as jest.MockedFunction<typeof validateConfig>;
+const mockAssertValidConfig = assertValidConfig as jest.MockedFunction<typeof assertValidConfig>;
+const mockCollectConfigWarnings = collectConfigWarnings as jest.MockedFunction<
+  typeof collectConfigWarnings
+>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
 
 describe('ConfigService', () => {
@@ -661,44 +673,63 @@ describe('ConfigService', () => {
   });
 
   describe('schema validation integration', () => {
-    it('should call validateConfig when config file exists', () => {
+    it('should call assertValidConfig and collectConfigWarnings when config file exists', () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue(JSON.stringify({ ai: {}, review: {} }));
 
       ConfigService.getInstance();
-      expect(mockValidateConfig).toHaveBeenCalledWith({ ai: {}, review: {} });
+      expect(mockAssertValidConfig).toHaveBeenCalledWith({ ai: {}, review: {} });
+      expect(mockCollectConfigWarnings).toHaveBeenCalledWith({ ai: {}, review: {} });
     });
 
     it('should skip validation when config file does not exist', () => {
       mockExistsSync.mockReturnValue(false);
       ConfigService.getInstance();
-      expect(mockValidateConfig).not.toHaveBeenCalled();
+      expect(mockAssertValidConfig).not.toHaveBeenCalled();
+      expect(mockCollectConfigWarnings).not.toHaveBeenCalled();
     });
 
     it('should skip validation when config is empty (invalid JSON fallback)', () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue('invalid json');
       ConfigService.getInstance();
-      expect(mockValidateConfig).not.toHaveBeenCalled();
+      expect(mockAssertValidConfig).not.toHaveBeenCalled();
+      expect(mockCollectConfigWarnings).not.toHaveBeenCalled();
     });
 
-    it('should throw when validateConfig throws', () => {
+    it('should rethrow unexpected errors from assertValidConfig', () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue(JSON.stringify({ bad: true }));
-      mockValidateConfig.mockImplementationOnce(() => {
-        throw new Error('Schema validation failed');
+      mockAssertValidConfig.mockImplementationOnce(() => {
+        throw new Error('unexpected failure');
       });
-      expect(() => ConfigService.getInstance()).toThrow('Schema validation failed');
+      expect(() => ConfigService.getInstance()).toThrow('unexpected failure');
+    });
+
+    it('should propagate ConfigValidationError to the caller (no process.exit)', () => {
+      // ConfigService no longer catches or exits — the CLI's top-level
+      // error handler is responsible for that. The service just throws.
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify({ bad: true }));
+      mockAssertValidConfig.mockImplementationOnce(() => {
+        throw new ConfigValidationError([
+          { code: 'custom', path: ['bad'], message: 'Unrecognized key', input: {} } as never,
+        ]);
+      });
+
+      expect(() => ConfigService.getInstance()).toThrow(ConfigValidationError);
+      expect(mockCollectConfigWarnings).not.toHaveBeenCalled();
     });
 
     it('should log warnings for deprecations', () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue(JSON.stringify({ ai: {}, review: {} }));
-      mockValidateConfig.mockReturnValueOnce({
+      mockCollectConfigWarnings.mockReturnValueOnce({
         deprecations: [
           { path: 'verbose', description: 'Legacy field.' },
           { path: 'skipPatterns', description: 'Legacy field.' },
         ],
+        unknownFields: [],
       });
 
       ConfigService.getInstance();
@@ -710,13 +741,26 @@ describe('ConfigService', () => {
       );
     });
 
-    it('should not log warnings when there are no deprecations', () => {
+    it('should log warnings for unknown passthrough fields', () => {
       mockExistsSync.mockReturnValue(true);
       mockReadFileSync.mockReturnValue(JSON.stringify({ ai: {}, review: {} }));
-      mockValidateConfig.mockReturnValueOnce({ deprecations: [] });
+      mockCollectConfigWarnings.mockReturnValueOnce({
+        deprecations: [],
+        unknownFields: [{ path: 'ai.reviewStage', field: 'notARealField' }],
+      });
 
       ConfigService.getInstance();
-      expect(mockValidateConfig).toHaveBeenCalledWith({ ai: {}, review: {} });
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('[CONFIG] Unknown field "notARealField" at ai.reviewStage'),
+      );
+    });
+
+    it('should not log warnings when there are no deprecations or unknown fields', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify({ ai: {}, review: {} }));
+      mockCollectConfigWarnings.mockReturnValueOnce({ deprecations: [], unknownFields: [] });
+
+      ConfigService.getInstance();
       expect(mockLogger.warn).not.toHaveBeenCalled();
     });
 
@@ -725,10 +769,12 @@ describe('ConfigService', () => {
       mockReadFileSync.mockReturnValue(JSON.stringify({ ai: {}, review: {} }));
 
       const instance = ConfigService.getInstance();
-      mockValidateConfig.mockClear();
+      mockAssertValidConfig.mockClear();
+      mockCollectConfigWarnings.mockClear();
 
       instance.reset();
-      expect(mockValidateConfig).toHaveBeenCalledTimes(1);
+      expect(mockAssertValidConfig).toHaveBeenCalledTimes(1);
+      expect(mockCollectConfigWarnings).toHaveBeenCalledTimes(1);
     });
   });
 });
