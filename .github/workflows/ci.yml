@@ -119,6 +119,7 @@ jobs:
           echo "Changelog check passed!"
 
   qualops:
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -162,6 +163,7 @@ jobs:
         working-directory: .qualops
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: node ../dist/github/run-integration.js
 
       - name: Upload QualOps Reports
