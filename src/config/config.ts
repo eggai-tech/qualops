@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { envConfig } from './env';
-import { assertValidConfig, collectConfigWarnings } from './schema-validator';
+import { ConfigParseError, assertValidConfig, collectConfigWarnings } from './schema-validator';
 import type { AIStageConfig, Config } from '../shared/types';
 import { logger } from '../shared/utils/logger';
 
@@ -69,25 +69,19 @@ export class ConfigService {
       logger.warn(`Config file not found: ${rcPath}`);
       return {};
     }
+    const content = readFileSync(rcPath, 'utf-8');
+    logger.info(`Loaded config from: ${rcPath}`);
     try {
-      const content = readFileSync(rcPath, 'utf-8');
-      logger.info(`Loaded config from: ${rcPath}`);
       return JSON.parse(content);
     } catch (error) {
-      logger.warn(
-        `Failed to parse ${rcPath}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-      return {};
+      throw new ConfigParseError(rcPath, error instanceof Error ? error : new Error(String(error)));
     }
   }
 
   private validateAgainstSchema(): void {
     if (Object.keys(this.rawConfig).length === 0) return;
 
-    // Throws ConfigValidationError on schema violations. The CLI's
-    // top-level error handler is responsible for catching it, formatting
-    // for the user, and exiting — this service should never call
-    // process.exit itself.
+    // Never call process.exit from this service — let the CLI error handler format and exit.
     assertValidConfig(this.rawConfig);
 
     const warnings = collectConfigWarnings(this.rawConfig);

@@ -3,13 +3,8 @@
  *
  * Zod's toJSONSchema generates auto-named $defs (__schema0, __schema1, ...).
  * Each Zod schema tagged with `.meta({ defName: '...' })` gets that name
- * propagated into the JSON Schema output as a `defName` property.
- *
- * These functions:
- * 1. Rename $defs using the `defName` metadata from each definition
- * 2. Inline unnamed trivial $defs (bare booleans, simple integers, $ref indirections)
- * 3. Strip `defName` properties from the final output
- * 4. Reorder properties for readable, predictable output
+ * propagated into the JSON Schema output as a `defName` property, which these
+ * utilities then use to rename, inline, and clean up the generated schema.
  */
 
 type Defs = Record<string, Record<string, unknown>>;
@@ -90,34 +85,63 @@ function liftToDef(child: Record<string, unknown>, defs: Defs): Record<string, u
   return sibling;
 }
 
-export function extractNamedInlineDefs(node: unknown, defs: Defs): void {
-  if (node === null || typeof node !== 'object') return;
+type NodeObject = Record<string, unknown>;
+type NodeArray = unknown[];
+type WalkNode = NodeObject | NodeArray;
 
-  if (Array.isArray(node)) {
-    for (let i = 0; i < node.length; i++) {
-      extractNamedInlineDefs(node[i], defs);
-      if (node[i] !== null && typeof node[i] === 'object' && !Array.isArray(node[i])) {
-        const replacement = liftToDef(node[i] as Record<string, unknown>, defs);
-        if (replacement) node[i] = replacement;
+/**
+ * Visitor called once per object/array node during a walk. May mutate the
+ * node in place. Returning a new object/array replaces the node at its
+ * parent (the walker handles the reassignment). Returning void/undefined
+ * keeps the original node.
+ */
+type Visitor = (node: WalkNode) => WalkNode | void;
+
+/**
+ * Depth-first tree walker for JSON Schema nodes. Recurses into every object
+ * property and every array element. Primitives are returned as-is.
+ *
+ * - `order: 'pre'` (default) — visit parent, then recurse into children.
+ * - `order: 'post'` — recurse into children, then visit parent.
+ */
+function walk(node: unknown, visit: Visitor, order: 'pre' | 'post' = 'pre'): unknown {
+  if (node === null || typeof node !== 'object') return node;
+
+  const recurseChildren = (current: WalkNode): void => {
+    if (Array.isArray(current)) {
+      for (let i = 0; i < current.length; i++) {
+        current[i] = walk(current[i], visit, order);
+      }
+    } else {
+      for (const key of Object.keys(current)) {
+        current[key] = walk(current[key], visit, order);
       }
     }
-    return;
+  };
+
+  let current = node as WalkNode;
+
+  if (order === 'pre') {
+    const replaced = visit(current);
+    if (replaced !== undefined) current = replaced;
+    recurseChildren(current);
+    return current;
   }
 
-  const obj = node as Record<string, unknown>;
+  recurseChildren(current);
+  const replaced = visit(current);
+  return replaced ?? current;
+}
 
-  for (const [key, value] of Object.entries(obj)) {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-      extractNamedInlineDefs(value, defs);
-      continue;
-    }
-
-    const child = value as Record<string, unknown>;
-    extractNamedInlineDefs(child, defs);
-
-    const replacement = liftToDef(child, defs);
-    if (replacement) obj[key] = replacement;
-  }
+export function extractNamedInlineDefs(node: unknown, defs: Defs): void {
+  walk(
+    node,
+    (n) => {
+      if (Array.isArray(n)) return;
+      return liftToDef(n, defs) ?? undefined;
+    },
+    'post',
+  );
 }
 
 export function buildRenameMap(defs: Defs): Record<string, string> {
@@ -164,24 +188,17 @@ export function buildInlineSet(defs: Defs): Set<string> {
 }
 
 export function rewriteRefs(node: unknown, ctx: RefContext): void {
-  if (node === null || typeof node !== 'object') return;
-
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      rewriteRefs(item, ctx);
+  walk(node, (n) => {
+    if (Array.isArray(n)) return;
+    // Loop handles the case where inlining merges in a new $ref
+    // (e.g., chain resolution stops at a named def). After at most one
+    // additional pass the ref is either fully inlined or canonicalized.
+    while (typeof n.$ref === 'string') {
+      const before = n.$ref;
+      rewriteRefProperty(n, before, ctx);
+      if (n.$ref === before) break;
     }
-    return;
-  }
-
-  const obj = node as Record<string, unknown>;
-
-  for (const [prop, value] of Object.entries(obj)) {
-    if (prop === '$ref' && typeof value === 'string') {
-      rewriteRefProperty(obj, value, ctx);
-      return;
-    }
-    rewriteRefs(value, ctx);
-  }
+  });
 }
 
 function rewriteRefProperty(obj: Record<string, unknown>, ref: string, ctx: RefContext): void {
@@ -199,7 +216,6 @@ function rewriteRefProperty(obj: Record<string, unknown>, ref: string, ctx: RefC
         if (!(k in obj)) obj[k] = v;
       }
     }
-    rewriteRefs(obj, ctx);
   } else if (renameMap[refName] && renameMap[refName] !== refName) {
     obj.$ref = `#/$defs/${renameMap[refName]}`;
   }
@@ -249,24 +265,11 @@ export function resolveRefChain(
 
 /**
  * Normalize Zod-specific JSON Schema output quirks into conventional JSON Schema.
- * Applied recursively to every node in the schema tree.
  */
 export function normalizeZodOutput(node: unknown): void {
-  if (node === null || typeof node !== 'object') return;
-
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      normalizeZodOutput(item);
-    }
-    return;
-  }
-
-  const obj = node as Record<string, unknown>;
-  normalizeNode(obj);
-
-  for (const value of Object.values(obj)) {
-    normalizeZodOutput(value);
-  }
+  walk(node, (n) => {
+    if (!Array.isArray(n)) normalizeNode(n);
+  });
 }
 
 function normalizeNode(obj: Record<string, unknown>): void {
@@ -312,36 +315,19 @@ function normalizeNode(obj: Record<string, unknown>): void {
  * referenced def's own description — avoids redundant text in the output.
  */
 export function deduplicateRefDescriptions(node: unknown, defs: Defs): void {
-  if (node === null || typeof node !== 'object') return;
-
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      deduplicateRefDescriptions(item, defs);
+  walk(node, (n) => {
+    if (Array.isArray(n)) return;
+    if (typeof n.$ref !== 'string' || typeof n.description !== 'string') return;
+    const match = n.$ref.match(DEFS_REF_RE);
+    if (!match) return;
+    const def = defs[match[1]];
+    if (def && def.description === n.description) {
+      delete n.description;
     }
-    return;
-  }
-
-  const obj = node as Record<string, unknown>;
-
-  if (typeof obj.$ref === 'string' && typeof obj.description === 'string') {
-    const match = (obj.$ref as string).match(DEFS_REF_RE);
-    if (match) {
-      const def = defs[match[1]];
-      if (def && def.description === obj.description) {
-        delete obj.description;
-      }
-    }
-  }
-
-  for (const value of Object.values(obj)) {
-    deduplicateRefDescriptions(value, defs);
-  }
+  });
 }
 
-/**
- * Reorder JSON Schema properties so metadata comes first, data structures last.
- * Applied recursively to produce readable, predictable output.
- */
+/** Reorder JSON Schema properties so metadata comes first, data structures last. */
 const KNOWN_ORDER = [
   '$schema',
   '$id',
@@ -375,25 +361,15 @@ const KNOWN_ORDER = [
 ];
 
 export function orderProperties(node: unknown): unknown {
-  if (node === null || typeof node !== 'object') return node;
-
-  if (Array.isArray(node)) {
-    return node.map(orderProperties);
-  }
-
-  const obj = node as Record<string, unknown>;
-  const ordered: Record<string, unknown> = {};
-
-  for (const key of KNOWN_ORDER) {
-    if (key in obj) {
-      ordered[key] = orderProperties(obj[key]);
+  return walk(node, (n) => {
+    if (Array.isArray(n)) return;
+    const ordered: Record<string, unknown> = {};
+    for (const key of KNOWN_ORDER) {
+      if (key in n) ordered[key] = n[key];
     }
-  }
-  for (const key of Object.keys(obj)) {
-    if (!(key in ordered)) {
-      ordered[key] = orderProperties(obj[key]);
+    for (const key of Object.keys(n)) {
+      if (!(key in ordered)) ordered[key] = n[key];
     }
-  }
-
-  return ordered;
+    return ordered;
+  });
 }

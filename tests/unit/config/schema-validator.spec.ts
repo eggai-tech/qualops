@@ -1,5 +1,7 @@
 import {
+  CONFIG_PARSE_ERROR_CODE,
   CONFIG_VALIDATION_ERROR_CODE,
+  ConfigParseError,
   ConfigValidationError,
   assertValidConfig,
   collectConfigWarnings,
@@ -245,6 +247,33 @@ describe('assertValidConfig', () => {
         expect((err as ConfigValidationError).userFacing).toBe(true);
       }
     });
+  });
+});
+
+describe('ConfigParseError', () => {
+  it('exposes a stable machine-readable error code', () => {
+    const err = new ConfigParseError('/tmp/.qualopsrc.json', new Error('Unexpected token }'));
+    expect(err.errorCode).toBe(CONFIG_PARSE_ERROR_CODE);
+    expect(err.errorCode).toBe('CONFIG_PARSE_ERROR');
+  });
+
+  it('marks the error as user-facing so the CLI can suppress the stack trace', () => {
+    const err = new ConfigParseError('/tmp/.qualopsrc.json', new Error('Unexpected token }'));
+    expect(err.userFacing).toBe(true);
+  });
+
+  it('includes the file path and cause message', () => {
+    const err = new ConfigParseError(
+      '/tmp/project/.qualopsrc.json',
+      new Error('Unexpected token } in JSON at position 42'),
+    );
+    expect(err.message).toContain('/tmp/project/.qualopsrc.json');
+    expect(err.message).toContain('Unexpected token } in JSON at position 42');
+  });
+
+  it('has a distinct error name', () => {
+    const err = new ConfigParseError('/tmp/.qualopsrc.json', new Error('boom'));
+    expect(err.name).toBe('ConfigParseError');
   });
 });
 

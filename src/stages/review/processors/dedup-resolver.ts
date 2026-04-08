@@ -9,7 +9,7 @@ import type {
 import { logger } from '../../../shared/utils/logger';
 import { PromptLoader } from '../loaders/prompt-loader';
 import { TemplateEngine } from '../loaders/template-engine';
-import { globalRateLimiter } from '../utils/global-rate-limiter';
+import { getGlobalRateLimiter } from '../utils/global-rate-limiter';
 
 const ISSUES_SECTION = `
 
@@ -116,7 +116,7 @@ export class DeduplicationResolver {
       REVIEW_MIN_CONFIDENCE: this.globalConfig.minConfidence ?? 4,
     });
 
-    await globalRateLimiter.throttleApiCall(this.aiProvider.name);
+    await getGlobalRateLimiter().throttleApiCall(this.aiProvider.name);
 
     const response = await this.aiProvider.complete({
       messages: [{ role: 'user', content: prompt }],

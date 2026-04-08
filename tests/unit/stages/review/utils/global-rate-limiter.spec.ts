@@ -9,7 +9,10 @@ jest.mock('@/shared/utils/logger');
 
 import { ConfigService } from '@/config/config';
 import { logger } from '@/shared/utils/logger';
-import { globalRateLimiter } from '@/stages/review/utils/global-rate-limiter';
+import { getGlobalRateLimiter } from '@/stages/review/utils/global-rate-limiter';
+
+// Shared singleton — tests reset its fields in beforeEach rather than rebuilding it.
+const globalRateLimiter = getGlobalRateLimiter();
 
 describe('GlobalRateLimiter', () => {
   let mockConfigService: {

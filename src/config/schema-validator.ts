@@ -2,30 +2,25 @@ import { z } from 'zod';
 
 import { qualopsConfigSchema } from './config-schema';
 
-export interface DeprecationWarning {
+interface DeprecationWarning {
   path: string;
   description: string;
 }
 
-export interface UnknownFieldWarning {
+interface UnknownFieldWarning {
   path: string;
   field: string;
 }
 
-export interface ConfigValidationResult {
+interface ConfigValidationResult {
   deprecations: DeprecationWarning[];
   unknownFields: UnknownFieldWarning[];
 }
 
-/**
- * Stable, machine-readable code for matching this error type without
- * parsing the human-readable message.
- */
 export const CONFIG_VALIDATION_ERROR_CODE = 'CONFIG_VALIDATION_ERROR' as const;
 
 export class ConfigValidationError extends Error {
   readonly errorCode = CONFIG_VALIDATION_ERROR_CODE;
-  /** Marks this error as ready for direct user display (no stack trace needed). */
   readonly userFacing = true;
 
   constructor(public readonly issues: z.core.$ZodIssue[]) {
@@ -34,10 +29,21 @@ export class ConfigValidationError extends Error {
   }
 }
 
+export const CONFIG_PARSE_ERROR_CODE = 'CONFIG_PARSE_ERROR' as const;
+
+export class ConfigParseError extends Error {
+  readonly errorCode = CONFIG_PARSE_ERROR_CODE;
+  readonly userFacing = true;
+
+  constructor(filePath: string, cause: Error) {
+    super(`Failed to parse ${filePath}:\n  ${cause.message}`);
+    this.name = 'ConfigParseError';
+  }
+}
+
 /**
  * Throws `ConfigValidationError` if the raw config violates the Zod schema
- * (unknown fields, missing required, type errors). Pure assertion — no
- * return value.
+ * (unknown fields, missing required, type errors).
  */
 export function assertValidConfig(rawConfig: Record<string, unknown>): void {
   const result = qualopsConfigSchema.safeParse(rawConfig);

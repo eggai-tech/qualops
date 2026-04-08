@@ -9,7 +9,6 @@ export function handleError(error: unknown, context?: string): never {
   const contextMsg = context ? `${context}: ` : '';
 
   if (isUserFacingError(error)) {
-    // Pre-formatted, human-readable — print as-is, no stack trace.
     logger.error(error.message);
   } else if (error instanceof Error) {
     logger.error(`${contextMsg}${error.message}`);
@@ -25,7 +24,6 @@ export function handleError(error: unknown, context?: string): never {
 
 export function handleStageError(stage: string, error: unknown): never {
   if (isUserFacingError(error)) {
-    // Pre-formatted, human-readable — print as-is, no stack trace or stage prefix.
     logger.error(error.message);
   } else {
     logger.error(`${stage} failed:`, error instanceof Error ? error.message : error);
