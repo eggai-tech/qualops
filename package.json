@@ -104,7 +104,6 @@
     "langfuse": "^3.38.6",
     "minimatch": "^10.0.1",
     "prettier": "^3.8.1",
-    "promptfoo": "^0.121.2",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.16",
