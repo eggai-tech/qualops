@@ -346,7 +346,7 @@ describe('ConfigService', () => {
     it('should return AI stage configuration', () => {
       const aiConfig = {
         reviewStage: {
-          provider: 'openai',
+          provider: 'openai' as const,
           model: 'gpt-4',
           inputPerMillion: 5,
           outputPerMillion: 15,
@@ -466,7 +466,7 @@ describe('ConfigService', () => {
     it('should return empty array when config is valid', () => {
       const aiConfig = {
         reviewStage: {
-          provider: 'openai',
+          provider: 'openai' as const,
           model: 'gpt-4',
           inputPerMillion: 5,
           outputPerMillion: 15,
@@ -486,7 +486,7 @@ describe('ConfigService', () => {
     it('should return error when maxFilesPerBatch is less than 1', () => {
       const aiConfig = {
         reviewStage: {
-          provider: 'openai',
+          provider: 'openai' as const,
           model: 'gpt-4',
           inputPerMillion: 5,
           outputPerMillion: 15,

@@ -3,6 +3,7 @@ import {
   STAGE_DEPENDENCIES,
   validateAndProcessStages,
 } from '@/cli/parsers/argument-validator';
+import type { Stage } from '@/cli/parsers/option-parser';
 import { logger } from '@/shared/utils/logger';
 
 jest.mock('@/shared/utils/logger', () => ({
@@ -162,7 +163,7 @@ describe('enforceStageDependencies', () => {
       b: ['a'],
     });
 
-    expect(() => enforceStageDependencies(['a', 'b'])).toThrow(
+    expect(() => enforceStageDependencies(['a', 'b'] as unknown as Stage[])).toThrow(
       'Circular dependency detected involving stage',
     );
 
