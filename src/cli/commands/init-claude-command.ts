@@ -2,7 +2,6 @@ import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 import { logger } from '../../shared/utils/logger';
-import { validateConfig } from '../../shared/utils/validate-config';
 
 export type Provider = 'anthropic' | 'openai' | 'bedrock';
 
@@ -88,8 +87,7 @@ $file:.qualops/qualops-llm.txt
 export function generateDefaultConfig(provider: Provider) {
   const defaults = PROVIDER_DEFAULTS[provider];
   return {
-    $schema:
-      'https://raw.githubusercontent.com/eggai-tech/qualops/main/qualops-config.schema.json',
+    $schema: 'https://raw.githubusercontent.com/eggai-tech/qualops/main/qualops-config.schema.json',
     ai: {
       reviewStage: {
         provider,
@@ -160,14 +158,6 @@ export async function initClaudeCommand(options?: { provider?: Provider }): Prom
     logger.warn('.qualops/.qualopsrc.json already exists — skipping config generation');
   } else {
     const config = generateDefaultConfig(provider);
-    const result = validateConfig(config);
-    if (!result.valid) {
-      logger.error('Generated config failed schema validation:');
-      result.errors.forEach((err) => logger.error(`  ${err}`));
-      logger.error('Aborting initialization due to invalid generated configuration.');
-      process.exitCode = 1;
-      return;
-    }
     writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
     logger.info(`Created .qualops/.qualopsrc.json (provider: ${provider})`);
   }

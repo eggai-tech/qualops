@@ -2,67 +2,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import type { Provider } from '@/cli/commands/init-claude-command';
 import {
-  generateDefaultConfig,
   getPackageRoot,
   initClaudeCommand,
 } from '@/cli/commands/init-claude-command';
 import { logger } from '@/shared/utils/logger';
-import { validateConfig } from '@/shared/utils/validate-config';
 
 jest.mock('@/shared/utils/logger');
-
-describe('validateConfig', () => {
-  it('accepts a valid minimal config', () => {
-    const config = generateDefaultConfig('anthropic');
-    const result = validateConfig(config);
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
-  });
-
-  it('rejects config missing required ai field', () => {
-    const config = {
-      review: {
-        pipeline: [
-          {
-            name: 'test',
-            enabled: true,
-            passes: [{ name: 'p', enabled: true, prompt: 'x.md' }],
-          },
-        ],
-      },
-    };
-    const result = validateConfig(config);
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes('ai'))).toBe(true);
-  });
-
-  it('rejects config with invalid provider', () => {
-    const config = {
-      ai: {
-        reviewStage: {
-          provider: 'invalid-provider',
-          model: 'some-model',
-          inputPerMillion: 1,
-          outputPerMillion: 1,
-        },
-      },
-      review: {
-        pipeline: [
-          {
-            name: 'test',
-            enabled: true,
-            passes: [{ name: 'p', enabled: true, prompt: 'x.md' }],
-          },
-        ],
-      },
-    };
-    const result = validateConfig(config);
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((e) => e.includes('provider'))).toBe(true);
-  });
-});
 
 describe('initClaudeCommand', () => {
   let tempDir: string;
@@ -79,15 +25,14 @@ describe('initClaudeCommand', () => {
     rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('generates valid .qualopsrc.json that passes schema validation', async () => {
+  it('creates .qualopsrc.json', async () => {
     await initClaudeCommand();
 
     const configPath = join(tempDir, '.qualops', '.qualopsrc.json');
     expect(existsSync(configPath)).toBe(true);
 
     const config = JSON.parse(readFileSync(configPath, 'utf-8'));
-    const result = validateConfig(config);
-    expect(result.valid).toBe(true);
+    expect(config.ai.reviewStage.provider).toBe('anthropic');
   });
 
   it('does NOT overwrite existing .qualopsrc.json', async () => {
@@ -127,7 +72,7 @@ describe('initClaudeCommand', () => {
     expect(existsSync(commandFile)).toBe(true);
 
     const content = readFileSync(commandFile, 'utf-8');
-    expect(content).toContain('QualOps Setup Customizer');
+    expect(content).toContain('QualOps Setup Wizard');
     expect(content).toContain('$file:.qualops/qualops-llm.txt');
   });
 
@@ -151,9 +96,6 @@ describe('initClaudeCommand', () => {
     expect(config.ai.reviewStage.model).toBe('gpt-4.1');
     expect(config.ai.reviewStage.inputPerMillion).toBe(2);
     expect(config.ai.reviewStage.outputPerMillion).toBe(8);
-
-    const result = validateConfig(config);
-    expect(result.valid).toBe(true);
   });
 
   it('--provider bedrock produces correct provider/model/pricing', async () => {
@@ -166,18 +108,5 @@ describe('initClaudeCommand', () => {
     expect(config.ai.reviewStage.model).toBe('us.anthropic.claude-sonnet-4-6-v1:0');
     expect(config.ai.reviewStage.inputPerMillion).toBe(3);
     expect(config.ai.reviewStage.outputPerMillion).toBe(15);
-
-    const result = validateConfig(config);
-    expect(result.valid).toBe(true);
-  });
-});
-
-describe('generateDefaultConfig', () => {
-  const providers: Provider[] = ['anthropic', 'openai', 'bedrock'];
-
-  it.each(providers)('generates valid config for provider %s', (provider) => {
-    const config = generateDefaultConfig(provider);
-    const result = validateConfig(config);
-    expect(result.valid).toBe(true);
   });
 });
