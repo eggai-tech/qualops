@@ -2,10 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import {
-  getPackageRoot,
-  initClaudeCommand,
-} from '@/cli/commands/init-claude-command';
+import { getPackageRoot, initClaudeCommand } from '@/cli/commands/init-claude-command';
 import { logger } from '@/shared/utils/logger';
 
 jest.mock('@/shared/utils/logger');

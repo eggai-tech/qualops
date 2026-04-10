@@ -63,7 +63,9 @@ program
   .command('init-claude')
   .description('Create Claude Code command for QualOps setup')
   .addOption(
-    new Option('--provider <provider>', 'AI provider').choices(['anthropic', 'openai', 'bedrock']).default('anthropic'),
+    new Option('--provider <provider>', 'AI provider')
+      .choices(['anthropic', 'openai', 'bedrock'])
+      .default('anthropic'),
   )
   .action((options: { provider: 'anthropic' | 'openai' | 'bedrock' }) =>
     initClaudeCommand(options),
