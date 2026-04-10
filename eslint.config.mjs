@@ -1,14 +1,26 @@
 import tseslint from 'typescript-eslint';
 import eslintPluginPrettier from 'eslint-plugin-prettier';
-import eslintPluginImport from 'eslint-plugin-import';
+import eslintPluginImportX from 'eslint-plugin-import-x';
+import { createTypeScriptImportResolver } from 'eslint-import-resolver-typescript';
 
 export default [
   {
     ignores: ['dist/**', 'coverage/**', 'node_modules/**', '.qualops/**'],
   },
   ...tseslint.configs.recommended,
-  eslintPluginImport.flatConfigs.recommended,
-  eslintPluginImport.flatConfigs.typescript,
+  eslintPluginImportX.flatConfigs.recommended,
+  eslintPluginImportX.flatConfigs.typescript,
+  {
+    settings: {
+      'import-x/resolver-next': [
+        createTypeScriptImportResolver({
+          alwaysTryTypes: true,
+          project: ['./tsconfig.lib.json', './tsconfig.spec.json'],
+          noWarnOnMultipleProjects: true,
+        }),
+      ],
+    },
+  },
   {
     plugins: {
       prettier: eslintPluginPrettier,
@@ -48,7 +60,7 @@ export default [
       }],
 
       // Import order
-      'import/order': [
+      'import-x/order': [
         'error',
         {
           groups: [
@@ -61,11 +73,6 @@ export default [
           'newlines-between': 'always',
         },
       ],
-    },
-    "settings": {
-      "import/resolver": {
-        "typescript": {}
-      }
     },
   }
 ];
