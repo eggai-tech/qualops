@@ -188,18 +188,6 @@ export class ConfigService {
     return stageConfig;
   }
 
-  getMaxFileSizeKB(): number {
-    return this.config.maxFileSizeKB ?? 500;
-  }
-
-  getMaxTokensPerFile(): number {
-    return this.config.maxTokensPerFile ?? 1000000;
-  }
-
-  getMaxReactSteps(): number {
-    return this.config.maxReactSteps ?? 5;
-  }
-
   isIssueMarkdownEnabled(): boolean {
     return this.config.report?.generateIssueMarkdown ?? false;
   }
@@ -220,27 +208,5 @@ export class ConfigService {
     }
 
     return errors;
-  }
-
-  getDirectories() {
-    const paths = this.rawConfig.paths as Record<string, unknown> | undefined;
-    return {
-      SESSIONS: (paths?.sessionsDir as string) ?? 'reports/sessions',
-      CACHE: (paths?.cacheDir as string) ?? '.qualops-cache',
-      OUTPUT: (paths?.outputDir as string) ?? 'reports',
-    } as const;
-  }
-
-  getPerformanceLimits() {
-    const perf = this.rawConfig.performance as Record<string, unknown> | undefined;
-    return {
-      maxFileSizeKB: (perf?.maxFileSizeKB as number) ?? this.config.maxFileSizeKB ?? 500,
-      maxFilesPerBatch: (perf?.maxFilesPerBatch as number) ?? this.config.maxFilesPerBatch ?? 10,
-      maxFilesPerProject: (perf?.maxFilesPerProject as number) ?? 10000,
-      timeoutSeconds: (perf?.timeoutSeconds as number) ?? 300,
-      maxTokensPerFile:
-        (perf?.maxTokensPerFile as number) ?? this.config.maxTokensPerFile ?? 1000000,
-      maxRetries: (perf?.maxRetries as number) ?? 2,
-    } as const;
   }
 }

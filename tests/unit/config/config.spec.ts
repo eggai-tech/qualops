@@ -443,63 +443,6 @@ describe('ConfigService', () => {
     });
   });
 
-  describe('getMaxFileSizeKB', () => {
-    it('should return maxFileSizeKB from config', () => {
-      const instance = ConfigService.getInstance();
-      expect(instance.getMaxFileSizeKB()).toBe(500);
-    });
-
-    it('should return default when maxFileSizeKB is undefined', () => {
-      const instance = ConfigService.getInstance();
-      instance.set('maxFileSizeKB', undefined);
-      expect(instance.getMaxFileSizeKB()).toBe(500);
-    });
-
-    it('should return custom value when set', () => {
-      const instance = ConfigService.getInstance();
-      instance.set('maxFileSizeKB', 1000);
-      expect(instance.getMaxFileSizeKB()).toBe(1000);
-    });
-  });
-
-  describe('getMaxTokensPerFile', () => {
-    it('should return maxTokensPerFile from config', () => {
-      const instance = ConfigService.getInstance();
-      expect(instance.getMaxTokensPerFile()).toBe(1000000);
-    });
-
-    it('should return default when maxTokensPerFile is undefined', () => {
-      const instance = ConfigService.getInstance();
-      instance.set('maxTokensPerFile', undefined);
-      expect(instance.getMaxTokensPerFile()).toBe(1000000);
-    });
-
-    it('should return custom value when set', () => {
-      const instance = ConfigService.getInstance();
-      instance.set('maxTokensPerFile', 500000);
-      expect(instance.getMaxTokensPerFile()).toBe(500000);
-    });
-  });
-
-  describe('getMaxReactSteps', () => {
-    it('should return maxReactSteps from config', () => {
-      const instance = ConfigService.getInstance();
-      expect(instance.getMaxReactSteps()).toBe(5);
-    });
-
-    it('should return default when maxReactSteps is undefined', () => {
-      const instance = ConfigService.getInstance();
-      instance.set('maxReactSteps', undefined);
-      expect(instance.getMaxReactSteps()).toBe(5);
-    });
-
-    it('should return custom value when set', () => {
-      const instance = ConfigService.getInstance();
-      instance.set('maxReactSteps', 10);
-      expect(instance.getMaxReactSteps()).toBe(10);
-    });
-  });
-
   describe('validate', () => {
     it('should return empty array when config is valid', () => {
       const aiConfig = {
@@ -557,70 +500,6 @@ describe('ConfigService', () => {
     });
   });
 
-  describe('getDirectories', () => {
-    it('should return default directories', () => {
-      const instance = ConfigService.getInstance();
-      const directories = instance.getDirectories();
-      expect(directories.SESSIONS).toBe('reports/sessions');
-      expect(directories.CACHE).toBe('.qualops-cache');
-    });
-
-    it('should return custom directories from config', () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        JSON.stringify({
-          ...VALID_MINIMAL_CONFIG,
-          paths: {
-            sessionsDir: '/custom/sessions',
-            cacheDir: '/custom/cache',
-          },
-        }),
-      );
-      const instance = ConfigService.getInstance();
-      const directories = instance.getDirectories();
-      expect(directories.SESSIONS).toBe('/custom/sessions');
-      expect(directories.CACHE).toBe('/custom/cache');
-    });
-  });
-
-  describe('getPerformanceLimits', () => {
-    it('should return default performance limits', () => {
-      const instance = ConfigService.getInstance();
-      const limits = instance.getPerformanceLimits();
-      expect(limits.maxFileSizeKB).toBe(500);
-      expect(limits.maxFilesPerBatch).toBe(7);
-      expect(limits.maxFilesPerProject).toBe(10000);
-      expect(limits.timeoutSeconds).toBe(300);
-      expect(limits.maxTokensPerFile).toBe(1000000);
-      expect(limits.maxRetries).toBe(2);
-    });
-
-    it('should return custom performance limits from config', () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        JSON.stringify({
-          ...VALID_MINIMAL_CONFIG,
-          performance: {
-            maxFileSizeKB: 1000,
-            maxFilesPerBatch: 15,
-            maxFilesPerProject: 5000,
-            timeoutSeconds: 600,
-            maxTokensPerFile: 2000000,
-            maxRetries: 3,
-          },
-        }),
-      );
-      const instance = ConfigService.getInstance();
-      const limits = instance.getPerformanceLimits();
-      expect(limits.maxFileSizeKB).toBe(1000);
-      expect(limits.maxFilesPerBatch).toBe(15);
-      expect(limits.maxFilesPerProject).toBe(5000);
-      expect(limits.timeoutSeconds).toBe(600);
-      expect(limits.maxTokensPerFile).toBe(2000000);
-      expect(limits.maxRetries).toBe(3);
-    });
-  });
-
   describe('getCriticalStages', () => {
     it('should return critical stages', () => {
       const stages = CRITICAL_STAGES;
@@ -634,44 +513,6 @@ describe('ConfigService', () => {
       expect(cacheConfig.VERSION).toBe('1.0.0');
       expect(cacheConfig.MAX_ENTRIES).toBe(10000);
       expect(cacheConfig.TTL_DAYS).toBe(7);
-    });
-  });
-
-  describe('getConfigValue', () => {
-    it('should return nested config value', () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(
-        JSON.stringify({
-          ...VALID_MINIMAL_CONFIG,
-          paths: {
-            sessionsDir: '/custom/sessions',
-          },
-        }),
-      );
-      const instance = ConfigService.getInstance();
-      const directories = instance.getDirectories();
-      expect(directories.SESSIONS).toBe('/custom/sessions');
-    });
-
-    it('should return default when path is not set', () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(JSON.stringify(VALID_MINIMAL_CONFIG));
-      const instance = ConfigService.getInstance();
-      const directories = instance.getDirectories();
-      expect(directories.SESSIONS).toBe('reports/sessions');
-    });
-
-    it('should return default when config file does not exist', () => {
-      mockExistsSync.mockReturnValue(false);
-      const instance = ConfigService.getInstance();
-      const directories = instance.getDirectories();
-      expect(directories.SESSIONS).toBe('reports/sessions');
-    });
-
-    it('should throw on invalid JSON', () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue('invalid json');
-      expect(() => ConfigService.getInstance()).toThrow(ConfigParseError);
     });
   });
 
