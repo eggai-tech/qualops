@@ -1,79 +1,32 @@
+import type { z } from 'zod';
+
+import type {
+  agenticConfigSchema,
+  agenticSubagentTypeSchema,
+  customAgentDefinitionSchema,
+  deduplicationConfigSchema,
+  pipelineJobSchema,
+  promptConfigSchema,
+  reviewConfigSchema,
+  reviewPassSchema,
+  validationConfigSchema,
+} from '../../config/config-schema';
+
+// --- Config types derived from Zod schemas ---
+
 export type ReviewMode = 'file-by-file' | 'agentic';
+export type AgenticSubagentType = z.infer<typeof agenticSubagentTypeSchema>;
 
-export type AgenticSubagentType =
-  | 'dependency-tracer'
-  | 'breaking-change-detector'
-  | 'security-analyzer'
-  | 'pattern-validator';
+export type CustomAgentDefinition = z.infer<typeof customAgentDefinitionSchema>;
+export type AgenticConfig = z.infer<typeof agenticConfigSchema>;
+export type ReviewConfig = z.infer<typeof reviewConfigSchema>;
+export type PipelineJob = z.infer<typeof pipelineJobSchema>;
+export type ReviewPass = z.infer<typeof reviewPassSchema>;
+export type PromptConfig = z.infer<typeof promptConfigSchema>;
+export type ValidationConfig = z.infer<typeof validationConfigSchema>;
+export type DeduplicationConfig = z.infer<typeof deduplicationConfigSchema>;
 
-export interface CustomAgentDefinition {
-  name: string;
-  description: string;
-  prompt: string;
-  tools?: string[];
-  model?: 'sonnet' | 'opus' | 'haiku';
-}
-
-export interface AgenticConfig {
-  maxTurns?: number;
-  maxBudgetUsd?: number;
-  enabledSubagents?: AgenticSubagentType[];
-  customAgents?: CustomAgentDefinition[];
-  agentsDir?: string;
-  systemPrompt?: string;
-  contextMode?: 'diff' | 'full' | 'auto';
-  maxTokensPerFile?: number;
-  maxTotalTokens?: number;
-}
-
-export interface ReviewConfig {
-  minConfidence?: number;
-  sessionBased?: boolean;
-  maxFilesBeforeReset?: number;
-  maxContextTokens?: number;
-  maxConcurrentFiles?: number;
-  validation?: ValidationConfig;
-  deduplication?: DeduplicationConfig;
-  pipeline: PipelineJob[];
-}
-
-export interface PipelineJob {
-  name: string;
-  enabled: boolean;
-  mode?: ReviewMode;
-  agentic?: AgenticConfig;
-  validation?: ValidationConfig;
-  deduplication?: DeduplicationConfig;
-  passes: ReviewPass[];
-}
-
-export interface ReviewPass {
-  name: string;
-  enabled: boolean;
-  docs?: string;
-  prompt: string | PromptConfig;
-  filters?: {
-    detectionTriggers?: string[];
-    filePatterns?: string[];
-    excludePatterns?: string[];
-  };
-}
-
-export interface PromptConfig {
-  file: string;
-  meta?: Record<string, any>;
-}
-
-export interface ValidationConfig {
-  enabled?: boolean;
-  minConfidence?: number;
-  prompt?: string | PromptConfig;
-}
-
-export interface DeduplicationConfig {
-  enabled?: boolean;
-  prompt?: string | PromptConfig;
-}
+// --- Domain types (kept as hand-written interfaces) ---
 
 export interface FileInfo {
   path: string;

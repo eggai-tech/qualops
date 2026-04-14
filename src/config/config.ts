@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { envConfig } from './env';
+import { ConfigParseError, assertValidConfig, collectConfigWarnings } from './schema-validator';
 import type { AIStageConfig, Config } from '../shared/types';
 import { logger } from '../shared/utils/logger';
 
@@ -44,6 +45,7 @@ export class ConfigService {
 
   private constructor() {
     this.rawConfig = this.loadRawConfig();
+    this.validateAgainstSchema();
     this.config = this.loadConfig();
   }
 
@@ -67,15 +69,30 @@ export class ConfigService {
       logger.warn(`Config file not found: ${rcPath}`);
       return {};
     }
+    const content = readFileSync(rcPath, 'utf-8');
+    logger.info(`Loaded config from: ${rcPath}`);
     try {
-      const content = readFileSync(rcPath, 'utf-8');
-      logger.info(`Loaded config from: ${rcPath}`);
       return JSON.parse(content);
     } catch (error) {
+      throw new ConfigParseError(rcPath, error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  private validateAgainstSchema(): void {
+    if (Object.keys(this.rawConfig).length === 0) return;
+
+    // Never call process.exit from this service — let the CLI error handler format and exit.
+    assertValidConfig(this.rawConfig);
+
+    const warnings = collectConfigWarnings(this.rawConfig);
+    for (const dep of warnings.deprecations) {
+      logger.warn(`[CONFIG] Deprecated field "${dep.path}": ${dep.description}`);
+    }
+    for (const unknown of warnings.unknownFields) {
       logger.warn(
-        `Failed to parse ${rcPath}: ${error instanceof Error ? error.message : String(error)}`,
+        `[CONFIG] Unknown field "${unknown.field}" at ${unknown.path} — ignored. ` +
+          `If this is a provider-specific option it will still be passed through; otherwise check for a typo.`,
       );
-      return {};
     }
   }
 
@@ -137,6 +154,7 @@ export class ConfigService {
 
   reset(): void {
     this.rawConfig = this.loadRawConfig();
+    this.validateAgainstSchema();
     this.config = this.loadConfig();
   }
 
@@ -170,18 +188,6 @@ export class ConfigService {
     return stageConfig;
   }
 
-  getMaxFileSizeKB(): number {
-    return this.config.maxFileSizeKB ?? 500;
-  }
-
-  getMaxTokensPerFile(): number {
-    return this.config.maxTokensPerFile ?? 1000000;
-  }
-
-  getMaxReactSteps(): number {
-    return this.config.maxReactSteps ?? 5;
-  }
-
   isIssueMarkdownEnabled(): boolean {
     return this.config.report?.generateIssueMarkdown ?? false;
   }
@@ -202,27 +208,5 @@ export class ConfigService {
     }
 
     return errors;
-  }
-
-  getDirectories() {
-    const paths = this.rawConfig.paths as Record<string, unknown> | undefined;
-    return {
-      SESSIONS: (paths?.sessionsDir as string) ?? 'reports/sessions',
-      CACHE: (paths?.cacheDir as string) ?? '.qualops-cache',
-      OUTPUT: (paths?.outputDir as string) ?? 'reports',
-    } as const;
-  }
-
-  getPerformanceLimits() {
-    const perf = this.rawConfig.performance as Record<string, unknown> | undefined;
-    return {
-      maxFileSizeKB: (perf?.maxFileSizeKB as number) ?? this.config.maxFileSizeKB ?? 500,
-      maxFilesPerBatch: (perf?.maxFilesPerBatch as number) ?? this.config.maxFilesPerBatch ?? 10,
-      maxFilesPerProject: (perf?.maxFilesPerProject as number) ?? 10000,
-      timeoutSeconds: (perf?.timeoutSeconds as number) ?? 300,
-      maxTokensPerFile:
-        (perf?.maxTokensPerFile as number) ?? this.config.maxTokensPerFile ?? 1000000,
-      maxRetries: (perf?.maxRetries as number) ?? 2,
-    } as const;
   }
 }

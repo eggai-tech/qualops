@@ -58,4 +58,16 @@ class GlobalRateLimiter {
   }
 }
 
-export const globalRateLimiter = new GlobalRateLimiter();
+/**
+ * Lazy singleton. Construction touches `ConfigService.getInstance()`, which can
+ * throw `ConfigParseError` / `ConfigValidationError` for a broken config.
+ * Building eagerly at module-load time would let those errors escape
+ * `cli.ts`'s `withErrorHandling` wrapper — deferring construction until first
+ * use keeps config errors inside the CLI error boundary.
+ */
+let instance: GlobalRateLimiter | undefined;
+
+export function getGlobalRateLimiter(): GlobalRateLimiter {
+  if (!instance) instance = new GlobalRateLimiter();
+  return instance;
+}
