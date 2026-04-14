@@ -1,5 +1,3 @@
-import { resolve } from 'node:path';
-
 import { PromptLoader } from '@/stages/review/loaders/prompt-loader';
 
 describe('PromptLoader', () => {
@@ -27,15 +25,13 @@ describe('PromptLoader', () => {
     });
 
     it('rejects traversal in promptConfig object', async () => {
-      await expect(
-        PromptLoader.load({ file: '../../../etc/passwd', meta: {} }),
-      ).rejects.toThrow(/resolves outside the prompts directory/);
+      await expect(PromptLoader.load({ file: '../../../etc/passwd', meta: {} })).rejects.toThrow(
+        /resolves outside the prompts directory/,
+      );
     });
 
     it('does not reject normal relative path (fails with file not found, not traversal)', async () => {
-      await expect(PromptLoader.load('nonexistent.md')).rejects.toThrow(
-        /Failed to load prompt/,
-      );
+      await expect(PromptLoader.load('nonexistent.md')).rejects.toThrow(/Failed to load prompt/);
       await expect(PromptLoader.load('nonexistent.md')).rejects.not.toThrow(
         /resolves outside the prompts directory/,
       );

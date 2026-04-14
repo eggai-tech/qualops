@@ -308,7 +308,7 @@
       "description": "Prompt reference as a relative path string or { file, meta } object.",
       "oneOf": [
         {
-          "$ref": "#/$defs/nonEmptyString"
+          "$ref": "#/$defs/relativePath"
         },
         {
           "$ref": "#/$defs/promptConfig"
@@ -325,7 +325,7 @@
       "properties": {
         "file": {
           "description": "Prompt file path relative to .qualops/prompts.",
-          "$ref": "#/$defs/nonEmptyString"
+          "$ref": "#/$defs/relativePath"
         },
         "meta": {
           "description": "Optional metadata that can be used by prompt templates.",
@@ -430,7 +430,7 @@
         },
         "agentsDir": {
           "description": "Directory containing external custom agent files.",
-          "$ref": "#/$defs/nonEmptyString"
+          "$ref": "#/$defs/relativePath"
         },
         "systemPrompt": {
           "description": "Additional system instructions appended to the default agentic prompt.",
@@ -876,6 +876,11 @@
         "warn",
         "error"
       ]
+    },
+    "relativePath": {
+      "$ref": "#/$defs/nonEmptyString",
+      "type": "string",
+      "minLength": 1
     }
   }
 }

@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 import type { PromptConfig } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
