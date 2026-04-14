@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { executeAllStages } from './cli/commands/all-command';
 import { generateIndexCommand } from './cli/commands/generate-index-command';
 import { initClaudeCommand } from './cli/commands/init-claude-command';
+import { validateCommand } from './cli/commands/validate-command';
 import { withErrorHandling } from './cli/utils/error-handler';
 import { formatHelpText } from './cli/utils/help-formatter';
 import { DEFAULT_CONFIG_PATH } from './config/config';
@@ -48,6 +49,14 @@ program
     const parentOpts = command.parent?.opts() || {};
     const merged = { ...parentOpts, ...options };
     return withErrorHandling(generateIndexCommand, 'generate-index')(merged);
+  });
+
+program
+  .command('validate')
+  .description('Validate the config file without running any stages')
+  .action(function (_opts: Record<string, unknown>, command: Command) {
+    const parentOpts = command.parent?.opts() || {};
+    return withErrorHandling(validateCommand, 'validate')(parentOpts);
   });
 
 program
