@@ -1,9 +1,6 @@
 # npm-based QualOps workflow
-# Use this instead of the GitHub Action when you need:
-#   - A pinned qualops version
-#   - Control over the Node.js version
-#   - npm caching for faster runs
-#   - The HTML report as a downloadable artifact
+# Alternative to the GitHub Action for teams that prefer
+# installing QualOps via npm in their own CI steps.
 
 name: QualOps Code Quality
 
