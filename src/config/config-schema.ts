@@ -1,3 +1,5 @@
+import { isAbsolute, normalize } from 'node:path';
+
 import { z } from 'zod';
 
 // --- Reusable primitives ---
@@ -20,6 +22,13 @@ const confidenceScore = z.int().min(1).max(10).meta({
 });
 const nonEmptyString = z.string().min(1).meta({ defName: 'nonEmptyString' });
 const nonEmptyStringArray = z.array(nonEmptyString).meta({ defName: 'nonEmptyStringArray' });
+const relativePath = nonEmptyString
+  .refine((p) => !isAbsolute(p), 'Must be a relative path.')
+  .refine(
+    (p) => !normalize(p).startsWith('..'),
+    'Path must not traverse outside its base directory.',
+  )
+  .meta({ defName: 'relativePath' });
 const outputFormat = z.enum(['json', 'html', 'markdown']).meta({
   defName: 'outputFormat',
   description: 'Output format for reports and generated files.',
@@ -75,7 +84,7 @@ const aiConfigSchema = z
 // --- Prompt config ---
 export const promptConfigSchema = z
   .object({
-    file: nonEmptyString.meta({ description: 'Prompt file path relative to .qualops/prompts.' }),
+    file: relativePath.meta({ description: 'Prompt file path relative to .qualops/prompts.' }),
     meta: z
       .record(z.string(), z.unknown())
       .optional()
@@ -87,7 +96,7 @@ export const promptConfigSchema = z
     description: 'Prompt reference object with optional metadata.',
   });
 
-const promptRef = z.union([nonEmptyString, promptConfigSchema]).meta({
+const promptRef = z.union([relativePath, promptConfigSchema]).meta({
   defName: 'promptRef',
   description: 'Prompt reference as a relative path string or { file, meta } object.',
 });
@@ -213,7 +222,7 @@ export const agenticConfigSchema = z
       .array(customAgentDefinitionSchema)
       .optional()
       .meta({ description: 'Custom agents loaded from config and optional agents directory.' }),
-    agentsDir: nonEmptyString
+    agentsDir: relativePath
       .optional()
       .meta({ description: 'Directory containing external custom agent files.' }),
     systemPrompt: z.string().optional().meta({

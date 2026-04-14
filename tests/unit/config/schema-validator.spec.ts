@@ -1,3 +1,4 @@
+import { promptConfigSchema } from '@/config/config-schema';
 import {
   CONFIG_PARSE_ERROR_CODE,
   CONFIG_VALIDATION_ERROR_CODE,
@@ -274,6 +275,127 @@ describe('ConfigParseError', () => {
   it('has a distinct error name', () => {
     const err = new ConfigParseError('/tmp/.qualopsrc.json', new Error('boom'));
     expect(err.name).toBe('ConfigParseError');
+  });
+});
+
+describe('path traversal validation', () => {
+  describe('promptConfigSchema', () => {
+    it('accepts a normal relative path', () => {
+      const result = promptConfigSchema.safeParse({ file: 'review.md' });
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts a nested relative path', () => {
+      const result = promptConfigSchema.safeParse({ file: 'custom/review.md' });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects absolute path', () => {
+      const result = promptConfigSchema.safeParse({ file: '/etc/passwd' });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects path traversal with ../', () => {
+      const result = promptConfigSchema.safeParse({ file: '../../../etc/passwd' });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects path traversal embedded in path', () => {
+      const result = promptConfigSchema.safeParse({ file: 'foo/../../etc/passwd' });
+      expect(result.success).toBe(false);
+    });
+
+    it('accepts path with .. in filename (not traversal)', () => {
+      const result = promptConfigSchema.safeParse({ file: 'my..file.md' });
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('agentsDir in full config', () => {
+    it('accepts normal relative agents dir', () => {
+      const config = {
+        ...minimalValidConfig,
+        review: {
+          pipeline: [
+            {
+              name: 'agentic-job',
+              enabled: true,
+              mode: 'agentic',
+              agentic: { agentsDir: '.qualops/agents' },
+            },
+          ],
+        },
+      };
+      expect(() => assertValidConfig(config)).not.toThrow();
+    });
+
+    it('rejects absolute agentsDir', () => {
+      const config = {
+        ...minimalValidConfig,
+        review: {
+          pipeline: [
+            {
+              name: 'agentic-job',
+              enabled: true,
+              mode: 'agentic',
+              agentic: { agentsDir: '/tmp/evil' },
+            },
+          ],
+        },
+      };
+      expect(() => assertValidConfig(config)).toThrow();
+    });
+
+    it('rejects traversal in agentsDir', () => {
+      const config = {
+        ...minimalValidConfig,
+        review: {
+          pipeline: [
+            {
+              name: 'agentic-job',
+              enabled: true,
+              mode: 'agentic',
+              agentic: { agentsDir: '../../malicious' },
+            },
+          ],
+        },
+      };
+      expect(() => assertValidConfig(config)).toThrow();
+    });
+  });
+
+  describe('prompt ref as bare string in pipeline passes', () => {
+    it('rejects traversal in bare prompt string', () => {
+      const config = {
+        ...minimalValidConfig,
+        review: {
+          pipeline: [
+            {
+              name: 'test-job',
+              enabled: true,
+              passes: [{ name: 'test-pass', enabled: true, prompt: '../../../etc/passwd' }],
+            },
+          ],
+        },
+      };
+      expect(() => assertValidConfig(config)).toThrow();
+    });
+
+    it('accepts normal bare prompt string', () => {
+      const config = {
+        ...minimalValidConfig,
+        review: {
+          pipeline: [
+            {
+              name: 'test-job',
+              enabled: true,
+              passes: [{ name: 'test-pass', enabled: true, prompt: 'review.md' }],
+            },
+          ],
+        },
+      };
+      expect(() => assertValidConfig(config)).not.toThrow();
+    });
   });
 });
 

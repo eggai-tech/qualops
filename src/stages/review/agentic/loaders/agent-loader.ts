@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, resolve } from 'node:path';
 
 import type { AgenticConfig, CustomAgentDefinition } from '../../../../shared/types/config';
 import { logger } from '../../../../shared/utils/logger';
@@ -15,7 +15,7 @@ export class AgentLoader {
   private cwd: string;
 
   constructor(cwd?: string) {
-    this.cwd = cwd || process.cwd();
+    this.cwd = resolve(cwd || process.cwd());
   }
 
   loadCustomAgents(config: AgenticConfig): Record<string, AgentDefinition> {
@@ -31,7 +31,14 @@ export class AgentLoader {
 
     // Load from agents directory
     const agentsDir = config.agentsDir || '.qualops/agents';
-    const fullAgentsDir = join(this.cwd, agentsDir);
+    const fullAgentsDir = resolve(this.cwd, agentsDir);
+
+    if (!fullAgentsDir.startsWith(this.cwd)) {
+      logger.warn(
+        `[AgentLoader] agentsDir "${agentsDir}" resolves outside project directory. Path traversal is not allowed.`,
+      );
+      return agents;
+    }
 
     if (existsSync(fullAgentsDir)) {
       const files = readdirSync(fullAgentsDir).filter((f) => f.endsWith('.md'));

@@ -1,10 +1,10 @@
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import type { PromptConfig } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
 
-const PROMPTS_BASE_PATH = join(process.cwd(), '.qualops/prompts');
+const PROMPTS_BASE_PATH = resolve(process.cwd(), '.qualops/prompts');
 
 interface LoadedPrompt {
   content: string;
@@ -30,7 +30,13 @@ export class PromptLoader {
       return cached;
     }
 
-    const fullPath = join(PROMPTS_BASE_PATH, promptPath);
+    const fullPath = resolve(PROMPTS_BASE_PATH, promptPath);
+
+    if (!fullPath.startsWith(PROMPTS_BASE_PATH)) {
+      throw new Error(
+        `Prompt path "${promptPath}" resolves outside the prompts directory. Path traversal is not allowed.`,
+      );
+    }
 
     try {
       const content = await readFile(fullPath, 'utf-8');

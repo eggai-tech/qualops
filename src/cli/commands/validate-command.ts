@@ -1,7 +1,11 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
-import { ConfigParseError, assertValidConfig, collectConfigWarnings } from '../../config/schema-validator';
+import {
+  ConfigParseError,
+  assertValidConfig,
+  collectConfigWarnings,
+} from '../../config/schema-validator';
 import { logger } from '../../shared/utils/logger';
 
 export async function validateCommand(options: Record<string, unknown>): Promise<void> {
