@@ -8,6 +8,7 @@ import { validateCommand } from './cli/commands/validate-command';
 import { withErrorHandling } from './cli/utils/error-handler';
 import { formatHelpText } from './cli/utils/help-formatter';
 import { DEFAULT_CONFIG_PATH } from './config/config';
+import { GitHubIntegration } from './github/github-integration';
 
 const runQualOps = withErrorHandling(executeAllStages, 'qualops');
 
@@ -70,6 +71,18 @@ program
   .action((options: { provider: 'anthropic' | 'openai' | 'bedrock' }) =>
     initClaudeCommand(options),
   );
+
+program
+  .command('github-integration')
+  .description('Post review results as GitHub PR comment and checks (run after qualops completes)')
+  .action(() => {
+    const integration = new GitHubIntegration();
+    integration.run().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`GitHub integration failed: ${message}`);
+      process.exit(1);
+    });
+  });
 
 // Add help examples
 program.addHelpText('after', formatHelpText());

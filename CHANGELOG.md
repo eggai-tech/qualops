@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Fix GitHub Action post-integration step
 - Update the logger config loading to read from `${cwd}/.qualops/.qualopsrc.json` instead of CWD
 - Remove unused `promptfoo` devDependency
 - Fix lint failure with `typescript-eslint` 8.58+ due to unused type predicate parameter
