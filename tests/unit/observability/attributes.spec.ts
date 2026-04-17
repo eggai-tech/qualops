@@ -8,6 +8,7 @@ import {
   setAgenticSpanAttributes,
   setAgenticTurns,
   setGoldenDetails,
+  recordSpanError,
   withAISpan,
 } from '@/observability';
 import type { PRMetadata } from '@/observability';
@@ -19,6 +20,8 @@ describe('observability helpers', () => {
       setAttribute: jest.fn((key: string, value: unknown) => {
         attrs[key] = value;
       }),
+      setStatus: jest.fn(),
+      recordException: jest.fn(),
       end: jest.fn(),
       _attrs: attrs,
     };
@@ -276,6 +279,24 @@ describe('observability helpers', () => {
       const span = createMockSpan();
       setObservationIO(span as any, { input: null });
       expect(span._attrs['langfuse.observation.input']).toBe('null');
+    });
+  });
+
+  describe('recordSpanError', () => {
+    it('calls recordException and sets ERROR status for an Error instance', () => {
+      const span = createMockSpan();
+      const err = new Error('boom');
+      recordSpanError(span as any, err);
+      expect(span.recordException).toHaveBeenCalledWith(err);
+      expect(span.setStatus).toHaveBeenCalledWith(expect.objectContaining({ message: 'boom' }));
+    });
+
+    it('wraps non-Error values in an Error before recording', () => {
+      const span = createMockSpan();
+      recordSpanError(span as any, 'string error');
+      const recorded = (span.recordException as jest.Mock).mock.calls[0][0];
+      expect(recorded).toBeInstanceOf(Error);
+      expect(recorded.message).toBe('string error');
     });
   });
 

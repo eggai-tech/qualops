@@ -7,6 +7,7 @@ export {
   setTokenUsage,
   withAISpan,
   sanitizeForObservability,
+  recordSpanError,
 } from './span-attributes';
 export type { TokenUsageOptions } from './span-attributes';
 

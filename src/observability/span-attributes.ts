@@ -1,3 +1,4 @@
+import { SpanStatusCode } from '@opentelemetry/api';
 import type { Span, Tracer } from '@opentelemetry/api';
 
 import { SENSITIVE_VALUE_PATTERN_SOURCE } from '../shared/utils/security';
@@ -53,6 +54,16 @@ export function sanitizeForObservability(obj: unknown): unknown {
  * Langfuse uses this attribute to associate spans with a model in the UI —
  * it must be set for the Langfuse model filter to work.
  */
+/**
+ * Records an error on a span: calls recordException and sets ERROR status.
+ * Call this in a catch block before re-throwing; end the span in finally.
+ */
+export function recordSpanError(span: Span, error: unknown): void {
+  const err = error instanceof Error ? error : new Error(String(error));
+  span.recordException(err);
+  span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+}
+
 export function setModelAttribute(span: Span, model: string): void {
   span.setAttribute('gen_ai.request.model', model);
 }

@@ -30,11 +30,30 @@ import type { Tracer, Span } from '@opentelemetry/api';
 import { Langfuse } from 'langfuse';
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-import { QUALOPS_ROOT, PRESETS_DIR, parseArgs, resolveDatasets, buildConfig, listPresets, readPresetMeta } from './config';
+import {
+  QUALOPS_ROOT,
+  PRESETS_DIR,
+  parseArgs,
+  resolveDatasets,
+  buildConfig,
+  listPresets,
+  readPresetMeta,
+} from './config';
 import { classifyError, createRunLog } from './run-log';
 import { runReviewForItem } from './reviewer';
 import { runAllScorers, scoreFor } from './scorers/index';
-import { setupTracing, getTracer, shutdownTracing, setTraceAttributes, setTokenUsage, setObservationIO, setTraceIO, setGoldenDetails, forceFlushTracing } from '../../src/observability';
+import {
+  setupTracing,
+  getTracer,
+  shutdownTracing,
+  setTraceAttributes,
+  setTokenUsage,
+  setObservationIO,
+  setTraceIO,
+  setGoldenDetails,
+  recordSpanError,
+  forceFlushTracing,
+} from '../../src/observability';
 
 const cliArgs = parseArgs(process.argv);
 
@@ -60,7 +79,9 @@ async function runWithConcurrency<T>(
   tasks: Array<() => Promise<T>>,
   limit: number,
 ): Promise<Array<{ status: 'fulfilled'; value: T } | { status: 'rejected'; reason: unknown }>> {
-  const results: Array<{ status: 'fulfilled'; value: T } | { status: 'rejected'; reason: unknown }> = [];
+  const results: Array<
+    { status: 'fulfilled'; value: T } | { status: 'rejected'; reason: unknown }
+  > = [];
   const running = new Set<Promise<void>>();
   let index = 0;
 
@@ -85,12 +106,21 @@ async function runWithConcurrency<T>(
   return results;
 }
 
-async function runEvalItem(langfuse: Langfuse, item: Record<string, unknown>, itemIndex: number, total: number, datasetName: string, tracer: Tracer) {
+async function runEvalItem(
+  langfuse: Langfuse,
+  item: Record<string, unknown>,
+  itemIndex: number,
+  total: number,
+  datasetName: string,
+  tracer: Tracer,
+) {
   try {
     return await _runEvalItem(langfuse, item, itemIndex, total, datasetName, tracer);
   } catch (err) {
     const errorCode = classifyError(err);
-    console.error(`  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${err.message || err}`);
+    console.error(
+      `  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${err.message || err}`,
+    );
     runLog.add({
       level: 'error',
       event: 'uncaught_error',
@@ -104,7 +134,14 @@ async function runEvalItem(langfuse: Langfuse, item: Record<string, unknown>, it
   }
 }
 
-async function _runEvalItem(langfuse: Langfuse, item: Record<string, unknown>, itemIndex: number, total: number, datasetName: string, tracer: Tracer) {
+async function _runEvalItem(
+  langfuse: Langfuse,
+  item: Record<string, unknown>,
+  itemIndex: number,
+  total: number,
+  datasetName: string,
+  tracer: Tracer,
+) {
   const itemInput = item.input as Record<string, unknown>;
   const itemExpected = (item.expectedOutput as Record<string, unknown>) || {};
   const referenceBugs = (itemExpected.referenceBugs as unknown[]) || [];
@@ -143,7 +180,15 @@ async function _runEvalItem(langfuse: Langfuse, item: Record<string, unknown>, i
       setTraceIO(rootSpan, { input: itemInput });
       traceId = rootSpan.spanContext().traceId;
 
-      const reviewResult = await runReviewSpan(tracer, rootSpan, itemInput, caseId, itemIndex, total, datasetName);
+      const reviewResult = await runReviewSpan(
+        tracer,
+        rootSpan,
+        itemInput,
+        caseId,
+        itemIndex,
+        total,
+        datasetName,
+      );
       issues = reviewResult.issues;
       reviewError = reviewResult.reviewError;
       durationMs = reviewResult.durationMs;
@@ -152,17 +197,36 @@ async function _runEvalItem(langfuse: Langfuse, item: Record<string, unknown>, i
       // Flush before linking trace to dataset run item
       await forceFlushTracing();
 
-      await linkDatasetRunItem(langfuse, item.id as string, traceId, durationMs, datasetName, caseId);
+      await linkDatasetRunItem(
+        langfuse,
+        item.id as string,
+        traceId,
+        durationMs,
+        datasetName,
+        caseId,
+      );
 
       if (!reviewError) {
         const scoringResult = await scoreEvalItem({
-          langfuse, traceId, genSpanId, caseId, issues, itemInput,
-          referenceBugs, referenceExpected, itemIndex, total, durationMs,
+          langfuse,
+          traceId,
+          genSpanId,
+          caseId,
+          issues,
+          itemInput,
+          referenceBugs,
+          referenceExpected,
+          itemIndex,
+          total,
+          durationMs,
         });
         if (scoringResult.goldenDetails) {
           setGoldenDetails(rootSpan, scoringResult.goldenDetails);
         }
       }
+    } catch (error) {
+      recordSpanError(rootSpan, error);
+      throw error;
     } finally {
       rootSpan.end();
     }
@@ -172,7 +236,15 @@ async function _runEvalItem(langfuse: Langfuse, item: Record<string, unknown>, i
   return { caseId, issues, reviewError };
 }
 
-async function runReviewSpan(tracer: Tracer, rootSpan: Span, itemInput: Record<string, unknown>, caseId: string, itemIndex: number, total: number, datasetName: string) {
+async function runReviewSpan(
+  tracer: Tracer,
+  rootSpan: Span,
+  itemInput: Record<string, unknown>,
+  caseId: string,
+  itemIndex: number,
+  total: number,
+  datasetName: string,
+) {
   let issues: unknown[] = [];
   let reviewError: string | null = null;
   let durationMs = 0;
@@ -185,7 +257,11 @@ async function runReviewSpan(tracer: Tracer, rootSpan: Span, itemInput: Record<s
           filePath: itemInput.filePath,
           language: itemInput.language,
           diffLength: ((itemInput.diff as string) || '').length,
-          contentLength: ((itemInput.fullContent as string) || (itemInput.fileContent as string) || '').length,
+          contentLength: (
+            (itemInput.fullContent as string) ||
+            (itemInput.fileContent as string) ||
+            ''
+          ).length,
         },
       });
       genSpanId = genSpan.spanContext().spanId;
@@ -231,7 +307,14 @@ async function runReviewSpan(tracer: Tracer, rootSpan: Span, itemInput: Record<s
   return { issues, reviewError, durationMs, genSpanId };
 }
 
-async function linkDatasetRunItem(langfuse: Langfuse, datasetItemId: string, traceId: string, durationMs: number, datasetName: string, caseId: string) {
+async function linkDatasetRunItem(
+  langfuse: Langfuse,
+  datasetItemId: string,
+  traceId: string,
+  durationMs: number,
+  datasetName: string,
+  caseId: string,
+) {
   try {
     await langfuse.api.datasetRunItemsCreate({
       datasetItemId,
@@ -267,12 +350,28 @@ interface ScoreEvalItemOpts {
   durationMs: number;
 }
 
-async function scoreEvalItem({ langfuse, traceId, genSpanId, caseId, issues, itemInput, referenceBugs, referenceExpected, itemIndex, total, durationMs }: ScoreEvalItemOpts) {
+async function scoreEvalItem({
+  langfuse,
+  traceId,
+  genSpanId,
+  caseId,
+  issues,
+  itemInput,
+  referenceBugs,
+  referenceExpected,
+  itemIndex,
+  total,
+  durationMs,
+}: ScoreEvalItemOpts) {
   const source = itemInput.source as string;
 
   let scores;
   if (config.skipJudge) {
-    scores = await scoreFor(source, issues, { referenceBugs, referenceExpected, skipNames: new Set(['judge']) });
+    scores = await scoreFor(source, issues, {
+      referenceBugs,
+      referenceExpected,
+      skipNames: new Set(['judge']),
+    });
   } else {
     scores = await runAllScorers(issues, { referenceBugs, referenceExpected, source });
   }
@@ -304,8 +403,12 @@ async function scoreEvalItem({ langfuse, traceId, genSpanId, caseId, issues, ite
     }
   }
 
-  const scoreMap = Object.fromEntries(scores.map((s: { name: string; value: number }) => [s.name, s.value]));
-  const summary = scores.map((s: { name: string; value: number }) => `${s.name}=${s.value.toFixed(3)}`).join(' ');
+  const scoreMap = Object.fromEntries(
+    scores.map((s: { name: string; value: number }) => [s.name, s.value]),
+  );
+  const summary = scores
+    .map((s: { name: string; value: number }) => `${s.name}=${s.value.toFixed(3)}`)
+    .join(' ');
   console.log(`  [${itemIndex + 1}/${total}] ${caseId} issues=${issues.length} ${summary}`);
 
   runLog.add({
@@ -331,7 +434,9 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
   } catch (err) {
     const error = err as Error;
     const errorCode = classifyError(error);
-    console.error(`Error: could not fetch dataset "${datasetName}" [${errorCode}]: ${error.message}`);
+    console.error(
+      `Error: could not fetch dataset "${datasetName}" [${errorCode}]: ${error.message}`,
+    );
     console.error('Make sure to upload the dataset first: npm run eval:upload:all');
     runLog.add({
       level: 'error',
@@ -355,21 +460,34 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
   if (config.severityFilter) {
     const before = allItems.length;
     allItems = allItems.filter((item) => {
-      const expected = ((item.expectedOutput as Record<string, unknown>)?.referenceExpected as Array<{ severity?: string }>) || [];
+      const expected =
+        ((item.expectedOutput as Record<string, unknown>)?.referenceExpected as Array<{
+          severity?: string;
+        }>) || [];
       return expected.some((e) => config.severityFilter.has((e.severity || '').toLowerCase()));
     });
-    console.log(`Severity filter: ${[...config.severityFilter].join(',')} — ${allItems.length}/${before} items`);
+    console.log(
+      `Severity filter: ${[...config.severityFilter].join(',')} — ${allItems.length}/${before} items`,
+    );
   }
 
   if (config.limit < Infinity) {
     allItems = allItems.slice(0, config.limit);
   }
 
-  console.log(`Found ${allItems.length} items. Running with concurrency=${config.concurrency}...\n`);
+  console.log(
+    `Found ${allItems.length} items. Running with concurrency=${config.concurrency}...\n`,
+  );
 
-  const results = { total: allItems.length, passed: 0, errors: 0 } as { total: number; passed: number; errors: number };
+  const results = { total: allItems.length, passed: 0, errors: 0 } as {
+    total: number;
+    passed: number;
+    errors: number;
+  };
 
-  const tasks = allItems.map((item, i) => () => runEvalItem(langfuse, item, i, allItems.length, datasetName, tracer));
+  const tasks = allItems.map(
+    (item, i) => () => runEvalItem(langfuse, item, i, allItems.length, datasetName, tracer),
+  );
   const runResults = await runWithConcurrency(tasks, config.concurrency);
 
   for (const r of runResults) {
@@ -412,7 +530,8 @@ async function main(): Promise<void> {
   console.log(`Datasets: ${datasets.join(', ')}`);
   console.log(`Experiment: ${config.experimentName}`);
   console.log(`Model: ${config.model} | Mode: ${config.mode} | Provider: ${config.provider}`);
-  if (config.severityFilter) console.log(`Severity filter: ${[...config.severityFilter].join(', ')}`);
+  if (config.severityFilter)
+    console.log(`Severity filter: ${[...config.severityFilter].join(', ')}`);
   if (config.skipJudge) console.log('Judge scorer: disabled');
 
   const totals = { total: 0, errors: 0 };
@@ -433,16 +552,22 @@ async function main(): Promise<void> {
   const warnCount = logData.totals.warnings;
 
   console.log('\n─── Results ───────────────────────────────────────');
-  console.log(`Datasets: ${datasets.length} | Total: ${totals.total} | Errors: ${totals.errors} | Warnings: ${warnCount}`);
+  console.log(
+    `Datasets: ${datasets.length} | Total: ${totals.total} | Errors: ${totals.errors} | Warnings: ${warnCount}`,
+  );
   console.log(`Experiment: ${config.experimentName}`);
   console.log(`View at: ${langfuseHost}`);
   console.log(`Run log: ${logFile}`);
   if (warnCount > 0) {
-    const codes = Object.entries(logData.warningBreakdown).map(([k, v]) => `${k}=${v}`).join(' ');
+    const codes = Object.entries(logData.warningBreakdown)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(' ');
     console.log(`Warnings: ${codes}`);
   }
   if (totals.errors > 0) {
-    const codes = Object.entries(logData.errorBreakdown).map(([k, v]) => `${k}=${v}`).join(' ');
+    const codes = Object.entries(logData.errorBreakdown)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(' ');
     console.log(`Errors: ${codes}`);
   }
   console.log('──────────────────────────────────────────────────');

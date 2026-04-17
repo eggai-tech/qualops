@@ -9,7 +9,13 @@ import { FileReviewer } from './file-reviewer';
 import { ValidationResolver } from './validation-resolver';
 import type { AIProvider } from '../../../ai/providers/provider';
 import { ConfigService } from '../../../config/config';
-import { getTracer, setModelAttribute, setObservationIO, withAISpan } from '../../../observability';
+import {
+  getTracer,
+  recordSpanError,
+  setModelAttribute,
+  setObservationIO,
+  withAISpan,
+} from '../../../observability';
 import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
 import type { ReviewIssue } from '../../../shared/types';
 import type { FileInfo, PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config';
@@ -84,6 +90,9 @@ export class PipelineExecutor {
         const issues = await this.validateAndDedup(tracer, job, rawIssues);
         setObservationIO(span, { output: issues });
         return issues;
+      } catch (error) {
+        recordSpanError(span, error);
+        throw error;
       } finally {
         span.end();
       }
@@ -116,6 +125,9 @@ export class PipelineExecutor {
         const issues = await this.validateAndDedup(tracer, job, rawIssues);
         setObservationIO(span, { output: issues });
         return issues;
+      } catch (error) {
+        recordSpanError(span, error);
+        throw error;
       } finally {
         span.end();
       }

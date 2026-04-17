@@ -2,6 +2,7 @@ import type { AIProvider } from '../../../ai/providers/provider';
 import { fixMalformedJson } from '../../../ai/shared/parsers/json-parser';
 import {
   getTracer,
+  recordSpanError,
   setModelAttribute,
   setObservationIO,
   setTokenUsage,
@@ -104,6 +105,9 @@ export class FileReviewer {
         setObservationIO(span, { output: parsedIssues });
 
         return parsedIssues;
+      } catch (error) {
+        recordSpanError(span, error);
+        throw error;
       } finally {
         span.end();
       }
