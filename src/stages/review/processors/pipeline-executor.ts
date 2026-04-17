@@ -2,11 +2,14 @@ import { writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import type { Tracer } from '@opentelemetry/api';
+
 import { DeduplicationResolver } from './dedup-resolver';
 import { FileReviewer } from './file-reviewer';
 import { ValidationResolver } from './validation-resolver';
 import type { AIProvider } from '../../../ai/providers/provider';
 import { ConfigService } from '../../../config/config';
+import { getTracer, setModelAttribute, setObservationIO, withAISpan } from '../../../observability';
 import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
 import type { ReviewIssue } from '../../../shared/types';
 import type { FileInfo, PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config';
@@ -24,6 +27,7 @@ export class PipelineExecutor {
   private validationResolver: ValidationResolver;
   private dedupResolver: DeduplicationResolver;
   private aiProvider: AIProvider;
+  private model: string;
   private preValidationDump: Record<string, ReviewIssue[]> = {};
 
   constructor(aiProvider: AIProvider) {
@@ -31,6 +35,7 @@ export class PipelineExecutor {
     this.validationResolver = new ValidationResolver(this.config, aiProvider);
     this.dedupResolver = new DeduplicationResolver(this.config, aiProvider);
     this.aiProvider = aiProvider;
+    this.model = ConfigService.getInstance().getAIStageConfig('review').model;
   }
 
   async execute(files: FileInfo[]): Promise<ReviewIssue[]> {
@@ -68,31 +73,56 @@ export class PipelineExecutor {
   }
 
   private async executeAgenticJob(job: PipelineJob, files: FileInfo[]): Promise<ReviewIssue[]> {
+    const tracer = getTracer();
+    const filePaths = files.map((f) => f.path);
+
+    return tracer.startActiveSpan(`job/${job.name}`, async (span) => {
+      try {
+        setModelAttribute(span, this.model);
+        setObservationIO(span, { input: { files: filePaths, mode: 'agentic' } });
+        const rawIssues = await this.runAgenticReview(job, files);
+        const issues = await this.validateAndDedup(tracer, job, rawIssues);
+        setObservationIO(span, { output: issues });
+        return issues;
+      } finally {
+        span.end();
+      }
+    });
+  }
+
+  private async runAgenticReview(job: PipelineJob, files: FileInfo[]): Promise<ReviewIssue[]> {
     logger.info(`[Pipeline] Starting agentic review for job: ${job.name}`);
 
-    let model: string | undefined;
-    try {
-      model = ConfigService.getInstance().getAIStageConfig('review').model;
-    } catch {}
-    const executor = new AgenticExecutor(job, undefined, model);
+    const executor = new AgenticExecutor(job, undefined, this.model);
     const rawIssues = await executor.execute(files);
 
     this.preValidationDump[job.name] = rawIssues;
-
-    const validatedIssues = await this.validationResolver.validate(rawIssues, job);
-    logger.info(
-      `[Pipeline] Job "${job.name}" validation: ${validatedIssues.length}/${rawIssues.length} issues passed`,
-    );
-
-    const dedupedIssues = await this.dedupResolver.deduplicate(validatedIssues, job);
-    logger.info(
-      `[Pipeline] Job "${job.name}" deduplication: ${dedupedIssues.length}/${validatedIssues.length} issues kept`,
-    );
-
-    return dedupedIssues;
+    return rawIssues;
   }
 
   private async executeJob(
+    job: PipelineJob,
+    passes: ReviewPass[],
+    files: FileInfo[],
+  ): Promise<ReviewIssue[]> {
+    const tracer = getTracer();
+    const filePaths = files.map((f) => f.path);
+
+    return tracer.startActiveSpan(`job/${job.name}`, async (span) => {
+      try {
+        setModelAttribute(span, this.model);
+        setObservationIO(span, { input: { files: filePaths, mode: job.mode || 'file-by-file' } });
+        const rawIssues = await this.runPasses(job, passes, files);
+        const issues = await this.validateAndDedup(tracer, job, rawIssues);
+        setObservationIO(span, { output: issues });
+        return issues;
+      } finally {
+        span.end();
+      }
+    });
+  }
+
+  private async runPasses(
     job: PipelineJob,
     passes: ReviewPass[],
     files: FileInfo[],
@@ -101,19 +131,30 @@ export class PipelineExecutor {
 
     for (const pass of passes) {
       logger.info(`[Pipeline] Executing pass: ${pass.name}`);
-      const passIssues = await this.executePass(job, pass, files);
+      const passIssues = await this.executePass(pass, files);
       rawIssues.push(...passIssues);
       logger.info(`[Pipeline] Pass "${pass.name}" completed: ${passIssues.length} raw issues`);
     }
 
     this.preValidationDump[job.name] = rawIssues;
+    return rawIssues;
+  }
 
-    const validatedIssues = await this.validationResolver.validate(rawIssues, job);
+  private async validateAndDedup(
+    tracer: Tracer,
+    job: PipelineJob,
+    rawIssues: ReviewIssue[],
+  ): Promise<ReviewIssue[]> {
+    const validatedIssues = await withAISpan(tracer, 'validation', this.model, async () => {
+      return this.validationResolver.validate(rawIssues, job);
+    });
     logger.info(
       `[Pipeline] Job "${job.name}" validation: ${validatedIssues.length}/${rawIssues.length} issues passed`,
     );
 
-    const dedupedIssues = await this.dedupResolver.deduplicate(validatedIssues, job);
+    const dedupedIssues = await withAISpan(tracer, 'deduplication', this.model, async () => {
+      return this.dedupResolver.deduplicate(validatedIssues, job);
+    });
     logger.info(
       `[Pipeline] Job "${job.name}" deduplication: ${dedupedIssues.length}/${validatedIssues.length} issues kept`,
     );
@@ -121,11 +162,7 @@ export class PipelineExecutor {
     return dedupedIssues;
   }
 
-  private async executePass(
-    job: PipelineJob,
-    pass: ReviewPass,
-    files: FileInfo[],
-  ): Promise<ReviewIssue[]> {
+  private async executePass(pass: ReviewPass, files: FileInfo[]): Promise<ReviewIssue[]> {
     const filteredFiles = files.filter((file) => FilterMatcher.shouldReview(file, pass));
 
     if (filteredFiles.length === 0) {
@@ -135,11 +172,14 @@ export class PipelineExecutor {
 
     logger.info(`[Pipeline] ${filteredFiles.length} files match filters for pass "${pass.name}"`);
 
-    if (pass.docs) {
-      return await this.executeDocBasedPass(pass, filteredFiles);
-    } else {
-      return await this.executePromptOnlyPass(pass, filteredFiles);
-    }
+    const tracer = getTracer();
+
+    return withAISpan(tracer, `pass/${pass.name}`, this.model, async () => {
+      if (pass.docs) {
+        return this.executeDocBasedPass(pass, filteredFiles);
+      }
+      return this.executePromptOnlyPass(pass, filteredFiles);
+    });
   }
 
   private async executeDocBasedPass(pass: ReviewPass, files: FileInfo[]): Promise<ReviewIssue[]> {

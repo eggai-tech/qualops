@@ -17,21 +17,6 @@ async function ensureInit() {
   if (_initialized) return;
   loadEnv();
 
-  try {
-    require('ts-node').register({
-      transpileOnly: true,
-      project: path.join(QUALOPS_ROOT, 'tsconfig.base.json'),
-    });
-  } catch {}
-
-  try {
-    const { register } = require('tsconfig-paths');
-    register({
-      baseUrl: QUALOPS_ROOT,
-      paths: { '@/*': ['src/*'], '@evals/*': ['evals/src/qualops-bridge/*'] },
-    });
-  } catch {}
-
   if (!fs.existsSync(path.join(process.cwd(), '.qualops/.qualopsrc.json'))) {
     process.chdir(QUALOPS_ROOT);
   }

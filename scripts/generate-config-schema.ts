@@ -16,6 +16,6 @@ jsonSchema.description = 'Schema for QualOps project configuration.';
 
 postProcessDefs(jsonSchema);
 
-const outPath = join(__dirname, '../docs/qualops-config.schema.json');
+const outPath = join(__dirname, '../qualops-config.schema.json');
 writeFileSync(outPath, JSON.stringify(orderProperties(jsonSchema), null, 2) + '\n');
 console.log(`Generated JSON Schema at ${outPath}`);

@@ -60,8 +60,13 @@ export function escapeHtml(text: string): string {
     .replace(/\//g, '&#x2F;');
 }
 
-const SENSITIVE_VALUE_PATTERN =
-  /Bearer\s+\S+|Basic\s+\S+|sk-[A-Za-z0-9]{10,}|pk-[A-Za-z0-9]{10,}|gh[a-z]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|glpat-[A-Za-z0-9_-]{20,}|glcbt-[A-Za-z0-9_-]{20,}/g;
+// Shared pattern source — used for both inline redaction (with /g) and full-value matching (with ^...$).
+export const SENSITIVE_VALUE_PATTERN_SOURCE =
+  'Bearer\\s+\\S+|Basic\\s+\\S+' +
+  '|sk-[A-Za-z0-9]{10,}|pk-[A-Za-z0-9]{10,}' +
+  '|gh[a-z]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+' +
+  '|glpat-[A-Za-z0-9_-]+|glcbt-[A-Za-z0-9_-]+' +
+  '|AKIA[A-Z0-9]{16}';
 
 /**
  * Redacts known credential patterns from a string.
@@ -70,7 +75,8 @@ const SENSITIVE_VALUE_PATTERN =
 export function redactTokens(text: string, knownTokens: string[] = []): string {
   if (!text) return text;
 
-  let redacted = text.replace(SENSITIVE_VALUE_PATTERN, '[REDACTED_TOKEN]');
+  // Recreate with /g each call to avoid stateful lastIndex issues
+  let redacted = text.replace(new RegExp(SENSITIVE_VALUE_PATTERN_SOURCE, 'g'), '[REDACTED_TOKEN]');
 
   for (const token of knownTokens) {
     if (token && token.length > 0) {

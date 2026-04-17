@@ -49,7 +49,7 @@ describe('assertValidConfig', () => {
     });
 
     it('accepts config with $schema field', () => {
-      const config = { $schema: '../docs/qualops-config.schema.json', ...minimalValidConfig };
+      const config = { $schema: '../qualops-config.schema.json', ...minimalValidConfig };
       expect(() => assertValidConfig(config)).not.toThrow();
     });
 
@@ -584,7 +584,7 @@ describe('collectConfigWarnings', () => {
   describe('real-world config', () => {
     it('validates a full production-like config', () => {
       const config = {
-        $schema: '../docs/qualops-config.schema.json',
+        $schema: '../qualops-config.schema.json',
         ai: {
           reviewStage: {
             provider: 'anthropic',
