@@ -1,10 +1,7 @@
 import { SpanStatusCode } from '@opentelemetry/api';
 import type { Span, Tracer } from '@opentelemetry/api';
 
-import { SENSITIVE_VALUE_PATTERN_SOURCE } from '../shared/utils/security';
-
-// Full-string match: redact values that are entirely a credential (not substrings)
-const SENSITIVE_VALUE_PATTERN = new RegExp(`^(${SENSITIVE_VALUE_PATTERN_SOURCE})$`);
+import { redactTokens } from '../shared/utils/security';
 
 export interface TokenUsageOptions {
   model: string;
@@ -38,8 +35,8 @@ export function sanitizeForObservability(obj: unknown): unknown {
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     if (SENSITIVE_KEYS.some((sk) => key.toLowerCase().includes(sk))) {
       sanitized[key] = '[REDACTED]';
-    } else if (typeof value === 'string' && SENSITIVE_VALUE_PATTERN.test(value)) {
-      sanitized[key] = '[REDACTED]';
+    } else if (typeof value === 'string') {
+      sanitized[key] = redactTokens(value);
     } else if (typeof value === 'object' && value !== null) {
       sanitized[key] = sanitizeForObservability(value);
     } else {

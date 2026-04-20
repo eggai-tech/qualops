@@ -105,5 +105,8 @@ export function setAgenticTurns(span: Span, turns: number): void {
 }
 
 export function setGoldenDetails(span: Span, details: unknown): void {
-  span.setAttribute(`${LANGFUSE_KEYS.traceMetaPrefix}goldenDetails`, JSON.stringify(details));
+  span.setAttribute(
+    `${LANGFUSE_KEYS.traceMetaPrefix}goldenDetails`,
+    JSON.stringify(sanitizeForObservability(details)),
+  );
 }

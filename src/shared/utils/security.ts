@@ -68,6 +68,8 @@ export const SENSITIVE_VALUE_PATTERN_SOURCE =
   '|glpat-[A-Za-z0-9_-]+|glcbt-[A-Za-z0-9_-]+' +
   '|AKIA[A-Z0-9]{16}';
 
+export const REDACTED = '[REDACTED]';
+
 /**
  * Redacts known credential patterns from a string.
  * Pass additional known token values to also redact those by exact match.
@@ -76,12 +78,12 @@ export function redactTokens(text: string, knownTokens: string[] = []): string {
   if (!text) return text;
 
   // Recreate with /g each call to avoid stateful lastIndex issues
-  let redacted = text.replace(new RegExp(SENSITIVE_VALUE_PATTERN_SOURCE, 'g'), '[REDACTED_TOKEN]');
+  let redacted = text.replace(new RegExp(SENSITIVE_VALUE_PATTERN_SOURCE, 'g'), REDACTED);
 
   for (const token of knownTokens) {
     if (token && token.length > 0) {
       const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      redacted = redacted.replace(new RegExp(escaped, 'g'), '[REDACTED_TOKEN]');
+      redacted = redacted.replace(new RegExp(escaped, 'g'), REDACTED);
     }
   }
 

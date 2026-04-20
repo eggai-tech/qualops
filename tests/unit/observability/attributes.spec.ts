@@ -275,6 +275,16 @@ describe('observability helpers', () => {
       expect(parsed.e).toBe('not-a-secret');
     });
 
+    it('redacts credentials embedded within a longer string value', () => {
+      const span = createMockSpan();
+      setObservationIO(span as any, {
+        input: { prompt: 'Authorization: Bearer ghp_ABCdef123456 — please use this token' },
+      });
+      const parsed = JSON.parse(span._attrs['langfuse.observation.input'] as string);
+      expect(parsed.prompt).not.toContain('ghp_ABCdef123456');
+      expect(parsed.prompt).toContain('[REDACTED]');
+    });
+
     it('passes through null and primitives unchanged', () => {
       const span = createMockSpan();
       setObservationIO(span as any, { input: null });
