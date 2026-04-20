@@ -60,6 +60,28 @@ export function escapeHtml(text: string): string {
     .replace(/\//g, '&#x2F;');
 }
 
+const SENSITIVE_VALUE_PATTERN =
+  /Bearer\s+\S+|Basic\s+\S+|sk-[A-Za-z0-9]{10,}|pk-[A-Za-z0-9]{10,}|gh[a-z]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|glpat-[A-Za-z0-9_-]{20,}|glcbt-[A-Za-z0-9_-]{20,}/g;
+
+/**
+ * Redacts known credential patterns from a string.
+ * Pass additional known token values to also redact those by exact match.
+ */
+export function redactTokens(text: string, knownTokens: string[] = []): string {
+  if (!text) return text;
+
+  let redacted = text.replace(SENSITIVE_VALUE_PATTERN, '[REDACTED_TOKEN]');
+
+  for (const token of knownTokens) {
+    if (token && token.length > 0) {
+      const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      redacted = redacted.replace(new RegExp(escaped, 'g'), '[REDACTED_TOKEN]');
+    }
+  }
+
+  return redacted;
+}
+
 /**
  * Type guard for ClassificationResult array used in root cause extraction
  */

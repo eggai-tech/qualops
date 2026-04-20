@@ -1,12 +1,14 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 
 import { AgentLoader } from './loaders/agent-loader';
+import { buildUserPrompt } from './prompt-builder';
+import { parseIssuesFromResult } from './result-parser';
 import { createSubagentDefinitions, type AgentDefinition } from './subagents/definitions';
 import { createAgenticTools } from './tools';
-import { fixMalformedJson } from '../../../ai/shared/parsers/json-parser';
 import type { ReviewIssue } from '../../../shared/types';
 import type { FileInfo, PipelineJob, AgenticConfig } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
+import { PromptLoader } from '../loaders/prompt-loader';
 
 const DEFAULT_CONFIG: AgenticConfig = {
   maxTurns: 100,
@@ -63,8 +65,8 @@ export class AgenticExecutor {
 
     const _enabledSubagents = this.config.enabledSubagents || [];
 
-    const systemPrompt = this.buildSystemPrompt(allAgents);
-    const userPrompt = this.buildUserPrompt(files);
+    const systemPrompt = await this.buildSystemPrompt(allAgents);
+    const userPrompt = buildUserPrompt(files, this.config);
 
     const issues: ReviewIssue[] = [];
 
@@ -118,7 +120,7 @@ export class AgenticExecutor {
             logger.info(
               `[Agentic] Success result (first 500 chars): ${message.result.substring(0, 500)}`,
             );
-            const parsed = this.parseIssuesFromResult(message.result, files);
+            const parsed = parseIssuesFromResult(message.result, files, this.job.name, this.cwd);
             issues.push(...parsed);
             logger.info(`[Agentic] Parsed ${parsed.length} issues from result`);
           } else if (message.subtype !== 'success') {
@@ -135,8 +137,19 @@ export class AgenticExecutor {
     return issues;
   }
 
-  private buildSystemPrompt(_allAgents: Record<string, AgentDefinition>): string {
-    const customPrompt = this.config.systemPrompt || '';
+  private async buildSystemPrompt(_allAgents: Record<string, AgentDefinition>): Promise<string> {
+    const parts: string[] = [];
+
+    if (this.config.systemPrompt) {
+      parts.push(this.config.systemPrompt);
+    }
+
+    if (this.config.prompt) {
+      const { content } = await PromptLoader.load(this.config.prompt);
+      parts.push(content);
+    }
+
+    const customPrompt = parts.join('\n\n');
 
     return `You are a code reviewer. File contents and diffs are provided below.
 
@@ -171,152 +184,5 @@ If no issues found, output: \`\`\`json\n[]\n\`\`\`
 - confidence >= 7
 - Focus on changed code
 - Max 10 tool calls`;
-  }
-
-  private buildUserPrompt(files: FileInfo[]): string {
-    const mode = this.config.contextMode || 'auto';
-    const maxPerFile = this.config.maxTokensPerFile || 8000;
-    const maxTotal = this.config.maxTotalTokens || 50000;
-
-    let totalTokens = 0;
-    const fileContexts: string[] = [];
-
-    const sorted = [...files].sort((a, b) => {
-      const aChanges = (a.diff?.additions.size || 0) + (a.diff?.deletions.size || 0);
-      const bChanges = (b.diff?.additions.size || 0) + (b.diff?.deletions.size || 0);
-      return bChanges - aChanges;
-    });
-
-    for (const file of sorted) {
-      const ctx = this.buildFileContext(file, mode, maxPerFile, maxTotal - totalTokens);
-      if (ctx) {
-        fileContexts.push(ctx);
-        totalTokens += this.estimateTokens(ctx);
-      }
-      if (totalTokens >= maxTotal) break;
-    }
-
-    return `Review the following changed files for issues.
-
-${fileContexts.join('\n\n---\n\n')}
-
-Return issues as JSON. If checking dependencies, use Grep/Glob tools.`;
-  }
-
-  private buildFileContext(
-    file: FileInfo,
-    mode: string,
-    maxTokens: number,
-    remainingBudget: number,
-  ): string {
-    const budget = Math.min(maxTokens, remainingBudget);
-    const useDiff = mode === 'diff' || (mode === 'auto' && file.rawDiff);
-
-    let content: string;
-    if (useDiff && file.rawDiff) {
-      content = `### Diff\n\`\`\`diff\n${file.rawDiff}\n\`\`\``;
-    } else {
-      content = this.formatFileContent(file.content, budget);
-    }
-
-    const header = `## ${file.path}${file.framework ? ` (${file.framework})` : ''}`;
-    return `${header}\n\n${content}`;
-  }
-
-  private formatFileContent(content: string, maxTokens: number): string {
-    const lines = content.split('\n');
-    const maxLines = Math.floor(maxTokens / 10);
-
-    if (lines.length <= maxLines) {
-      return this.addLineNumbers(content);
-    }
-
-    const truncated = lines.slice(0, maxLines).join('\n');
-    return `${this.addLineNumbers(truncated)}\n[TRUNCATED: ${lines.length - maxLines} more lines]`;
-  }
-
-  private addLineNumbers(content: string): string {
-    return content
-      .split('\n')
-      .map((line, i) => `${String(i + 1).padStart(4)} | ${line}`)
-      .join('\n');
-  }
-
-  private estimateTokens(text: string): number {
-    return Math.ceil(text.length / 4);
-  }
-
-  private parseIssuesFromResult(result: string, files: FileInfo[]): ReviewIssue[] {
-    const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/) || result.match(/\[[\s\S]*\]/);
-
-    if (!jsonMatch) {
-      logger.warn('[Agentic] No JSON found in result');
-      return [];
-    }
-
-    const jsonStr = fixMalformedJson(jsonMatch[1] || jsonMatch[0]);
-
-    try {
-      const parsed = JSON.parse(jsonStr);
-      const issueArray = Array.isArray(parsed) ? parsed : [];
-
-      return issueArray
-        .filter((issue: any) => issue.confidence >= 7)
-        .map((issue: any, index: number) => this.normalizeIssue(issue, index, files));
-    } catch (error) {
-      logger.warn(`[Agentic] Failed to parse issues: ${(error as Error).message}`);
-      logger.warn(`[Agentic] JSON preview: ${jsonStr.slice(0, 300)}...`);
-      return [];
-    }
-  }
-
-  private normalizeIssue(issue: any, index: number, files: FileInfo[]): ReviewIssue {
-    const location = this.parseLocation(issue.location || issue.file || '');
-    const file = location.file || files[0]?.path || 'unknown';
-
-    return {
-      id: `agentic-${this.job.name}-${Date.now()}-${index}`,
-      file,
-      type: issue.type || 'maintainability',
-      severity: issue.severity || 'medium',
-      description: issue.description || 'No description',
-      location: location.line ? `${location.line}` : '1',
-      reasoning: issue.reasoning || '',
-      suggestion: issue.suggestion || '',
-      context: issue.context || '',
-      confidence: issue.confidence || 7,
-      knowledge_source: `agentic:${this.job.name}`,
-      priority: this.calculatePriority(issue.severity),
-      estimatedEffort: 'medium',
-      tags: [issue.type, issue.severity, 'agentic'].filter(Boolean),
-    };
-  }
-
-  private parseLocation(location: string): { file?: string; line?: number } {
-    if (!location) return {};
-
-    // Handle "file:line" format
-    const match = location.match(/^(.+?):(\d+)/);
-    if (match) {
-      return { file: match[1], line: parseInt(match[2], 10) };
-    }
-
-    // Handle "line:N" format
-    const lineMatch = location.match(/line:?\s*(\d+)/i);
-    if (lineMatch) {
-      return { line: parseInt(lineMatch[1], 10) };
-    }
-
-    return {};
-  }
-
-  private calculatePriority(severity: string): number {
-    const priorities: Record<string, number> = {
-      critical: 1,
-      high: 2,
-      medium: 3,
-      low: 4,
-    };
-    return priorities[severity] || 3;
   }
 }
