@@ -64,7 +64,8 @@ export function parseLocation(location: string): { file?: string; line?: number 
   // Handle "file:line" format
   const match = location.match(/^(.+?):(\d+)/);
   if (match) {
-    return { file: match[1], line: parseInt(match[2], 10) };
+    const file = match[1].replace(/\.\.[/\\]/g, '').replace(/^[/\\]+/, '');
+    return { file, line: parseInt(match[2], 10) };
   }
 
   // Handle "line:N" format

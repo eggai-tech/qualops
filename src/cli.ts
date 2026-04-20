@@ -9,6 +9,7 @@ import { withErrorHandling } from './cli/utils/error-handler';
 import { formatHelpText } from './cli/utils/help-formatter';
 import { DEFAULT_CONFIG_PATH } from './config/config';
 import { GitHubIntegration } from './github/github-integration';
+import { redactTokens } from './shared/utils/security';
 
 const runQualOps = withErrorHandling(executeAllStages, 'qualops');
 
@@ -78,7 +79,8 @@ program
   .action(() => {
     const integration = new GitHubIntegration();
     integration.run().catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : String(error);
+      const raw = error instanceof Error ? error.message : String(error);
+      const message = redactTokens(raw);
       console.error(`GitHub integration failed: ${message}`);
       process.exit(1);
     });
