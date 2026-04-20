@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrade eslint from 9.x to 10.x, migrate `eslint-plugin-import` to `eslint-plugin-import-x`
 
 ### Added
+- Agentic jobs now support a `prompt` field for file-based prompt instructions, combined with the existing inline `systemPrompt`
 - GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
 - Zod-based runtime validation for `.qualopsrc.json` with deprecation warnings for legacy fields
 - JSON Schema generated from Zod schemas (`npm run generate:schema`) replacing hand-maintained schema

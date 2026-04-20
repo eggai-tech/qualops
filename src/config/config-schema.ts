@@ -228,6 +228,9 @@ export const agenticConfigSchema = z
     systemPrompt: z.string().optional().meta({
       description: 'Additional system instructions appended to the default agentic prompt.',
     }),
+    prompt: promptRef.optional().meta({
+      description: 'Prompt file reference appended after systemPrompt in the agentic prompt.',
+    }),
     contextMode: z
       .enum(['diff', 'full', 'auto'])
       .meta({

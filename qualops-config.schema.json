@@ -436,6 +436,10 @@
           "description": "Additional system instructions appended to the default agentic prompt.",
           "type": "string"
         },
+        "prompt": {
+          "description": "Prompt file reference appended after systemPrompt in the agentic prompt.",
+          "$ref": "#/$defs/promptRef"
+        },
         "contextMode": {
           "$ref": "#/$defs/contextMode"
         },
