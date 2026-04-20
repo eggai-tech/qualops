@@ -120,7 +120,7 @@ export class AgenticExecutor {
             logger.info(
               `[Agentic] Success result (first 500 chars): ${message.result.substring(0, 500)}`,
             );
-            const parsed = parseIssuesFromResult(message.result, files, this.job.name);
+            const parsed = parseIssuesFromResult(message.result, files, this.job.name, this.cwd);
             issues.push(...parsed);
             logger.info(`[Agentic] Parsed ${parsed.length} issues from result`);
           } else if (message.subtype !== 'success') {

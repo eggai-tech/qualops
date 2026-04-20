@@ -1,3 +1,5 @@
+import { normalize, isAbsolute, relative } from 'node:path';
+
 import { fixMalformedJson } from '../../../ai/shared/parsers/json-parser';
 import type { ReviewIssue } from '../../../shared/types';
 import type { FileInfo } from '../../../shared/types/config';
@@ -7,6 +9,7 @@ export function parseIssuesFromResult(
   result: string,
   files: FileInfo[],
   jobName: string,
+  cwd: string,
 ): ReviewIssue[] {
   const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/) || result.match(/\[[\s\S]*\]/);
 
@@ -23,7 +26,7 @@ export function parseIssuesFromResult(
 
     return issueArray
       .filter((issue: any) => issue.confidence >= 7)
-      .map((issue: any, index: number) => normalizeIssue(issue, index, files, jobName));
+      .map((issue: any, index: number) => normalizeIssue(issue, index, files, jobName, cwd));
   } catch (error) {
     logger.warn(`[Agentic] Failed to parse issues: ${(error as Error).message}`);
     logger.warn(`[Agentic] JSON preview: ${jsonStr.slice(0, 300)}...`);
@@ -36,8 +39,9 @@ export function normalizeIssue(
   index: number,
   files: FileInfo[],
   jobName: string,
+  cwd: string,
 ): ReviewIssue {
-  const location = parseLocation(issue.location || issue.file || '');
+  const location = parseLocation(issue.location || issue.file || '', cwd);
   const file = location.file || files[0]?.path || 'unknown';
 
   return {
@@ -58,14 +62,21 @@ export function normalizeIssue(
   };
 }
 
-export function parseLocation(location: string): { file?: string; line?: number } {
+export function parseLocation(location: string, cwd: string): { file?: string; line?: number } {
   if (!location) return {};
 
   // Handle "file:line" format
   const match = location.match(/^(.+?):(\d+)/);
   if (match) {
-    const file = match[1].replace(/\.\.[/\\]/g, '').replace(/^[/\\]+/, '');
-    return { file, line: parseInt(match[2], 10) };
+    const normalized = normalize(match[1]);
+    if (isAbsolute(normalized)) {
+      const rel = relative(cwd, normalized);
+      // Reject if outside cwd
+      if (rel.startsWith('..')) return {};
+      return { file: rel, line: parseInt(match[2], 10) };
+    }
+    if (normalized.startsWith('..')) return {};
+    return { file: normalized, line: parseInt(match[2], 10) };
   }
 
   // Handle "line:N" format
