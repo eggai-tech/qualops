@@ -6,6 +6,7 @@ import { AnthropicProvider } from '@/ai/providers/anthropic';
 import { OpenAIProvider } from '@/ai/providers/openai';
 import { BedrockProvider } from '@/ai/providers/bedrock';
 import type { AIProvider } from '@/ai/providers/provider';
+import { AgenticExecutor } from '@/stages/review/agentic/agentic-executor';
 import { FileReviewer } from '@/stages/review/processors/file-reviewer';
 import { PipelineExecutor } from '@/stages/review/processors/pipeline-executor';
 import { setCurrentSession } from '@/shared/runtime/session-context';
@@ -164,39 +165,31 @@ async function runAgenticReview(
     );
   }
 
-  // Try to load an agentic job from the qualopsrc config
   const configuredJobs = ConfigLoader.getInstance().getEnabledJobs();
-  const agenticJob = configuredJobs.find((j) => j.mode === 'agentic');
+  const agenticJobs = configuredJobs.filter((j) => j.job.mode === 'agentic');
 
-  const job: PipelineJob = agenticJob || {
-    name: 'eval-agentic',
-    enabled: true,
-    mode: 'agentic',
-    agentic: {
-      maxTurns: 50,
-      maxBudgetUsd: 5.0,
-      contextMode: 'auto',
-    },
-    passes: [],
-  };
+  const jobsToRun: PipelineJob[] = agenticJobs.length > 0
+    ? agenticJobs.map((j) => j.job)
+    : [{
+        name: 'eval-agentic',
+        enabled: true,
+        mode: 'agentic',
+        agentic: {
+          maxTurns: 50,
+          maxBudgetUsd: 5.0,
+          contextMode: 'auto',
+        },
+        passes: [],
+      }];
 
-  const { AgenticExecutor } = await import('@/stages/review/agentic/agentic-executor');
   const cwd = resolveSafeCwd(config.cwd);
-
-  // Resolve model: CLI override > qualopsrc > undefined (SDK default)
-  let model = config.model;
-  if (!model) {
-    try {
-      model = ConfigService.getInstance().getAIStageConfig('review').model;
-    } catch {
-      // catch is required because createProvider crashes when no .qualopsrc.json exists
-      // The config-missing warning is already emitted by ConfigService.loadRawConfig
-      // this get's run for every eval
-    }
+  const allIssues: ReviewIssue[] = [];
+  for (const job of jobsToRun) {
+    const executor = new AgenticExecutor(job, cwd, config.model);
+    const issues = await executor.execute(files);
+    allIssues.push(...issues);
   }
-
-  const executor = new AgenticExecutor(job, cwd, model);
-  return executor.execute(files);
+  return allIssues;
 }
 
 function evalCaseToFileInfo(evalCase: EvalCase): FileInfo {

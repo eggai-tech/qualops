@@ -1,5 +1,12 @@
 import type { AIProvider } from '../../../ai/providers/provider';
 import { fixMalformedJson } from '../../../ai/shared/parsers/json-parser';
+import {
+  getTracer,
+  recordSpanError,
+  setModelAttribute,
+  setObservationIO,
+  setTokenUsage,
+} from '../../../observability';
 import type { ReviewIssue } from '../../../shared/types';
 import type { FileInfo } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
@@ -73,15 +80,38 @@ export class FileReviewer {
       },
     ];
 
-    await getGlobalRateLimiter().throttleApiCall(this.aiProvider.name);
+    const tracer = getTracer();
 
-    const response = await this.aiProvider.complete({
-      messages,
-      maxTokens: this.aiProvider.getMaxTokens(),
-      temperature: this.aiProvider.getTemperature(),
+    return tracer.startActiveSpan(`file-review/${file.path}`, async (span) => {
+      try {
+        setModelAttribute(span, this.aiProvider.getModelName());
+        setObservationIO(span, { input: messages });
+
+        await getGlobalRateLimiter().throttleApiCall(this.aiProvider.name);
+
+        const response = await this.aiProvider.complete({
+          messages,
+          maxTokens: this.aiProvider.getMaxTokens(),
+          temperature: this.aiProvider.getTemperature(),
+        });
+
+        const parsedIssues = this.parseIssuesFromResponse(response.content, file.path);
+
+        setTokenUsage(span, {
+          model: this.aiProvider.getModelName(),
+          inputTokens: response.usage?.promptTokens,
+          outputTokens: response.usage?.completionTokens,
+        });
+        setObservationIO(span, { output: parsedIssues });
+
+        return parsedIssues;
+      } catch (error) {
+        recordSpanError(span, error);
+        throw error;
+      } finally {
+        span.end();
+      }
     });
-
-    return this.parseIssuesFromResponse(response.content, file.path);
   }
 
   private buildUserMessage(file: FileInfo): string {
