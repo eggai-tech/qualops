@@ -78,31 +78,22 @@ const runLog = createRunLog(config);
 async function runWithConcurrency<T>(
   tasks: Array<() => Promise<T>>,
   limit: number,
-): Promise<Array<{ status: 'fulfilled'; value: T } | { status: 'rejected'; reason: unknown }>> {
-  const results: Array<
-    { status: 'fulfilled'; value: T } | { status: 'rejected'; reason: unknown }
-  > = [];
-  const running = new Set<Promise<void>>();
-  let index = 0;
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+  let nextIndex = 0;
 
-  async function runNext(): Promise<void> {
-    if (index >= tasks.length) return;
-    const i = index++;
-    const promise = (async () => {
+  async function worker(): Promise<void> {
+    while (nextIndex < tasks.length) {
+      const i = nextIndex++;
       try {
         results[i] = { status: 'fulfilled', value: await tasks[i]() };
       } catch (e) {
         results[i] = { status: 'rejected', reason: e };
       }
-    })();
-    running.add(promise);
-    promise.finally(() => running.delete(promise));
-    await promise;
-    if (running.size < limit && index < tasks.length) await runNext();
+    }
   }
 
-  const starters = Array.from({ length: Math.min(limit, tasks.length) }, () => runNext());
-  await Promise.all(starters);
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => worker()));
   return results;
 }
 
