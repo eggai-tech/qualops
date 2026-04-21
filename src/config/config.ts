@@ -3,7 +3,14 @@ import { join } from 'node:path';
 
 import { envConfig } from './env';
 import { ConfigParseError, assertValidConfig, collectConfigWarnings } from './schema-validator';
-import type { AIStageConfig, Config } from '../shared/types';
+import type {
+  AIProviderName,
+  AIStageConfig,
+  Config,
+  ModelConfig,
+  ResolvedStageConfig,
+} from '../shared/types';
+import type { AgenticConfig } from '../shared/types/config';
 import { logger } from '../shared/utils/logger';
 
 export const FILE_NAMES = {
@@ -27,6 +34,8 @@ export const DEFAULT_CONFIG_PATH = '.qualops/.qualopsrc.json';
 export class ConfigService {
   private static instance: ConfigService | undefined;
   private static configPath = DEFAULT_CONFIG_PATH;
+  private static readonly DEFAULT_PROVIDER = 'anthropic';
+  private static readonly DEFAULT_MODEL = 'claude-sonnet-4-6';
   private config: Config;
   private rawConfig: Record<string, unknown>;
   private readonly defaultConfig: Config = {
@@ -170,6 +179,63 @@ export class ConfigService {
     return this.config.debug ?? envConfig.isDebug();
   }
 
+  /**
+   * Resolves the effective provider and model name. `model` overrides `stage`;
+   * both fall back to defaults.
+   */
+  resolveModel({ stage, model }: { stage?: AIStageConfig; model?: ModelConfig } = {}): {
+    provider: string;
+    model: string;
+  } {
+    return {
+      provider: this.resolveProvider(stage, model),
+      model: this.resolveModelName(stage, model),
+    };
+  }
+
+  private resolveProvider(stage?: AIStageConfig, model?: ModelConfig): string {
+    if (model !== undefined && model !== null && typeof model === 'object' && model.provider) {
+      return model.provider;
+    }
+    const stageModel = stage?.model;
+    if (stageModel && typeof stageModel === 'object' && stageModel.provider) {
+      return stageModel.provider;
+    }
+    return stage?.provider ?? ConfigService.DEFAULT_PROVIDER;
+  }
+
+  private resolveModelName(stage?: AIStageConfig, model?: ModelConfig): string {
+    if (model !== undefined && model !== null) {
+      return typeof model === 'string' ? model : model.name;
+    }
+    if (stage) {
+      const stageModel = stage.model;
+      return typeof stageModel === 'string' ? stageModel : stageModel.name;
+    }
+    return ConfigService.DEFAULT_MODEL;
+  }
+
+  /**
+   * Resolves the effective provider and model for a named agent, applying
+   * per-agent overrides from the agentic config before falling back to the
+   * stage config and finally the global defaults.
+   */
+  resolveAgentModel(
+    agentName: string,
+    agenticConfig: AgenticConfig,
+    stageConfig?: AIStageConfig,
+  ): { provider: string; model: string } {
+    const subagentOverride = (agenticConfig.enabledSubagents ?? []).find(
+      (e) => typeof e === 'object' && e.name === agentName,
+    );
+    const customAgent = (agenticConfig.customAgents ?? []).find((c) => c.name === agentName);
+    const model =
+      (typeof subagentOverride === 'object' ? subagentOverride.model : undefined) ??
+      customAgent?.model;
+
+    return this.resolveModel({ model, stage: stageConfig });
+  }
+
   getAIStageConfig(stage: string): AIStageConfig {
     const stageKey = `${stage}Stage` as keyof NonNullable<Config['ai']>;
     const stageConfig = this.config.ai?.[stageKey];
@@ -178,7 +244,7 @@ export class ConfigService {
       throw new Error(`AI configuration for stage "${stage}" not found in .qualopsrc.json`);
     }
 
-    const required = ['provider', 'model', 'inputPerMillion', 'outputPerMillion'];
+    const required = ['model', 'inputPerMillion', 'outputPerMillion'];
     const missing = required.filter((key) => !(key in stageConfig));
 
     if (missing.length > 0) {
@@ -186,6 +252,12 @@ export class ConfigService {
     }
 
     return stageConfig;
+  }
+
+  getResolvedStageConfig(stage: string): ResolvedStageConfig {
+    const raw = this.getAIStageConfig(stage);
+    const { provider, model } = this.resolveModel({ stage: raw });
+    return { ...raw, provider: provider as AIProviderName, model };
   }
 
   isIssueMarkdownEnabled(): boolean {

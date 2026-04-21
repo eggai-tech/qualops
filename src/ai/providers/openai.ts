@@ -1,9 +1,9 @@
 import { OpenAICompatibleProvider } from './openai-compatible-provider';
 import { envConfig } from '../../config/env';
-import type { AIStageConfig } from '../../shared/types';
+import type { ResolvedStageConfig } from '../../shared/types';
 
 export class OpenAIProvider extends OpenAICompatibleProvider {
-  constructor(stageConfig: AIStageConfig) {
+  constructor(stageConfig: ResolvedStageConfig) {
     super(stageConfig, {
       name: 'openai',
       friendlyName: 'OpenAI',

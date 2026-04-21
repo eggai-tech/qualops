@@ -1,10 +1,10 @@
 import { envConfig } from '@/config/env';
-import type { AIStageConfig } from '@/shared/types';
+import type { ResolvedStageConfig } from '@/shared/types';
 
 import { OpenAICompatibleProvider } from './openai-compatible-provider';
 
 export class GitHubModelsProvider extends OpenAICompatibleProvider {
-  constructor(stageConfig: AIStageConfig) {
+  constructor(stageConfig: ResolvedStageConfig) {
     super(stageConfig, {
       name: 'github',
       friendlyName: 'GitHub Models',

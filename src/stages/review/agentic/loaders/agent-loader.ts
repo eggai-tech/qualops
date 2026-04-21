@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 
+import type { ModelConfig } from '../../../../shared/types';
 import type { AgenticConfig, CustomAgentDefinition } from '../../../../shared/types/config';
 import { logger } from '../../../../shared/utils/logger';
 import type { AgentDefinition } from '../subagents/definitions';
@@ -8,7 +9,7 @@ import type { AgentDefinition } from '../subagents/definitions';
 interface MarkdownAgentFrontmatter {
   description?: string;
   tools?: string[];
-  model?: 'sonnet' | 'opus' | 'haiku';
+  model?: string;
 }
 
 export class AgentLoader {
@@ -59,6 +60,10 @@ export class AgentLoader {
   }
 
   private loadAgentFromMarkdown(filePath: string): AgentDefinition | null {
+    if (!resolve(filePath).startsWith(this.cwd)) {
+      logger.warn(`[AgentLoader] Rejected agent path outside project directory: ${filePath}`);
+      return null;
+    }
     try {
       const content = readFileSync(filePath, 'utf-8');
       const { frontmatter, body } = this.parseMarkdown(content);
@@ -72,7 +77,7 @@ export class AgentLoader {
         description: frontmatter.description || `Custom agent from ${basename(filePath)}`,
         prompt: body.trim(),
         tools: frontmatter.tools || ['Read', 'Grep', 'Glob'],
-        model: frontmatter.model || 'sonnet',
+        model: frontmatter.model,
       };
     } catch (error) {
       logger.error(
@@ -103,7 +108,7 @@ export class AgentLoader {
         if (key === 'description') {
           frontmatter.description = value.trim().replace(/^["']|["']$/g, '');
         } else if (key === 'model') {
-          frontmatter.model = value.trim() as 'sonnet' | 'opus' | 'haiku';
+          frontmatter.model = value.trim();
         } else if (key === 'tools') {
           // Handle array format: tools: [Read, Grep, Glob]
           const arrayMatch = value.match(/\[([^\]]+)\]/);
@@ -122,7 +127,7 @@ export class AgentLoader {
       description: custom.description,
       prompt: custom.prompt,
       tools: custom.tools || ['Read', 'Grep', 'Glob'],
-      model: custom.model || 'sonnet',
+      model: custom.model as ModelConfig | undefined,
     };
   }
 }

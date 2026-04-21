@@ -44,12 +44,12 @@ const mockLogger = logger as jest.Mocked<typeof logger>;
 /**
  * Minimal config that satisfies real schema validation. Use as a base and
  * spread extra sections on top when tests need specific fields populated.
+ * Preferred style: model as object, no top-level provider.
  */
 const VALID_MINIMAL_CONFIG = {
   ai: {
     reviewStage: {
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-5-20250929',
+      model: { provider: 'anthropic', name: 'claude-sonnet-4-5-20250929' },
       inputPerMillion: 3,
       outputPerMillion: 15,
     },
@@ -426,7 +426,7 @@ describe('ConfigService', () => {
       );
     });
 
-    it('should throw error for missing provider', () => {
+    it('should not throw error when provider is absent (provider is now optional)', () => {
       const aiConfig = {
         fixStage: {
           model: 'gpt-4',
@@ -437,9 +437,164 @@ describe('ConfigService', () => {
       const instance = ConfigService.getInstance();
 
       instance.set('ai', aiConfig as Config['ai']);
-      expect(() => instance.getAIStageConfig('fix')).toThrow(
-        'Missing required AI config for stage "fix": provider',
+      expect(() => instance.getAIStageConfig('fix')).not.toThrow();
+    });
+  });
+
+  describe('resolveModel', () => {
+    it('returns default provider and model when called with no arguments', () => {
+      const instance = ConfigService.getInstance();
+      const result = instance.resolveModel();
+      expect(result).toEqual({ provider: 'anthropic', model: 'claude-sonnet-4-6' });
+    });
+
+    it('resolves stage with object model', () => {
+      const instance = ConfigService.getInstance();
+      const result = instance.resolveModel({
+        stage: {
+          model: { provider: 'openai', name: 'gpt-4o' } as any,
+          inputPerMillion: 2.5,
+          outputPerMillion: 10,
+        },
+      });
+      expect(result).toEqual({ provider: 'openai', model: 'gpt-4o' });
+    });
+
+    it('resolves stage with string model + deprecated provider field', () => {
+      const instance = ConfigService.getInstance();
+      const result = instance.resolveModel({
+        stage: {
+          provider: 'bedrock',
+          model: 'anthropic.claude-3-sonnet',
+          inputPerMillion: 3,
+          outputPerMillion: 15,
+        },
+      });
+      expect(result).toEqual({ provider: 'bedrock', model: 'anthropic.claude-3-sonnet' });
+    });
+
+    it('resolves ModelConfig string override using stage provider as fallback', () => {
+      const instance = ConfigService.getInstance();
+      const stage = {
+        provider: 'openai' as const,
+        model: 'gpt-4',
+        inputPerMillion: 2.5,
+        outputPerMillion: 10,
+      };
+      const result = instance.resolveModel({ model: 'gpt-4o-mini', stage });
+      expect(result).toEqual({ provider: 'openai', model: 'gpt-4o-mini' });
+    });
+
+    it('resolves ModelConfig object override directly', () => {
+      const instance = ConfigService.getInstance();
+      const result = instance.resolveModel({
+        model: { provider: 'bedrock', name: 'anthropic.claude-3' },
+      });
+      expect(result).toEqual({ provider: 'bedrock', model: 'anthropic.claude-3' });
+    });
+
+    it('uses default provider when ModelConfig string has no fallback stage', () => {
+      const instance = ConfigService.getInstance();
+      const result = instance.resolveModel({ model: 'some-model' });
+      expect(result).toEqual({ provider: 'anthropic', model: 'some-model' });
+    });
+  });
+
+  describe('getResolvedStageConfig', () => {
+    it('resolves when stage model is object form { provider, name }', () => {
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'openai', name: 'gpt-4o' } as any,
+          inputPerMillion: 2.5,
+          outputPerMillion: 10,
+        },
+      });
+      const result = instance.getResolvedStageConfig('review');
+      expect(result.provider).toBe('openai');
+      expect(result.model).toBe('gpt-4o');
+    });
+
+    it('resolves with string model + deprecated provider field', () => {
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          provider: 'bedrock' as const,
+          model: 'anthropic.claude-3-sonnet',
+          inputPerMillion: 3,
+          outputPerMillion: 15,
+        },
+      });
+      const result = instance.getResolvedStageConfig('review');
+      expect(result.provider).toBe('bedrock');
+      expect(result.model).toBe('anthropic.claude-3-sonnet');
+    });
+
+    it('throws when stage config is missing (delegates to getAIStageConfig)', () => {
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {});
+      expect(() => instance.getResolvedStageConfig('review')).toThrow(
+        'AI configuration for stage "review" not found in .qualopsrc.json',
       );
+    });
+  });
+
+  describe('resolveAgentModel', () => {
+    const stageConfig = {
+      provider: 'anthropic' as const,
+      model: 'claude-sonnet-4-6',
+      inputPerMillion: 3,
+      outputPerMillion: 15,
+    };
+
+    it('returns stage model when enabledSubagents is absent', () => {
+      const instance = ConfigService.getInstance();
+      const result = instance.resolveAgentModel('security-analyzer', {}, stageConfig);
+      expect(result).toEqual({ provider: 'anthropic', model: 'claude-sonnet-4-6' });
+    });
+
+    it('applies enabledSubagents object override', () => {
+      const instance = ConfigService.getInstance();
+      const result = instance.resolveAgentModel(
+        'security-analyzer',
+        {
+          enabledSubagents: [
+            'dependency-tracer',
+            { name: 'security-analyzer', model: { provider: 'openai', name: 'gpt-4o' } },
+          ],
+        },
+        stageConfig,
+      );
+      expect(result).toEqual({ provider: 'openai', model: 'gpt-4o' });
+    });
+
+    it('applies enabledSubagents string model override, inheriting provider from stage', () => {
+      const instance = ConfigService.getInstance();
+      const result = instance.resolveAgentModel(
+        'security-analyzer',
+        { enabledSubagents: [{ name: 'security-analyzer', model: 'claude-haiku-4-5' }] },
+        stageConfig,
+      );
+      expect(result).toEqual({ provider: 'anthropic', model: 'claude-haiku-4-5' });
+    });
+
+    it('applies customAgents model override when enabledSubagents is absent', () => {
+      const instance = ConfigService.getInstance();
+      const result = instance.resolveAgentModel(
+        'my-agent',
+        {
+          customAgents: [
+            {
+              name: 'my-agent',
+              model: { provider: 'openai', name: 'gpt-4o' },
+              description: 'test',
+              prompt: 'test',
+            },
+          ],
+        },
+        stageConfig,
+      );
+      expect(result).toEqual({ provider: 'openai', model: 'gpt-4o' });
     });
   });
 

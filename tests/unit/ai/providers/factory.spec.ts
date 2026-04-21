@@ -33,7 +33,7 @@ describe('AIFactory', () => {
     clearGlobalAIProvider();
 
     mockConfigInstance = {
-      getAIStageConfig: jest.fn(),
+      getResolvedStageConfig: jest.fn(),
     } as any;
 
     jest.spyOn(ConfigService, 'getInstance').mockReturnValue(mockConfigInstance);
@@ -68,11 +68,11 @@ describe('AIFactory', () => {
         inputPerMillion: 3,
         outputPerMillion: 15,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValueOnce(stageConfig);
+      mockConfigInstance.getResolvedStageConfig.mockReturnValueOnce(stageConfig);
 
       const provider = await AIFactory.createForStage('review');
 
-      expect(mockConfigInstance.getAIStageConfig).toHaveBeenCalledWith('review');
+      expect(mockConfigInstance.getResolvedStageConfig).toHaveBeenCalledWith('review');
       expect(mockAnthropicProvider).toHaveBeenCalledWith(stageConfig);
       expect(provider.initialize).toHaveBeenCalled();
       expect(provider.name).toBe(AIProviderType.ANTHROPIC);
@@ -85,11 +85,11 @@ describe('AIFactory', () => {
         inputPerMillion: 2.5,
         outputPerMillion: 10,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValueOnce(stageConfig);
+      mockConfigInstance.getResolvedStageConfig.mockReturnValueOnce(stageConfig);
 
       const provider = await AIFactory.createForStage('analyze');
 
-      expect(mockConfigInstance.getAIStageConfig).toHaveBeenCalledWith('analyze');
+      expect(mockConfigInstance.getResolvedStageConfig).toHaveBeenCalledWith('analyze');
       expect(mockBedrockProvider).toHaveBeenCalledWith(stageConfig);
       expect(provider.initialize).toHaveBeenCalled();
       expect(provider.name).toBe(AIProviderType.BEDROCK);
@@ -102,11 +102,11 @@ describe('AIFactory', () => {
         inputPerMillion: 5,
         outputPerMillion: 15,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValueOnce(stageConfig);
+      mockConfigInstance.getResolvedStageConfig.mockReturnValueOnce(stageConfig);
 
       const provider = await AIFactory.createForStage('fix');
 
-      expect(mockConfigInstance.getAIStageConfig).toHaveBeenCalledWith('fix');
+      expect(mockConfigInstance.getResolvedStageConfig).toHaveBeenCalledWith('fix');
       expect(mockOpenAIProvider).toHaveBeenCalledWith(stageConfig);
       expect(provider.initialize).toHaveBeenCalled();
       expect(provider.name).toBe(AIProviderType.OPENAI);
@@ -119,11 +119,11 @@ describe('AIFactory', () => {
         inputPerMillion: 5,
         outputPerMillion: 15,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValueOnce(stageConfig);
+      mockConfigInstance.getResolvedStageConfig.mockReturnValueOnce(stageConfig);
 
       const provider = await AIFactory.createForStage('other');
 
-      expect(mockConfigInstance.getAIStageConfig).toHaveBeenCalledWith('other');
+      expect(mockConfigInstance.getResolvedStageConfig).toHaveBeenCalledWith('other');
       expect(mockGitHubProvider).toHaveBeenCalledWith(stageConfig);
       expect(provider.initialize).toHaveBeenCalled();
       expect(provider.name).toBe(AIProviderType.GITHUB);
@@ -136,7 +136,7 @@ describe('AIFactory', () => {
         inputPerMillion: 1,
         outputPerMillion: 1,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig as any);
+      mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig as any);
 
       await expect(AIFactory.createForStage('review')).rejects.toThrow(
         'Unknown AI provider: unknown-provider',
@@ -150,7 +150,7 @@ describe('AIFactory', () => {
         inputPerMillion: 3,
         outputPerMillion: 15,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+      mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig);
 
       const provider1 = await AIFactory.createForStage('review');
       const provider2 = await AIFactory.createForStage('review');
@@ -167,7 +167,7 @@ describe('AIFactory', () => {
         inputPerMillion: 3,
         outputPerMillion: 15,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+      mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig);
 
       const provider1 = await AIFactory.createForStage('review');
       (provider1.isAvailable as jest.Mock).mockReturnValue(false);
@@ -192,7 +192,7 @@ describe('AIFactory', () => {
         outputPerMillion: 15,
       };
 
-      mockConfigInstance.getAIStageConfig
+      mockConfigInstance.getResolvedStageConfig
         .mockReturnValueOnce(reviewConfig)
         .mockReturnValueOnce(analyzeConfig);
 
@@ -205,7 +205,7 @@ describe('AIFactory', () => {
     });
 
     it('should throw error when stage config is not found', async () => {
-      mockConfigInstance.getAIStageConfig.mockImplementation(() => {
+      mockConfigInstance.getResolvedStageConfig.mockImplementation(() => {
         throw new Error('AI configuration for stage "invalid" not found in .qualopsrc.json');
       });
 
@@ -228,7 +228,7 @@ describe('AIFactory', () => {
         outputPerMillion: 15,
       };
 
-      mockConfigInstance.getAIStageConfig
+      mockConfigInstance.getResolvedStageConfig
         .mockReturnValueOnce(anthropicConfig)
         .mockReturnValueOnce(openaiConfig)
         .mockReturnValueOnce(anthropicConfig);
@@ -250,7 +250,7 @@ describe('AIFactory', () => {
         inputPerMillion: 3,
         outputPerMillion: 15,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+      mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig);
 
       await AIFactory.createForStage('review');
       AIFactory.clear();
@@ -266,7 +266,7 @@ describe('AIFactory', () => {
         inputPerMillion: 5,
         outputPerMillion: 15,
       };
-      mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+      mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig);
 
       const provider1 = await AIFactory.createForStage('fix');
       AIFactory.clear();
@@ -328,7 +328,7 @@ describe('AIFactory', () => {
           inputPerMillion: 3,
           outputPerMillion: 15,
         };
-        mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+        mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig);
 
         const provider = await initializeGlobalAIProviderForStage('review');
 
@@ -343,7 +343,7 @@ describe('AIFactory', () => {
           inputPerMillion: 5,
           outputPerMillion: 15,
         };
-        mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+        mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig);
 
         await initializeGlobalAIProviderForStage('analyze');
         const provider = getGlobalAIProvider();
@@ -366,7 +366,7 @@ describe('AIFactory', () => {
           outputPerMillion: 15,
         };
 
-        mockConfigInstance.getAIStageConfig
+        mockConfigInstance.getResolvedStageConfig
           .mockReturnValueOnce(anthropicConfig)
           .mockReturnValueOnce(openaiConfig);
 
@@ -393,7 +393,7 @@ describe('AIFactory', () => {
           inputPerMillion: 2.5,
           outputPerMillion: 10,
         };
-        mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+        mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig);
 
         await initializeGlobalAIProviderForStage('judge');
         const provider = getGlobalAIProvider();
@@ -408,7 +408,7 @@ describe('AIFactory', () => {
           inputPerMillion: 3,
           outputPerMillion: 15,
         };
-        mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+        mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig);
 
         await initializeGlobalAIProviderForStage('review');
         clearGlobalAIProvider();
@@ -427,7 +427,7 @@ describe('AIFactory', () => {
           inputPerMillion: 5,
           outputPerMillion: 15,
         };
-        mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+        mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig);
 
         await initializeGlobalAIProviderForStage('fix');
         clearGlobalAIProvider();
@@ -442,7 +442,7 @@ describe('AIFactory', () => {
           inputPerMillion: 3,
           outputPerMillion: 15,
         };
-        mockConfigInstance.getAIStageConfig.mockReturnValue(stageConfig);
+        mockConfigInstance.getResolvedStageConfig.mockReturnValue(stageConfig);
 
         await initializeGlobalAIProviderForStage('review');
         clearGlobalAIProvider();

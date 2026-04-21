@@ -10,7 +10,7 @@ beforeAll(() => {
   mkdirSync(agentsDir, { recursive: true });
   writeFileSync(
     join(agentsDir, 'test-agent.md'),
-    '---\ndescription: A test agent\ntools: [Read, Grep]\nmodel: sonnet\n---\nYou are a test agent.',
+    '---\ndescription: A test agent\ntools: [Read, Grep]\n---\nYou are a test agent.',
   );
 });
 
@@ -54,7 +54,7 @@ describe('AgentLoader', () => {
       expect(agent.description).toBe('A test agent');
       expect(agent.prompt).toBe('You are a test agent.');
       expect(agent.tools).toEqual(['Read', 'Grep']);
-      expect(agent.model).toBe('sonnet');
+      expect(agent.model).toBeUndefined();
     });
 
     it('skips markdown files with empty body', () => {
@@ -93,7 +93,7 @@ describe('AgentLoader', () => {
       expect(result['inline-agent'].description).toBe('An inline agent');
       expect(result['inline-agent'].prompt).toBe('Do things.');
       expect(result['inline-agent'].tools).toEqual(['Read', 'Grep', 'Glob']);
-      expect(result['inline-agent'].model).toBe('sonnet');
+      expect(result['inline-agent'].model).toBeUndefined();
     });
   });
 });

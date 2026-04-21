@@ -3,7 +3,7 @@ import type { ChatCompletionCreateParams } from 'openai/resources/chat/completio
 
 import { estimateTokens } from '@/ai/shared/token-utils';
 import { envConfig } from '@/config/env';
-import type { AIStageConfig } from '@/shared/types';
+import type { ResolvedStageConfig } from '@/shared/types';
 import { logger } from '@/shared/utils/logger';
 
 import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
@@ -36,7 +36,7 @@ export abstract class OpenAICompatibleProvider implements AIProvider {
   protected readonly apiKey: string;
   private readonly baseURL: string;
   private readonly maxTokens = 8000;
-  private readonly stageConfig: AIStageConfig;
+  private readonly stageConfig: ResolvedStageConfig;
   private readonly tokenStats: TokenStats = {
     totalInputTokens: 0,
     totalOutputTokens: 0,
@@ -48,7 +48,7 @@ export abstract class OpenAICompatibleProvider implements AIProvider {
   private cachedTokens = 0;
   private cacheHits = 0;
 
-  constructor(stageConfig: AIStageConfig, providerConfig: OpenAICompatibleProviderConfig) {
+  constructor(stageConfig: ResolvedStageConfig, providerConfig: OpenAICompatibleProviderConfig) {
     this.name = providerConfig.name;
     this.friendlyName = providerConfig.friendlyName;
     this.stageConfig = stageConfig;

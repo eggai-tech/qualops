@@ -13,7 +13,7 @@ const severityList = z.array(severity).min(1).meta({
   description: 'Non-empty array of severity levels.',
   uniqueItems: true,
 });
-const aiProvider = z
+export const aiProvider = z
   .enum(['anthropic', 'openai', 'bedrock', 'github'])
   .meta({ defName: 'aiProvider', description: 'Supported AI provider names.' });
 const confidenceScore = z.int().min(1).max(10).meta({
@@ -34,14 +34,31 @@ const outputFormat = z.enum(['json', 'html', 'markdown']).meta({
   description: 'Output format for reports and generated files.',
 });
 
+// --- Model config ---
+// A model can be specified as a plain string (model name, inherits provider from context)
+// or as an object with an explicit name and optional provider override.
+export const modelConfigSchema = z
+  .union([
+    nonEmptyString,
+    z.object({ provider: aiProvider.optional(), name: nonEmptyString }).strict(),
+  ])
+  .meta({
+    defName: 'modelConfig',
+    description:
+      'Model to use: a string name (inherits provider from context) or an object with an explicit name and optional provider override.',
+  });
+
 // --- AI stage config ---
 // .passthrough() because providers may have extra fields (e.g. topP, topK).
 // The `passthrough: true` meta tag is read by the schema validator to find
 // passthrough objects without poking at Zod internals.
 const aiStageConfigSchema = z
   .object({
-    provider: aiProvider,
-    model: nonEmptyString.meta({ description: 'Model name passed to the selected provider.' }),
+    provider: aiProvider.optional().meta({
+      deprecated: true,
+      description: 'Deprecated. Prefer specifying provider inside the model object.',
+    }),
+    model: modelConfigSchema.meta({ description: 'Model name or { provider, name } object.' }),
     inputPerMillion: z
       .number()
       .min(0)
@@ -180,13 +197,10 @@ export const customAgentDefinitionSchema = z
     tools: nonEmptyStringArray
       .optional()
       .meta({ description: 'Allowed tool names for the custom agent.' }),
-    model: z
-      .enum(['sonnet', 'opus', 'haiku'])
-      .meta({
-        defName: 'agentModel',
-        description: 'Optional model tier override for this custom agent.',
-      })
-      .optional(),
+    model: modelConfigSchema.optional().meta({
+      defName: 'agentModel',
+      description: 'Optional model override for this custom agent.',
+    }),
   })
   .strict()
   .meta({
@@ -202,6 +216,17 @@ export const agenticSubagentTypeSchema = z
     description: 'Built-in subagent identifiers supported in agentic mode.',
   });
 
+const subagentOverrideSchema = z
+  .object({
+    name: agenticSubagentTypeSchema,
+    model: modelConfigSchema.optional(),
+  })
+  .strict()
+  .meta({
+    defName: 'subagentOverride',
+    description: 'Built-in subagent identifier with an explicit model override.',
+  });
+
 export const agenticConfigSchema = z
   .object({
     maxTurns: z
@@ -215,9 +240,9 @@ export const agenticConfigSchema = z
       .optional()
       .meta({ description: 'Optional budget guardrail for agentic execution.' }),
     enabledSubagents: z
-      .array(agenticSubagentTypeSchema)
+      .array(z.union([agenticSubagentTypeSchema, subagentOverrideSchema]))
       .optional()
-      .meta({ description: 'Subset of built-in subagents to enable.' }),
+      .meta({ description: 'Built-in subagents to enable, optionally with model overrides.' }),
     customAgents: z
       .array(customAgentDefinitionSchema)
       .optional()

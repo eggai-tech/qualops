@@ -8,8 +8,28 @@ import {
   collectConfigWarnings,
 } from '@/config/schema-validator';
 
-// Minimal valid config for tests
+// Minimal valid config for tests — preferred style: model as object, no top-level provider
 const minimalValidConfig = {
+  ai: {
+    reviewStage: {
+      model: { provider: 'anthropic', name: 'claude-sonnet-4-5-20250929' },
+      inputPerMillion: 3,
+      outputPerMillion: 15,
+    },
+  },
+  review: {
+    pipeline: [
+      {
+        name: 'test-job',
+        enabled: true,
+        passes: [{ name: 'test-pass', enabled: true, prompt: 'test.md' }],
+      },
+    ],
+  },
+};
+
+// Legacy style: provider + string model (deprecated fallback, still accepted)
+const legacyStyleConfig = {
   ai: {
     reviewStage: {
       provider: 'anthropic',
@@ -81,6 +101,117 @@ describe('assertValidConfig', () => {
           },
         },
         review: minimalValidConfig.review,
+      };
+      expect(() => assertValidConfig(config)).not.toThrow();
+    });
+
+    it('accepts old-style provider + string model (deprecated fallback)', () => {
+      expect(() => assertValidConfig(legacyStyleConfig)).not.toThrow();
+    });
+
+    it('accepts model as object { provider, name } without top-level provider', () => {
+      const config = {
+        ai: {
+          reviewStage: {
+            model: { provider: 'openai', name: 'gpt-4o' },
+            inputPerMillion: 2.5,
+            outputPerMillion: 10,
+          },
+        },
+        review: minimalValidConfig.review,
+      };
+      expect(() => assertValidConfig(config)).not.toThrow();
+    });
+
+    it('accepts enabledSubagents as plain string array (backward compat)', () => {
+      const config = {
+        ...minimalValidConfig,
+        review: {
+          pipeline: [
+            {
+              name: 'agentic-job',
+              enabled: true,
+              mode: 'agentic',
+              agentic: {
+                enabledSubagents: ['security-analyzer', 'dependency-tracer'],
+              },
+            },
+          ],
+        },
+      };
+      expect(() => assertValidConfig(config)).not.toThrow();
+    });
+
+    it('accepts enabledSubagents with model override objects', () => {
+      const config = {
+        ...minimalValidConfig,
+        review: {
+          pipeline: [
+            {
+              name: 'agentic-job',
+              enabled: true,
+              mode: 'agentic',
+              agentic: {
+                enabledSubagents: [
+                  'dependency-tracer',
+                  { name: 'security-analyzer', model: { provider: 'openai', name: 'gpt-4o' } },
+                ],
+              },
+            },
+          ],
+        },
+      };
+      expect(() => assertValidConfig(config)).not.toThrow();
+    });
+
+    it('accepts customAgents model as { provider, name } object', () => {
+      const config = {
+        ...minimalValidConfig,
+        review: {
+          pipeline: [
+            {
+              name: 'agentic-job',
+              enabled: true,
+              mode: 'agentic',
+              agentic: {
+                customAgents: [
+                  {
+                    name: 'my-agent',
+                    description: 'Custom agent',
+                    prompt: 'Do things.',
+                    model: { provider: 'openai', name: 'gpt-4o' },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      };
+      expect(() => assertValidConfig(config)).not.toThrow();
+    });
+
+    it('accepts customAgents model as plain string', () => {
+      const config = {
+        ...minimalValidConfig,
+        review: {
+          pipeline: [
+            {
+              name: 'agentic-job',
+              enabled: true,
+              mode: 'agentic',
+              agentic: {
+                customAgents: [
+                  {
+                    name: 'my-agent',
+                    description: 'Custom agent',
+                    prompt: 'Do things.',
+                    model: 'gpt-4o',
+                  },
+                ],
+              },
+            },
+          ],
+        },
       };
       expect(() => assertValidConfig(config)).not.toThrow();
     });
@@ -164,6 +295,26 @@ describe('assertValidConfig', () => {
             },
           },
           review: minimalValidConfig.review,
+        }),
+      ).toThrow(ConfigValidationError);
+    });
+
+    it('throws when subagent override model object is missing name', () => {
+      expect(() =>
+        assertValidConfig({
+          ...minimalValidConfig,
+          review: {
+            pipeline: [
+              {
+                name: 'agentic-job',
+                enabled: true,
+                mode: 'agentic',
+                agentic: {
+                  enabledSubagents: [{ name: 'security-analyzer', model: { provider: 'openai' } }],
+                },
+              },
+            ],
+          },
         }),
       ).toThrow(ConfigValidationError);
     });

@@ -4,8 +4,13 @@ import { context } from '@opentelemetry/api';
 import { AgentLoader } from './loaders/agent-loader';
 import { buildUserPrompt } from './prompt-builder';
 import { parseIssuesFromResult } from './result-parser';
-import { createSubagentDefinitions, type AgentDefinition } from './subagents/definitions';
+import {
+  createSubagentDefinitions,
+  type AgentDefinition,
+  type ResolvedAgentDefinition,
+} from './subagents/definitions';
 import { createAgenticTools } from './tools';
+import { ConfigService } from '../../../config/config';
 import {
   getTracer,
   setAgenticSpanAttributes,
@@ -13,7 +18,7 @@ import {
   setObservationIO,
   setTokenUsage,
 } from '../../../observability';
-import type { ReviewIssue } from '../../../shared/types';
+import type { ReviewIssue, ResolvedStageConfig } from '../../../shared/types';
 import type { FileInfo, PipelineJob, AgenticConfig } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
 import { PromptLoader } from '../loaders/prompt-loader';
@@ -60,7 +65,10 @@ export class AgenticExecutor {
 
     const builtInAgents = createSubagentDefinitions(this.config);
     const customAgents = this.agentLoader.loadCustomAgents(this.config);
-    const allAgents: Record<string, AgentDefinition> = { ...builtInAgents, ...customAgents };
+
+    // Merge all agents (custom agents can override built-in) then apply model overrides
+    const mergedAgents: Record<string, AgentDefinition> = { ...builtInAgents, ...customAgents };
+    const allAgents = this.applyModelOverrides(mergedAgents);
 
     const agentNames = Object.keys(allAgents);
     logger.info(`[Agentic] Available agents: ${agentNames.join(', ')}`);
@@ -102,7 +110,7 @@ export class AgenticExecutor {
           mcpServers: {
             'qualops-agentic-tools': toolServer,
           },
-          agents: allAgents,
+          agents: allAgents as Record<string, ResolvedAgentDefinition>,
           maxTurns: this.config.maxTurns || 100,
           ...(this.config.maxBudgetUsd && { maxBudgetUsd: this.config.maxBudgetUsd }),
           ...(this.model && { model: this.model }),
@@ -172,6 +180,25 @@ export class AgenticExecutor {
 
     logger.info(`[Agentic] Review completed: ${issues.length} total issues`);
     return issues;
+  }
+
+  private applyModelOverrides(
+    agents: Record<string, AgentDefinition>,
+  ): Record<string, ResolvedAgentDefinition> {
+    const configService = ConfigService.getInstance();
+    let stageConfig: ResolvedStageConfig | undefined;
+    try {
+      stageConfig = configService.getResolvedStageConfig('review');
+    } catch {
+      // no review stage config — resolveAgentModel falls back to defaults
+    }
+
+    return Object.fromEntries(
+      Object.entries(agents).map(([name, def]) => {
+        const { model } = configService.resolveAgentModel(name, this.config, stageConfig);
+        return [name, { ...def, model }];
+      }),
+    );
   }
 
   private async buildSystemPrompt(_allAgents: Record<string, AgentDefinition>): Promise<string> {

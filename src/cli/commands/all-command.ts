@@ -91,7 +91,7 @@ async function executeAllStagesWithTracing(
 
   await tracer.startActiveSpan('qualops/run', async (rootSpan) => {
     try {
-      const model = ConfigService.getInstance().getAIStageConfig('review').model;
+      const model = ConfigService.getInstance().getResolvedStageConfig('review').model;
       const prMeta = extractPRMetadata(config.sessionName);
       setTraceMetadataFromPR(rootSpan, prMeta, config.sessionName, model);
 

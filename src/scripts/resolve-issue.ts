@@ -3,8 +3,7 @@
 import { readFile, writeFile } from 'fs/promises';
 import { resolve } from 'path';
 
-import Anthropic from '@anthropic-ai/sdk';
-
+import { AIFactory } from '../ai/providers/factory';
 import { logger } from '../shared/utils/logger';
 
 interface ParsedIssue {
@@ -115,11 +114,7 @@ async function resolveIssue(
     return;
   }
 
-  const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY,
-  });
-
-  logger.info(`\n🤖 Generating fix using Claude...`);
+  logger.info(`\n🤖 Generating fix...`);
 
   const prompt = `You are a code fixing assistant. You need to apply a fix to a TypeScript file.
 
@@ -138,18 +133,8 @@ ${sourceContent}
 
 Your task: Apply the fix to the code. Return ONLY the complete fixed file content, nothing else. No explanations, no markdown code blocks, just the raw TypeScript code.`;
 
-  const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5-20250929',
-    max_tokens: 8000,
-    messages: [
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ],
-  });
-
-  let fixedContent = message.content[0].type === 'text' ? message.content[0].text : '';
+  const provider = await AIFactory.createForStage('review');
+  let fixedContent = await provider.invoke(prompt, 8000);
 
   if (!fixedContent) {
     logger.error('❌ Failed to generate fix');
@@ -162,9 +147,6 @@ Your task: Apply the fix to the code. Return ONLY the complete fixed file conten
     .trim();
 
   logger.info(`\n✅ Fix generated successfully`);
-  logger.info(
-    `\nTokens used: ${message.usage.input_tokens} input, ${message.usage.output_tokens} output`,
-  );
 
   if (dryRun) {
     logger.info(`\n🔍 DRY RUN MODE - Changes not applied`);

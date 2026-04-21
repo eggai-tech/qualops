@@ -176,6 +176,9 @@ export function buildInlineSet(defs: Defs): Set<string> {
     if (type === 'object' && !def.properties) {
       inlinable.add(key);
     }
+    if (type === 'object' && def.additionalProperties === false) {
+      inlinable.add(key);
+    }
     if (type === 'array') {
       inlinable.add(key);
     }
