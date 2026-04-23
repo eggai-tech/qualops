@@ -164,6 +164,8 @@ export abstract class OpenAICompatibleProvider implements AIProvider {
       systemPrompt,
     } = options;
 
+    logger.debug(`[${this.name}] model=${model} prompt=${JSON.stringify(messages).slice(0, 200)}`);
+
     if (!this.client) {
       throw new Error(`${this.friendlyName} client not initialized`);
     }
