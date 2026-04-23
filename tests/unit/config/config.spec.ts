@@ -598,6 +598,31 @@ describe('ConfigService', () => {
     });
   });
 
+  describe('resolveAgentAdapterType', () => {
+    let instance: ConfigService;
+
+    beforeEach(() => {
+      (ConfigService as unknown as { instance: undefined }).instance = undefined;
+      instance = ConfigService.getInstance();
+    });
+
+    it('returns "anthropic" for anthropic provider', () => {
+      expect(instance.resolveAgentAdapterType('anthropic')).toBe('anthropic');
+    });
+
+    it('returns "openai" for openai provider', () => {
+      expect(instance.resolveAgentAdapterType('openai')).toBe('openai');
+    });
+
+    it('returns "openai" for github provider (uses OpenAI-compatible API)', () => {
+      expect(instance.resolveAgentAdapterType('github')).toBe('openai');
+    });
+
+    it('returns undefined for bedrock (not yet supported)', () => {
+      expect(instance.resolveAgentAdapterType('bedrock')).toBeUndefined();
+    });
+  });
+
   describe('validate', () => {
     it('should return empty array when config is valid', () => {
       const aiConfig = {

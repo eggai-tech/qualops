@@ -260,6 +260,19 @@ export class ConfigService {
     return { ...raw, provider: provider as AIProviderName, model };
   }
 
+  /**
+   * Maps a resolved provider name to the agent adapter type to use.
+   * Returns `undefined` for providers that do not yet support agentic mode.
+   */
+  resolveAgentAdapterType(provider: AIProviderName): 'anthropic' | 'openai' | undefined {
+    const mapping: Partial<Record<AIProviderName, 'anthropic' | 'openai'>> = {
+      anthropic: 'anthropic',
+      openai: 'openai',
+      github: 'openai', // GitHub Models uses an OpenAI-compatible API
+    };
+    return mapping[provider];
+  }
+
   isIssueMarkdownEnabled(): boolean {
     return this.config.report?.generateIssueMarkdown ?? false;
   }

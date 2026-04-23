@@ -1,6 +1,6 @@
-import { query } from '@anthropic-ai/claude-agent-sdk';
 import { context } from '@opentelemetry/api';
 
+import { createAgentAdapter } from './adapters';
 import { AgentLoader } from './loaders/agent-loader';
 import { buildUserPrompt } from './prompt-builder';
 import { parseIssuesFromResult } from './result-parser';
@@ -9,7 +9,6 @@ import {
   type AgentDefinition,
   type ResolvedAgentDefinition,
 } from './subagents/definitions';
-import { createAgenticTools } from './tools';
 import { ConfigService } from '../../../config/config';
 import {
   getTracer,
@@ -61,8 +60,6 @@ export class AgenticExecutor {
       return [];
     }
 
-    const toolServer = createAgenticTools(this.cwd);
-
     const builtInAgents = createSubagentDefinitions(this.config);
     const customAgents = this.agentLoader.loadCustomAgents(this.config);
 
@@ -73,8 +70,6 @@ export class AgenticExecutor {
     const agentNames = Object.keys(allAgents);
     logger.info(`[Agentic] Available agents: ${agentNames.join(', ')}`);
     logger.info(`[Agentic] Custom agents: ${Object.keys(customAgents).join(', ') || 'none'}`);
-
-    const _enabledSubagents = this.config.enabledSubagents || [];
 
     const systemPrompt = await this.buildSystemPrompt(allAgents);
     const userPrompt = buildUserPrompt(files, this.config);
@@ -95,78 +90,42 @@ export class AgenticExecutor {
     let turnIndex = 0;
 
     try {
-      const result = query({
-        prompt: userPrompt,
-        options: {
-          systemPrompt,
-          allowedTools: [
-            'Read',
-            'Grep',
-            'Glob',
-            'mcp__qualops-agentic-tools__find_usages',
-            'mcp__qualops-agentic-tools__git_diff_analysis',
-            'mcp__qualops-agentic-tools__list_changed_files',
-          ],
-          mcpServers: {
-            'qualops-agentic-tools': toolServer,
-          },
-          agents: allAgents as Record<string, ResolvedAgentDefinition>,
-          maxTurns: this.config.maxTurns || 100,
-          ...(this.config.maxBudgetUsd && { maxBudgetUsd: this.config.maxBudgetUsd }),
-          ...(this.model && { model: this.model }),
-          cwd: this.cwd,
-          permissionMode: 'bypassPermissions',
+      const stageConfig = ConfigService.getInstance().getResolvedStageConfig('review');
+      const adapter = createAgentAdapter(stageConfig.provider);
+
+      logger.info(`[Agentic] Using adapter for provider: ${stageConfig.provider}`);
+
+      const result = await adapter.run({
+        systemPrompt,
+        userPrompt,
+        agents: allAgents,
+        model: this.model,
+        cwd: this.cwd,
+        maxTurns: this.config.maxTurns || 100,
+        maxBudgetUsd: this.config.maxBudgetUsd,
+        onToolCall: (turn, name, input) => {
+          turnIndex = turn;
+          allToolCalls.push({ turn, name, input });
         },
       });
 
-      for await (const message of result) {
+      setTokenUsage(agenticSpan, {
+        model: this.model,
+        inputTokens: result.inputTokens,
+        outputTokens: result.outputTokens,
+      });
+      setObservationIO(agenticSpan, {
+        input: { systemPrompt, userPrompt, toolCalls: allToolCalls },
+        output: result.errorSubtype ? { error: result.errorSubtype } : result.output,
+      });
+
+      if (result.output) {
         logger.info(
-          `[Agentic] Message: type=${message.type}, subtype=${'subtype' in message ? message.subtype : 'N/A'}`,
+          `[Agentic] Success result (first 500 chars): ${result.output.substring(0, 500)}`,
         );
-
-        if (message.type === 'assistant') {
-          turnIndex++;
-          const content = 'message' in message ? message.message?.content : null;
-          if (content && Array.isArray(content)) {
-            for (const block of content) {
-              if (block.type === 'text') {
-                logger.info(
-                  `[Agentic] Assistant text (first 200 chars): ${block.text.substring(0, 200)}`,
-                );
-              } else if (block.type === 'tool_use') {
-                logger.info(`[Agentic] Tool call: ${block.name}`);
-                allToolCalls.push({ turn: turnIndex, name: block.name, input: block.input });
-              }
-            }
-          }
-        }
-
-        if (message.type === 'result') {
-          if (message.subtype === 'success' && message.result) {
-            logger.info(
-              `[Agentic] Success result (first 500 chars): ${message.result.substring(0, 500)}`,
-            );
-            const usage =
-              'usage' in message
-                ? (message.usage as { input_tokens?: number; output_tokens?: number } | undefined)
-                : undefined;
-            setTokenUsage(agenticSpan, {
-              model: this.model,
-              inputTokens: usage?.input_tokens,
-              outputTokens: usage?.output_tokens,
-            });
-            setObservationIO(agenticSpan, {
-              input: { systemPrompt, userPrompt, toolCalls: allToolCalls },
-              output: message.result,
-            });
-            const parsed = parseIssuesFromResult(message.result, files, this.job.name, this.cwd);
-            issues.push(...parsed);
-            logger.info(`[Agentic] Parsed ${parsed.length} issues from result`);
-          } else if (message.subtype !== 'success') {
-            setObservationIO(agenticSpan, { output: { error: message.subtype } });
-            logger.error(`[Agentic] Agent error: ${message.subtype}`);
-          }
-        }
+        const parsed = parseIssuesFromResult(result.output, files, this.job.name, this.cwd);
+        issues.push(...parsed);
+        logger.info(`[Agentic] Parsed ${parsed.length} issues from result`);
       }
     } catch (error) {
       logger.error(

@@ -150,18 +150,10 @@ async function runPipelineReview(
   return executor.execute(files);
 }
 
-// Only works with anthropic provider (requires Claude Agent SDK).
 async function runAgenticReview(
   files: FileInfo[],
   config: EvalConfig,
 ): Promise<ReviewIssue[]> {
-  if (config.provider && config.provider !== 'anthropic') {
-    throw new Error(
-      `Agentic mode requires anthropic provider, got: ${config.provider}. ` +
-        'The Claude Agent SDK only supports Anthropic models.',
-    );
-  }
-
   const configuredJobs = ConfigLoader.getInstance().getEnabledJobs();
   const agenticJobs = configuredJobs.filter((j) => j.job.mode === 'agentic');
 
