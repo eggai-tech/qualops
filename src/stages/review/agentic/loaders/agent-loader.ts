@@ -1,7 +1,6 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 
-import type { ModelConfig } from '../../../../shared/types';
 import type { AgenticConfig, CustomAgentDefinition } from '../../../../shared/types/config';
 import { logger } from '../../../../shared/utils/logger';
 import type { AgentDefinition } from '../subagents/definitions';
@@ -127,7 +126,7 @@ export class AgentLoader {
       description: custom.description,
       prompt: custom.prompt,
       tools: custom.tools || ['Read', 'Grep', 'Glob'],
-      model: custom.model as ModelConfig | undefined,
+      model: custom.model,
     };
   }
 }

@@ -177,9 +177,8 @@ export function createSubagentDefinitions(config: AgenticConfig): Record<string,
 
   for (const entry of enabled) {
     const type = typeof entry === 'string' ? entry : entry.name;
-    const def = SUBAGENT_DEFINITIONS[type as AgenticSubagentType];
-    if (def) {
-      definitions[type] = { ...def };
+    if (type in SUBAGENT_DEFINITIONS) {
+      definitions[type] = { ...SUBAGENT_DEFINITIONS[type as AgenticSubagentType] };
     }
   }
 
