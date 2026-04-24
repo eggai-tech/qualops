@@ -104,6 +104,10 @@ async function resolveIssue(
   logger.info(`   Confidence: ${issue.confidence}`);
 
   const filePath = resolve(monorepoRoot, issue.file);
+  if (!filePath.startsWith(monorepoRoot.replace(/\/?$/, '/'))) {
+    logger.error(`❌ Rejected path outside project root: ${issue.file}`);
+    return;
+  }
   logger.info(`\n📂 Reading source file: ${filePath}`);
 
   let sourceContent: string;

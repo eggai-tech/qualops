@@ -131,7 +131,7 @@ export class AnthropicProvider implements AIProvider {
       systemPrompt,
     } = options;
 
-    logger.debug(`[anthropic] model=${model} prompt=${JSON.stringify(messages).slice(0, 200)}`);
+    logger.debug(`[anthropic] model=${model} messages=${messages.length}`);
 
     if (!this.client) {
       throw new Error('Anthropic client not initialized');

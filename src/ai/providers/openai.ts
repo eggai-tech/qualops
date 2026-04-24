@@ -7,16 +7,20 @@ export class OpenAIProvider extends OpenAICompatibleProvider {
 
   constructor(stageConfig: ResolvedStageConfig) {
     const apiKey = envConfig.get('openaiApiKey') || '';
-    const baseURL = envConfig.get('openaiApiBase');
+    const rawBaseURL = envConfig.get('openaiApiBase');
+
+    if (rawBaseURL && !/^https?:\/\//i.test(rawBaseURL)) {
+      throw new Error(`OPENAI_BASE_URL must be a valid http/https URL, got: ${rawBaseURL}`);
+    }
 
     super(stageConfig, {
       name: 'openai',
       friendlyName: 'OpenAI',
       apiKey,
-      baseURL,
+      baseURL: rawBaseURL,
     });
 
-    this.isCustomEndpoint = !!baseURL;
+    this.isCustomEndpoint = !!rawBaseURL;
   }
 
   protected validateApiKey(): void {
