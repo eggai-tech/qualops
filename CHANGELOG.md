@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrade eslint from 9.x to 10.x, migrate `eslint-plugin-import` to `eslint-plugin-import-x`
 
 ### Added
+- Agentic mode now supports OpenAI and Azure OpenAI providers via `@openai/agents`. Set `provider: "openai"` in your stage config to use the OpenAI adapter; set `OPENAI_BASE_URL` to an Azure endpoint and the correct Azure client is used automatically.
 - You can now specify a model and provider together in stage config using `model: { provider: "openai", name: "gpt-4o" }` instead of relying on a separate top-level `provider` field.
 - OpenTelemetry observability instrumentation across the full review pipeline (file-by-file, agentic, and eval runs), with auto-detection for Langfuse and generic OTLP backends. All span attributes are sanitized to prevent credential leakage.
 - Agentic jobs now support a `prompt` field for file-based prompt instructions, combined with the existing inline `systemPrompt`
