@@ -1,7 +1,7 @@
-jest.mock('node:child_process', () => ({ execSync: jest.fn() }));
+jest.mock('node:child_process', () => ({ spawnSync: jest.fn() }));
 jest.mock('node:fs', () => ({ existsSync: jest.fn(), readFileSync: jest.fn() }));
 
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
 import {
@@ -16,11 +16,31 @@ import {
   traceImports,
 } from '@/stages/review/agentic/tools/handlers';
 
-const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
+const mockSpawnSync = spawnSync as jest.MockedFunction<typeof spawnSync>;
 const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
 const mockReadFileSync = readFileSync as jest.MockedFunction<typeof readFileSync>;
 
 const CWD = '/project/repo';
+
+function spawnOk(stdout: string) {
+  return { stdout, stderr: '', status: 0, error: undefined, pid: 0, output: [], signal: null };
+}
+
+function spawnFail(stderr: string, status = 2) {
+  return { stdout: '', stderr, status, error: undefined, pid: 0, output: [], signal: null };
+}
+
+function spawnError(message: string) {
+  return {
+    stdout: '',
+    stderr: '',
+    status: null,
+    error: new Error(message),
+    pid: 0,
+    output: [],
+    signal: null,
+  };
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -30,40 +50,36 @@ beforeEach(() => {
 
 describe('findUsages', () => {
   it('returns rg output on success', () => {
-    mockExecSync.mockReturnValue('src/foo.ts:5:const myFn = ' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('src/foo.ts:5:const myFn = ') as any);
     expect(findUsages(CWD, 'myFn')).toBe('src/foo.ts:5:const myFn = ');
   });
 
   it('returns "No usages found" when rg exits with status 1', () => {
-    mockExecSync.mockImplementation(() => {
-      const e: any = new Error();
-      e.status = 1;
-      throw e;
-    });
+    mockSpawnSync.mockReturnValue(spawnFail('', 1) as any);
     expect(findUsages(CWD, 'myFn')).toBe('No usages found');
   });
 
   it('returns error message on other failures', () => {
-    mockExecSync.mockImplementation(() => {
-      throw new Error('rg not found');
-    });
-    expect(findUsages(CWD, 'myFn')).toBe('Error: rg not found');
+    mockSpawnSync.mockReturnValue(spawnError('rg not found') as any);
+    expect(findUsages(CWD, 'myFn')).toMatch(/rg not found/);
   });
 
   it('uses scope when provided', () => {
-    mockExecSync.mockReturnValue('' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('') as any);
     findUsages(CWD, 'myFn', '/project/repo/src');
-    expect(mockExecSync).toHaveBeenCalledWith(
-      expect.stringContaining('/project/repo/src'),
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'rg',
+      expect.arrayContaining(['/project/repo/src']),
       expect.anything(),
     );
   });
 
   it('uses custom fileType when provided', () => {
-    mockExecSync.mockReturnValue('' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('') as any);
     findUsages(CWD, 'myFn', undefined, 'js');
-    expect(mockExecSync).toHaveBeenCalledWith(
-      expect.stringContaining('--type js'),
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'rg',
+      expect.arrayContaining(['--type', 'js']),
       expect.anything(),
     );
   });
@@ -80,7 +96,7 @@ describe('traceImports', () => {
   it('returns JSON with imports and exports', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(`import { foo } from './foo';\nexport const bar = 1;` as any);
-    mockExecSync.mockReturnValue('' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('') as any);
     const result = JSON.parse(traceImports(CWD, 'src/mod.ts'));
     expect(result.imports).toContain('./foo');
     expect(result.exports).toContain('bar');
@@ -91,26 +107,28 @@ describe('traceImports', () => {
 
 describe('gitDiffAnalysis', () => {
   it('returns diff output', () => {
-    mockExecSync.mockReturnValue('+ added line\n' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('+ added line\n') as any);
     expect(gitDiffAnalysis(CWD, 'main')).toBe('+ added line\n');
   });
 
   it('returns "No differences found" on empty output', () => {
-    mockExecSync.mockReturnValue('' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('') as any);
     expect(gitDiffAnalysis(CWD, 'main')).toBe('No differences found');
   });
 
   it('returns error string on failure', () => {
-    mockExecSync.mockImplementation(() => {
-      throw new Error('not a git repo');
-    });
+    mockSpawnSync.mockReturnValue(spawnFail('not a git repo') as any);
     expect(gitDiffAnalysis(CWD, 'main')).toBe('Error: not a git repo');
   });
 
   it('passes --stat flag when stat=true', () => {
-    mockExecSync.mockReturnValue('1 file changed' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('1 file changed') as any);
     gitDiffAnalysis(CWD, 'main', undefined, undefined, true);
-    expect(mockExecSync).toHaveBeenCalledWith(expect.stringContaining('--stat'), expect.anything());
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'git',
+      expect.arrayContaining(['--stat']),
+      expect.anything(),
+    );
   });
 });
 
@@ -134,7 +152,7 @@ describe('analyzeExports', () => {
   it('includes comparison when compareWithRef is provided', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('export const foo = 1;' as any);
-    mockExecSync.mockReturnValue('export const oldFn = () => {};' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('export const oldFn = () => {};') as any);
     const result = JSON.parse(analyzeExports(CWD, 'src/mod.ts', 'main'));
     expect(result.comparison).toBeTruthy();
     expect(result.comparison.added).toContain('foo');
@@ -144,9 +162,7 @@ describe('analyzeExports', () => {
   it('uses added=currentExports when git show fails', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('export const foo = 1;' as any);
-    mockExecSync.mockImplementation(() => {
-      throw new Error('git error');
-    });
+    mockSpawnSync.mockReturnValue(spawnFail('git error') as any);
     const result = JSON.parse(analyzeExports(CWD, 'src/mod.ts', 'main'));
     expect(result.comparison.added).toContain('foo');
     expect(result.comparison.removed).toEqual([]);
@@ -157,26 +173,28 @@ describe('analyzeExports', () => {
 
 describe('findInterfaceChanges', () => {
   it('returns diff output', () => {
-    mockExecSync.mockReturnValue('interface Foo {}' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('interface Foo {}') as any);
     expect(findInterfaceChanges(CWD, 'main')).toBe('interface Foo {}');
   });
 
   it('returns "No interface changes found" on empty output', () => {
-    mockExecSync.mockReturnValue('' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('') as any);
     expect(findInterfaceChanges(CWD, 'main')).toBe('No interface changes found');
   });
 
   it('returns error string on failure', () => {
-    mockExecSync.mockImplementation(() => {
-      throw new Error('git error');
-    });
+    mockSpawnSync.mockReturnValue(spawnFail('git error') as any);
     expect(findInterfaceChanges(CWD, 'main')).toBe('Error: git error');
   });
 
   it('scopes to specific interface when interfaceName is provided', () => {
-    mockExecSync.mockReturnValue('interface Foo {}' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('interface Foo {}') as any);
     findInterfaceChanges(CWD, 'main', undefined, 'Foo');
-    expect(mockExecSync).toHaveBeenCalledWith(expect.stringContaining('Foo'), expect.anything());
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'git',
+      expect.arrayContaining([expect.stringContaining('Foo')]),
+      expect.anything(),
+    );
   });
 });
 
@@ -184,27 +202,26 @@ describe('findInterfaceChanges', () => {
 
 describe('listChangedFiles', () => {
   it('returns file list output', () => {
-    mockExecSync.mockReturnValue('M src/foo.ts\nA src/bar.ts\n' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('M src/foo.ts\nA src/bar.ts\n') as any);
     expect(listChangedFiles(CWD, 'main')).toBe('M src/foo.ts\nA src/bar.ts\n');
   });
 
   it('returns "No changed files" on empty output', () => {
-    mockExecSync.mockReturnValue('' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('') as any);
     expect(listChangedFiles(CWD, 'main')).toBe('No changed files');
   });
 
   it('returns error string on failure', () => {
-    mockExecSync.mockImplementation(() => {
-      throw new Error('git error');
-    });
+    mockSpawnSync.mockReturnValue(spawnFail('git error') as any);
     expect(listChangedFiles(CWD, 'main')).toBe('Error: git error');
   });
 
   it('passes diff-filter when filter is provided', () => {
-    mockExecSync.mockReturnValue('A src/new.ts\n' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('A src/new.ts\n') as any);
     listChangedFiles(CWD, 'main', undefined, 'A');
-    expect(mockExecSync).toHaveBeenCalledWith(
-      expect.stringContaining('--diff-filter=A'),
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'git',
+      expect.arrayContaining(['--diff-filter=A']),
       expect.anything(),
     );
   });
@@ -249,37 +266,36 @@ describe('readFile', () => {
 
 describe('grepFiles', () => {
   it('returns matching lines', () => {
-    mockExecSync.mockReturnValue('src/foo.ts:1:const x' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('src/foo.ts:1:const x') as any);
     expect(grepFiles(CWD, 'const x')).toBe('src/foo.ts:1:const x');
   });
 
   it('returns "No matches found" when rg exits with status 1', () => {
-    mockExecSync.mockImplementation(() => {
-      const e: any = new Error();
-      e.status = 1;
-      throw e;
-    });
+    mockSpawnSync.mockReturnValue(spawnFail('', 1) as any);
     expect(grepFiles(CWD, 'nope')).toBe('No matches found');
   });
 
   it('returns error on other failures', () => {
-    mockExecSync.mockImplementation(() => {
-      throw new Error('rg error');
-    });
-    expect(grepFiles(CWD, 'x')).toBe('Error: rg error');
+    mockSpawnSync.mockReturnValue(spawnError('rg error') as any);
+    expect(grepFiles(CWD, 'x')).toMatch(/rg error/);
   });
 
   it('adds -i flag when ignoreCase is true', () => {
-    mockExecSync.mockReturnValue('' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('') as any);
     grepFiles(CWD, 'foo', undefined, true);
-    expect(mockExecSync).toHaveBeenCalledWith(expect.stringContaining('-i'), expect.anything());
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'rg',
+      expect.arrayContaining(['-i']),
+      expect.anything(),
+    );
   });
 
   it('adds --glob flag when glob is provided', () => {
-    mockExecSync.mockReturnValue('' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('') as any);
     grepFiles(CWD, 'foo', '*.ts');
-    expect(mockExecSync).toHaveBeenCalledWith(
-      expect.stringContaining('--glob "*.ts"'),
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'rg',
+      expect.arrayContaining(['--glob', '*.ts']),
       expect.anything(),
     );
   });
@@ -289,19 +305,17 @@ describe('grepFiles', () => {
 
 describe('globFiles', () => {
   it('returns matched file paths', () => {
-    mockExecSync.mockReturnValue('/project/repo/src/foo.ts\n' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('/project/repo/src/foo.ts\n') as any);
     expect(globFiles(CWD, '**/*.ts')).toBe('/project/repo/src/foo.ts');
   });
 
   it('returns "No files found" on empty output', () => {
-    mockExecSync.mockReturnValue('\n' as any);
+    mockSpawnSync.mockReturnValue(spawnOk('\n') as any);
     expect(globFiles(CWD, '**/*.xyz')).toBe('No files found');
   });
 
   it('returns error string on failure', () => {
-    mockExecSync.mockImplementation(() => {
-      throw new Error('find error');
-    });
+    mockSpawnSync.mockReturnValue(spawnFail('find error') as any);
     expect(globFiles(CWD, '**/*.ts')).toBe('Error: find error');
   });
 });

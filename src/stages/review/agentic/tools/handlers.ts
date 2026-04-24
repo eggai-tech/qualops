@@ -1,22 +1,40 @@
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import type { DependencyTrace, ExportComparison } from '../types';
 
+// ─── Safe command execution ────────────────────────────────────────────────────
+
+/**
+ * Runs a command without a shell, passing args as an array to avoid injection.
+ * Returns stdout on success, or throws with the stderr/status attached.
+ */
+function runSafe(cmd: string, args: string[], cwd: string, maxBuffer = 10 * 1024 * 1024): string {
+  const result = spawnSync(cmd, args, {
+    encoding: 'utf-8',
+    cwd,
+    maxBuffer,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    const err = new Error(result.stderr?.trim() || `Command exited with status ${result.status}`);
+    (err as NodeJS.ErrnoException & { status?: number }).status = result.status ?? undefined;
+    throw err;
+  }
+  return result.stdout;
+}
+
 // ─── Custom tools ─────────────────────────────────────────────────────────────
 
 export function findUsages(cwd: string, symbol: string, scope?: string, fileType?: string): string {
   const searchPath = scope || cwd;
-  const typeArg = fileType ? `--type ${fileType}` : '--type ts --type tsx';
+  const typeArgs = fileType ? ['--type', fileType] : ['--type', 'ts', '--type', 'tsx'];
 
   try {
     return (
-      execSync(`rg -n --word-regexp "${symbol}" ${searchPath} ${typeArg}`, {
-        encoding: 'utf-8',
-        cwd,
-        maxBuffer: 10 * 1024 * 1024,
-      }) || 'No usages found'
+      runSafe('rg', ['-n', '--word-regexp', symbol, searchPath, ...typeArgs], cwd) ||
+      'No usages found'
     );
   } catch (error) {
     const execError = error as { status?: number; message?: string };
@@ -49,17 +67,14 @@ export function gitDiffAnalysis(
   stat?: boolean,
 ): string {
   const headRef = head || 'HEAD';
-  const fileArg = file ? `-- ${file}` : '';
-  const statArg = stat ? '--stat' : '';
+
+  const args = ['diff'];
+  if (stat) args.push('--stat');
+  args.push(`${base}...${headRef}`);
+  if (file) args.push('--', file);
 
   try {
-    return (
-      execSync(`git diff ${statArg} ${base}...${headRef} ${fileArg}`, {
-        encoding: 'utf-8',
-        cwd,
-        maxBuffer: 10 * 1024 * 1024,
-      }) || 'No differences found'
-    );
+    return runSafe('git', args, cwd) || 'No differences found';
   } catch (error) {
     return `Error: ${(error as Error).message}`;
   }
@@ -79,10 +94,7 @@ export function analyzeExports(cwd: string, filePath: string, compareWithRef?: s
 
   if (compareWithRef) {
     try {
-      const oldContent = execSync(`git show ${compareWithRef}:${filePath}`, {
-        encoding: 'utf-8',
-        cwd,
-      });
+      const oldContent = runSafe('git', ['show', `${compareWithRef}:${filePath}`], cwd);
       const oldExports = extractExports(oldContent);
       comparison = compareExportSets(oldExports, currentExports);
     } catch {
@@ -101,16 +113,16 @@ export function findInterfaceChanges(
 ): string {
   const headRef = head || 'HEAD';
   const grepPattern = interfaceName
-    ? `"(interface|type)\\s+${interfaceName}"`
-    : '"(interface|type)\\s+\\w+"';
+    ? `(interface|type)\\s+${interfaceName}`
+    : '(interface|type)\\s+\\w+';
 
   try {
     return (
-      execSync(`git diff ${base}...${headRef} --unified=5 -G ${grepPattern} -- "*.ts" "*.tsx"`, {
-        encoding: 'utf-8',
+      runSafe(
+        'git',
+        ['diff', `${base}...${headRef}`, '--unified=5', `-G${grepPattern}`, '--', '*.ts', '*.tsx'],
         cwd,
-        maxBuffer: 10 * 1024 * 1024,
-      }) || 'No interface changes found'
+      ) || 'No interface changes found'
     );
   } catch (error) {
     return `Error: ${(error as Error).message}`;
@@ -124,15 +136,12 @@ export function listChangedFiles(
   filter?: string,
 ): string {
   const headRef = head || 'HEAD';
-  const filterArg = filter ? `--diff-filter=${filter}` : '';
+  const args = ['diff', '--name-status'];
+  if (filter) args.push(`--diff-filter=${filter}`);
+  args.push(`${base}...${headRef}`);
 
   try {
-    return (
-      execSync(`git diff --name-status ${filterArg} ${base}...${headRef}`, {
-        encoding: 'utf-8',
-        cwd,
-      }) || 'No changed files'
-    );
+    return runSafe('git', args, cwd) || 'No changed files';
   } catch (error) {
     return `Error: ${(error as Error).message}`;
   }
@@ -166,17 +175,13 @@ export function grepFiles(
   glob?: string,
   ignoreCase?: boolean,
 ): string {
-  const caseFlag = ignoreCase ? '-i' : '';
-  const globArg = glob ? `--glob "${glob}"` : '';
+  const args = ['-n'];
+  if (ignoreCase) args.push('-i');
+  if (glob) args.push('--glob', glob);
+  args.push(pattern, cwd);
 
   try {
-    return (
-      execSync(`rg -n ${caseFlag} ${globArg} "${pattern}" ${cwd}`, {
-        encoding: 'utf-8',
-        cwd,
-        maxBuffer: 10 * 1024 * 1024,
-      }) || 'No matches found'
-    );
+    return runSafe('rg', args, cwd) || 'No matches found';
   } catch (error) {
     const execError = error as { status?: number; message?: string };
     if (execError.status === 1) return 'No matches found';
@@ -186,11 +191,11 @@ export function grepFiles(
 
 export function globFiles(cwd: string, pattern: string): string {
   try {
-    const result = execSync(`find ${cwd} -path "${pattern}" -not -path "*/node_modules/*"`, {
-      encoding: 'utf-8',
+    const result = runSafe(
+      'find',
+      [cwd, '-path', pattern, '-not', '-path', '*/node_modules/*'],
       cwd,
-      maxBuffer: 10 * 1024 * 1024,
-    });
+    );
     return result.trim() || 'No files found';
   } catch (error) {
     return `Error: ${(error as Error).message}`;
@@ -245,12 +250,14 @@ function findImportingFiles(targetPath: string, cwd: string): string[] {
       ?.replace(/\.[^.]+$/, '') || '';
 
   try {
-    const result = execSync(`rg -l "${fileName}" --type ts ${cwd} 2>/dev/null || true`, {
+    const result = spawnSync('rg', ['-l', fileName, '--type', 'ts', cwd], {
       encoding: 'utf-8',
       cwd,
-      shell: '/bin/bash',
     });
-    return result
+    if (result.error) return [];
+    // exit code 1 = no matches (not an error)
+    if (result.status !== 0 && result.status !== 1) return [];
+    return (result.stdout ?? '')
       .trim()
       .split('\n')
       .filter((f) => f && f !== targetPath);
