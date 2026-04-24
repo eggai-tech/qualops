@@ -2,6 +2,10 @@ export * from './issue.model';
 export * from './pattern.model';
 export * from './session.model';
 
+import type { z } from 'zod';
+
+import type { aiProvider, modelConfigSchema } from '@/config/config-schema';
+
 export type FilePath = string;
 export type SessionId = string;
 
@@ -35,9 +39,21 @@ export type Metrics = {
   cacheMisses?: number;
 };
 
-export type AIProviderName = 'anthropic' | 'bedrock' | 'openai' | 'github';
+export type AIProviderName = z.infer<typeof aiProvider>;
+
+export type ModelConfig = z.infer<typeof modelConfigSchema>;
 
 export type AIStageConfig = {
+  provider?: AIProviderName; // deprecated fallback; prefer model: { provider, name }
+  model: ModelConfig;
+  inputPerMillion: number;
+  outputPerMillion: number;
+  temperature?: number;
+  maxTokens?: number;
+  [key: string]: unknown;
+};
+
+export type ResolvedStageConfig = {
   provider: AIProviderName;
   model: string;
   inputPerMillion: number;

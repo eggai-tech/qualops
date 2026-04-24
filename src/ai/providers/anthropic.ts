@@ -3,7 +3,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { estimateTokens } from '@/ai/shared/token-utils';
 import { ConfigService } from '@/config/config';
 import { envConfig } from '@/config/env';
-import type { AIStageConfig } from '@/shared/types';
+import type { ResolvedStageConfig } from '@/shared/types';
 import { logger } from '@/shared/utils/logger';
 
 import { AIProviderType } from './factory';
@@ -15,7 +15,7 @@ export class AnthropicProvider implements AIProvider {
   private initialized = false;
   private apiKey: string;
   private maxTokens = 8000;
-  private stageConfig: AIStageConfig;
+  private stageConfig: ResolvedStageConfig;
   private readonly tokenStats: TokenStats = {
     totalInputTokens: 0,
     totalOutputTokens: 0,
@@ -29,7 +29,7 @@ export class AnthropicProvider implements AIProvider {
   private cacheHits = 0;
   private cache1HourCreationTokens = 0;
 
-  constructor(stageConfig: AIStageConfig) {
+  constructor(stageConfig: ResolvedStageConfig) {
     this.stageConfig = stageConfig;
     this.apiKey = envConfig.get('anthropicApiKey') || '';
 
@@ -130,6 +130,8 @@ export class AnthropicProvider implements AIProvider {
       model = this.stageConfig.model,
       systemPrompt,
     } = options;
+
+    logger.debug(`[anthropic] model=${model} messages=${messages.length}`);
 
     if (!this.client) {
       throw new Error('Anthropic client not initialized');

@@ -1,14 +1,26 @@
 import { OpenAICompatibleProvider } from './openai-compatible-provider';
 import { envConfig } from '../../config/env';
-import type { AIStageConfig } from '../../shared/types';
+import type { ResolvedStageConfig } from '../../shared/types';
 
 export class OpenAIProvider extends OpenAICompatibleProvider {
-  constructor(stageConfig: AIStageConfig) {
+  private readonly isCustomEndpoint: boolean;
+
+  constructor(stageConfig: ResolvedStageConfig) {
+    const apiKey = envConfig.get('openaiApiKey') || '';
+    const rawBaseURL = envConfig.get('openaiApiBase');
+
+    if (rawBaseURL && !/^https?:\/\//i.test(rawBaseURL)) {
+      throw new Error(`OPENAI_BASE_URL must be a valid http/https URL, got: ${rawBaseURL}`);
+    }
+
     super(stageConfig, {
       name: 'openai',
       friendlyName: 'OpenAI',
-      apiKey: envConfig.get('openaiApiKey') || '',
+      apiKey,
+      baseURL: rawBaseURL,
     });
+
+    this.isCustomEndpoint = !!rawBaseURL;
   }
 
   protected validateApiKey(): void {
@@ -16,8 +28,7 @@ export class OpenAIProvider extends OpenAICompatibleProvider {
       throw new Error('OPENAI_API_KEY environment variable is required for openai provider');
     }
 
-    // Validate API key format (OpenAI keys should start with 'sk-')
-    if (!this.apiKey.startsWith('sk-')) {
+    if (!this.isCustomEndpoint && !this.apiKey.startsWith('sk-')) {
       throw new Error('Invalid OpenAI API key format');
     }
   }

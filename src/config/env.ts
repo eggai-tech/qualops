@@ -2,6 +2,7 @@ interface EnvironmentConfig {
   // Secrets
   anthropicApiKey?: string;
   openaiApiKey?: string;
+  openaiApiBase?: string;
   awsRegion?: string;
   awsAccessKeyId?: string;
   awsSecretAccessKey?: string;
@@ -64,6 +65,7 @@ class EnvironmentConfigService {
       // API Keys
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       openaiApiKey: process.env.OPENAI_API_KEY,
+      openaiApiBase: process.env.OPENAI_BASE_URL,
       awsRegion: process.env.AWS_REGION,
       awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
       awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,

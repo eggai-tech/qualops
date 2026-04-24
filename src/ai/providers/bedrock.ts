@@ -3,7 +3,7 @@ import type { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import { AIProviderType } from './factory';
 import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
 import { envConfig } from '../../config/env';
-import type { AIStageConfig } from '../../shared/types';
+import type { ResolvedStageConfig } from '../../shared/types';
 import { logger } from '../../shared/utils/logger';
 import { estimateTokens } from '../shared/token-utils';
 
@@ -44,7 +44,7 @@ export class BedrockProvider implements AIProvider {
 
   private client: BedrockRuntimeClient | null = null;
   private initialized = false;
-  private readonly stageConfig: AIStageConfig;
+  private readonly stageConfig: ResolvedStageConfig;
   private readonly region: string;
   private readonly maxTokens = 4000;
 
@@ -60,7 +60,7 @@ export class BedrockProvider implements AIProvider {
   private cacheReadTokens = 0;
   private cacheHits = 0;
 
-  constructor(stageConfig: AIStageConfig) {
+  constructor(stageConfig: ResolvedStageConfig) {
     this.stageConfig = stageConfig;
     this.region = envConfig.get('awsRegion') || process.env.AWS_REGION || 'eu-west-1';
 

@@ -41,7 +41,7 @@ export class PipelineExecutor {
     this.validationResolver = new ValidationResolver(this.config, aiProvider);
     this.dedupResolver = new DeduplicationResolver(this.config, aiProvider);
     this.aiProvider = aiProvider;
-    this.model = ConfigService.getInstance().getAIStageConfig('review').model;
+    this.model = ConfigService.getInstance().getResolvedStageConfig('review').model;
   }
 
   async execute(files: FileInfo[]): Promise<ReviewIssue[]> {

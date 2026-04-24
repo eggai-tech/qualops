@@ -4,6 +4,7 @@ import { GitHubModelsProvider } from './github';
 import { OpenAIProvider } from './openai';
 import type { AIProvider } from './provider';
 import { ConfigService } from '../../config/config';
+import type { ResolvedStageConfig } from '../../shared/types';
 
 export const AIProviderType = {
   ANTHROPIC: 'anthropic',
@@ -16,19 +17,17 @@ export class AIFactory {
   private static providers: Map<string, AIProvider> = new Map();
 
   static async createForStage(stage: string): Promise<AIProvider> {
-    const config = ConfigService.getInstance();
-    const stageConfig = config.getAIStageConfig(stage);
+    const stageConfig: ResolvedStageConfig =
+      ConfigService.getInstance().getResolvedStageConfig(stage);
     const providerKey = `${stageConfig.provider}-${stage}`;
 
-    // Return existing provider if available
     if (this.providers.has(providerKey)) {
-      const provider = this.providers.get(providerKey);
-      if (provider && provider.isAvailable()) {
-        return provider;
+      const existingProvider = this.providers.get(providerKey);
+      if (existingProvider && existingProvider.isAvailable()) {
+        return existingProvider;
       }
     }
 
-    // Create new provider
     let provider: AIProvider;
 
     switch (stageConfig.provider) {
@@ -65,7 +64,6 @@ export class AIFactory {
   }
 }
 
-// Global provider management
 let globalProvider: AIProvider | null = null;
 
 export async function initializeGlobalAIProviderForStage(stage: string): Promise<AIProvider> {

@@ -238,23 +238,47 @@
       "type": "string",
       "minLength": 1
     },
+    "modelConfig": {
+      "description": "Model to use: a string name (inherits provider from context) or an object with an explicit name and optional provider override.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "provider": {
+              "$ref": "#/$defs/aiProvider"
+            },
+            "name": {
+              "$ref": "#/$defs/nonEmptyString"
+            }
+          }
+        }
+      ]
+    },
     "aiStageConfig": {
       "description": "AI configuration for a specific stage.",
       "type": "object",
       "additionalProperties": true,
       "required": [
-        "provider",
         "model",
         "inputPerMillion",
         "outputPerMillion"
       ],
       "properties": {
         "provider": {
+          "description": "Deprecated. Prefer specifying provider inside the model object.",
+          "deprecated": true,
           "$ref": "#/$defs/aiProvider"
         },
         "model": {
-          "description": "Model name passed to the selected provider.",
-          "$ref": "#/$defs/nonEmptyString"
+          "description": "Model name or { provider, name } object.",
+          "$ref": "#/$defs/modelConfig"
         },
         "inputPerMillion": {
           "description": "Estimated input token cost per million tokens.",
@@ -415,10 +439,17 @@
           "minimum": 0
         },
         "enabledSubagents": {
-          "description": "Subset of built-in subagents to enable.",
+          "description": "Built-in subagents to enable, optionally with model overrides.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/agenticSubagentType"
+            "oneOf": [
+              {
+                "$ref": "#/$defs/agenticSubagentType"
+              },
+              {
+                "$ref": "#/$defs/subagentOverride"
+              }
+            ]
           }
         },
         "customAgents": {
@@ -452,6 +483,22 @@
           "description": "Total token budget for all file contexts in one agentic run.",
           "type": "integer",
           "minimum": 1
+        }
+      }
+    },
+    "subagentOverride": {
+      "description": "Built-in subagent identifier with an explicit model override.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/agenticSubagentType"
+        },
+        "model": {
+          "$ref": "#/$defs/modelConfig"
         }
       }
     },
@@ -501,15 +548,6 @@
       "items": {
         "$ref": "#/$defs/nonEmptyString"
       }
-    },
-    "agentModel": {
-      "description": "Optional model tier override for this custom agent.",
-      "type": "string",
-      "enum": [
-        "sonnet",
-        "opus",
-        "haiku"
-      ]
     },
     "contextMode": {
       "description": "How file context is sent: diff, full file content, or auto mode.",
@@ -885,6 +923,10 @@
       "$ref": "#/$defs/nonEmptyString",
       "type": "string",
       "minLength": 1
+    },
+    "agentModel": {
+      "description": "Optional model override for this custom agent.",
+      "$ref": "#/$defs/modelConfig"
     }
   }
 }

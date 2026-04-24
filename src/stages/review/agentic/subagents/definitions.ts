@@ -1,11 +1,14 @@
+import type { ModelConfig } from '../../../../shared/types';
 import type { AgenticConfig, AgenticSubagentType } from '../../../../shared/types/config';
 
 export interface AgentDefinition {
   description: string;
   prompt: string;
   tools: string[];
-  model?: 'sonnet' | 'opus' | 'haiku';
+  model?: ModelConfig;
 }
+
+export type ResolvedAgentDefinition = Omit<AgentDefinition, 'model'> & { model?: string };
 
 const SUBAGENT_DEFINITIONS: Record<AgenticSubagentType, AgentDefinition> = {
   'dependency-tracer': {
@@ -43,7 +46,6 @@ If no dependency issues are found, return an empty array: []`,
       'mcp__qualops-agentic-tools__trace_imports',
       'mcp__qualops-agentic-tools__find_usages',
     ],
-    model: 'sonnet',
   },
 
   'breaking-change-detector': {
@@ -86,7 +88,6 @@ If no breaking changes are found, return an empty array: []`,
       'mcp__qualops-agentic-tools__find_interface_changes',
       'mcp__qualops-agentic-tools__find_usages',
     ],
-    model: 'sonnet',
   },
 
   'security-analyzer': {
@@ -131,7 +132,6 @@ If no security issues are found, return an empty array: []`,
       'mcp__qualops-agentic-tools__find_usages',
       'mcp__qualops-agentic-tools__trace_imports',
     ],
-    model: 'sonnet',
   },
 
   'pattern-validator': {
@@ -167,7 +167,6 @@ Return issues in this JSON format:
 
 If no pattern violations are found, return an empty array: []`,
     tools: ['Read', 'Grep', 'Glob'],
-    model: 'haiku',
   },
 };
 
@@ -176,8 +175,9 @@ export function createSubagentDefinitions(config: AgenticConfig): Record<string,
     config.enabledSubagents || (Object.keys(SUBAGENT_DEFINITIONS) as AgenticSubagentType[]);
   const definitions: Record<string, AgentDefinition> = {};
 
-  for (const type of enabled) {
-    const def = SUBAGENT_DEFINITIONS[type];
+  for (const entry of enabled) {
+    const type = typeof entry === 'string' ? entry : entry.name;
+    const def = SUBAGENT_DEFINITIONS[type as AgenticSubagentType];
     if (def) {
       definitions[type] = { ...def };
     }

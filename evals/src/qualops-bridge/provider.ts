@@ -2,9 +2,7 @@ import { readFileSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { AnthropicProvider } from '@/ai/providers/anthropic';
-import { OpenAIProvider } from '@/ai/providers/openai';
-import { BedrockProvider } from '@/ai/providers/bedrock';
+import { AIFactory } from '@/ai/providers/factory';
 import type { AIProvider } from '@/ai/providers/provider';
 import { AgenticExecutor } from '@/stages/review/agentic/agentic-executor';
 import { FileReviewer } from '@/stages/review/processors/file-reviewer';
@@ -13,7 +11,6 @@ import { setCurrentSession } from '@/shared/runtime/session-context';
 import { ConfigLoader } from '@/stages/review/loaders/config-loader';
 import { ConfigService } from '@/config/config';
 import type { ReviewIssue } from '@/shared/types';
-import type { AIStageConfig } from '@/shared/types';
 import type { FileInfo, PipelineJob } from '@/shared/types/config';
 
 import type { EvalCase, EvalConfig, DetectedIssue, ReviewResult } from './types.js';
@@ -242,43 +239,32 @@ function parseLineNumber(location: string): number {
 }
 
 async function createProvider(config: EvalConfig): Promise<AIProvider> {
-  // Use AI config from qualopsrc if loaded, with EvalConfig as override
-  let stageConfig: AIStageConfig;
-  try {
-    const fromRc = ConfigService.getInstance().getAIStageConfig('review');
-    stageConfig = {
-      ...fromRc,
-      provider: config.provider ?? fromRc.provider,
-      model: config.model || fromRc.model,
-    };
-  } catch {
-    stageConfig = {
-      provider: config.provider ?? 'anthropic',
-      model: config.model || 'claude-sonnet-4-6',
-      inputPerMillion: 0,
-      outputPerMillion: 0,
-      temperature: 0,
-    };
+  if (config.provider || config.model) {
+    const configService = ConfigService.getInstance();
+    try {
+      const resolved = configService.getResolvedStageConfig('review');
+      configService.set('ai', {
+        ...configService.get('ai'),
+        reviewStage: {
+          ...resolved,
+          ...(config.provider && { provider: config.provider }),
+          ...(config.model && { model: config.model }),
+        },
+      });
+    } catch {
+      configService.set('ai', {
+        reviewStage: {
+          provider: config.provider ?? 'anthropic',
+          model: config.model || 'claude-sonnet-4-6',
+          inputPerMillion: 0,
+          outputPerMillion: 0,
+        },
+      });
+    }
+    AIFactory.clear();
   }
 
-  let provider: AIProvider;
-
-  switch (stageConfig.provider) {
-    case 'anthropic':
-      provider = new AnthropicProvider(stageConfig);
-      break;
-    case 'openai':
-      provider = new OpenAIProvider(stageConfig);
-      break;
-    case 'bedrock':
-      provider = new BedrockProvider(stageConfig);
-      break;
-    default:
-      throw new Error(`Unknown provider: ${stageConfig.provider}`);
-  }
-
-  await provider.initialize();
-  return provider;
+  return AIFactory.createForStage('review');
 }
 
 function loadSystemPrompt(): string {

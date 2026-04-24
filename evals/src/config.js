@@ -29,10 +29,14 @@ function listPresets() {
 
 function readPresetMeta(presetFile) {
   try {
-    const config = JSON.parse(fs.readFileSync(presetFile, 'utf-8'));
+    const { ConfigService } = require('@/config/config');
+    ConfigService.setConfigPath(path.relative(QUALOPS_ROOT, presetFile));
+    const resolved = ConfigService.getInstance().getResolvedStageConfig('review');
+    const rawConfig = JSON.parse(fs.readFileSync(presetFile, 'utf-8'));
     return {
-      model: config.ai?.reviewStage?.model,
-      mode: config.review?.pipeline?.find((j) => j.enabled)?.mode || 'file-by-file',
+      model: resolved.model,
+      provider: resolved.provider,
+      mode: rawConfig.review?.pipeline?.find((j) => j.enabled)?.mode || 'file-by-file',
     };
   } catch {
     return {};
@@ -64,14 +68,15 @@ function buildConfig(args) {
   const presetFile = resolvePreset(presetName);
 
   let presetMeta = {};
-  if (presetFile) {
-    presetMeta = readPresetMeta(presetFile);
+  const metaFile = presetFile || path.join(QUALOPS_ROOT, DEFAULT_QUALOPSRC);
+  if (fs.existsSync(metaFile)) {
+    presetMeta = readPresetMeta(metaFile);
   }
 
   const mode = args.mode || presetMeta.mode || 'file-by-file';
   const modelOverride = args.model || null;
   const model = modelOverride || presetMeta.model || 'claude-sonnet-4-6';
-  const provider = args.provider || 'anthropic';
+  const provider = args.provider || presetMeta.provider || null;
   const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
   const skipJudge = args['no-judge'] === 'true';
   const severityFilter = args.severity
