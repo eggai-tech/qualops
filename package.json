@@ -87,7 +87,7 @@
     "@octokit/rest": "^22.0.1",
     "@octokit/webhooks-types": "^7.6.1",
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.214.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.215.0",
     "@opentelemetry/sdk-node": "^0.214.0",
     "@opentelemetry/sdk-trace-base": "^2.6.1",
     "@types/commander": "2.12.5",
