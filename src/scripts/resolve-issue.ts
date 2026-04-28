@@ -1,10 +1,10 @@
 #!/usr/bin/env node --env-file=.env --experimental-strip-types
 
 import { readFile, writeFile } from 'fs/promises';
-import { resolve } from 'path';
 
 import { AIFactory } from '../ai/providers/factory';
 import { logger } from '../shared/utils/logger';
+import { resolveWithinCwd } from '../shared/utils/security';
 
 interface ParsedIssue {
   id: string;
@@ -103,8 +103,8 @@ async function resolveIssue(
   logger.info(`   Description: ${issue.description}`);
   logger.info(`   Confidence: ${issue.confidence}`);
 
-  const filePath = resolve(monorepoRoot, issue.file);
-  if (!filePath.startsWith(monorepoRoot.replace(/\/?$/, '/'))) {
+  const filePath = resolveWithinCwd(monorepoRoot, issue.file);
+  if (!filePath) {
     logger.error(`❌ Rejected path outside project root: ${issue.file}`);
     return;
   }

@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
 
+import { resolveWithinCwd, isSafeGitRef } from '../../../../shared/utils/security';
 import type { DependencyTrace, ExportComparison } from '../types';
 
 // ─── Safe command execution ────────────────────────────────────────────────────
@@ -28,7 +28,12 @@ function runSafe(cmd: string, args: string[], cwd: string, maxBuffer = 10 * 1024
 // ─── Custom tools ─────────────────────────────────────────────────────────────
 
 export function findUsages(cwd: string, symbol: string, scope?: string, fileType?: string): string {
-  const searchPath = scope || cwd;
+  let searchPath = cwd;
+  if (scope) {
+    const resolved = resolveWithinCwd(cwd, scope);
+    if (!resolved) return `Error: scope path is outside project directory`;
+    searchPath = resolved;
+  }
   const typeArgs = fileType ? ['--type', fileType] : ['--type', 'ts', '--type', 'tsx'];
 
   try {
@@ -44,7 +49,8 @@ export function findUsages(cwd: string, symbol: string, scope?: string, fileType
 }
 
 export function traceImports(cwd: string, filePath: string): string {
-  const fullPath = filePath.startsWith('/') ? filePath : `${cwd}/${filePath}`;
+  const fullPath = resolveWithinCwd(cwd, filePath);
+  if (!fullPath) return `Error: Path outside project directory: ${filePath}`;
 
   if (!existsSync(fullPath)) {
     return `File not found: ${filePath}`;
@@ -66,7 +72,9 @@ export function gitDiffAnalysis(
   file?: string,
   stat?: boolean,
 ): string {
+  if (!isSafeGitRef(base)) return `Error: invalid git ref: ${base}`;
   const headRef = head || 'HEAD';
+  if (!isSafeGitRef(headRef)) return `Error: invalid git ref: ${headRef}`;
 
   const args = ['diff'];
   if (stat) args.push('--stat');
@@ -81,7 +89,8 @@ export function gitDiffAnalysis(
 }
 
 export function analyzeExports(cwd: string, filePath: string, compareWithRef?: string): string {
-  const fullPath = filePath.startsWith('/') ? filePath : `${cwd}/${filePath}`;
+  const fullPath = resolveWithinCwd(cwd, filePath);
+  if (!fullPath) return `Error: Path outside project directory: ${filePath}`;
 
   if (!existsSync(fullPath)) {
     return `File not found: ${filePath}`;
@@ -93,6 +102,8 @@ export function analyzeExports(cwd: string, filePath: string, compareWithRef?: s
   let comparison: ExportComparison | null = null;
 
   if (compareWithRef) {
+    if (!isSafeGitRef(compareWithRef)) return `Error: invalid git ref: ${compareWithRef}`;
+    // Use '--' separator then 'ref:path' as a single argument — no shell expansion risk
     try {
       const oldContent = runSafe('git', ['show', `${compareWithRef}:${filePath}`], cwd);
       const oldExports = extractExports(oldContent);
@@ -111,10 +122,13 @@ export function findInterfaceChanges(
   head?: string,
   interfaceName?: string,
 ): string {
+  if (!isSafeGitRef(base)) return `Error: invalid git ref: ${base}`;
   const headRef = head || 'HEAD';
-  const grepPattern = interfaceName
-    ? `(interface|type)\\s+${interfaceName}`
-    : '(interface|type)\\s+\\w+';
+  if (!isSafeGitRef(headRef)) return `Error: invalid git ref: ${headRef}`;
+
+  // Escape interfaceName so it is safe to embed in a regex (avoids ReDoS)
+  const safeName = interfaceName ? interfaceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '\\w+';
+  const grepPattern = `(interface|type)\\s+${safeName}`;
 
   try {
     return (
@@ -135,7 +149,9 @@ export function listChangedFiles(
   head?: string,
   filter?: string,
 ): string {
+  if (!isSafeGitRef(base)) return `Error: invalid git ref: ${base}`;
   const headRef = head || 'HEAD';
+  if (!isSafeGitRef(headRef)) return `Error: invalid git ref: ${headRef}`;
   const args = ['diff', '--name-status'];
   if (filter) args.push(`--diff-filter=${filter}`);
   args.push(`${base}...${headRef}`);
@@ -150,11 +166,8 @@ export function listChangedFiles(
 // ─── Filesystem tools (for OpenAI adapter — Anthropic SDK provides these built-in) ──
 
 export function readFile(cwd: string, filePath: string): string {
-  const fullPath = filePath.startsWith('/') ? filePath : join(cwd, filePath);
-  const resolved = resolve(fullPath);
-
-  const cwdPrefix = cwd.endsWith('/') ? cwd : cwd + '/';
-  if (resolved !== cwd && !resolved.startsWith(cwdPrefix)) {
+  const resolved = resolveWithinCwd(cwd, filePath);
+  if (!resolved) {
     return `Error: Path outside project directory: ${filePath}`;
   }
 

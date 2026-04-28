@@ -1,9 +1,33 @@
-import { basename } from 'node:path';
+import { basename, resolve, join } from 'node:path';
 
 /**
  * Security utilities for input validation and sanitization in qualops
  * This file contains only the security functions actively used in the codebase
  */
+
+/**
+ * Resolves `filePath` relative to `cwd` and returns the absolute path only if
+ * it stays within `cwd`. Returns null if the path escapes the project root.
+ *
+ * Handles the prefix-bypass edge case: `/project/repo-evil` is NOT within
+ * `/project/repo` even though it starts with the same string.
+ */
+export function resolveWithinCwd(cwd: string, filePath: string): string | null {
+  const full = filePath.startsWith('/') ? filePath : join(cwd, filePath);
+  const resolved = resolve(full);
+  const cwdResolved = resolve(cwd);
+  const cwdPrefix = cwdResolved.replace(/\/?$/, '/');
+  if (resolved !== cwdResolved && !resolved.startsWith(cwdPrefix)) return null;
+  return resolved;
+}
+
+/**
+ * Returns true if the string is a safe git ref — non-empty and not starting
+ * with '-', which would otherwise be interpreted as a flag by git.
+ */
+export function isSafeGitRef(ref: string): boolean {
+  return ref.length > 0 && !ref.startsWith('-');
+}
 
 /**
  * Validates that a filename doesn't contain path traversal sequences
