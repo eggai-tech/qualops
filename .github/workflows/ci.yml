@@ -152,6 +152,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_REF: ${{ github.base_ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CLAUDE_CODE_EXECUTABLE: ${{ github.workspace }}/node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/claude
         run: |
           node dist/cli.js all \
             --base "origin/$BASE_REF" \

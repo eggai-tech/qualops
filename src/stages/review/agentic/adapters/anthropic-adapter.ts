@@ -11,10 +11,13 @@ export class AnthropicAdapter implements AgentAdapter {
 
     const toolServer = createAgenticTools(cwd);
 
+    const executablePath = process.env.CLAUDE_CODE_EXECUTABLE;
+
     const result = query({
       prompt: userPrompt,
       options: {
         systemPrompt,
+        ...(executablePath && { pathToClaudeCodeExecutable: executablePath }),
         allowedTools: [
           'Read',
           'Grep',
