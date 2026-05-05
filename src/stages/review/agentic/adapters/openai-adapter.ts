@@ -4,6 +4,8 @@ import { z } from 'zod';
 import type { AgentAdapter, AgentAdapterParams, AgentAdapterResult } from './agent-adapter';
 import { envConfig } from '../../../../config/env';
 import { logger } from '../../../../shared/utils/logger';
+import { BashInput, BASH_TOOL_DESCRIPTION, type BashSession } from '../tools/bash';
+import { startBashSession } from '../tools/bash';
 import {
   analyzeExports,
   findInterfaceChanges,
@@ -18,53 +20,68 @@ import {
 
 export class OpenAIAdapter implements AgentAdapter {
   async run(params: AgentAdapterParams): Promise<AgentAdapterResult> {
-    const { systemPrompt, userPrompt, agents, model, cwd, maxTurns, onToolCall } = params;
+    const { systemPrompt, userPrompt, agents, model, cwd, maxTurns, onToolCall, toolConfig } =
+      params;
 
     await configureOpenAIClient();
     getGlobalTraceProvider().setDisabled(true);
 
-    const tools = buildOpenAITools(cwd, onToolCall);
+    let bashSession: BashSession | null = null;
+    let bashDispose: () => Promise<void> = async () => {};
+    try {
+      const result = await startBashSession(toolConfig.bash, 'OpenAI');
+      bashSession = result.session;
+      bashDispose = result.dispose;
+    } catch (err) {
+      logger.warn('[Agentic/OpenAI] Failed to start BashSession — bash tool unavailable', { err });
+    }
 
-    const handoffs = Object.entries(agents).map(([name, def]) => {
-      const agentTools = def.tools ? tools.filter((t) => def.tools!.includes(t.name)) : tools;
-      return new Agent({
-        name,
-        model: def.model ?? model,
-        instructions: def.prompt,
-        tools: agentTools,
+    try {
+      const tools = buildOpenAITools(cwd, onToolCall, bashSession ?? undefined);
+
+      const handoffs = Object.entries(agents).map(([name, def]) => {
+        const agentTools = def.tools ? tools.filter((t) => def.tools!.includes(t.name)) : tools;
+        return new Agent({
+          name,
+          model: def.model ?? model,
+          instructions: def.prompt,
+          tools: agentTools,
+        });
       });
-    });
 
-    const orchestrator = new Agent({
-      name: 'qualops-reviewer',
-      model,
-      instructions: systemPrompt,
-      tools,
-      handoffs,
-    });
+      const orchestrator = new Agent({
+        name: 'qualops-reviewer',
+        model,
+        instructions: systemPrompt,
+        tools,
+        handoffs,
+      });
 
-    logger.info(`[Agentic/OpenAI] Starting run with model=${model}, maxTurns=${maxTurns}`);
+      logger.info(`[Agentic/OpenAI] Starting run with model=${model}, maxTurns=${maxTurns}`);
 
-    const result = await run(orchestrator, userPrompt, { maxTurns });
+      const result = await run(orchestrator, userPrompt, { maxTurns });
 
-    const output =
-      typeof result.finalOutput === 'string'
-        ? result.finalOutput
-        : result.finalOutput != null
-          ? JSON.stringify(result.finalOutput)
-          : '';
+      const output =
+        typeof result.finalOutput === 'string'
+          ? result.finalOutput
+          : result.finalOutput != null
+            ? JSON.stringify(result.finalOutput)
+            : '';
 
-    const usage = result.state.usage;
+      const usage = result.state.usage;
 
-    logger.info(
-      `[Agentic/OpenAI] Run complete. inputTokens=${usage.inputTokens}, outputTokens=${usage.outputTokens}`,
-    );
+      logger.info(
+        `[Agentic/OpenAI] Run complete. inputTokens=${usage.inputTokens}, outputTokens=${usage.outputTokens}`,
+      );
 
-    return {
-      output,
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-    };
+      return {
+        output,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+      };
+    } finally {
+      await bashDispose();
+    }
   }
 }
 
@@ -90,7 +107,11 @@ async function configureOpenAIClient(): Promise<void> {
   }
 }
 
-function buildOpenAITools(cwd: string, onToolCall?: AgentAdapterParams['onToolCall']) {
+function buildOpenAITools(
+  cwd: string,
+  onToolCall?: AgentAdapterParams['onToolCall'],
+  bashSession?: BashSession,
+) {
   let turnIndex = 0;
 
   function trackCall(name: string, input: unknown) {
@@ -99,7 +120,23 @@ function buildOpenAITools(cwd: string, onToolCall?: AgentAdapterParams['onToolCa
     onToolCall?.(turnIndex, name, input);
   }
 
+  const bashTool = bashSession
+    ? [
+        tool({
+          name: 'bash',
+          description: BASH_TOOL_DESCRIPTION,
+          parameters: BashInput,
+          execute: async (args) => {
+            trackCall('bash', args);
+            const output = await bashSession.exec(args);
+            return JSON.stringify(output);
+          },
+        }),
+      ]
+    : [];
+
   return [
+    ...bashTool,
     tool({
       name: 'read_file',
       description: 'Read the full contents of a file',

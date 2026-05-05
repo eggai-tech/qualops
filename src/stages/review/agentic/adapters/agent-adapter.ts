@@ -1,4 +1,10 @@
+import type { BashConfig } from '../../../../shared/types/config';
 import type { ResolvedAgentDefinition } from '../subagents/definitions';
+
+export interface ToolConfig {
+  bash: BashConfig;
+  // Future tools add their config here, namespaced by tool name.
+}
 
 export interface AgentAdapterParams {
   systemPrompt: string;
@@ -8,6 +14,7 @@ export interface AgentAdapterParams {
   cwd: string;
   maxTurns: number;
   maxBudgetUsd?: number;
+  toolConfig: ToolConfig;
   onToolCall?: (turn: number, name: string, input: unknown) => void;
 }
 

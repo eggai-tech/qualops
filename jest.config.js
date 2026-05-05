@@ -18,6 +18,10 @@ export default {
     '!<rootDir>/src/stages/report/formatters/**',
     '!<rootDir>/src/stages/report/templates/**',
     '!<rootDir>/src/stages/fix/generators/**',
+    // Bash tool sandbox drivers and spawn-level session wrappers require integration tests
+    '!<rootDir>/src/stages/review/agentic/tools/bash/modes/**',
+    '!<rootDir>/src/stages/review/agentic/tools/bash/exec.ts',
+    '!<rootDir>/src/stages/review/agentic/tools/bash/session-impl.ts',
   ],
   coverageThreshold: {
     global: {

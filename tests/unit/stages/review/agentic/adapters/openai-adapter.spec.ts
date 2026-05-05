@@ -14,16 +14,21 @@ jest.mock('openai', () => {
 });
 jest.mock('@/config/env', () => ({ envConfig: { get: jest.fn().mockReturnValue('') } }));
 jest.mock('@/stages/review/agentic/tools/handlers');
+jest.mock('@/stages/review/agentic/tools/bash/session', () => ({
+  startBashSession: jest.fn().mockResolvedValue({ session: null, dispose: jest.fn() }),
+}));
 jest.mock('@/shared/utils/logger');
 
 import { run as mockRun, Agent as MockAgent } from '@openai/agents';
 
 import type { AgentAdapterParams } from '@/stages/review/agentic/adapters/agent-adapter';
 import { OpenAIAdapter } from '@/stages/review/agentic/adapters/openai-adapter';
+import { startBashSession } from '@/stages/review/agentic/tools/bash/session';
 import * as handlers from '@/stages/review/agentic/tools/handlers';
 
 const mockRunFn = mockRun as jest.MockedFunction<typeof mockRun>;
 const MockAgentCtor = MockAgent as jest.MockedClass<typeof MockAgent>;
+const mockStartBashSession = startBashSession as jest.MockedFunction<typeof startBashSession>;
 
 // Cast to jest mocks for all handler functions
 const h = handlers as jest.Mocked<typeof handlers>;
@@ -38,6 +43,7 @@ function makeParams(overrides: Partial<AgentAdapterParams> = {}): AgentAdapterPa
     model: 'gpt-5-mini',
     cwd: CWD,
     maxTurns: 10,
+    toolConfig: { bash: {} },
     ...overrides,
   };
 }
@@ -223,5 +229,20 @@ describe('OpenAIAdapter — tools', () => {
     const execute = capturedTools().find((t) => t.name === 'read_file')?.execute;
     await execute?.({ filePath: 'src/foo.ts' });
     expect(onToolCall).toHaveBeenCalledWith(1, 'read_file', { filePath: 'src/foo.ts' });
+  });
+
+  it('continues without bash tool when startBashSession throws', async () => {
+    mockStartBashSession.mockRejectedValueOnce(new Error('spawn failed'));
+    mockRunFn.mockResolvedValue(makeRunResult('[]') as never);
+    const result = await new OpenAIAdapter().run(makeParams());
+    expect(result.output).toBe('[]');
+  });
+
+  it('calls dispose in finally even when run throws', async () => {
+    const mockDispose = jest.fn().mockResolvedValue(undefined);
+    mockStartBashSession.mockResolvedValueOnce({ session: null as never, dispose: mockDispose });
+    mockRunFn.mockRejectedValueOnce(new Error('run failed'));
+    await expect(new OpenAIAdapter().run(makeParams())).rejects.toThrow('run failed');
+    expect(mockDispose).toHaveBeenCalled();
   });
 });

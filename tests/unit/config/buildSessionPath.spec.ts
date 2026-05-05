@@ -39,4 +39,8 @@ describe('buildSessionPath', () => {
     expect(sessionPath.base()).toContain('.qualops/reports/custom/sessions');
     expect(sessionPath.base()).toContain('test-session');
   });
+
+  it('throws for reportRoot outside expected base', () => {
+    expect(() => buildSessionPath('test', '/tmp/evil')).toThrow('Invalid report root path');
+  });
 });

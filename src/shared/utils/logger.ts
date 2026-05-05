@@ -74,12 +74,21 @@ class Logger {
       parts.push(`[${this.config.prefix}]`);
     }
 
+    const serializeArg = (arg: unknown): string => {
+      if (arg instanceof Error) {
+        return JSON.stringify({ message: arg.message, stack: arg.stack, ...arg });
+      }
+      if (typeof arg === 'object' && arg !== null) {
+        // Serialize objects; for nested Error values, expand them too
+        const replacer = (_key: string, val: unknown) =>
+          val instanceof Error ? { message: val.message, stack: val.stack, ...val } : val;
+        return JSON.stringify(arg, replacer);
+      }
+      return String(arg);
+    };
+
     const formattedMessage =
-      args.length > 0
-        ? message +
-          ' ' +
-          args.map((arg) => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' ')
-        : message;
+      args.length > 0 ? message + ' ' + args.map(serializeArg).join(' ') : message;
 
     parts.push(formattedMessage);
 

@@ -66,4 +66,38 @@ describe('Logger', () => {
       expect(instance.getConfig().level).toBe('error');
     });
   });
+
+  describe('error serialization', () => {
+    let instance: InstanceType<typeof Logger>;
+    let consoleSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      mockReadFileSync.mockReturnValue(JSON.stringify({}));
+      instance = new Logger({ level: 'debug', enableColors: false, enableTimestamps: false });
+      consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleSpy.mockRestore();
+    });
+
+    it('serializes Error objects with message', () => {
+      instance.warn('test', new Error('something went wrong'));
+      const output = consoleSpy.mock.calls[0][0] as string;
+      expect(output).toContain('something went wrong');
+    });
+
+    it('serializes nested Error in object arg', () => {
+      instance.warn('test', { err: new Error('nested error') });
+      const output = consoleSpy.mock.calls[0][0] as string;
+      expect(output).toContain('nested error');
+    });
+
+    it('serializes plain objects normally', () => {
+      instance.warn('test', { key: 'value' });
+      const output = consoleSpy.mock.calls[0][0] as string;
+      expect(output).toContain('"key"');
+      expect(output).toContain('"value"');
+    });
+  });
 });

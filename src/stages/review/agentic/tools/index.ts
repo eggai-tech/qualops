@@ -1,6 +1,7 @@
 import { tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
 
+import { BashInput, BASH_TOOL_DESCRIPTION, startBashSession } from './bash';
 import {
   findUsages,
   traceImports,
@@ -9,12 +10,44 @@ import {
   findInterfaceChanges,
   listChangedFiles,
 } from './handlers';
+import { logger } from '../../../../shared/utils/logger';
+import type { ToolConfig } from '../adapters/agent-adapter';
 
-export function createAgenticTools(cwd: string) {
-  return createSdkMcpServer({
+export async function createAgenticTools(
+  cwd: string,
+  toolConfig: ToolConfig,
+): Promise<{ server: ReturnType<typeof createSdkMcpServer>; dispose: () => Promise<void> }> {
+  let bashDispose: () => Promise<void> = async () => {};
+  const bashTools: ReturnType<typeof tool>[] = [];
+
+  try {
+    const { session, dispose } = await startBashSession(toolConfig.bash, 'AgenticTools');
+    bashDispose = dispose;
+    bashTools.push(
+      tool(
+        'bash',
+        BASH_TOOL_DESCRIPTION,
+        {
+          command: BashInput.shape.command,
+          description: BashInput.shape.description,
+          purpose: BashInput.shape.purpose,
+          timeout_ms: BashInput.shape.timeout_ms,
+        },
+        async (args) => {
+          const output = await session.exec(args);
+          return { content: [{ type: 'text', text: JSON.stringify(output) }] };
+        },
+      ),
+    );
+  } catch (err) {
+    logger.warn('[AgenticTools] Failed to start BashSession — bash tool unavailable', { err });
+  }
+
+  const server = createSdkMcpServer({
     name: 'qualops-agentic-tools',
     version: '1.0.0',
     tools: [
+      ...bashTools,
       tool(
         'find_usages',
         'Find all usages of a symbol (function, class, variable, type) across the codebase using ripgrep',
@@ -98,4 +131,6 @@ export function createAgenticTools(cwd: string) {
       ),
     ],
   });
+
+  return { server, dispose: bashDispose };
 }
