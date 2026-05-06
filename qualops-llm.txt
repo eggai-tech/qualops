@@ -114,18 +114,16 @@ Minimal working config — place at `.qualops/.qualopsrc.json`:
   },
   "review": {
     "minConfidence": 7,
-    "maxConcurrentFiles": 5,
     "pipeline": [
       {
         "name": "codeReview",
         "enabled": true,
-        "passes": [
-          {
-            "name": "Code Quality",
-            "enabled": true,
-            "prompt": "review-system-message.md"
-          }
-        ]
+        "mode": "agentic",
+        "agentic": {
+          "maxTurns": 20,
+          "maxBudgetUsd": 5.0,
+          "contextMode": "auto"
+        }
       }
     ]
   }
@@ -969,7 +967,7 @@ When helping a user create a config, determine these choices:
 |----------|---------|---------|
 | Provider | anthropic, openai, bedrock | anthropic |
 | Review focus | security, performance, quality, migration, custom | quality |
-| Review mode | file-by-file, agentic, both | file-by-file |
+| Review mode | file-by-file, agentic, both | agentic |
 | Confidence level | strict (9), moderate (7), exploratory (5) | moderate |
 | Fix generation | enabled/disabled | disabled |
 | Validation | enabled/disabled | enabled |
