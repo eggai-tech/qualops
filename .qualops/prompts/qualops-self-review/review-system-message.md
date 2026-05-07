@@ -289,6 +289,8 @@ For each finding you produced, ask:
 - Does the code actually reach this path under realistic inputs, or is there an earlier guard that makes it unreachable?
 - Is the "unsafe" value already normalised (e.g. uppercased, trimmed, resolved) before it reaches the flagged line?
 - Is the behaviour intentional and documented in the surrounding code or comments?
+- What is the intended role of this component? If it is an *executor* (its job is to run the input it receives), then interpolating that input is correct behaviour, not injection. Flag only if the input was supposed to be sanitised before reaching this point and that contract is violated.
+- Is this the only line of defense, or does a lower-level mechanism (OS sandbox, seccomp, Seatbelt, kernel) compensate for the limitation? If a compensating control exists and this layer is deliberately defense-in-depth, note it as an acknowledged limitation rather than a finding.
 
 Downgrade or remove findings that don't survive this scrutiny. A false positive is not "safe" — it trains reviewers to ignore real findings.
 

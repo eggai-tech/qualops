@@ -431,6 +431,18 @@ describe('evaluatePolicy', () => {
       expect(evaluatePolicy('cp /etc/passwd /tmp/exfil').deny).toBe(true);
     });
 
+    test("cat with single-quoted absolute path '/etc/passwd' is denied", () => {
+      expect(evaluatePolicy("cat '/etc/passwd'").deny).toBe(true);
+    });
+
+    test("cat with ANSI-C quoted path $'/etc/passwd' is denied", () => {
+      expect(evaluatePolicy("cat $'/etc/passwd'").deny).toBe(true);
+    });
+
+    test('cat with double-quoted absolute path "/etc/passwd" is denied', () => {
+      expect(evaluatePolicy('cat "/etc/passwd"').deny).toBe(true);
+    });
+
     test('cat within workspace is allowed', () => {
       expect(
         evaluatePolicy('cat /workspace/pr/src/foo.ts', { workspaceRoot: '/workspace' }).deny,

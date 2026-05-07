@@ -37,6 +37,15 @@ export interface TokenisedShell {
 }
 
 /**
+ * Strips ANSI-C quoted substrings ($'...') and replaces them with placeholders.
+ * Must run before stripSingleQuoted so the $ prefix is consumed first,
+ * preventing the inner single-quoted content from being mis-parsed.
+ */
+function stripAnsiCQuoted(input: string): string {
+  return input.replace(/\$'[^']*'/g, "'__ANSI_C__'");
+}
+
+/**
  * Strips single-quoted substrings and replaces them with placeholders.
  * Content inside single quotes cannot contain variable expansions and
  * is literal — we don't want to false-positive on `$ inside them.
@@ -44,6 +53,25 @@ export interface TokenisedShell {
 function stripSingleQuoted(input: string): string {
   // Replace 'content' (not containing single quotes) with safe placeholder
   return input.replace(/'[^']*'/g, "'__SQ__'");
+}
+
+/**
+ * Strips surrounding quotes from a word that is entirely quoted, returning
+ * the inner literal value for path/policy checking purposes.
+ * Handles: 'content', "content", and $'content' (ANSI-C quoting).
+ * Does not expand escape sequences — returns raw inner bytes.
+ */
+function unquoteArg(arg: string): string {
+  if (arg.length >= 2) {
+    if ((arg.startsWith("'") && arg.endsWith("'")) || (arg.startsWith('"') && arg.endsWith('"'))) {
+      return arg.slice(1, -1);
+    }
+    // ANSI-C quoting: $'content'
+    if (arg.startsWith("$'") && arg.endsWith("'")) {
+      return arg.slice(2, -1);
+    }
+  }
+  return arg;
 }
 
 /**
@@ -63,9 +91,12 @@ function stripDoubleQuoted(input: string): string {
  */
 export function toAnalysisCopy(cmd: string): string {
   let s = cmd;
-  // Iteratively strip to handle adjacent quoted strings
+  // Iteratively strip to handle adjacent quoted strings.
+  // ANSI-C quoting ($'...') must be stripped first so the $ prefix is consumed
+  // before the inner content is processed by the single-quote stripper.
   for (let i = 0; i < 5; i++) {
     const prev = s;
+    s = stripAnsiCQuoted(s);
     s = stripSingleQuoted(s);
     s = stripDoubleQuoted(s);
     if (s === prev) break;
@@ -131,8 +162,10 @@ export function parseLogicalCommand(raw: string): ParsedCommand {
   // Strip leading env var assignments (FOO=bar BAZ=qux cmd ...)
   const withoutEnvAssigns = raw.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]*\s+)*/, '');
   const words = withoutEnvAssigns.trim().split(/\s+/);
-  const binary = words[0] ?? '';
-  const args = words.slice(1);
+  // Unquote binary and args so path checks operate on the actual string value.
+  // e.g. '/usr/bin/cat' → /usr/bin/cat, $'...' args handled via toAnalysisCopy already.
+  const binary = unquoteArg(words[0] ?? '');
+  const args = words.slice(1).map(unquoteArg);
 
   return {
     raw,
