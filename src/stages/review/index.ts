@@ -3,11 +3,11 @@ import { readFileSync } from 'node:fs';
 import { PipelineExecutor } from './processors/pipeline-executor';
 import { IssueValidator } from './validators/issue-validator';
 import { AIFactory } from '../../ai/providers';
-import { detectFrameworkContext } from '../../ai/shared/structured-ai';
 import { addStageTokenStats, getCurrentSessionPaths } from '../../shared/runtime/session-context';
 import type { AnalysisMetadata, ReviewMetadata } from '../../shared/types';
 import type { FileInfo } from '../../shared/types/config';
 import { readMetadataFile } from '../../shared/utils/file-utils';
+import { detectFrameworkContext } from '../../shared/utils/framework-detector';
 import { logger } from '../../shared/utils/logger';
 import { getFileDiff, getRawFileDiff } from '../analyze/git/changed-files';
 import {
