@@ -40,7 +40,11 @@ export class BashSession {
   }
 
   static async start(config: BashConfig = {}): Promise<BashSession> {
-    const reviewId = process.env['QUALOPS_REVIEW_ID'] ?? crypto.randomUUID();
+    const rawReviewId = process.env['QUALOPS_REVIEW_ID'];
+    // Validate the env var to a safe charset before using it in file paths.
+    // Falls back to a fresh UUID if absent or malformed.
+    const reviewId =
+      rawReviewId && /^[a-zA-Z0-9_-]+$/.test(rawReviewId) ? rawReviewId : crypto.randomUUID();
     const workspaceRoot = config.workspaceRoot ?? '/workspace';
 
     const resolvedConfig: Required<BashConfig> = {

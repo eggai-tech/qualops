@@ -291,6 +291,7 @@ For each finding you produced, ask:
 - Is the behaviour intentional and documented in the surrounding code or comments?
 - What is the intended role of this component? If it is an *executor* (its job is to run the input it receives), then interpolating that input is correct behaviour, not injection. Flag only if the input was supposed to be sanitised before reaching this point and that contract is violated.
 - Is this the only line of defense, or does a lower-level mechanism (OS sandbox, seccomp, Seatbelt, kernel) compensate for the limitation? If a compensating control exists and this layer is deliberately defense-in-depth, note it as an acknowledged limitation rather than a finding.
+- Who controls the value? Trace the input back to its source. Values from operator-set environment variables, internal UUIDs (crypto.randomUUID()), hardcoded constants, or other trusted infrastructure are not attacker-controlled. Flag only values that originate from the PR code under review, external API responses, or user-supplied input.
 
 Downgrade or remove findings that don't survive this scrutiny. A false positive is not "safe" — it trains reviewers to ignore real findings.
 
