@@ -276,41 +276,36 @@ For each issue found, provide:
 - Framework-provided patterns (Commander.js, etc.)
 - Intentional type assertions with validation
 - Temporary code marked with TODO comments
-- `parseSentinel` / sentinel parsing in `session-impl.ts` — the sentinel is written by QualOps' own shell wrapper and read by QualOps' own Node process. There is no adversary between them. "Sentinel injection" is not a valid attack vector here.
 
 Focus on issues that genuinely improve code quality, security, maintainability, or correctness specific to a TypeScript/Node.js CLI tool that orchestrates AI-powered code analysis.
 
-### 9. Review Process: Completeness & Adversarial Depth
+### 9. Review Methodology: Threat-Model Before You Report
 
-After producing your initial list of findings, perform two additional passes before finalising output.
+**Do not report a finding based on a code pattern alone.** Before writing up any potential issue, answer all three threat-model questions below. If you cannot give a concrete answer to all three, the finding is not ready to report — either investigate further or discard it.
 
-#### Pass 2: False-positive filter
+#### Threat-model gate (required for every finding)
 
-For each finding you produced, ask:
-- Does the code actually reach this path under realistic inputs, or is there an earlier guard that makes it unreachable?
-- Is the "unsafe" value already normalised (e.g. uppercased, trimmed, resolved) before it reaches the flagged line?
-- Is the behaviour intentional and documented in the surrounding code or comments?
-- What is the intended role of this component? If it is an *executor* (its job is to run the input it receives), then interpolating that input is correct behaviour, not injection. Flag only if the input was supposed to be sanitised before reaching this point and that contract is violated.
-- Is this the only line of defense, or does a lower-level mechanism (OS sandbox, seccomp, Seatbelt, kernel) compensate for the limitation? If a compensating control exists and this layer is deliberately defense-in-depth, note it as an acknowledged limitation rather than a finding.
-- Who controls the value? Trace the input back to its source. Values from operator-set environment variables, internal UUIDs (crypto.randomUUID()), hardcoded constants, or other trusted infrastructure are not attacker-controlled. Flag only values that originate from the PR code under review, external API responses, or user-supplied input.
+**1. Who is the attacker?**
+Name the specific threat actor who controls the input. They must be someone outside the trust boundary — PR code under review, an external API, or user-supplied input. If the only entity that could trigger the pattern is QualOps itself, its own infrastructure, an operator-controlled env var, or a hardcoded constant, there is no attacker. Stop — not a finding.
 
-Downgrade or remove findings that don't survive this scrutiny. A false positive is not "safe" — it trains reviewers to ignore real findings.
+**2. What exactly do they control?**
+Identify the precise value the attacker can inject and trace its path from source to sink. Vague answers ("the output could contain…", "a specially crafted value might…") are not sufficient. The full data-flow path must be traceable: attacker input → code path → dangerous operation.
 
-#### Pass 3: Coverage depth for security-sensitive code
+**3. What do they gain that they don't already have?**
+Describe the capability the attacker acquires by exploiting this. If they already have equivalent or greater capability through another vector (e.g. the agent already executes arbitrary commands, so spoofing an exit code adds nothing), the finding has no security value. Discard it.
 
-For every file that falls into a high-risk category, apply the following checks regardless of whether they surfaced in the initial pass:
+#### Depth pass for security-sensitive code
 
-**Files that construct shell command strings or embed runtime values into config profile strings** (sandbox profiles, git config templates, CI scripts):
-- Is every interpolated runtime value validated to a safe character set, or properly escaped for the target format before embedding? Check *every* interpolation point, not just obvious user inputs.
+After applying the threat-model gate, ensure coverage of these high-risk categories — findings that pass the gate here are real:
 
-**Files that implement allow/deny or validation logic** (policy engines, env scrubbers, path validators):
-- Enumerate every branch where a check is skipped or returns a permissive default. Is each skip intentional and safe, or could it be reached with unexpected input (e.g. undefined, empty string, relative path)?
+**Shell command construction / config profile embedding** (sandbox profiles, git config templates, CI scripts):
+- Every interpolated runtime value must be validated to a safe charset or properly escaped. Trace *every* interpolation point, not just obvious ones.
 
-**Files that parse structured output from child processes** (sentinel parsing, git output parsing, CI API responses):
-- Can the output format be broken by delimiter characters appearing in a field value (path, branch name, commit message)?
-- Are parse failures handled safely, or do they silently fall through to a permissive default?
+**Allow/deny and validation logic** (policy engines, env scrubbers, path validators):
+- Enumerate every branch where a check is skipped or returns a permissive default. Is each skip reachable with realistic attacker-controlled input?
 
-**Security checks that depend on a config parameter** (workspaceRoot, allowlist, denylist):
-- What happens when that parameter is undefined, empty, or set to an unexpected value? Does the check become a no-op?
+**Child-process output parsing** (sentinel parsing, git output, CI API responses):
+- Can a field value (path, branch name, commit message) contain the delimiter and break the format? Are parse failures safe or permissive?
 
-This third pass catches the issues that survive the first pass because they require reasoning about edge cases, not just pattern matching on obvious sinks.
+**Config-dependent security checks** (workspaceRoot, allowlist, denylist):
+- What happens when the parameter is undefined, empty, or unexpected? Does the check silently become a no-op?
