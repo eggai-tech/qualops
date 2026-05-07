@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Create Release PR` workflow now deletes its half-created `release/v*` branch on failure
 - Release failure issues now include the failing stages and release kind (beta vs stable)
 - Normalize `uses: eggai-tech/qualops@v1` examples across the README, docs, and example workflows to `@stable`
+- Refactor agentic tools: `tools/index.ts` is now a provider-agnostic registry (`createToolSet`); Anthropic and OpenAI SDK wiring stays inside their respective adapters
 
 ### Added
 - Agentic mode now supports OpenAI and Azure OpenAI providers via `@openai/agents`. Set `provider: "openai"` in your stage config to use the OpenAI adapter; set `OPENAI_BASE_URL` to an Azure endpoint and the correct Azure client is used automatically.

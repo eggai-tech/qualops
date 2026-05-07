@@ -1,11 +1,10 @@
-jest.mock('@anthropic-ai/claude-agent-sdk', () => ({
-  tool: jest.fn((name: string) => ({ name })),
-  createSdkMcpServer: jest.fn((opts: { tools: unknown[] }) => ({ tools: opts.tools })),
-}));
 jest.mock('@/stages/review/agentic/tools/bash/session', () => ({
   startBashSession: jest.fn(),
 }));
 jest.mock('@/stages/review/agentic/tools/handlers', () => ({
+  readFile: jest.fn(),
+  grepFiles: jest.fn(),
+  globFiles: jest.fn(),
   findUsages: jest.fn(),
   traceImports: jest.fn(),
   gitDiffAnalysis: jest.fn(),
@@ -15,12 +14,12 @@ jest.mock('@/stages/review/agentic/tools/handlers', () => ({
 }));
 jest.mock('@/shared/utils/logger');
 
-import { createAgenticTools } from '@/stages/review/agentic/tools';
+import { createToolSet } from '@/stages/review/agentic/tools';
 import { startBashSession } from '@/stages/review/agentic/tools/bash/session';
 
 const mockStartBashSession = startBashSession as jest.MockedFunction<typeof startBashSession>;
 
-describe('createAgenticTools', () => {
+describe('createToolSet', () => {
   const cwd = '/project';
   const toolConfig = { bash: {} };
 
@@ -33,10 +32,8 @@ describe('createAgenticTools', () => {
     const mockSession = { exec: jest.fn(), dispose: jest.fn() };
     mockStartBashSession.mockResolvedValue({ session: mockSession as never, dispose: mockDispose });
 
-    const { server, dispose } = await createAgenticTools(cwd, toolConfig);
+    const { tools, dispose } = await createToolSet(cwd, toolConfig);
 
-    // bash tool should be included in the server
-    const tools = (server as { tools: Array<{ name: string }> }).tools;
     expect(tools.some((t) => t.name === 'bash')).toBe(true);
 
     await dispose();
@@ -46,9 +43,8 @@ describe('createAgenticTools', () => {
   it('excludes bash tool when session start fails', async () => {
     mockStartBashSession.mockRejectedValue(new Error('spawn failed'));
 
-    const { server, dispose } = await createAgenticTools(cwd, toolConfig);
+    const { tools, dispose } = await createToolSet(cwd, toolConfig);
 
-    const tools = (server as { tools: Array<{ name: string }> }).tools;
     expect(tools.some((t) => t.name === 'bash')).toBe(false);
 
     // dispose should be a no-op and not throw
@@ -58,9 +54,8 @@ describe('createAgenticTools', () => {
   it('always includes the standard non-bash tools', async () => {
     mockStartBashSession.mockRejectedValue(new Error('spawn failed'));
 
-    const { server } = await createAgenticTools(cwd, toolConfig);
+    const { tools } = await createToolSet(cwd, toolConfig);
 
-    const tools = (server as { tools: Array<{ name: string }> }).tools;
     const names = tools.map((t) => t.name);
     expect(names).toContain('find_usages');
     expect(names).toContain('git_diff_analysis');
@@ -75,8 +70,21 @@ describe('createAgenticTools', () => {
     });
 
     const specificConfig = { bash: { workspaceRoot: '/workspace/pr', maxCallsPerReview: 50 } };
-    await createAgenticTools(cwd, specificConfig);
+    await createToolSet(cwd, specificConfig);
 
     expect(mockStartBashSession).toHaveBeenCalledWith(specificConfig.bash, 'AgenticTools');
+  });
+
+  it('each tool definition has name, description, schema, and execute', async () => {
+    mockStartBashSession.mockRejectedValue(new Error('spawn failed'));
+
+    const { tools } = await createToolSet(cwd, toolConfig);
+
+    for (const tool of tools) {
+      expect(typeof tool.name).toBe('string');
+      expect(typeof tool.description).toBe('string');
+      expect(tool.schema).toBeDefined();
+      expect(typeof tool.execute).toBe('function');
+    }
   });
 });

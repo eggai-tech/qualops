@@ -1,14 +1,32 @@
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 
-import { createAgenticTools } from '../tools';
+import { createToolSet, type ToolSet } from '../tools';
 import type { AgentAdapter, AgentAdapterParams, AgentAdapterResult } from './agent-adapter';
 import { logger } from '../../../../shared/utils/logger';
 
 type QueryOptions = Parameters<typeof query>[0]['options'];
 
+// These are covered by Claude's built-in tools (Read, Grep, Glob) and do not need MCP duplicates.
+const BUILTIN_COVERED_TOOLS = new Set(['read_file', 'grep_files', 'glob_files']);
+
+function toMcpServer(toolSet: ToolSet): ReturnType<typeof createSdkMcpServer> {
+  const sdkTools = toolSet.tools
+    .filter((def) => !BUILTIN_COVERED_TOOLS.has(def.name))
+    .map((def) =>
+      tool(def.name, def.description, def.schema.shape, async (args) => ({
+        content: [{ type: 'text', text: await def.execute(args as Record<string, unknown>) }],
+      })),
+    );
+  return createSdkMcpServer({
+    name: 'qualops-agentic-tools',
+    version: '1.0.0',
+    tools: sdkTools,
+  });
+}
+
 function buildQueryOptions(
   params: AgentAdapterParams,
-  toolServer: Awaited<ReturnType<typeof createAgenticTools>>['server'],
+  toolServer: ReturnType<typeof createSdkMcpServer>,
 ): QueryOptions {
   const { systemPrompt, agents, model, cwd, maxTurns, maxBudgetUsd } = params;
   const executablePath = process.env.CLAUDE_CODE_EXECUTABLE;
@@ -125,9 +143,10 @@ function handleResultMessage(
 
 export class AnthropicAdapter implements AgentAdapter {
   async run(params: AgentAdapterParams): Promise<AgentAdapterResult> {
-    const { server: toolServer, dispose } = await createAgenticTools(params.cwd, params.toolConfig);
+    const toolSet = await createToolSet(params.cwd, params.toolConfig);
 
     try {
+      const toolServer = toMcpServer(toolSet);
       const result = query({
         prompt: params.userPrompt,
         options: buildQueryOptions(params, toolServer),
@@ -153,7 +172,7 @@ export class AnthropicAdapter implements AgentAdapter {
 
       return state;
     } finally {
-      await dispose();
+      await toolSet.dispose();
     }
   }
 }

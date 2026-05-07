@@ -6,6 +6,7 @@ import type { BashInput, BashOutput, BashExitReason } from './schema.js';
 import { redactOutput } from './secret-redact.js';
 import type { BashShellSession, SessionExecResult } from './session-impl.js';
 import { logger } from '../../../../../shared/utils/logger.js';
+import { redactTokens } from '../../../../../shared/utils/security.js';
 
 export interface ExecOptions {
   reviewId: string;
@@ -27,7 +28,7 @@ export async function execBashCommand(
   let exitReason: BashExitReason = 'exited';
   const violations: string[] = [];
 
-  logger.info(`[bash] → command: ${input.command.substring(0, 300)}`);
+  logger.info(`[bash] → command: ${redactTokens(input.command, knownTokens).substring(0, 300)}`);
 
   const preResult = await driver.preCall(callId, input.command);
   violations.push(...preResult.violations);

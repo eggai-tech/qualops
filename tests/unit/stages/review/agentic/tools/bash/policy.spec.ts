@@ -440,6 +440,16 @@ describe('evaluatePolicy', () => {
     test('cat relative path is allowed', () => {
       expect(evaluatePolicy('cat src/foo.ts').deny).toBe(false);
     });
+
+    test('cat relative path traversal is denied when workspaceRoot is set', () => {
+      expect(evaluatePolicy('cat ../../etc/passwd', { workspaceRoot: '/workspace' }).deny).toBe(
+        true,
+      );
+    });
+
+    test('cat relative path within workspace is allowed when workspaceRoot is set', () => {
+      expect(evaluatePolicy('cat src/foo.ts', { workspaceRoot: '/workspace/pr' }).deny).toBe(false);
+    });
   });
 
   // --------------------------------------------------------------------------

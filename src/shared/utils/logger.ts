@@ -76,12 +76,12 @@ class Logger {
 
     const serializeArg = (arg: unknown): string => {
       if (arg instanceof Error) {
-        return JSON.stringify({ message: arg.message, stack: arg.stack, ...arg });
+        return JSON.stringify({ message: arg.message, stack: arg.stack });
       }
       if (typeof arg === 'object' && arg !== null) {
-        // Serialize objects; for nested Error values, expand them too
+        // Serialize objects; for nested Error values, only include safe fields
         const replacer = (_key: string, val: unknown) =>
-          val instanceof Error ? { message: val.message, stack: val.stack, ...val } : val;
+          val instanceof Error ? { message: val.message, stack: val.stack } : val;
         return JSON.stringify(arg, replacer);
       }
       return String(arg);

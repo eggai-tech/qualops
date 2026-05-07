@@ -1,8 +1,13 @@
 jest.mock('@anthropic-ai/claude-agent-sdk', () => ({
   query: jest.fn(),
+  tool: jest.fn((name: string, _desc: string, _schema: unknown, execute: unknown) => ({
+    name,
+    execute,
+  })),
+  createSdkMcpServer: jest.fn((opts: { tools: unknown[] }) => ({ tools: opts.tools })),
 }));
 jest.mock('@/stages/review/agentic/tools', () => ({
-  createAgenticTools: jest.fn().mockResolvedValue({ server: {}, dispose: jest.fn() }),
+  createToolSet: jest.fn().mockResolvedValue({ tools: [], dispose: jest.fn() }),
 }));
 jest.mock('@/shared/utils/logger');
 
@@ -10,10 +15,10 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 
 import type { AgentAdapterParams } from '@/stages/review/agentic/adapters/agent-adapter';
 import { AnthropicAdapter } from '@/stages/review/agentic/adapters/anthropic-adapter';
-import { createAgenticTools } from '@/stages/review/agentic/tools';
+import { createToolSet } from '@/stages/review/agentic/tools';
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
-const mockCreateAgenticTools = createAgenticTools as jest.MockedFunction<typeof createAgenticTools>;
+const mockCreateToolSet = createToolSet as jest.MockedFunction<typeof createToolSet>;
 
 function makeParams(overrides: Partial<AgentAdapterParams> = {}): AgentAdapterParams {
   return {
@@ -31,7 +36,7 @@ function makeParams(overrides: Partial<AgentAdapterParams> = {}): AgentAdapterPa
 describe('AnthropicAdapter', () => {
   beforeEach(() => {
     mockQuery.mockReset();
-    mockCreateAgenticTools.mockResolvedValue({ server: {} as never, dispose: jest.fn() });
+    mockCreateToolSet.mockResolvedValue({ tools: [], dispose: jest.fn() });
   });
 
   it('returns output from a successful result message', async () => {
@@ -205,7 +210,7 @@ describe('AnthropicAdapter', () => {
 
   it('calls dispose even when query throws', async () => {
     const mockDispose = jest.fn().mockResolvedValue(undefined);
-    mockCreateAgenticTools.mockResolvedValueOnce({ server: {} as never, dispose: mockDispose });
+    mockCreateToolSet.mockResolvedValueOnce({ tools: [], dispose: mockDispose });
     mockQuery.mockReturnValue(
       (async function* () {
         throw new Error('query failure');
@@ -216,7 +221,7 @@ describe('AnthropicAdapter', () => {
     expect(mockDispose).toHaveBeenCalled();
   });
 
-  it('passes toolConfig to createAgenticTools', async () => {
+  it('passes toolConfig to createToolSet', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
         yield { type: 'result', subtype: 'success', result: '[]' };
@@ -225,6 +230,6 @@ describe('AnthropicAdapter', () => {
     const adapter = new AnthropicAdapter();
     const toolConfig = { bash: { workspaceRoot: '/workspace/pr' } };
     await adapter.run(makeParams({ toolConfig }));
-    expect(mockCreateAgenticTools).toHaveBeenCalledWith(expect.any(String), toolConfig);
+    expect(mockCreateToolSet).toHaveBeenCalledWith(expect.any(String), toolConfig);
   });
 });

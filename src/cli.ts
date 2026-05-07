@@ -1,11 +1,5 @@
 #!/usr/bin/env node
 
-// IMPORTANT: applyEnvScrub must run before any SDK imports so that the clean
-// environment is inherited by any bash child processes spawned later.
-// eslint-disable-next-line import-x/order
-import { applyEnvScrub, getGitConfigPath } from './stages/review/agentic/tools/bash';
-applyEnvScrub(getGitConfigPath());
-
 import { Command, Option } from 'commander';
 
 import { executeAllStages } from './cli/commands/all-command';
