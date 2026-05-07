@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Native LLM structured-response support across all stages (QUALOPS-18). Replaces fragile fenced-JSON parsing with provider-native structured output: OpenAI `response_format: json_schema` (strict mode where supported) + `json_object` fallback; Anthropic `output_config` (Claude 4.5+) + forced `tool_use` fallback; Bedrock forced `tool_use` with `input_schema`. Schema is the single source of truth — zod definitions emit JSON Schema with field descriptions transmitted to the model via the structured channel; responses are parsed and validated by zod automatically.
+- New `BaseAIProvider` consolidating shared token accounting + cost computation while preserving exact per-provider semantics (OpenAI `prompt_tokens` incl. cached, Anthropic/Bedrock `input_tokens` excl. cached; Bedrock log policy unchanged).
+- New `ProviderCapabilities` descriptor that routes `(provider, model)` to the right structured-output dialect, replacing model-name string sniffing.
+- Reusable zod schemas in `src/ai/shared/schemas/` for review issues, validation results, dedup indices, search/replace fixes, and root-cause classifications.
+
+### Changed
+- `AIProvider.complete` is now overloaded: `complete<S extends z.ZodType>(opts & { schema: S })` returns `AIResponse<z.infer<S>>` (schema-typed); plain `complete(opts)` still returns `AIResponse<string>`.
+- `AIMessage.cacheControl` is now a typed first-class field (replaces runtime `'cache_control' in m` sniff in the Anthropic provider).
+- All migrated callers (`file-reviewer`, `validation-resolver`, `dedup-resolver`, `fix-generator`, `root-cause-extract`) now use schema-driven `complete`. Hand-written `<response_format>` prompt blocks removed; semantic rules moved into zod `.describe()` annotations.
+- Upgrade TypeScript from 5.9 to 6.0 with tsconfig migration (`moduleResolution: bundler`, `baseUrl` removal)
+- Upgrade eslint from 9.x to 10.x, migrate `eslint-plugin-import` to `eslint-plugin-import-x`
+
+### Removed
+- Deleted `JsonParser` class and the duplicated private `fixMalformedJson` (last production callers migrated).
+- Deleted misnamed `src/ai/shared/structured-ai.ts` (relocated `detectFrameworkContext` to `src/shared/utils/framework-detector.ts`).
+- Removed dead `completeWithStructure` interface method (never used in production).
+
 ### Fixed
 - Fix GitHub Action post-integration step
 - Update the logger config loading to read from `${cwd}/.qualops/.qualopsrc.json` instead of CWD
@@ -18,15 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release-branch cleanup-on-failure now only runs when this workflow run actually pushed the branch (sentinel via `$GITHUB_ENV`), so a pre-existing `release/v*` branch is never deleted by a failed run
 - Release version validation now allows only the prerelease labels the publish workflow recognises (`rc`, `alpha`, `beta`); unrecognised labels like `0.3.0-preview.1` are rejected up-front instead of silently publishing to `latest`
 - `Promote to Stable` workflow now asserts that `stable_version` equals `beta_version`'s base (e.g., `0.4.0-beta.1` can only promote to `0.4.0`)
-
-### Changed
-- Upgrade TypeScript from 5.9 to 6.0 with tsconfig migration (`moduleResolution: bundler`, `baseUrl` removal)
-- Upgrade eslint from 9.x to 10.x, migrate `eslint-plugin-import` to `eslint-plugin-import-x`
-- Release process: introduce two-tier `@beta` / `@stable` model. `beta` and `stable` are movable lightweight git tags, force-moved by CI on each publish or promotion. See `docs/tdr/0001-release-process.md` and the rewritten Release Process section of `CONTRIBUTING.md`
-- `Create Release PR` workflow now deletes its half-created `release/v*` branch on failure
-- Release failure issues now include the failing stages and release kind (beta vs stable)
-- Normalize `uses: eggai-tech/qualops@v1` examples across the README, docs, and example workflows to `@stable`
-- Refactor agentic tools: `tools/index.ts` is now a provider-agnostic registry (`createToolSet`); Anthropic and OpenAI SDK wiring stays inside their respective adapters
 
 ### Added
 - Agentic mode now supports OpenAI and Azure OpenAI providers via `@openai/agents`. Set `provider: "openai"` in your stage config to use the OpenAI adapter; set `OPENAI_BASE_URL` to an Azure endpoint and the correct Azure client is used automatically.
