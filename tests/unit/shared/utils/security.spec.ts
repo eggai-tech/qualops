@@ -3,9 +3,62 @@ import {
   hasValidUrlScheme,
   isClassificationResultArray,
   isPathTraversalSafe,
+  isSafeGitRef,
   isValidGitSha,
+  resolveWithinCwd,
   sanitizeFilename,
 } from '@/shared/utils/security';
+
+describe('isSafeGitRef', () => {
+  it('accepts normal branch names and shas', () => {
+    expect(isSafeGitRef('main')).toBe(true);
+    expect(isSafeGitRef('HEAD')).toBe(true);
+    expect(isSafeGitRef('HEAD~1')).toBe(true);
+    expect(isSafeGitRef('abc1234')).toBe(true);
+    expect(isSafeGitRef('feat/my-branch')).toBe(true);
+  });
+
+  it('rejects refs starting with -', () => {
+    expect(isSafeGitRef('-evil')).toBe(false);
+    expect(isSafeGitRef('--upload-pack=evil')).toBe(false);
+  });
+
+  it('rejects empty string', () => {
+    expect(isSafeGitRef('')).toBe(false);
+  });
+});
+
+describe('resolveWithinCwd', () => {
+  const cwd = '/project/repo';
+
+  it('resolves a relative path within cwd', () => {
+    expect(resolveWithinCwd(cwd, 'src/foo.ts')).toBe('/project/repo/src/foo.ts');
+  });
+
+  it('resolves an absolute path within cwd', () => {
+    expect(resolveWithinCwd(cwd, '/project/repo/src/foo.ts')).toBe('/project/repo/src/foo.ts');
+  });
+
+  it('returns null for path traversal via ..', () => {
+    expect(resolveWithinCwd(cwd, '../../etc/passwd')).toBeNull();
+  });
+
+  it('returns null for absolute path outside cwd', () => {
+    expect(resolveWithinCwd(cwd, '/etc/passwd')).toBeNull();
+  });
+
+  it('returns null for sibling directory (prefix-bypass)', () => {
+    expect(resolveWithinCwd(cwd, '/project/repo-evil/secret')).toBeNull();
+  });
+
+  it('accepts cwd itself', () => {
+    expect(resolveWithinCwd(cwd, '.')).toBe('/project/repo');
+  });
+
+  it('handles cwd with trailing slash', () => {
+    expect(resolveWithinCwd('/project/repo/', 'src/foo.ts')).toBe('/project/repo/src/foo.ts');
+  });
+});
 
 describe('isPathTraversalSafe', () => {
   it('should return false for empty filename', () => {

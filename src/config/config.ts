@@ -184,7 +184,7 @@ export class ConfigService {
    * both fall back to defaults.
    */
   resolveModel({ stage, model }: { stage?: AIStageConfig; model?: ModelConfig } = {}): {
-    provider: string;
+    provider: AIProviderName;
     model: string;
   } {
     return {
@@ -193,7 +193,7 @@ export class ConfigService {
     };
   }
 
-  private resolveProvider(stage?: AIStageConfig, model?: ModelConfig): string {
+  private resolveProvider(stage?: AIStageConfig, model?: ModelConfig): AIProviderName {
     if (model !== undefined && model !== null && typeof model === 'object' && model.provider) {
       return model.provider;
     }
@@ -257,7 +257,20 @@ export class ConfigService {
   getResolvedStageConfig(stage: string): ResolvedStageConfig {
     const raw = this.getAIStageConfig(stage);
     const { provider, model } = this.resolveModel({ stage: raw });
-    return { ...raw, provider: provider as AIProviderName, model };
+    return { ...raw, provider, model };
+  }
+
+  /**
+   * Maps a resolved provider name to the agent adapter type to use.
+   * Returns `undefined` for providers that do not yet support agentic mode.
+   */
+  resolveAgentAdapterType(provider: AIProviderName): 'anthropic' | 'openai' | undefined {
+    const mapping: Partial<Record<AIProviderName, 'anthropic' | 'openai'>> = {
+      anthropic: 'anthropic',
+      openai: 'openai',
+      github: 'openai', // GitHub Models uses an OpenAI-compatible API
+    };
+    return mapping[provider];
   }
 
   isIssueMarkdownEnabled(): boolean {

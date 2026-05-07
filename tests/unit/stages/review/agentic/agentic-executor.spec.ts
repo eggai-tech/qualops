@@ -2,23 +2,22 @@ import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 // buildSystemPrompt is private — test it via the public execute() interface
-// by mocking the query function and capturing the systemPrompt it receives.
+// by mocking the adapter and capturing the systemPrompt it receives.
 
-jest.mock('@anthropic-ai/claude-agent-sdk', () => ({
-  query: jest.fn(),
-}));
-jest.mock('@/stages/review/agentic/tools', () => ({
-  createAgenticTools: jest.fn(() => ({})),
+jest.mock('@/stages/review/agentic/adapters', () => ({
+  createAgentAdapter: jest.fn(),
 }));
 jest.mock('@/shared/utils/logger');
 
-import { query } from '@anthropic-ai/claude-agent-sdk';
-
 import type { PipelineJob } from '@/shared/types/config';
-import { logger } from '@/shared/utils/logger';
+import { createAgentAdapter } from '@/stages/review/agentic/adapters';
+import type {
+  AgentAdapter,
+  AgentAdapterParams,
+} from '@/stages/review/agentic/adapters/agent-adapter';
 import { AgenticExecutor } from '@/stages/review/agentic/agentic-executor';
 
-const mockQuery = query as jest.MockedFunction<typeof query>;
+const mockCreateAgentAdapter = createAgentAdapter as jest.MockedFunction<typeof createAgentAdapter>;
 
 // AgenticExecutor resolves prompts relative to process.cwd()/.qualops/prompts
 const promptsDir = resolve(process.cwd(), '.qualops/prompts/__agentic_executor_test__');
@@ -45,37 +44,41 @@ function makeJob(agenticOverrides: Record<string, unknown> = {}): PipelineJob {
   } as unknown as PipelineJob;
 }
 
-function capturedSystemPrompt(): string {
-  const calls = mockQuery.mock.calls;
-  const lastCall = calls[calls.length - 1];
-  return (lastCall[0] as { options: { systemPrompt: string } }).options.systemPrompt;
+let capturedParams: AgentAdapterParams | null = null;
+
+function mockAdapterWithResult(result: string): AgentAdapter {
+  capturedParams = null;
+  return {
+    run: jest.fn(async (params: AgentAdapterParams) => {
+      capturedParams = params;
+      return { output: result };
+    }),
+  };
+}
+
+function setupMockAdapter(result = '[]') {
+  mockCreateAgentAdapter.mockReturnValue(mockAdapterWithResult(result));
 }
 
 async function runExecutor(job: PipelineJob): Promise<void> {
-  // query returns an async iterable; emit a single result message so execute() finishes
-  mockQuery.mockReturnValue(
-    (async function* () {
-      yield { type: 'result', subtype: 'success', result: '[]' };
-    })(),
-  );
-
-  const executor = new AgenticExecutor(job);
+  setupMockAdapter();
+  const executor = new AgenticExecutor(job, undefined, 'test-model');
   await executor.execute([{ path: 'src/foo.ts', content: 'const x = 1;' }]);
 }
 
 describe('AgenticExecutor — execute()', () => {
   beforeEach(() => {
-    mockQuery.mockReset();
+    mockCreateAgentAdapter.mockReset();
   });
 
   it('returns empty array immediately when no files provided', async () => {
-    const executor = new AgenticExecutor(makeJob());
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
     const result = await executor.execute([]);
     expect(result).toEqual([]);
-    expect(mockQuery).not.toHaveBeenCalled();
+    expect(mockCreateAgentAdapter).not.toHaveBeenCalled();
   });
 
-  it('parses issues from a successful result message', async () => {
+  it('parses issues from a successful result', async () => {
     const issue = {
       type: 'security',
       severity: 'high',
@@ -85,62 +88,58 @@ describe('AgenticExecutor — execute()', () => {
       suggestion: 'Use parameterized queries',
       confidence: 9,
     };
-    mockQuery.mockReturnValue(
-      (async function* () {
-        yield { type: 'result', subtype: 'success', result: JSON.stringify([issue]) };
-      })(),
-    );
-    const executor = new AgenticExecutor(makeJob());
+    setupMockAdapter(JSON.stringify([issue]));
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
     const result = await executor.execute([{ path: 'src/db.ts', content: 'query(input)' }]);
     expect(result).toHaveLength(1);
     expect(result[0].description).toBe('SQL injection');
   });
 
-  it('logs error and continues when result subtype is not success', async () => {
-    mockQuery.mockReturnValue(
-      (async function* () {
-        yield { type: 'result', subtype: 'error_max_turns' };
-      })(),
-    );
-    const executor = new AgenticExecutor(makeJob());
-    await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
-    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('error_max_turns'));
+  it('returns empty array when adapter returns no output', async () => {
+    mockCreateAgentAdapter.mockReturnValue({ run: jest.fn(async () => ({ output: '' })) });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    const result = await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
+    expect(result).toEqual([]);
   });
 
-  it('rethrows when query throws', async () => {
-    mockQuery.mockReturnValue(
-      (async function* () {
+  it('rethrows when adapter throws', async () => {
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => {
         throw new Error('API failure');
-      })(),
-    );
-    const executor = new AgenticExecutor(makeJob());
+      }),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
     await expect(executor.execute([{ path: 'src/foo.ts', content: 'x' }])).rejects.toThrow(
       'API failure',
     );
+  });
+
+  it('passes resolved provider to createAgentAdapter', async () => {
+    setupMockAdapter();
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
+    expect(mockCreateAgentAdapter).toHaveBeenCalledWith(expect.any(String));
   });
 });
 
 describe('AgenticExecutor — systemPrompt / prompt composition', () => {
   beforeEach(() => {
-    mockQuery.mockReset();
+    mockCreateAgentAdapter.mockReset();
   });
 
   it('uses default prompt when neither systemPrompt nor prompt is set', async () => {
     await runExecutor(makeJob());
-    const sp = capturedSystemPrompt();
-    expect(sp).toContain('You are a code reviewer');
+    expect(capturedParams?.systemPrompt).toContain('You are a code reviewer');
   });
 
   it('injects inline systemPrompt into the system message', async () => {
     await runExecutor(makeJob({ systemPrompt: 'Inline instructions.' }));
-    const sp = capturedSystemPrompt();
-    expect(sp).toContain('Inline instructions.');
+    expect(capturedParams?.systemPrompt).toContain('Inline instructions.');
   });
 
   it('loads prompt from file and injects it into the system message', async () => {
     await runExecutor(makeJob({ prompt: '__agentic_executor_test__/custom.md' }));
-    const sp = capturedSystemPrompt();
-    expect(sp).toContain('From file: custom instructions.');
+    expect(capturedParams?.systemPrompt).toContain('From file: custom instructions.');
   });
 
   it('prepends systemPrompt before file prompt when both are set', async () => {
@@ -150,7 +149,7 @@ describe('AgenticExecutor — systemPrompt / prompt composition', () => {
         prompt: '__agentic_executor_test__/custom.md',
       }),
     );
-    const sp = capturedSystemPrompt();
+    const sp = capturedParams?.systemPrompt ?? '';
     const inlinePos = sp.indexOf('Inline first.');
     const filePos = sp.indexOf('From file: custom instructions.');
     expect(inlinePos).toBeGreaterThanOrEqual(0);
@@ -160,7 +159,6 @@ describe('AgenticExecutor — systemPrompt / prompt composition', () => {
 
   it('accepts promptConfig object form for prompt', async () => {
     await runExecutor(makeJob({ prompt: { file: '__agentic_executor_test__/custom.md' } }));
-    const sp = capturedSystemPrompt();
-    expect(sp).toContain('From file: custom instructions.');
+    expect(capturedParams?.systemPrompt).toContain('From file: custom instructions.');
   });
 });

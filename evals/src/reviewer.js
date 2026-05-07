@@ -129,9 +129,9 @@ async function runReviewForItem(itemInput, ctx) {
   const evalConfig = {
     name: `langfuse:${config.model}:${config.mode}`,
     mode: config.mode,
+    model: config.model,
     provider: config.provider,
     configPath: config.configPath,
-    ...(config.modelOverride && { model: config.modelOverride }),
     ...(repoCwd && { cwd: repoCwd }),
   };
 

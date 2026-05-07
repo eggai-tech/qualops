@@ -1,9 +1,9 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, basename, resolve } from 'node:path';
 
-import type { ModelConfig } from '../../../../shared/types';
 import type { AgenticConfig, CustomAgentDefinition } from '../../../../shared/types/config';
 import { logger } from '../../../../shared/utils/logger';
+import { resolveWithinCwd } from '../../../../shared/utils/security';
 import type { AgentDefinition } from '../subagents/definitions';
 
 interface MarkdownAgentFrontmatter {
@@ -32,9 +32,9 @@ export class AgentLoader {
 
     // Load from agents directory
     const agentsDir = config.agentsDir || '.qualops/agents';
-    const fullAgentsDir = resolve(this.cwd, agentsDir);
+    const fullAgentsDir = resolveWithinCwd(this.cwd, agentsDir);
 
-    if (!fullAgentsDir.startsWith(this.cwd)) {
+    if (!fullAgentsDir) {
       logger.warn(
         `[AgentLoader] agentsDir "${agentsDir}" resolves outside project directory. Path traversal is not allowed.`,
       );
@@ -60,7 +60,7 @@ export class AgentLoader {
   }
 
   private loadAgentFromMarkdown(filePath: string): AgentDefinition | null {
-    if (!resolve(filePath).startsWith(this.cwd)) {
+    if (!resolveWithinCwd(this.cwd, filePath)) {
       logger.warn(`[AgentLoader] Rejected agent path outside project directory: ${filePath}`);
       return null;
     }
@@ -127,7 +127,7 @@ export class AgentLoader {
       description: custom.description,
       prompt: custom.prompt,
       tools: custom.tools || ['Read', 'Grep', 'Glob'],
-      model: custom.model as ModelConfig | undefined,
+      model: custom.model,
     };
   }
 }
