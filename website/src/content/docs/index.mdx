@@ -1,0 +1,36 @@
+---
+title: QualOps
+description: AI-powered code review for your PRs. GitHub Actions integration, multi-stage pipeline, and customizable review prompts.
+template: splash
+hero:
+  tagline: AI-powered code review for your pull requests.
+  actions:
+    - text: Quick start
+      link: /qualops/getting-started/quick-start/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/eggai-tech/qualops
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What is QualOps?
+
+QualOps is a CLI and GitHub Action that uses Claude, GPT, and other LLMs to review pull requests. It runs a multi-stage pipeline — analyze, review, fix, report, judge — and posts findings as PR comments and inline annotations via the GitHub Checks API.
+
+<CardGrid>
+	<Card title="Two review modes" icon="puzzle">
+		**File-by-file** for fast, high-volume scans, or **agentic** mode (built on the Claude Agent SDK) for cross-file analysis with dependency tracing, security audits, and pattern checks.
+	</Card>
+	<Card title="Framework-aware" icon="seti:react">
+		Detects Angular, React, and Node.js codebases and loads relevant context — OWASP guidance, RxJS migration rules, and more.
+	</Card>
+	<Card title="Multiple AI providers" icon="random">
+		Anthropic, OpenAI, Azure OpenAI, AWS Bedrock, and GitHub Models. Pick per stage in your config.
+	</Card>
+	<Card title="CI/CD ready" icon="rocket">
+		One-step GitHub Action with PR comments, inline annotations, quality gates, and uploaded HTML reports.
+	</Card>
+</CardGrid>

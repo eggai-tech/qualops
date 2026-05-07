@@ -3,6 +3,9 @@ src/
 tests/
 examples/
 
+# Documentation site
+website/
+
 # Config
 .github/
 .claude/

@@ -1,0 +1,59 @@
+---
+title: Quick start
+description: Add QualOps to a GitHub repository and get AI-powered PR reviews in three steps.
+---
+
+## GitHub Actions (recommended)
+
+Add this to `.github/workflows/qualops.yml`:
+
+```yaml
+name: QualOps Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: eggai-tech/qualops@v1
+        with:
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+Then add `ANTHROPIC_API_KEY` to your repository secrets (Settings → Secrets → Actions). On every PR, QualOps will analyze the diff, post a summary comment, and add inline annotations through the Checks API.
+
+For full setup details — secrets, permissions, troubleshooting — see [GitHub Action → Setup](../github-action/setup/).
+
+## Local CLI
+
+```bash
+# Install globally
+npm install -g @eggai/qualops
+
+# Review changes between two refs
+qualops --base=main --head=HEAD
+
+# Or target specific files
+qualops --files="src/**/*.ts"
+```
+
+You'll need an `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY` / AWS credentials, depending on your provider) in the environment. See [AI providers](../ai-providers/) for the full list.
+
+## Next steps
+
+- Read the [Configuration reference](../configuration/reference/) to tune the review pipeline
+- Pick between [file-by-file and agentic review modes](../review-modes/file-by-file/)
+- Browse [example configurations](../examples/configurations/) for Angular, Python, and security audits
