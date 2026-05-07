@@ -276,6 +276,7 @@ For each issue found, provide:
 - Framework-provided patterns (Commander.js, etc.)
 - Intentional type assertions with validation
 - Temporary code marked with TODO comments
+- `parseSentinel` / sentinel parsing in `session-impl.ts` — the sentinel is written by QualOps' own shell wrapper and read by QualOps' own Node process. There is no adversary between them. "Sentinel injection" is not a valid attack vector here.
 
 Focus on issues that genuinely improve code quality, security, maintainability, or correctness specific to a TypeScript/Node.js CLI tool that orchestrates AI-powered code analysis.
 

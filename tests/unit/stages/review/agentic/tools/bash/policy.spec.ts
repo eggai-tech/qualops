@@ -153,6 +153,22 @@ describe('evaluatePolicy', () => {
       expect(result.deny).toBe(true);
     });
 
+    test('git config write (no read flag) is denied', () => {
+      expect(evaluatePolicy('git config core.hooksPath /evil').deny).toBe(true);
+    });
+
+    test('git config --global write is denied', () => {
+      expect(evaluatePolicy('git config --global core.hooksPath /evil').deny).toBe(true);
+    });
+
+    test('git config --get is allowed', () => {
+      expect(evaluatePolicy('git config --get core.hooksPath').deny).toBe(false);
+    });
+
+    test('git config --list is allowed', () => {
+      expect(evaluatePolicy('git config --list').deny).toBe(false);
+    });
+
     test('git push is denied', () => {
       const result = evaluatePolicy('git push origin main');
       expect(result.deny).toBe(true);
@@ -180,6 +196,11 @@ describe('evaluatePolicy', () => {
 
     test('git -c core.hooksPath= is denied', () => {
       const result = evaluatePolicy('git -c core.hooksPath=/evil log');
+      expect(result.deny).toBe(true);
+    });
+
+    test('git -ccore.hooksPath= (concatenated, no space) is denied', () => {
+      const result = evaluatePolicy('git -ccore.hooksPath=/evil log');
       expect(result.deny).toBe(true);
     });
 
@@ -221,6 +242,12 @@ describe('evaluatePolicy', () => {
     test('cd to /etc is denied', () => {
       const result = evaluatePolicy('cd /etc');
       expect(result.deny).toBe(true);
+    });
+
+    test('cd /workspace/../etc traversal is denied', () => {
+      expect(evaluatePolicy('cd /workspace/../etc', { workspaceRoot: '/workspace' }).deny).toBe(
+        true,
+      );
     });
 
     test('cd to /root is denied', () => {
@@ -265,6 +292,11 @@ describe('evaluatePolicy', () => {
 
     test('bash -c with variable expansion is denied', () => {
       const result = evaluatePolicy('bash -c "cat $HOME/.aws/credentials"');
+      expect(result.deny).toBe(true);
+    });
+
+    test('bash -c with concatenated flag (no space) and expansion is denied', () => {
+      const result = evaluatePolicy('bash -c"cat $HOME/.aws/credentials"');
       expect(result.deny).toBe(true);
     });
 

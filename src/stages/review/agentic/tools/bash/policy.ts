@@ -1,6 +1,5 @@
-import { resolve } from 'node:path';
-
 import { tokenise, toAnalysisCopy, type ParsedCommand } from './parser.js';
+import { resolveWithinCwd } from '../../../../../shared/utils/security.js';
 
 export interface PolicyResult {
   deny: false;
@@ -346,14 +345,14 @@ function isAllowedCdTarget(target: string, workspaceRoot?: string): boolean {
   // Relative paths are allowed (stay within cwd)
   if (!target.startsWith('/')) return true;
 
+  // Use resolveWithinCwd for each allowed root — it normalizes .. segments and
+  // checks containment in one call, eliminating traversal bypasses like
+  // /workspace/../etc/passwd that would fool a naive startsWith check.
   const allowed = workspaceRoot
     ? [workspaceRoot, workspaceRoot + '/pr', workspaceRoot + '/base']
     : DEFAULT_WORKSPACE_ROOTS;
 
-  for (const root of allowed) {
-    if (target === root || target.startsWith(root + '/')) return true;
-  }
-  return false;
+  return allowed.some((root) => resolveWithinCwd(root, target) !== null);
 }
 
 function checkEnvHijacking(analysis: string): PolicyOutcome | null {
@@ -391,9 +390,11 @@ function checkPackageManager(binaryBase: string, args: string[]): PolicyOutcome 
 }
 
 function checkGitCommand(args: string[]): PolicyOutcome {
-  const dashCIdx = args.indexOf('-c');
-  if (dashCIdx !== -1) {
-    const kvPair = args[dashCIdx + 1] ?? '';
+  // Match both `-c key=val` (space-separated) and `-ckey=val` (concatenated).
+  // The concatenated form is valid git syntax and would bypass an indexOf('-c') check.
+  const dashCArg = args.find((a) => a === '-c' || a.startsWith('-c'));
+  if (dashCArg !== undefined) {
+    const kvPair = dashCArg === '-c' ? (args[args.indexOf('-c') + 1] ?? '') : dashCArg.slice(2); // strip the '-c' prefix
     for (const pattern of DENIED_GIT_CONFIG_PATTERNS) {
       if (pattern.test(kvPair)) {
         return deny(
@@ -420,6 +421,21 @@ function checkGitCommand(args: string[]): PolicyOutcome {
     const remoteSubCmd = remoteArgs.find((a) => !a.startsWith('-'));
     if (remoteSubCmd && !['get-url', 'show', '-v', '--verbose'].includes(remoteSubCmd)) {
       return deny('git-remote-write', `git remote ${remoteSubCmd} is not allowed`);
+    }
+  }
+
+  if (subCmd === 'config') {
+    // Only allow read-only config operations. Write operations (no --get/--list flag)
+    // could set core.hooksPath or other dangerous values.
+    const configArgs = args.slice(args.indexOf('config') + 1);
+    const hasReadFlag = configArgs.some((a) =>
+      ['--get', '--get-all', '--get-regexp', '--list', '-l', '--name-only'].includes(a),
+    );
+    if (!hasReadFlag) {
+      return deny(
+        'git-config-write',
+        'git config without a read-only flag (--get, --list, etc.) is not allowed',
+      );
     }
   }
 
@@ -496,8 +512,20 @@ function checkShellInvocation(
 ): PolicyOutcome | null {
   if (!['bash', 'sh', 'zsh'].includes(binaryBase)) return null;
 
-  const dashCIdx = args.indexOf('-c');
-  if (dashCIdx !== -1) {
+  // Match both `-c script` (space-separated) and `-cscript` (concatenated).
+  // bash -c'cmd' is valid shell syntax and would bypass an indexOf('-c') check.
+  const dashCArg = args.find((a) => a === '-c' || a.startsWith('-c'));
+  if (dashCArg !== undefined) {
+    if (dashCArg !== '-c') {
+      // Concatenated form (e.g. bash -c'cmd' or bash -c"cmd"): deny outright because
+      // the script content spans tokens in a way our whitespace tokenizer cannot reliably
+      // inspect. The safe path is to require the space-separated form.
+      return deny(
+        'shell-expansion-in-literal',
+        `${binaryBase} -c with concatenated script (no space after -c) is not allowed`,
+      );
+    }
+    // Space-separated form: inspect the script for variable/subshell expansion.
     const afterDashC = raw.replace(/^.*?\s-c\s+/, '');
     // Strip single-quoted substrings (no expansion), then check remainder for $.
     // We intentionally keep double-quoted content because $VAR expands inside "...".
@@ -533,12 +561,21 @@ function checkPathAccess(
   if (['cat', 'head', 'less', 'more', 'cp', 'mv', 'tee', 'ln'].includes(binaryBase)) {
     const pathArgs = args.filter((a) => !a.startsWith('-'));
     for (const p of pathArgs) {
-      // Resolve relative paths against workspaceRoot so ../../etc/passwd is caught.
-      // Fall back to DEFAULT_WORKSPACE_ROOTS[0] when workspaceRoot is not set so
-      // relative traversal is never silently skipped.
-      const base = workspaceRoot ?? DEFAULT_WORKSPACE_ROOTS[0]!;
-      const resolved = p.startsWith('/') ? p : resolve(base, p);
-      if (!isAllowedCdTarget(resolved, workspaceRoot)) {
+      // For relative paths, resolve against workspace root before checking.
+      // resolveWithinCwd normalizes .. segments and returns null if the resolved
+      // path escapes the root — deny in that case.
+      // For absolute paths, isAllowedCdTarget handles normalization via resolveWithinCwd.
+      if (!p.startsWith('/')) {
+        const base = workspaceRoot ?? DEFAULT_WORKSPACE_ROOTS[0]!;
+        if (resolveWithinCwd(base, p) === null) {
+          return deny(
+            'path-outside-workspace',
+            `${binaryBase} with path outside workspace is not allowed: ${p}`,
+          );
+        }
+        continue;
+      }
+      if (!isAllowedCdTarget(p, workspaceRoot)) {
         return deny(
           'path-outside-workspace',
           `${binaryBase} with path outside workspace is not allowed: ${p}`,
