@@ -13,13 +13,23 @@ import * as path from 'path';
 
 import type { SandboxDriver, SpawnOptions, PreCallResult, PostCallResult } from './interface.js';
 
+function sanitizeForSeatbelt(p: string): string {
+  // Only allow characters safe inside a Seatbelt quoted string literal.
+  // Reject anything that could escape the double-quoted context or inject rules.
+  if (!/^[a-zA-Z0-9/_.-]+$/.test(p)) {
+    throw new Error(`workspaceRoot contains characters not allowed in Seatbelt profile: ${p}`);
+  }
+  return p;
+}
+
 function buildSeatbeltProfile(workspaceRoot: string): string {
+  const safeRoot = sanitizeForSeatbelt(workspaceRoot);
   return `
 (version 1)
 (deny default)
 
 ; Allow reading the workspace (PR code under review)
-(allow file-read* (subpath "${workspaceRoot}"))
+(allow file-read* (subpath "${safeRoot}"))
 
 ; Allow standard system reads
 (allow file-read*

@@ -530,7 +530,7 @@ function checkPathAccess(
     return allow;
   }
 
-  if (['cat', 'head', 'less', 'more', 'cp', 'mv'].includes(binaryBase)) {
+  if (['cat', 'head', 'less', 'more', 'cp', 'mv', 'tee', 'ln'].includes(binaryBase)) {
     const pathArgs = args.filter((a) => !a.startsWith('-'));
     for (const p of pathArgs) {
       // Resolve relative paths against workspaceRoot so ../../etc/passwd is caught.

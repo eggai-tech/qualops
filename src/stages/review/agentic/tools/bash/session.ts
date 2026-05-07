@@ -7,6 +7,7 @@ import { evaluatePolicy } from './policy.js';
 import type { BashInput, BashOutput } from './schema.js';
 import { BashShellSession } from './session-impl.js';
 import { logger } from '../../../../../shared/utils/logger.js';
+import { redactTokens } from '../../../../../shared/utils/security.js';
 
 export interface BashConfig {
   /** Sandbox mode override. Default: auto-detect. */
@@ -85,7 +86,7 @@ export class BashSession {
 
     if (policyResult.deny) {
       logger.warn(
-        `[bash/policy] denied (rule=${policyResult.rule}): ${input.command.substring(0, 200)} — ${policyResult.reason}`,
+        `[bash/policy] denied (rule=${policyResult.rule}): ${redactTokens(input.command, this.config.knownTokens).substring(0, 200)} — ${policyResult.reason}`,
       );
 
       return {
