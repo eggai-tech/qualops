@@ -5,8 +5,10 @@
  * duration of a review session. Each tool call writes a command to stdin
  * and reads until the sentinel PS1 marker appears on stdout.
  *
- * The sentinel PS1 encodes the exit code and cwd as JSON so we can parse
- * them without an extra round-trip.
+ * The sentinel emits the exit code as JSON between SENTINEL_BEGIN/END markers,
+ * then the cwd on a separate plain line prefixed with SENTINEL_PWD_PREFIX.
+ * Keeping the cwd out of the JSON string avoids quoting issues for paths that
+ * contain characters special to JSON (e.g. backslash, double-quote).
  */
 
 import * as child_process from 'child_process';
@@ -18,6 +20,8 @@ import { logger } from '../../../../../shared/utils/logger.js';
 
 const SENTINEL_BEGIN = '###QUALOPS_PS1_BEGIN###';
 const SENTINEL_END = '###QUALOPS_PS1_END###';
+// cwd is emitted on a separate line to avoid JSON quoting issues with special path chars.
+const SENTINEL_PWD_PREFIX = 'QUALOPS_PWD:';
 
 // Shell init script: HISTFILE=/dev/null, set -o pipefail, no aliases
 // Ends with an explicit sentinel echo so spawn() knows the shell is ready.
@@ -27,9 +31,9 @@ const SHELL_INIT = [
   'set -o pipefail',
   'shopt -u expand_aliases 2>/dev/null || true',
   'unalias -a 2>/dev/null || true',
-  // The sentinel is echoed explicitly after each command (non-interactive shell, no PS1).
-  // SENTINEL_BEGIN and SENTINEL_END are literal strings injected by JS; $(pwd) is shell-evaluated.
-  `echo "${SENTINEL_BEGIN}{\\"exit\\":\\"0\\",\\"cwd\\":\\"$(pwd)\\"}${SENTINEL_END}"`,
+  // Exit code JSON between sentinel markers; cwd on a separate plain line.
+  `echo "${SENTINEL_BEGIN}{\\"exit\\":\\"0\\"}${SENTINEL_END}"`,
+  `echo "${SENTINEL_PWD_PREFIX}$(pwd)"`,
   '',
 ].join('\n');
 
@@ -47,17 +51,33 @@ interface SentinelData {
   cwd: string;
 }
 
-function parseSentinel(sentinel: string): SentinelData | null {
-  const start = sentinel.indexOf(SENTINEL_BEGIN);
-  const end = sentinel.indexOf(SENTINEL_END, start);
+function parseSentinel(output: string): SentinelData | null {
+  const start = output.indexOf(SENTINEL_BEGIN);
+  const end = output.indexOf(SENTINEL_END, start);
   if (start === -1 || end === -1) return null;
 
-  const json = sentinel.slice(start + SENTINEL_BEGIN.length, end);
+  const json = output.slice(start + SENTINEL_BEGIN.length, end);
+  let parsed: { exit: string };
   try {
-    return JSON.parse(json) as SentinelData;
+    parsed = JSON.parse(json) as { exit: string };
   } catch {
     return null;
   }
+
+  // Extract cwd from the dedicated prefix line that follows the sentinel.
+  const pwdLineStart = output.indexOf(SENTINEL_PWD_PREFIX, end);
+  const pwdLineEnd = pwdLineStart === -1 ? -1 : output.indexOf('\n', pwdLineStart);
+  const cwd =
+    pwdLineStart === -1
+      ? ''
+      : output
+          .slice(
+            pwdLineStart + SENTINEL_PWD_PREFIX.length,
+            pwdLineEnd === -1 ? undefined : pwdLineEnd,
+          )
+          .trim();
+
+  return { exit: parsed.exit, cwd };
 }
 
 export class BashShellSession {
@@ -174,7 +194,8 @@ export class BashShellSession {
 
     // Wrap command: run it, capture exit code, then echo the sentinel explicitly.
     // Non-interactive shells don't print PS1, so we echo it ourselves after each command.
-    const script = `${command}\n__exit__=$?\necho "${SENTINEL_BEGIN}{\\"exit\\":\\"$__exit__\\",\\"cwd\\":\\"$(pwd)\\"}${SENTINEL_END}"\n`;
+    // cwd is emitted on a separate line to avoid JSON quoting issues with special path chars.
+    const script = `${command}\n__exit__=$?\necho "${SENTINEL_BEGIN}{\\"exit\\":\\"$__exit__\\"}${SENTINEL_END}"\necho "${SENTINEL_PWD_PREFIX}$(pwd)"\n`;
     const { stdout, stderr } = await this.writeAndWaitForSentinel(script);
 
     const durationMs = Date.now() - startMs;

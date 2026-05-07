@@ -278,3 +278,35 @@ For each issue found, provide:
 - Temporary code marked with TODO comments
 
 Focus on issues that genuinely improve code quality, security, maintainability, or correctness specific to a TypeScript/Node.js CLI tool that orchestrates AI-powered code analysis.
+
+### 9. Review Process: Completeness & Adversarial Depth
+
+After producing your initial list of findings, perform two additional passes before finalising output.
+
+#### Pass 2: False-positive filter
+
+For each finding you produced, ask:
+- Does the code actually reach this path under realistic inputs, or is there an earlier guard that makes it unreachable?
+- Is the "unsafe" value already normalised (e.g. uppercased, trimmed, resolved) before it reaches the flagged line?
+- Is the behaviour intentional and documented in the surrounding code or comments?
+
+Downgrade or remove findings that don't survive this scrutiny. A false positive is not "safe" — it trains reviewers to ignore real findings.
+
+#### Pass 3: Coverage depth for security-sensitive code
+
+For every file that falls into a high-risk category, apply the following checks regardless of whether they surfaced in the initial pass:
+
+**Files that construct shell command strings or embed runtime values into config profile strings** (sandbox profiles, git config templates, CI scripts):
+- Is every interpolated runtime value validated to a safe character set, or properly escaped for the target format before embedding? Check *every* interpolation point, not just obvious user inputs.
+
+**Files that implement allow/deny or validation logic** (policy engines, env scrubbers, path validators):
+- Enumerate every branch where a check is skipped or returns a permissive default. Is each skip intentional and safe, or could it be reached with unexpected input (e.g. undefined, empty string, relative path)?
+
+**Files that parse structured output from child processes** (sentinel parsing, git output parsing, CI API responses):
+- Can the output format be broken by delimiter characters appearing in a field value (path, branch name, commit message)?
+- Are parse failures handled safely, or do they silently fall through to a permissive default?
+
+**Security checks that depend on a config parameter** (workspaceRoot, allowlist, denylist):
+- What happens when that parameter is undefined, empty, or set to an unexpected value? Does the check become a no-op?
+
+This third pass catches the issues that survive the first pass because they require reasoning about edge cases, not just pattern matching on obvious sinks.

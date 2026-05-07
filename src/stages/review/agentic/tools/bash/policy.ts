@@ -534,9 +534,11 @@ function checkPathAccess(
     const pathArgs = args.filter((a) => !a.startsWith('-'));
     for (const p of pathArgs) {
       // Resolve relative paths against workspaceRoot so ../../etc/passwd is caught.
-      // Only check when workspaceRoot is known; without it we cannot resolve safely.
-      const resolved = p.startsWith('/') ? p : workspaceRoot ? resolve(workspaceRoot, p) : null;
-      if (resolved !== null && !isAllowedCdTarget(resolved, workspaceRoot)) {
+      // Fall back to DEFAULT_WORKSPACE_ROOTS[0] when workspaceRoot is not set so
+      // relative traversal is never silently skipped.
+      const base = workspaceRoot ?? DEFAULT_WORKSPACE_ROOTS[0]!;
+      const resolved = p.startsWith('/') ? p : resolve(base, p);
+      if (!isAllowedCdTarget(resolved, workspaceRoot)) {
         return deny(
           'path-outside-workspace',
           `${binaryBase} with path outside workspace is not allowed: ${p}`,
