@@ -70,7 +70,7 @@ export async function generateAIFix(
   let fix;
   try {
     const response = await aiProvider.complete({
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: prompt, cacheControl: { ttl: '5m' } }],
       schema: SearchReplaceFixSchema,
       maxTokens: 4000,
     });

@@ -43,13 +43,17 @@ export function detectCapabilities(provider: AIProviderName, model: string): Pro
 
 function detectOpenAICapabilities(model: string, isGitHub: boolean): ProviderCapabilities {
   const isGpt5 = /^gpt-5/.test(model);
+  const isOSeries = /^o[1-9]/.test(model);
   const matchers = isGitHub ? GITHUB_STRICT_MODELS : OPENAI_STRICT_MODELS;
   const supportsStrict = matchers.some((re) => re.test(model));
 
+  // o-series and gpt-5 reject `temperature` and require `max_completion_tokens`.
+  const isReasoningModel = isGpt5 || isOSeries;
+
   return {
     structuredDialect: supportsStrict ? 'openai-json-schema-strict' : 'openai-json-object',
-    supportsTemperature: !isGpt5,
-    maxTokensField: isGpt5 ? 'max_completion_tokens' : 'max_tokens',
+    supportsTemperature: !isReasoningModel,
+    maxTokensField: isReasoningModel ? 'max_completion_tokens' : 'max_tokens',
   };
 }
 

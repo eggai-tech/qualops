@@ -7,8 +7,10 @@ describe('detectCapabilities', () => {
       ['gpt-5-mini', 'openai-json-schema-strict', false, 'max_completion_tokens'],
       ['gpt-4o', 'openai-json-schema-strict', true, 'max_tokens'],
       ['gpt-4o-mini', 'openai-json-schema-strict', true, 'max_tokens'],
-      ['o1-preview', 'openai-json-schema-strict', true, 'max_tokens'],
-      ['o3-mini', 'openai-json-schema-strict', true, 'max_tokens'],
+      ['o1-preview', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+      ['o1-mini', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+      ['o3-mini', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+      ['o4-mini', 'openai-json-schema-strict', false, 'max_completion_tokens'],
       ['gpt-3.5-turbo', 'openai-json-object', true, 'max_tokens'],
       ['some-custom-model', 'openai-json-object', true, 'max_tokens'],
     ])('routes %s to %s', (model, dialect, supportsTemperature, maxTokensField) => {

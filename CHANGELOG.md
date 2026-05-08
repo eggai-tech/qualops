@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - All migrated callers (`file-reviewer`, `validation-resolver`, `dedup-resolver`, `fix-generator`, `root-cause-extract`) now use schema-driven `complete`. Hand-written `<response_format>` prompt blocks removed; semantic rules moved into zod `.describe()` annotations.
 - Upgrade TypeScript from 5.9 to 6.0 with tsconfig migration (`moduleResolution: bundler`, `baseUrl` removal)
 - Upgrade eslint from 9.x to 10.x, migrate `eslint-plugin-import` to `eslint-plugin-import-x`
+- Release process: introduce two-tier `@beta` / `@stable` model. `beta` and `stable` are movable lightweight git tags, force-moved by CI on each publish or promotion. See `docs/tdr/0001-release-process.md` and the rewritten Release Process section of `CONTRIBUTING.md`
+- `Create Release PR` workflow now deletes its half-created `release/v*` branch on failure
+- Release failure issues now include the failing stages and release kind (beta vs stable)
+- Normalize `uses: eggai-tech/qualops@v1` examples across the README, docs, and example workflows to `@stable`
+- Refactor agentic tools: `tools/index.ts` is now a provider-agnostic registry (`createToolSet`); Anthropic and OpenAI SDK wiring stays inside their respective adapters
 
 ### Removed
 - Deleted `JsonParser` class and the duplicated private `fixMalformedJson` (last production callers migrated).
