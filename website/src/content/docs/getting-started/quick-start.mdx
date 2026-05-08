@@ -35,7 +35,7 @@ jobs:
 
 Then add `ANTHROPIC_API_KEY` to your repository secrets (Settings → Secrets → Actions). On every PR, QualOps will analyze the diff, post a summary comment, and add inline annotations through the Checks API.
 
-For full setup details — secrets, permissions, troubleshooting — see [GitHub Action → Setup](../github-action/setup/).
+For full setup details — secrets, permissions, troubleshooting — see [GitHub Action → Setup](../../github-action/setup/).
 
 ## Local CLI
 
@@ -50,10 +50,10 @@ qualops --base=main --head=HEAD
 qualops --files="src/**/*.ts"
 ```
 
-You'll need an `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY` / AWS credentials, depending on your provider) in the environment. See [AI providers](../ai-providers/) for the full list.
+You'll need an `ANTHROPIC_API_KEY` (or `OPENAI_API_KEY` / AWS credentials, depending on your provider) in the environment. See [AI providers](../../ai-providers/) for the full list.
 
 ## Next steps
 
-- Read the [Configuration reference](../configuration/reference/) to tune the review pipeline
-- Pick between [file-by-file and agentic review modes](../review-modes/file-by-file/)
-- Browse [example configurations](../examples/configurations/) for Angular, Python, and security audits
+- Read the [Configuration reference](../../configuration/reference/) to tune the review pipeline
+- Pick between [file-by-file and agentic review modes](../../review-modes/file-by-file/)
+- Browse [example configurations](../../examples/configurations/) for Angular, Python, and security audits

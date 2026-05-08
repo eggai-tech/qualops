@@ -8,6 +8,10 @@ on:
       - 'website/**'
       - 'CHANGELOG.md'
       - 'CONTRIBUTING.md'
+      - 'docs/**'
+      - 'examples/**'
+      - '.qualops/examples/**'
+      - 'action.yml'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 

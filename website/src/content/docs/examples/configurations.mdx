@@ -1,13 +1,40 @@
 ---
 title: Example configurations
-description: Coming soon — curated index over .qualops/examples/.
+description: Reference .qualopsrc.json configurations for common project types — copy one into your project's .qualops/ folder and adapt.
 ---
 
-:::caution[Coming soon]
-We'll surface each example configuration with a short blurb here. For now, browse them directly in the repo:
+import { Card, CardGrid } from '@astrojs/starlight/components';
 
-- [`github`](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/github) — basic GitHub Actions setup
-- [`python-quality`](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/python-quality) — Python / FastAPI quality review
-- [`security-auditor`](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/security-auditor) — agentic security audit
-- [`angular-nx-monorepo`](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/angular-nx-monorepo) — Angular + NgRx + Nx monorepo
-:::
+These are working `.qualopsrc.json` configurations from the [`.qualops/examples/`](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples) folder. Each one targets a different project type or review focus. Copy the JSON into your repository's `.qualops/.qualopsrc.json` and adapt as needed.
+
+<CardGrid>
+	<Card title="GitHub Actions starter" icon="github">
+		Full-featured config plus three sample workflows (basic, advanced, npm-pinned). The right starting point for most repositories adopting QualOps via the Action.
+
+		**Files:** [`.qualopsrc.json`](https://github.com/eggai-tech/qualops/blob/main/.qualops/examples/github/.qualopsrc.json) · [workflows/](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/github/workflows) · [README](https://github.com/eggai-tech/qualops/blob/main/.qualops/examples/github/README.md)
+	</Card>
+	<Card title="Python quality" icon="seti:python">
+		FastAPI / async-Python focus. Demonstrates the `--config` flag with a custom configuration file and tuned review prompts for Python idioms.
+
+		**File:** [`python-quality.qualopsrc.json`](https://github.com/eggai-tech/qualops/blob/main/.qualops/examples/python-quality/python-quality.qualopsrc.json)
+	</Card>
+	<Card title="Security auditor" icon="seti:lock">
+		Agentic mode tuned for security reviews — cross-file vulnerability tracing, OWASP-aligned prompts, and a stricter validation pass.
+
+		**Files:** [`security-auditor.qualopsrc.json`](https://github.com/eggai-tech/qualops/blob/main/.qualops/examples/security-auditor/security-auditor.qualopsrc.json) · [prompts/](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/security-auditor/prompts)
+	</Card>
+	<Card title="Angular Nx monorepo" icon="seti:tsconfig">
+		Multi-app Nx workspace targeting NgRx SignalStore migrations. Demonstrates custom agentic prompts, deduplication rules, and per-pass fix prompts.
+
+		**Files:** [`signalstore-migration.qualopsrc.json`](https://github.com/eggai-tech/qualops/blob/main/.qualops/examples/angular-nx-monorepo/signalstore-migration.qualopsrc.json) · [prompts/](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/angular-nx-monorepo/prompts)
+	</Card>
+</CardGrid>
+
+## How to use one of these
+
+1. Copy the relevant `.qualopsrc.json` (or rename it to `.qualopsrc.json`) into a `.qualops/` directory at the root of your project.
+2. If the example has an accompanying `prompts/` directory, copy that too — the config references prompts by relative path.
+3. Make sure the API key environment variable for your provider (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or AWS credentials) is set in CI.
+4. Adapt: tune `review.minConfidence`, `review.maxFilesBeforeReset`, and the framework-specific prompts to your codebase.
+
+For the field-by-field reference, see [Configuration → Reference](../../configuration/reference/).
