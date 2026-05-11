@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "sync": "node scripts/sync-root-docs.mjs",
+    "sync": "node scripts/sync-root-docs.mjs && node scripts/gen-action-docs.mjs",
     "predev": "npm run sync",
     "prebuild": "npm run sync",
     "dev": "astro dev",
@@ -19,5 +19,8 @@
   },
   "engines": {
     "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "yaml": "^2.8.4"
   }
 }

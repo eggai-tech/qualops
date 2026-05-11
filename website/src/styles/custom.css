@@ -1,0 +1,31 @@
+/* Color-pulse on the splash hero's primary CTA (the Quick start button).
+   Brightness + saturation animate the button itself (works in both light and
+   dark themes without picking exact colors), and a soft outer glow amplifies
+   the effect. The secondary "View on GitHub" button is rendered as
+   .sl-link-button.minimal, so it is not affected. */
+@keyframes qualops-pulse-bg {
+	0%, 100% {
+		filter: brightness(1) saturate(1);
+		box-shadow: 0 0 0 0 transparent;
+	}
+	50% {
+		filter: brightness(1.25) saturate(1.35);
+		box-shadow: 0 0 22px 3px color-mix(in srgb, var(--sl-color-accent) 65%, transparent);
+	}
+}
+
+.sl-link-button.primary {
+	animation: qualops-pulse-bg 1.6s ease-in-out infinite;
+	transition: transform 0.15s ease;
+}
+
+.sl-link-button.primary:hover {
+	transform: translateY(-1px);
+	animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sl-link-button.primary {
+		animation: none;
+	}
+}

@@ -1,8 +1,36 @@
 ---
 title: Custom agents
-description: Coming soon — reusable agentic prompts for your project.
+description: Reusable agentic-mode prompts you can drop into your repository's .qualops/agents/ folder.
 ---
 
-:::caution[Coming soon]
-Browse the four example agent prompts under [`examples/agents/`](https://github.com/eggai-tech/qualops/tree/main/examples/agents): `comment-rewriter`, `migration-checker`, `rxjs-migration`, `angular-signals`.
-:::
+In [agentic review mode](../../review-modes/agentic/), the Claude Agent SDK can dispatch to specialised subagents that focus on one concern (security, migrations, comment quality, etc.). QualOps ships four custom agent prompts you can copy into your own project under `.qualops/agents/<name>.md` and reference from `.qualopsrc.json`.
+
+## Examples
+
+- [Comment rewriter](../agents/comment-rewriter/) — flags missing JSDoc, outdated comments, and unhelpful documentation
+- [Migration checker](../agents/migration-checker/) — reviews database migrations for safety and reversibility
+- [RxJS migration](../agents/rxjs-migration/) — identifies deprecated RxJS patterns and suggests modern alternatives
+- [Angular Signals](../agents/angular-signals/) — finds Angular code that could migrate to the Signals reactivity model
+
+Each page shows the full agent prompt as well as the metadata (`description`, `tools`, `model`) the Claude Agent SDK reads when loading the agent.
+
+## Wiring into your config
+
+In `.qualopsrc.json`, point an agentic job at one of these:
+
+```json
+{
+  "jobs": {
+    "rxjs-audit": {
+      "mode": "agentic",
+      "agentic": {
+        "maxTurns": 15,
+        "enabledSubagents": ["rxjs-migration"],
+        "systemPrompt": "Focus on RxJS 7+ migration in the changed files only."
+      }
+    }
+  }
+}
+```
+
+The agent file must live at `.qualops/agents/rxjs-migration.md` for the runtime to find it. The original markdown for each example above is at [`examples/agents/`](https://github.com/eggai-tech/qualops/tree/main/examples/agents) in the repository — copy as-is or adapt.

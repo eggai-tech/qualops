@@ -1,13 +1,16 @@
 ---
 title: Example configurations
-description: Coming soon — curated index over .qualops/examples/.
+description: QualOps runs with sensible defaults out of the box — example .qualopsrc.json configurations are available in the repository for when you need to customize.
 ---
 
-:::caution[Coming soon]
-We'll surface each example configuration with a short blurb here. For now, browse them directly in the repo:
+## Run with the defaults
 
-- [`github`](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/github) — basic GitHub Actions setup
-- [`python-quality`](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/python-quality) — Python / FastAPI quality review
-- [`security-auditor`](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/security-auditor) — agentic security audit
-- [`angular-nx-monorepo`](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples/angular-nx-monorepo) — Angular + NgRx + Nx monorepo
-:::
+QualOps is designed to run with a **good default configuration out of the box**, with no `.qualopsrc.json` required. For most projects, the easiest way to adopt QualOps is to set your provider API key in CI and let the defaults handle the rest — you only need to add a config file once you want to tune behavior for your codebase.
+
+If you're getting started, see the [Quick start](../../getting-started/quick-start/) — no configuration step needed.
+
+## Reference examples
+
+Working `.qualopsrc.json` examples live in the repository at [`.qualops/examples/`](https://github.com/eggai-tech/qualops/tree/main/.qualops/examples) and cover a few different project types and review focuses. Browse them when you need a starting point for customization.
+
+For the field-by-field reference of every option, see [Configuration → Reference](../../configuration/reference/).

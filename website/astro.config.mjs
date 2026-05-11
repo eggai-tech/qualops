@@ -12,6 +12,7 @@ export default defineConfig({
 			title: 'QualOps',
 			description: 'AI-powered code review for your PRs.',
 			lastUpdated: true,
+			customCss: ['./src/styles/custom.css'],
 			social: [
 				{
 					icon: 'github',
@@ -68,7 +69,16 @@ export default defineConfig({
 					label: 'Examples',
 					items: [
 						{ label: 'Configurations', slug: 'examples/configurations' },
-						{ label: 'Custom agents', slug: 'examples/custom-agents' },
+						{
+							label: 'Custom agents',
+							items: [
+								{ label: 'Overview', slug: 'examples/custom-agents' },
+								{ label: 'Comment rewriter', slug: 'examples/agents/comment-rewriter' },
+								{ label: 'Migration checker', slug: 'examples/agents/migration-checker' },
+								{ label: 'RxJS migration', slug: 'examples/agents/rxjs-migration' },
+								{ label: 'Angular Signals', slug: 'examples/agents/angular-signals' },
+							],
+						},
 						{ label: 'Claude Code command', slug: 'examples/claude-code-command' },
 					],
 				},
