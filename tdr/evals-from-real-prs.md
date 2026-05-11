@@ -62,10 +62,27 @@ evals/datasets/inbox/<slug>/
   // Language tag passed to the reviewer
   "language": "python",
 
+  // The commit the repo/ files and expected findings are based on.
+  // Use the earliest accessible pre-rebase commit so findings predate any review-driven fixes.
+  "baseSha": "<sha>",
+
+  // All prompts active when QualOps ran, stored at their repo-relative paths inside prompt/.
+  // The sha pins the exact version captured. prompt/ contains: .qualopsrc.json (inline
+  // systemPrompts and pipeline config), pass prompt files, subagents/definitions.ts
+  // (built-in subagent prompts), and .qualops/agents/*.md (custom agents) if any.
+  "reviewPromptSha": "<sha>",
+  "reviewPromptDir": "prompt/",
+
+  // The provider and model QualOps used when it ran on this PR (from .qualopsrc.json in CI).
+  // Provenance only — the eval runner uses its own preset at run time.
+  "capturedWithProvider": "anthropic",
+  "capturedWithModel": "claude-sonnet-4-5-20250929",
+
   // The unified diff of the PR (only the relevant hunks — can be trimmed)
   "diff": "diff --git a/src/sentry/api/endpoints/widget.py ...\n...",
 
-  // Expected findings — same schema as typescript-bugs.jsonl `expected[]`
+  // Expected findings — real issues present at baseSha that QualOps missed.
+  // Used as the recall target for scoring.
   "expected": [
     {
       "file": "src/sentry/api/endpoints/widget.py",
@@ -75,21 +92,52 @@ evals/datasets/inbox/<slug>/
       "severity": "high",
       "description": "findById() can return None; accessing .data on line 42 will raise AttributeError"
     }
+  ],
+
+  // Real issues present at baseSha that are outside the scope of the review prompt —
+  // e.g. a correctness or reliability bug when the prompt is security-focused.
+  // Not used by the recall scorer, but preserved so the full picture is recorded.
+  "outOfScope": [
+    {
+      "file": "src/sentry/api/endpoints/widget.py",
+      "line": 55,
+      "lineEnd": 55,
+      "type": "bug",
+      "severity": "medium",
+      "description": "<description of the real issue>",
+      "reason": "<why this is outside the prompt's scope>"
+    }
+  ],
+
+  // Issues QualOps reported that were confirmed as false positives.
+  // Not used by the recall scorer; used for precision/noise analysis and prompt improvement.
+  "falsePositives": [
+    {
+      "file": "src/sentry/api/endpoints/widget.py",
+      "line": 60,
+      "lineEnd": 60,
+      "type": "security",
+      "severity": "high",
+      "description": "<the description QualOps produced>",
+      "reason": "<why this is a false positive>"
+    }
   ]
 }
 ```
 
-The file tree lives under `repo/` inside the slug directory, mirroring the real repo paths. For example, if the PR touched `src/sentry/api/endpoints/widget.py` and the context needed is `src/sentry/models/widget.py`, the slice contains both:
+The file tree lives under `repo/` inside the slug directory, mirroring the real repo paths. The review prompt used when QualOps ran on this PR is bundled under `prompt/`, making the slice fully self-contained. For example:
 
 ```
 evals/datasets/inbox/sentry-pr-12345-missing-null-check/
   slice.json
+  prompt/
+    review-system-message.md   # prompt at reviewPromptSha — self-contained, no GitHub fetch needed
   repo/
     src/
       sentry/
         api/
           endpoints/
-            widget.py          # file at the PR's head commit
+            widget.py          # file at baseSha
         models/
           widget.py            # context file that reveals the None return
 ```
@@ -145,6 +193,11 @@ The developer writes a `slice.json` from the template. The most important fields
   "capturedAt": "YYYY-MM-DD",
   "capturedBy": "",
   "language": "",
+  "baseSha": "",
+  "reviewPromptSha": "",
+  "reviewPromptDir": "prompt/",
+  "capturedWithProvider": "",
+  "capturedWithModel": "",
   "diff": "",
   "expected": [
     {
@@ -155,7 +208,9 @@ The developer writes a `slice.json` from the template. The most important fields
       "severity": "high",
       "description": ""
     }
-  ]
+  ],
+  "outOfScope": [],
+  "falsePositives": []
 }
 ```
 
@@ -203,12 +258,12 @@ npm run eval -- --dataset=qualops/inbox --severity=high,critical
 
 ---
 
-## What is intentionally out of scope
+## What is intentionally not implemented
 
 - **Automatic capture tooling** (browser extension, CLI wizard). Manual capture is fast enough and keeps the format simple.
 - **Syncing inbox cases with the upstream PR repo**. The slice is a snapshot; it does not track upstream changes.
-- **Slices for false positives**. A false-positive case would require a different scorer (precision, not recall). That is a separate problem.
-- **Multi-PR cases**. Each inbox case covers one PR and one finding. If a PR has multiple independent misses, create one case per finding or group tightly related findings in a single case.
+- **Precision scoring for false positives**. `falsePositives[]` is recorded for analysis and prompt improvement but is not used by the recall scorer. A precision scorer is a separate problem.
+- **Multi-PR cases**. Each inbox case covers one PR. If a PR has multiple independent misses, group tightly related findings in a single case or create one case per finding.
 
 ---
 
@@ -218,4 +273,4 @@ npm run eval -- --dataset=qualops/inbox --severity=high,critical
 2. Confirm `reviewer.js` `resolveRepoCwd` handles a slice path (no `head_sha`, `repo_path` is a relative path inside the project). Should work today; verify with one real slice.
 3. Add `slice.json` template to `evals/datasets/inbox/README.md` (or `CONTRIBUTING.md`).
 4. Add `eval:upload:inbox` and `eval:inbox` npm scripts.
-5. Capture the first real slice from an observed miss to validate end-to-end.
+5. Capture the first real slice from an observed miss to validate end-to-end. ✓ Done: `evals/datasets/inbox/qualops-pr-144-bash-tool/`
