@@ -1,0 +1,83 @@
+---
+title: Releases
+description: How QualOps versions and ships releases — the @beta and @stable tracks, what to pin to, and how to read release notes.
+---
+
+QualOps ships on **two parallel tracks** so internal teams can dogfood new features before they reach production users.
+
+## The two tracks
+
+### `@stable` — production use
+
+Pinned to the most recent release that has been promoted out of beta. This is the default channel for external clients and anyone who values stability over newness.
+
+```yaml title=".github/workflows/qualops.yml"
+- uses: eggai-tech/qualops@stable
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+```bash title="npm"
+npm install @eggai/qualops
+```
+
+### `@beta` — pre-release, internal use
+
+Pinned to the most recent pre-release. New features land here first and soak for at least 5–7 days before being promoted to `@stable`. Use this if you want early access and are willing to file the occasional bug report.
+
+```yaml title=".github/workflows/qualops.yml"
+- uses: eggai-tech/qualops@beta
+  with:
+    anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+    github-token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+```bash title="npm"
+npm install @eggai/qualops@beta
+```
+
+## How versions are numbered
+
+QualOps follows [Semantic Versioning](https://semver.org/):
+
+- **`MAJOR`** (`1.0.0`) — breaking changes.
+- **`MINOR`** (`0.3.0`) — new features, backward compatible.
+- **`PATCH`** (`0.3.1`) — bug fixes, backward compatible.
+
+Beta releases append a `-beta.N` suffix:
+
+| Version           | Where it lives             |
+| ----------------- | -------------------------- |
+| `0.3.0-beta.1`    | npm `beta` dist-tag, `@beta` GitHub Action ref |
+| `0.3.0-beta.2`    | npm `beta` dist-tag, `@beta` GitHub Action ref |
+| `0.3.0`           | npm `latest` dist-tag, `@stable` GitHub Action ref |
+| `0.3.1`           | npm `latest` dist-tag, `@stable` GitHub Action ref (hotfix) |
+
+`vX.Y.Z` and `vX.Y.Z-beta.N` git tags are **immutable** — they always point at the exact commit that produced that release. Only `beta` and `stable` move.
+
+## Pinning to a specific version
+
+If you need reproducibility across CI runs, pin to a fixed version tag instead of a moving track:
+
+```yaml
+- uses: eggai-tech/qualops@v0.3.0
+```
+
+```bash
+npm install @eggai/qualops@0.3.0
+```
+
+You give up automatic updates in exchange for a guarantee that your build won't change underneath you.
+
+## Reading release notes
+
+Every release shows up in three places:
+
+- **[GitHub Releases](https://github.com/eggai-tech/qualops/releases)** — full changelog, installation snippets, and the `npm pack` tarball as an asset.
+- **[CHANGELOG.md](./changelog/)** — the same notes, grouped by version, viewable inside the docs site.
+- **[npm](https://www.npmjs.com/package/@eggai/qualops)** — version list and current `latest` / `beta` dist-tags.
+
+## For maintainers
+
+Cutting and promoting releases is documented in the [Contributing guide](./contributing/#release-process). The full design rationale lives in [TDR 0001 — Release process](https://github.com/eggai-tech/qualops/blob/main/docs/tdr/0001-release-process.md).

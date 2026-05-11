@@ -86,40 +86,73 @@ PRs that only touch `docs/`, `.github/`, `examples/`, or root config files are a
 
 ## Release Process
 
-Releases are managed by maintainers using GitHub Actions.
+QualOps ships on **two tiers**:
 
-### For Maintainers
+- **`@beta`** — pre-release track for internal users. Consumed as `uses: eggai-tech/qualops@beta` or `npm install @eggai/qualops@beta`.
+- **`@stable`** — production track for external clients. Consumed as `uses: eggai-tech/qualops@stable` or the default `npm install @eggai/qualops`.
 
-#### Creating a Release
+`beta` and `stable` are **movable lightweight git tags**. They are moved automatically by CI on every release or promotion. **Never move them by hand.** If you find them out of sync, see [`docs/tdr/0001-release-process.md`](docs/tdr/0001-release-process.md).
 
-1. Go to **Actions** → **Create Release PR**
-2. Click **Run workflow**
-3. Enter the version number:
-   - Stable: `0.2.0`
-   - Pre-release: `0.2.0-rc.1`
-4. The workflow creates a PR that:
-   - Updates `package.json` version
-   - Moves changelog entries from `[Unreleased]` to versioned section
-5. Review and merge the PR
+### Cutting a beta release
 
-#### What Happens After Merge
+1. Make sure `[Unreleased]` in `CHANGELOG.md` reflects all the changes you intend to ship.
+2. Go to **Actions** → **Create Release PR** → **Run workflow**.
+3. Enter a pre-release version, e.g. `0.3.0-beta.1`.
+4. Review the PR the workflow opens. It bumps `package.json` only — `[Unreleased]` is intentionally left untouched on beta releases.
+5. Merge the PR. CI will:
+   - Tag the commit `v0.3.0-beta.1` (immutable).
+   - Publish `@eggai/qualops@0.3.0-beta.1` to npm with the `beta` dist-tag (`latest` is not touched).
+   - Create a GitHub Release marked as pre-release.
+   - Force-move the `beta` git tag to the release commit.
 
-1. **Auto Tag**: Creates git tag `v0.2.0`
-2. **npm Publish**: Builds and publishes to npm
-3. **GitHub Release**: Creates release with changelog
+### Promoting a beta to stable
 
-### Version Guidelines
+Soak the beta for **at least 5–7 days** by running it against internal workloads. When you're confident:
+
+1. Go to **Actions** → **Promote to Stable** → **Run workflow**.
+2. Fill in:
+   - `beta_version`: the beta you want to promote (e.g., `0.3.0-beta.1`).
+   - `stable_version`: the clean version (e.g., `0.3.0`).
+   - `reason`: short justification — gets surfaced in the PR and the audit log.
+3. The workflow:
+   - Verifies the beta exists on npm with the `beta` dist-tag.
+   - Branches off the exact commit that `v$BETA_VERSION` tags.
+   - Bumps `package.json` to `$STABLE_VERSION` and moves `[Unreleased]` entries into `[$STABLE_VERSION]`.
+   - Opens a release PR labelled `promotion`.
+4. Review the PR. Check the diff against `main` — if other PRs have landed since the beta, decide whether those changes need additional soaking before promotion.
+5. Merge the PR. CI will:
+   - Tag `v0.3.0`.
+   - Publish `@eggai/qualops@0.3.0` to npm with the default `latest` dist-tag.
+   - Create a GitHub Release.
+   - Force-move the `stable` git tag and mark the release as `--latest`.
+
+### Hotfixes
+
+For an urgent fix to the current stable without going through beta:
+
+1. `git checkout -b hotfix/0.3.1 stable` (branch directly off the `stable` tag).
+2. Apply the fix and update `CHANGELOG.md` under `[Unreleased]`.
+3. Run **Create Release PR** with `0.3.1`. Merge.
+4. CI publishes `@eggai/qualops@0.3.1` to `latest` and force-moves `stable` to the new commit.
+5. Open a separate PR to merge the fix forward into `main`.
+
+### Version guidelines
 
 We follow [Semantic Versioning](https://semver.org/):
 
-- **MAJOR** (`1.0.0`): Breaking changes
-- **MINOR** (`0.2.0`): New features, backward compatible
-- **PATCH** (`0.1.1`): Bug fixes, backward compatible
+- **MAJOR** (`1.0.0`): Breaking changes.
+- **MINOR** (`0.3.0`): New features, backward compatible.
+- **PATCH** (`0.3.1`): Bug fixes, backward compatible.
 
-Pre-release versions:
-- `0.2.0-rc.1` - Release candidate
-- `0.2.0-alpha.1` - Alpha release
-- `0.2.0-beta.1` - Beta release
+Pre-release suffix: `-beta.N` (e.g., `0.3.0-beta.1`, `0.3.0-beta.2`). The `-rc.N` and `-alpha.N` suffixes are also accepted by the workflow and follow the same dist-tag handling as `-beta`.
+
+### Troubleshooting
+
+- **`stable` and `beta` git tags point at unexpected commits.** Do not move them manually. Open an issue — the recovery path is to run a `Promote to Stable` (or `Create Release PR` for beta) for the version you want them to point at; CI will overwrite the tag.
+- **A release workflow fails partway.** Check the auto-generated failure issue — it lists which stage failed. If `publish-npm` succeeded but a later stage failed, re-running the workflow is safe (later stages are idempotent). If `publish-npm` itself failed, check npm for partial state before retrying.
+- **`Create Release PR` left a `release/v*` branch behind after a failure.** Delete it manually with `git push origin --delete release/vX.Y.Z` and re-run.
+
+The full design rationale lives in [`docs/tdr/0001-release-process.md`](docs/tdr/0001-release-process.md).
 
 ## Code Style
 

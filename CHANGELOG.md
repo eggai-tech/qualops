@@ -12,10 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update the logger config loading to read from `${cwd}/.qualops/.qualopsrc.json` instead of CWD
 - Remove unused `promptfoo` devDependency
 - Fix lint failure with `typescript-eslint` 8.58+ due to unused type predicate parameter
+- npm publish workflow now passes `--tag beta` on pre-release versions so that the `latest` dist-tag is not clobbered by betas
+- CI changelog gate now treats `release/v*-beta.N` PRs like ordinary PRs (requires entries under `[Unreleased]` instead of a versioned heading), so beta release PRs pass CI
+- Movable `beta` / `stable` tag pushes now use an explicit-SHA `--force-with-lease` so the push succeeds on every release after the first (lightweight tags have no remote-tracking ref for the implicit lease to use)
+- Release-branch cleanup-on-failure now only runs when this workflow run actually pushed the branch (sentinel via `$GITHUB_ENV`), so a pre-existing `release/v*` branch is never deleted by a failed run
+- Release version validation now allows only the prerelease labels the publish workflow recognises (`rc`, `alpha`, `beta`); unrecognised labels like `0.3.0-preview.1` are rejected up-front instead of silently publishing to `latest`
+- `Promote to Stable` workflow now asserts that `stable_version` equals `beta_version`'s base (e.g., `0.4.0-beta.1` can only promote to `0.4.0`)
 
 ### Changed
 - Upgrade TypeScript from 5.9 to 6.0 with tsconfig migration (`moduleResolution: bundler`, `baseUrl` removal)
 - Upgrade eslint from 9.x to 10.x, migrate `eslint-plugin-import` to `eslint-plugin-import-x`
+- Release process: introduce two-tier `@beta` / `@stable` model. `beta` and `stable` are movable lightweight git tags, force-moved by CI on each publish or promotion. See `docs/tdr/0001-release-process.md` and the rewritten Release Process section of `CONTRIBUTING.md`
+- `Create Release PR` workflow now deletes its half-created `release/v*` branch on failure
+- Release failure issues now include the failing stages and release kind (beta vs stable)
+- Normalize `uses: eggai-tech/qualops@v1` examples across the README, docs, and example workflows to `@stable`
 
 ### Added
 - Agentic mode now supports OpenAI and Azure OpenAI providers via `@openai/agents`. Set `provider: "openai"` in your stage config to use the OpenAI adapter; set `OPENAI_BASE_URL` to an Azure endpoint and the correct Azure client is used automatically.
@@ -28,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Eval `--severity` filter to run only CRB cases with matching golden comment severity
 - Report on eval flakiness for Code Review Benchmark `npm run eval:recall-report` with filtering options `-- --severity=critical`
 - `init-claude` now scaffolds a validated default config, quality prompt, and supports `--provider` flag
+- New `Promote to Stable` workflow (`workflow_dispatch`) for promoting a beta release to a clean stable version
+- New `update-beta-ref` and `update-stable-ref` jobs in the npm publish workflow that force-move the `beta` / `stable` lightweight git tags after each release
+- `docs/tdr/` folder for Technical Design Records, with TDR 0001 documenting the release process
+- New `Releases` page on the docs site explaining the two-tier model to consumers
 
 ### Changed
 - AI provider types/factory now include `github` and use stricter provider typing

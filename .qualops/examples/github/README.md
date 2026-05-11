@@ -55,7 +55,7 @@ See `.qualopsrc.json` in this directory for all available options.
 ### Basic Usage
 
 ```yaml
-- uses: eggai-tech/qualops@v1
+- uses: eggai-tech/qualops@stable
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -63,7 +63,7 @@ See `.qualopsrc.json` in this directory for all available options.
 ### Custom Stages
 
 ```yaml
-- uses: eggai-tech/qualops@v1
+- uses: eggai-tech/qualops@stable
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     stages: 'analyze,review,judge'
@@ -72,7 +72,7 @@ See `.qualopsrc.json` in this directory for all available options.
 ### Specific Files
 
 ```yaml
-- uses: eggai-tech/qualops@v1
+- uses: eggai-tech/qualops@stable
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     files: 'src/**/*.ts'

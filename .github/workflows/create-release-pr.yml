@@ -39,9 +39,13 @@ jobs:
         env:
           VERSION: ${{ github.event.inputs.version }}
         run: |
-          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z]+\.[0-9]+)?$'; then
+          # Allow only the prerelease labels the downstream publish workflow
+          # recognises (rc|alpha|beta). Anything else would be silently
+          # classified as stable and published to npm's `latest` dist-tag.
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-(rc|alpha|beta)\.[0-9]+)?$'; then
             echo "Error: Invalid version format '$VERSION'"
-            echo "Expected format: X.Y.Z or X.Y.Z-rc.N (e.g., 0.2.0 or 0.2.0-rc.1)"
+            echo "Allowed formats: X.Y.Z, X.Y.Z-rc.N, X.Y.Z-alpha.N, X.Y.Z-beta.N"
+            echo "Examples: 0.3.0, 0.3.0-beta.1, 0.3.0-rc.2"
             exit 1
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
@@ -80,6 +84,9 @@ jobs:
           npm install --package-lock-only
           echo "Updated package.json and package-lock.json to version $VERSION"
 
+      # Beta releases intentionally leave [Unreleased] untouched — the same
+      # entries are promoted to a versioned section only at the stable cut.
+      # See docs/tdr/0001-release-process.md for the rationale.
       - name: Update changelog for stable release
         if: env.IS_PRERELEASE == 'false'
         run: |
@@ -105,6 +112,7 @@ jobs:
           git add package.json package-lock.json CHANGELOG.md
           git commit -m "chore: release v$VERSION"
           git push origin release/v$VERSION
+          echo "BRANCH_PUSHED_THIS_RUN=true" >> $GITHUB_ENV
 
       - name: Create Pull Request
         env:
@@ -118,3 +126,17 @@ jobs:
             --base main \
             --head release/v$VERSION \
             --label release
+
+      # If a prior step fails AFTER this run pushed the release branch,
+      # delete it so the next attempt starts clean. We gate on the sentinel
+      # set in the "Commit and push" step so we never delete a branch this
+      # run didn't create — e.g., a leftover from a previous run that the
+      # operator may still be inspecting.
+      - name: Cleanup release branch on failure
+        if: failure() && env.BRANCH_PUSHED_THIS_RUN == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          BRANCH="release/v$VERSION"
+          echo "Deleting branch $BRANCH pushed by this run"
+          git push origin --delete "$BRANCH" || echo "::warning::Failed to delete $BRANCH; remove manually."
