@@ -3,21 +3,21 @@
   "ai": {
     "reviewStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
+      "model": "claude-sonnet-4-6",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
     },
     "fixStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
+      "model": "claude-sonnet-4-6",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
     },
     "judgeStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-5-20250929",
+      "model": "claude-sonnet-4-6",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
