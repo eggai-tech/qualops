@@ -1,4 +1,5 @@
 const EXPLICIT_DENY: ReadonlySet<string> = new Set([
+  // Secrets
   'GITHUB_TOKEN',
   'GITHUB_APP_TOKEN',
   'GH_TOKEN',
@@ -6,6 +7,28 @@ const EXPLICIT_DENY: ReadonlySet<string> = new Set([
   'OPENAI_API_KEY',
   'NPM_TOKEN',
   'CODECOV_TOKEN',
+  // Shell startup file injection — sourced automatically before commands run.
+  // bash reads BASH_ENV for every non-interactive shell; --norc does NOT suppress it.
+  // ENV is the POSIX sh / dash / ksh equivalent.
+  'BASH_ENV',
+  'ENV',
+  // Node.js: --require/--loader in NODE_OPTIONS executes arbitrary code on every invocation.
+  // Intentionally absent from _ALLOW_LIST despite being a common env var.
+  'NODE_OPTIONS',
+  // Interpreter startup file / option injection
+  'PYTHONSTARTUP', // Python sources this file on startup
+  'RUBYOPT', // Ruby: -r loads arbitrary files
+  'PERL5OPT', // Perl: -M loads arbitrary modules
+  // JVM agent injection — -javaagent: loads and executes arbitrary bytecode
+  'JAVA_TOOL_OPTIONS',
+  'JDK_JAVA_OPTIONS',
+  '_JAVA_OPTIONS',
+  'GRADLE_OPTS',
+  'MAVEN_OPTS',
+  // Dynamic linker injection — shared library preloaded into every spawned binary
+  'LD_PRELOAD', // Linux: preload arbitrary shared library
+  'LD_AUDIT', // Linux: audit interface; same injection risk as LD_PRELOAD
+  'DYLD_INSERT_LIBRARIES', // macOS: equivalent of LD_PRELOAD
 ]);
 
 const DENY_SUFFIXES: readonly string[] = [
@@ -20,6 +43,18 @@ const DENY_SUFFIXES: readonly string[] = [
 
 const DENY_PREFIXES: readonly string[] = ['AWS_', 'AZURE_', 'GCP_', 'GOOGLE_', 'VAULT_'];
 
+/**
+ * Documentation-only list of env vars that are safe to pass through to the bash subprocess.
+ * This constant is NOT currently wired into scrubEnv — the actual filtering is done by
+ * EXPLICIT_DENY + isSecretLike (deny-list approach, everything else passes through).
+ *
+ * Notable absences from this list that are intentional:
+ * - BASH_ENV / ENV — startup file injection; in EXPLICIT_DENY
+ * - NODE_OPTIONS — --require/--loader code execution; in EXPLICIT_DENY
+ * - LD_PRELOAD / DYLD_INSERT_LIBRARIES — shared library injection; in EXPLICIT_DENY
+ * LD_LIBRARY_PATH / DYLD_LIBRARY_PATH appear below because they only affect library search
+ * paths (no startup execution), and checkEnvHijacking in policy.ts blocks AI-injected values.
+ */
 const _ALLOW_LIST: ReadonlySet<string> = new Set([
   // Shell / process fundamentals
   'HOME',
@@ -113,6 +148,9 @@ const _ALLOW_LIST: ReadonlySet<string> = new Set([
 function isSecretLike(name: string): boolean {
   const upper = name.toUpperCase();
   if (EXPLICIT_DENY.has(name)) return true;
+  // Bash exports functions via BASH_FUNC_<name>%% environment entries.
+  // Bash reads and loads these on startup regardless of --norc/--noprofile.
+  if (name.startsWith('BASH_FUNC_') && name.endsWith('%%')) return true;
   for (const suffix of DENY_SUFFIXES) {
     if (upper.endsWith(suffix)) return true;
   }

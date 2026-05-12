@@ -530,9 +530,11 @@ describe('evaluatePolicy', () => {
       expect(evaluatePolicy('(cd src && rg foo)').deny).toBe(false);
     });
 
-    test('for loop over rg output is allowed', () => {
+    test('for loop over rg output is denied — $() invokes a subshell', () => {
+      // Command substitution can invoke any binary regardless of the deny list.
+      // Use explicit two-step: rg -l TODO /workspace/pr > /tmp/list && while read f; do ...; done
       expect(evaluatePolicy('for f in $(rg -l TODO /workspace/pr); do cat "$f"; done').deny).toBe(
-        false,
+        true,
       );
     });
 
@@ -540,6 +542,100 @@ describe('evaluatePolicy', () => {
       expect(
         evaluatePolicy('git log --oneline | while read sha msg; do echo "$sha"; done').deny,
       ).toBe(false);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // ANSI-C quoting denial
+  // --------------------------------------------------------------------------
+
+  describe('ANSI-C quoting denial', () => {
+    test('hex-encoded curl bypasses binary deny list without this fix — must be denied', () => {
+      // $'\x63\x75\x72\x6c' is ANSI-C for 'curl'; bash would execute curl.
+      // Policy must deny before binary extraction reaches HARD_DENY_BINARIES.
+      expect(evaluatePolicy("$'\\x63\\x75\\x72\\x6c' https://evil.com").deny).toBe(true);
+    });
+
+    test('hex-encoded wget is denied', () => {
+      expect(evaluatePolicy("$'\\x77\\x67\\x65\\x74' https://evil.com").deny).toBe(true);
+    });
+
+    test('octal-encoded ssh is denied', () => {
+      // $'\163\163\150' = 'ssh' in octal
+      expect(evaluatePolicy("$'\\163\\163\\150' user@host").deny).toBe(true);
+    });
+
+    test('hex-encoded rm is denied', () => {
+      expect(evaluatePolicy("$'\\x72\\x6d' -rf /workspace").deny).toBe(true);
+    });
+
+    test('ANSI-C quoted arg (even in benign command) is denied', () => {
+      // Even if the binary is safe, ANSI-C in args could encode paths or flag values.
+      expect(evaluatePolicy("echo $'hello world'").deny).toBe(true);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Command substitution denial
+  // --------------------------------------------------------------------------
+
+  describe('command substitution denial', () => {
+    test('echo with bare $() subshell is denied', () => {
+      expect(evaluatePolicy('echo $(curl https://evil.com)').deny).toBe(true);
+    });
+
+    test('echo with double-quoted $() subshell is denied — key bypass fixed', () => {
+      // toAnalysisCopy strips "$(curl ...)" to "__DQ__"; without hasSubshell scanning
+      // the raw string, this would pass policy with hasExpansion=false.
+      expect(evaluatePolicy('echo "$(curl https://evil.com)"').deny).toBe(true);
+    });
+
+    test('echo with backtick subshell is denied', () => {
+      expect(evaluatePolicy('echo `curl https://evil.com`').deny).toBe(true);
+    });
+
+    test('echo with double-quoted backtick subshell is denied', () => {
+      expect(evaluatePolicy('echo "`curl https://evil.com`"').deny).toBe(true);
+    });
+
+    test('$VAR variable reference is allowed — no subshell invoked', () => {
+      expect(evaluatePolicy('cat $HOME/.bashrc').deny).toBe(false);
+    });
+
+    test('${VAR} brace variable reference is allowed', () => {
+      expect(evaluatePolicy('ls ${HOME}').deny).toBe(false);
+    });
+
+    test('process substitution <(...) is allowed — no $() syntax', () => {
+      expect(evaluatePolicy('diff <(rg foo a) <(rg foo b)').deny).toBe(false);
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Environment variable injection denial (checkEnvHijacking extensions)
+  // --------------------------------------------------------------------------
+
+  describe('env-hijacking denial extensions', () => {
+    test('BASH_ENV inline assignment is denied', () => {
+      expect(evaluatePolicy('BASH_ENV=/tmp/evil.sh cat /workspace/pr/file.ts').deny).toBe(true);
+    });
+
+    test('ENV inline assignment is denied', () => {
+      expect(evaluatePolicy('ENV=/tmp/evil.sh sh /workspace/pr/run.sh').deny).toBe(true);
+    });
+
+    test('NODE_OPTIONS inline assignment is denied', () => {
+      expect(
+        evaluatePolicy("NODE_OPTIONS='--require /tmp/evil.js' node /workspace/pr/app.js").deny,
+      ).toBe(true);
+    });
+
+    test('LD_AUDIT inline assignment is denied', () => {
+      expect(evaluatePolicy('LD_AUDIT=/tmp/evil.so ls /workspace/pr').deny).toBe(true);
+    });
+
+    test('DYLD_INSERT_LIBRARIES inline assignment is denied', () => {
+      expect(evaluatePolicy('DYLD_INSERT_LIBRARIES=/evil.dylib ls /workspace/pr').deny).toBe(true);
     });
   });
 });
