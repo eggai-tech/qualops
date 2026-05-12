@@ -3,7 +3,7 @@
   "ai": {
     "reviewStage": {
       "provider": "anthropic",
-      "model": "claude-sonnet-4-6",
+      "model": "claude-opus-4-6",
       "inputPerMillion": 3.0,
       "outputPerMillion": 15.0,
       "temperature": 0
