@@ -33,17 +33,16 @@ export async function execBashCommand(
   const preResult = await driver.preCall(callId, input.command);
   violations.push(...preResult.violations);
 
-  const timeoutHandle = setTimeout(() => {}, timeoutMs);
-
   try {
     const raceResult = await Promise.race([
       session.exec(input.command, workspaceRoot),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
     ]);
 
-    clearTimeout(timeoutHandle);
-
     if (raceResult === null) {
+      // Interrupt the running command in the persistent shell so it doesn't
+      // continue executing and pollute the next command's output buffer.
+      session.interrupt();
       exitReason = 'timed_out';
       result = {
         stdout: '',
@@ -57,7 +56,6 @@ export async function execBashCommand(
       result = raceResult;
     }
   } catch (err) {
-    clearTimeout(timeoutHandle);
     logger.error('[bash/exec] Unexpected error during exec', { err, callId });
     result = {
       stdout: '',

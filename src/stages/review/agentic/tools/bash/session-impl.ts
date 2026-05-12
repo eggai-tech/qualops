@@ -51,6 +51,18 @@ interface SentinelData {
   cwd: string;
 }
 
+function buildExecScript(command: string): string {
+  // Wrap the command so bash captures its exit code and emits the sentinel.
+  // The sentinel carries the exit code as JSON; cwd follows on a separate line
+  // to avoid JSON quoting issues with paths containing backslashes or quotes.
+  return (
+    `${command}\n` +
+    `__exit__=$?\n` +
+    `echo "${SENTINEL_BEGIN}{\\"exit\\":\\"$__exit__\\"}${SENTINEL_END}"\n` +
+    `echo "${SENTINEL_PWD_PREFIX}$(pwd)"\n`
+  );
+}
+
 function parseSentinel(output: string): SentinelData | null {
   const start = output.indexOf(SENTINEL_BEGIN);
   const end = output.indexOf(SENTINEL_END, start);
@@ -88,6 +100,7 @@ export class BashShellSession {
   private stderrBuf = '';
   private waiters: Array<() => void> = [];
   private closed = false;
+  private interrupting = false;
 
   private constructor(cwd: string, driver: SandboxDriver) {
     this.cwd = cwd;
@@ -142,8 +155,6 @@ export class BashShellSession {
     });
 
     await this.writeAndWaitForSentinel(SHELL_INIT);
-    this.stdoutBuf = '';
-    this.stderrBuf = '';
   }
 
   private drainWaiters(): void {
@@ -177,26 +188,25 @@ export class BashShellSession {
       await this.waitForData();
     }
 
-    const stdout = this.stdoutBuf;
-    const stderr = this.stderrBuf;
+    const result = { stdout: this.stdoutBuf, stderr: this.stderrBuf };
     this.stdoutBuf = '';
     this.stderrBuf = '';
+    this.interrupting = false;
 
-    return { stdout, stderr };
+    return result;
   }
 
   async exec(command: string, workspaceRoot: string = '/workspace'): Promise<SessionExecResult> {
     if (!this.proc || this.closed) {
       throw new Error('[bash/session] Shell session has been disposed');
     }
+    if (this.interrupting) {
+      throw new Error('[bash/session] Cannot exec while previous command is being interrupted');
+    }
 
     const startMs = Date.now();
 
-    // Wrap command: run it, capture exit code, then echo the sentinel explicitly.
-    // Non-interactive shells don't print PS1, so we echo it ourselves after each command.
-    // cwd is emitted on a separate line to avoid JSON quoting issues with special path chars.
-    const script = `${command}\n__exit__=$?\necho "${SENTINEL_BEGIN}{\\"exit\\":\\"$__exit__\\"}${SENTINEL_END}"\necho "${SENTINEL_PWD_PREFIX}$(pwd)"\n`;
-    const { stdout, stderr } = await this.writeAndWaitForSentinel(script);
+    const { stdout, stderr } = await this.writeAndWaitForSentinel(buildExecScript(command));
 
     const durationMs = Date.now() - startMs;
 
@@ -226,6 +236,18 @@ export class BashShellSession {
       cwdDrifted,
       cwdDriftNotice,
     };
+  }
+
+  /**
+   * Sends SIGINT to the shell process to abort the currently running command.
+   * Called by exec.ts when the timeout fires before the command finishes.
+   * The session remains usable for subsequent commands.
+   */
+  interrupt(): void {
+    if (this.proc && !this.closed) {
+      this.interrupting = true;
+      this.proc.kill('SIGINT');
+    }
   }
 
   async dispose(): Promise<void> {
