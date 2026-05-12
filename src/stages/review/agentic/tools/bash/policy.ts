@@ -678,6 +678,22 @@ function checkStructural(cmd: string): PolicyOutcome | null {
     return deny('ansi-c-quoting', "ANSI-C quoting ($'...') is not allowed");
   }
 
+  // Partial quoting (e.g. "cu"rl or 'cu'rl) produces a token that unquoteArg cannot
+  // fully normalise — it only strips quotes that wrap the entire token. The partially-
+  // quoted token reaches HARD_DENY_BINARIES as "cu"rl rather than curl and bypasses it.
+  // Detection runs on the analysis copy (after quote content is replaced with placeholders)
+  // so that quotes inside strings like "console.log('x')" are not mistaken for partial
+  // quoting. On the analysis copy, "cu"rl becomes "__DQ__"rl and 'cu'rl becomes '__SQ__'rl —
+  // both have a closing quote followed immediately by a word character, which is the exact
+  // signature of a partially-quoted token. Legitimate fully-quoted args end at whitespace.
+  // On the analysis copy, placeholder-opening quotes are always followed by _ (e.g. '__SQ__',
+  // '__DQ__'). A partially-quoted token's closing quote is followed by the actual next word
+  // character (never _). Excluding _ from the after-set avoids false positives on all
+  // --flag='value' and --flag="value" forms while still catching "cu"rl → "__DQ__"rl.
+  if (/['"][a-zA-Z0-9/.-]/.test(analysis)) {
+    return deny('partial-quoting', 'Partial quoting ("cu"rl, \'cu\'rl) is not allowed');
+  }
+
   if (/\x00/.test(cmd)) {
     return deny('control-chars', 'Command contains NUL byte');
   }
