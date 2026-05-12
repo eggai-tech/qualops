@@ -179,6 +179,74 @@ export function parseLogicalCommand(raw: string): ParsedCommand {
 }
 
 /**
+ * Collects every value associated with any of the named flags across the
+ * entire args array. Handles all three forms:
+ *   -c value          (space-separated)
+ *   -c=value          (equals-form, short flag)
+ *   --flag=value      (equals-form, long flag)
+ *   -cVALUE           (short flag with attached value, e.g. git -ccore.x=y)
+ *   --flag value      (space-separated, long flag)
+ *
+ * Pass the flag prefix exactly as it appears (e.g. '-c', '--command').
+ */
+export function flagValues(args: string[], ...flags: string[]): string[] {
+  const results: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i]!;
+    for (const flag of flags) {
+      if (a === flag) {
+        // space-separated: -c value  /  --flag value
+        if (i + 1 < args.length) results.push(args[i + 1]!);
+      } else if (a.startsWith(flag + '=')) {
+        // equals-form: -c=value  /  --flag=value
+        results.push(a.slice(flag.length + 1));
+      } else if (
+        flag.length === 2 &&
+        flag[0] === '-' &&
+        flag[1] !== '-' &&
+        a.startsWith(flag) &&
+        a.length > 2
+      ) {
+        // short-flag with attached value: -cVALUE  (flag is '-c')
+        results.push(a.slice(2));
+      }
+    }
+  }
+  return results;
+}
+
+/**
+ * Returns the first positional argument — a token that is not a flag and
+ * not a value consumed by a preceding flag. Scans the full args array so
+ * flags in any position (before or after positional args) are skipped.
+ *
+ * Skipping rules:
+ *   --flag=value   self-contained; advance by 1
+ *   --flag value   long flag consumes next token; advance by 2
+ *   -f             short flag, conservatively advance by 1 (may or may not
+ *                  consume the next token — we err on the safe side and do
+ *                  not skip the next token, so a misidentified "value" token
+ *                  becomes a candidate positional and is checked normally)
+ */
+export function firstPositional(args: string[]): string | undefined {
+  let i = 0;
+  while (i < args.length) {
+    const a = args[i]!;
+    if (!a.startsWith('-')) return a; // positional found
+    if (a.includes('=')) {
+      i++;
+      continue;
+    } // --flag=value: self-contained
+    if (a.startsWith('--')) {
+      i += 2;
+      continue;
+    } // --flag value: skip value token
+    i++; // short flag: advance conservatively
+  }
+  return undefined;
+}
+
+/**
  * Top-level tokeniser: splits the command on structural operators,
  * then parses each segment.
  */

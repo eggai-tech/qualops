@@ -1,4 +1,10 @@
-import { tokenise, toAnalysisCopy, type ParsedCommand } from './parser.js';
+import {
+  tokenise,
+  toAnalysisCopy,
+  flagValues,
+  firstPositional,
+  type ParsedCommand,
+} from './parser.js';
 import { resolveWithinCwd } from '../../../../../shared/utils/security.js';
 
 export interface PolicyResult {
@@ -379,7 +385,9 @@ function checkHardDenyBinary(binaryBase: string, args: string[]): PolicyOutcome 
 
 function checkPackageManager(binaryBase: string, args: string[]): PolicyOutcome | null {
   if (!['npm', 'npx', 'yarn', 'pnpm', 'bun'].includes(binaryBase)) return null;
-  const sub = args[0];
+  // Use firstPositional so flags before the subcommand (e.g. npm --loglevel=silent install)
+  // are skipped and the actual subcommand is found regardless of position.
+  const sub = firstPositional(args);
   if (!sub) {
     return deny('package-manager-interactive', `${binaryBase} without subcommand is not allowed`);
   }
@@ -390,11 +398,11 @@ function checkPackageManager(binaryBase: string, args: string[]): PolicyOutcome 
 }
 
 function checkGitCommand(args: string[]): PolicyOutcome {
-  // Match both `-c key=val` (space-separated) and `-ckey=val` (concatenated).
-  // The concatenated form is valid git syntax and would bypass an indexOf('-c') check.
-  const dashCArg = args.find((a) => a === '-c' || a.startsWith('-c'));
-  if (dashCArg !== undefined) {
-    const kvPair = dashCArg === '-c' ? (args[args.indexOf('-c') + 1] ?? '') : dashCArg.slice(2); // strip the '-c' prefix
+  // Check every -c occurrence — using flagValues handles space-separated (-c key=val),
+  // concatenated (-ckey=val), and equals-form (-c=key=val) in a single pass.
+  // The previous args.find() only inspected the first match, allowing multiple
+  // -c flags where only the second contained the dangerous pattern.
+  for (const kvPair of flagValues(args, '-c')) {
     for (const pattern of DENIED_GIT_CONFIG_PATTERNS) {
       if (pattern.test(kvPair)) {
         return deny(
@@ -405,7 +413,11 @@ function checkGitCommand(args: string[]): PolicyOutcome {
     }
   }
 
-  const subCmd = args.find((a) => !a.startsWith('-') && !a.includes('='));
+  // firstPositional correctly skips all flags regardless of position.
+  // The previous args.find(!startsWith('-') && !includes('=')) was fragile:
+  // !includes('=') was meant to skip KEY=VAL env assignments, but those are
+  // already stripped by parseLogicalCommand before args is built.
+  const subCmd = firstPositional(args);
   if (!subCmd) return allow; // git with no subcommand is harmless (shows usage)
 
   if (DENIED_GIT_SUBCOMMANDS.has(subCmd)) {
@@ -465,8 +477,10 @@ function checkInteractiveRepl(
   }
 
   if (binaryBase === 'psql') {
-    const hasCmd = args.includes('-c') || args.includes('--command');
-    const hasFile = args.includes('-f') || args.includes('--file');
+    // Use flagValues so equals-form (--command=SELECT, --file=/path) is recognised.
+    // args.includes('--command') would miss '--command=SELECT' since that is a single token.
+    const hasCmd = flagValues(args, '-c', '--command').length > 0;
+    const hasFile = flagValues(args, '-f', '--file').length > 0;
     if (!hasCmd && !hasFile) {
       return deny('interactive-repl', 'psql without -c or -f launches an interactive shell');
     }
@@ -474,7 +488,8 @@ function checkInteractiveRepl(
   }
 
   if (binaryBase === 'mysql') {
-    const hasE = args.includes('-e') || args.includes('--execute');
+    // Same fix: --execute=SELECT would be missed by args.includes('--execute').
+    const hasE = flagValues(args, '-e', '--execute').length > 0;
     if (!hasE) {
       return deny('interactive-repl', 'mysql without -e launches an interactive shell');
     }
