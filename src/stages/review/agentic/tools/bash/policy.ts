@@ -531,13 +531,15 @@ function checkShellInvocation(
   binaryBase: string,
   args: string[],
   raw: string,
+  config: PolicyConfig,
 ): PolicyOutcome | null {
   if (!['bash', 'sh', 'zsh'].includes(binaryBase)) return null;
 
   // Match both `-c script` (space-separated) and `-cscript` (concatenated).
   // bash -c'cmd' is valid shell syntax and would bypass an indexOf('-c') check.
-  const dashCArg = args.find((a) => a === '-c' || a.startsWith('-c'));
-  if (dashCArg !== undefined) {
+  const dashCIdx = args.findIndex((a) => a === '-c' || a.startsWith('-c'));
+  if (dashCIdx !== -1) {
+    const dashCArg = args[dashCIdx]!;
     if (dashCArg !== '-c') {
       // Concatenated form (e.g. bash -c'cmd' or bash -c"cmd"): deny outright because
       // the script content spans tokens in a way our whitespace tokenizer cannot reliably
@@ -557,6 +559,27 @@ function checkShellInvocation(
         'shell-expansion-in-literal',
         `${binaryBase} -c with variable/subshell expansion in literal is not allowed`,
       );
+    }
+    // Re-evaluate the script content through the full policy so that denied binaries
+    // inside the script (e.g. bash -c 'curl https://evil.com') are caught even without
+    // variable expansion. Use afterDashC (extracted from raw) rather than args[dashCIdx+1]
+    // because the whitespace-split tokenizer fragments multi-word quoted scripts:
+    // 'rg foo | head' would split into ["'rg", "foo", "|", "head'"].
+    const scriptRaw = afterDashC.trim();
+    // Strip the outer single or double quotes to get the literal script content.
+    const script =
+      (scriptRaw.startsWith("'") && scriptRaw.endsWith("'")) ||
+      (scriptRaw.startsWith('"') && scriptRaw.endsWith('"'))
+        ? scriptRaw.slice(1, -1)
+        : scriptRaw;
+    if (script) {
+      const inner = evaluatePolicy(script, config);
+      if (inner.deny) {
+        return deny(
+          'shell-script-denied',
+          `${binaryBase} -c script contains a denied command: ${inner.reason}`,
+        );
+      }
     }
     return allow;
   }
@@ -643,7 +666,7 @@ function checkSingleCommand(cmd: ParsedCommand, config: PolicyConfig): PolicyOut
   if ((result = checkPackageManager(binaryBase, args))) return result;
   if (binaryBase === 'git') return checkGitCommand(args);
   if ((result = checkInteractiveRepl(binaryBase, args, raw))) return result;
-  if ((result = checkShellInvocation(binaryBase, args, raw))) return result;
+  if ((result = checkShellInvocation(binaryBase, args, raw, config))) return result;
   if ((result = checkPathAccess(binaryBase, args, config.workspaceRoot))) return result;
 
   if (config.extraDenyPatterns) {

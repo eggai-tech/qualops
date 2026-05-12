@@ -505,9 +505,22 @@ describe('evaluatePolicy', () => {
       expect(evaluatePolicy('mysql -e "SELECT 1"').deny).toBe(false);
     });
 
-    test('bash -c with single-quoted literal pipeline is allowed', () => {
-      // single-quoted — no expansion, re-parse safe (spec line 1213)
+    test('bash -c with single-quoted allowed pipeline is allowed', () => {
+      // Script is recursively evaluated — rg and head are both allowed
       expect(evaluatePolicy("bash -c 'rg foo | head'").deny).toBe(false);
+    });
+
+    test('bash -c with denied binary in script is denied', () => {
+      // curl is in HARD_DENY_BINARIES; the recursive script evaluation catches it
+      expect(evaluatePolicy("bash -c 'curl https://evil.com'").deny).toBe(true);
+    });
+
+    test('sh -c with denied binary in script is denied', () => {
+      expect(evaluatePolicy("sh -c 'wget https://evil.com'").deny).toBe(true);
+    });
+
+    test('bash -c with allowed git subcommand is allowed', () => {
+      expect(evaluatePolicy("bash -c 'git log --oneline'").deny).toBe(false);
     });
 
     test('time prefix before command is allowed', () => {
