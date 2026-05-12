@@ -20,6 +20,13 @@ export interface ParsedCommand {
   hasRedirection: boolean;
   /** True if the raw text contains unquoted variable/subshell expansions. */
   hasExpansion: boolean;
+  /**
+   * True if the raw text contains $(...) or backtick command substitution anywhere,
+   * including inside double-quoted strings. Scanned from the raw string (not the
+   * analysis copy) because toAnalysisCopy strips "$(cmd)" to "__DQ__", making
+   * hasExpansion miss subshells inside double-quoted contexts.
+   */
+  hasSubshell: boolean;
   /** True if the raw text ends with an unquoted background `&`. */
   hasBackground: boolean;
   /** True if the raw text contains unquoted NUL or literal newline. */
@@ -59,14 +66,20 @@ function stripSingleQuoted(input: string): string {
  * Strips surrounding quotes from a word that is entirely quoted, returning
  * the inner literal value for path/policy checking purposes.
  * Handles: 'content', "content", and $'content' (ANSI-C quoting).
- * Does not expand escape sequences — returns raw inner bytes.
+ * Does not expand ANSI-C escape sequences (\xHH, \NNN, etc.) — returns raw inner bytes.
+ *
+ * NOTE: For policy evaluation, commands containing $'...' are denied outright by
+ * checkStructural before any command is tokenised or args are parsed, so the ANSI-C
+ * branch below is only reached for the internal analysis-copy placeholder path
+ * (e.g. '$\'__ANSI_C__\'' produced by stripAnsiCQuoted). Full escape expansion is
+ * therefore not needed here — the policy never sees escape-encoded binary names.
  */
 function unquoteArg(arg: string): string {
   if (arg.length >= 2) {
     if ((arg.startsWith("'") && arg.endsWith("'")) || (arg.startsWith('"') && arg.endsWith('"'))) {
       return arg.slice(1, -1);
     }
-    // ANSI-C quoting: $'content'
+    // ANSI-C quoting: $'content' — see note above; expansion not required here.
     if (arg.startsWith("$'") && arg.endsWith("'")) {
       return arg.slice(2, -1);
     }
@@ -158,6 +171,9 @@ export function parseLogicalCommand(raw: string): ParsedCommand {
     /\$[0-9#@*?!-]/.test(analysis);
   const hasBackground = /&\s*$/.test(analysis);
   const hasControlChars = /\\0|\\x00|\u0000/.test(raw) || /\n/.test(analysis.replace(/\\n/g, ''));
+  // Scan the RAW string (not analysis copy) so $(...) inside double-quoted strings is detected.
+  // toAnalysisCopy strips "$(cmd)" → "__DQ__", which would make hasExpansion miss it.
+  const hasSubshell = /\$\(/.test(raw) || /`/.test(raw);
 
   // Strip leading env var assignments (FOO=bar BAZ=qux cmd ...)
   const withoutEnvAssigns = raw.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]*\s+)*/, '');
@@ -173,6 +189,7 @@ export function parseLogicalCommand(raw: string): ParsedCommand {
     args,
     hasRedirection,
     hasExpansion,
+    hasSubshell,
     hasBackground,
     hasControlChars,
   };
