@@ -1,0 +1,184 @@
+name: Promote to Stable
+
+# Promote an already-published beta release (e.g. 0.3.0-beta.1) to a clean
+# stable version (e.g. 0.3.0). The workflow opens a release PR rooted on the
+# beta's tagged commit; after the maintainer reviews and merges, the existing
+# npm-publish.yml pipeline ships the stable artifact and moves the `stable`
+# git tag.
+#
+# See docs/tdr/0001-release-process.md for the full rationale.
+
+on:
+  workflow_dispatch:
+    inputs:
+      beta_version:
+        description: 'Existing beta version to promote (e.g., 0.3.0-beta.1)'
+        required: true
+        type: string
+      stable_version:
+        description: 'Target stable version (e.g., 0.3.0)'
+        required: true
+        type: string
+      reason:
+        description: 'Why this beta is being promoted (visible in PR + audit log)'
+        required: true
+        type: string
+
+jobs:
+  open-promotion-pr:
+    runs-on: ubuntu-latest
+    environment:
+      name: npm
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Validate version formats
+        env:
+          BETA_VERSION: ${{ github.event.inputs.beta_version }}
+          STABLE_VERSION: ${{ github.event.inputs.stable_version }}
+        run: |
+          if ! echo "$BETA_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-(rc|alpha|beta)\.[0-9]+$'; then
+            echo "::error::beta_version must look like X.Y.Z-beta.N (got: $BETA_VERSION)"
+            exit 1
+          fi
+          if ! echo "$STABLE_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::stable_version must look like X.Y.Z (got: $STABLE_VERSION)"
+            exit 1
+          fi
+          # stable_version must equal beta_version with the prerelease suffix
+          # stripped — otherwise we'd be "promoting" a beta of one version
+          # into a stable of another, which makes no semantic sense.
+          BETA_BASE="${BETA_VERSION%-*}"
+          if [ "$BETA_BASE" != "$STABLE_VERSION" ]; then
+            echo "::error::stable_version ($STABLE_VERSION) must equal beta_version's base ($BETA_BASE). Got beta_version=$BETA_VERSION."
+            exit 1
+          fi
+
+      - name: Verify beta exists on npm with beta dist-tag
+        env:
+          BETA_VERSION: ${{ github.event.inputs.beta_version }}
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://registry.npmjs.org/@eggai%2fqualops/$BETA_VERSION")
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::@eggai/qualops@$BETA_VERSION not found on npm (HTTP $STATUS)"
+            exit 1
+          fi
+          BETA_DIST=$(npm view "@eggai/qualops@$BETA_VERSION" dist-tags.beta 2>/dev/null || true)
+          if [ "$BETA_DIST" != "$BETA_VERSION" ]; then
+            echo "::error::npm dist-tag 'beta' is not $BETA_VERSION (got: '$BETA_DIST'). Refusing to promote a version that isn't currently the beta tip."
+            exit 1
+          fi
+          echo "Verified @eggai/qualops@$BETA_VERSION is the current beta dist-tag."
+
+      - name: Generate app token
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout at beta commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: v${{ github.event.inputs.beta_version }}
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Configure git identity
+        run: |
+          git config user.name "eggai-release-bot[bot]"
+          git config user.email "eggai-release-bot[bot]@users.noreply.github.com"
+
+      - name: Create promotion release branch
+        env:
+          STABLE_VERSION: ${{ github.event.inputs.stable_version }}
+        run: |
+          BRANCH="release/v$STABLE_VERSION"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "::error::Remote branch $BRANCH already exists. Delete it or pick a different stable_version."
+            exit 1
+          fi
+          git checkout -b "$BRANCH"
+
+      - name: Update package.json version
+        env:
+          STABLE_VERSION: ${{ github.event.inputs.stable_version }}
+        run: |
+          npm version "$STABLE_VERSION" --no-git-tag-version
+          npm install --package-lock-only
+          echo "package.json bumped to $STABLE_VERSION"
+
+      - name: Move [Unreleased] entries into stable section
+        env:
+          STABLE_VERSION: ${{ github.event.inputs.stable_version }}
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          sed -i "s/^## \[Unreleased\]$/## [Unreleased]\n\n## [$STABLE_VERSION] - $DATE/" CHANGELOG.md
+          echo "CHANGELOG.md updated for $STABLE_VERSION ($DATE)"
+
+      - name: Commit and push
+        env:
+          STABLE_VERSION: ${{ github.event.inputs.stable_version }}
+        run: |
+          git add package.json package-lock.json CHANGELOG.md
+          git commit -m "chore: promote v$STABLE_VERSION to stable"
+          git push origin "release/v$STABLE_VERSION"
+          echo "BRANCH_PUSHED_THIS_RUN=true" >> $GITHUB_ENV
+
+      - name: Open promotion PR
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          BETA_VERSION: ${{ github.event.inputs.beta_version }}
+          STABLE_VERSION: ${{ github.event.inputs.stable_version }}
+          REASON: ${{ github.event.inputs.reason }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          {
+            echo "## Promote v$BETA_VERSION → v$STABLE_VERSION"
+            echo ""
+            echo "**Dispatched by:** @$ACTOR"
+            echo "**Reason:** $REASON"
+            echo ""
+            echo "This PR is rooted on the exact commit that \`v$BETA_VERSION\` tags. The only changes are:"
+            echo ""
+            echo "- \`package.json\` version bump to $STABLE_VERSION"
+            echo "- \`CHANGELOG.md\`: \`[Unreleased]\` entries moved into \`[$STABLE_VERSION]\`"
+            echo ""
+            echo "---"
+            echo ""
+            echo "**Checklist:**"
+            echo "- [ ] Confirm the beta soak was sufficient"
+            echo "- [ ] Confirm no main commits since the beta need to be re-tested before stable"
+            echo "- [ ] CI passes"
+            echo ""
+            echo "After merging, \`npm-publish.yml\` ships \`@eggai/qualops@$STABLE_VERSION\` to the \`latest\` dist-tag and force-moves the \`stable\` git tag."
+          } > /tmp/promotion-body.md
+          gh pr create \
+            --title "chore: promote v$STABLE_VERSION to stable (from v$BETA_VERSION)" \
+            --body-file /tmp/promotion-body.md \
+            --base main \
+            --head "release/v$STABLE_VERSION" \
+            --label release \
+            --label promotion
+
+      # Only delete the branch if THIS run pushed it. The sentinel is set in
+      # the "Commit and push" step. Without this gate, a failure before the
+      # push (e.g., the explicit "branch already exists" check) would still
+      # try to delete a branch a previous run owned.
+      - name: Cleanup promotion branch on failure
+        if: failure() && env.BRANCH_PUSHED_THIS_RUN == 'true'
+        env:
+          STABLE_VERSION: ${{ github.event.inputs.stable_version }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          BRANCH="release/v$STABLE_VERSION"
+          echo "Deleting branch $BRANCH pushed by this run"
+          git push origin --delete "$BRANCH" || echo "::warning::Failed to delete $BRANCH; remove manually."

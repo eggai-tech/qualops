@@ -22,6 +22,6 @@ jobs:
           fetch-depth: 0  # Full history for accurate git diff
 
       - name: Run QualOps
-        uses: eggai-tech/qualops@v1
+        uses: eggai-tech/qualops@stable
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

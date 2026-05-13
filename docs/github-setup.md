@@ -72,7 +72,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: eggai-tech/qualops@v1
+      - uses: eggai-tech/qualops@stable
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
@@ -159,7 +159,7 @@ Built-in subagents: `dependency-tracer`, `breaking-change-detector`, `security-a
 Run specific stages only:
 
 ```yaml
-- uses: eggai-tech/qualops@v1
+- uses: eggai-tech/qualops@stable
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     stages: 'analyze,review,judge'  # Skip fix and report
@@ -170,7 +170,7 @@ Run specific stages only:
 Analyze only certain files or patterns:
 
 ```yaml
-- uses: eggai-tech/qualops@v1
+- uses: eggai-tech/qualops@stable
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     files: 'src/**/*.ts,lib/**/*.js'
@@ -181,7 +181,7 @@ Analyze only certain files or patterns:
 Use a different config file:
 
 ```yaml
-- uses: eggai-tech/qualops@v1
+- uses: eggai-tech/qualops@stable
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
     config-path: '.config/qualops-custom.json'
@@ -193,7 +193,7 @@ Access analysis results in subsequent steps:
 
 ```yaml
 - id: qualops
-  uses: eggai-tech/qualops@v1
+  uses: eggai-tech/qualops@stable
   with:
     anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 
@@ -289,7 +289,7 @@ permissions:
   pull-requests: write
 
 steps:
-  - uses: eggai-tech/qualops@v1
+  - uses: eggai-tech/qualops@stable
     with:
       github-token: ${{ secrets.GITHUB_TOKEN }}  # Usually automatic
 ```

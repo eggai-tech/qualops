@@ -26,7 +26,7 @@ jobs:
 
       - name: Run QualOps
         id: qualops
-        uses: eggai-tech/qualops@v1
+        uses: eggai-tech/qualops@stable
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           config-path: '.qualopsrc.json'

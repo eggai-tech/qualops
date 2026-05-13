@@ -32,6 +32,14 @@ jobs:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           VERSION=${HEAD_REF#release/v}
+          # Validate the same allow-list as create-release-pr.yml. A hand-
+          # created release branch with an unrecognised prerelease label
+          # (e.g., `release/v0.3.0-preview.1`) would otherwise be classified
+          # as stable and clobber npm's `latest` dist-tag.
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-(rc|alpha|beta)\.[0-9]+)?$'; then
+            echo "::error::Branch '$HEAD_REF' implies version '$VERSION', which is not a permitted format. Allowed: X.Y.Z, X.Y.Z-rc.N, X.Y.Z-alpha.N, X.Y.Z-beta.N."
+            exit 1
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           if echo "$VERSION" | grep -qE '\-(rc|alpha|beta)\.[0-9]+$'; then
             echo "PRERELEASE=true" >> $GITHUB_OUTPUT
@@ -168,7 +176,14 @@ jobs:
 
       - name: Publish to npm
         if: steps.check.outputs.exists == 'false'
-        run: npm publish --access public --provenance
+        env:
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then
+            npm publish --access public --provenance --tag beta
+          else
+            npm publish --access public --provenance
+          fi
 
       - name: Verify publish
         env:
@@ -206,31 +221,148 @@ jobs:
             gh release upload "v$VERSION" *.tgz --clobber
           else
             PRERELEASE_FLAG=""
+            INSTALL_TAG=""
             if [ "$PRERELEASE" = "true" ]; then
               PRERELEASE_FLAG="--prerelease"
+              INSTALL_TAG="@beta"
             fi
-            printf '%s\n' "## What's Changed" "" "$CHANGELOG_BODY" "" "## Installation" "" '```bash' "npm install @eggai/qualops@$VERSION" '```' > /tmp/notes.md
+            printf '%s\n' "## What's Changed" "" "$CHANGELOG_BODY" "" "## Installation" "" '```bash' "npm install @eggai/qualops$INSTALL_TAG" '```' "" "Or as a GitHub Action:" "" '```yaml' "- uses: eggai-tech/qualops@$([ "$PRERELEASE" = "true" ] && echo beta || echo stable)" '```' > /tmp/notes.md
             gh release create "v$VERSION" *.tgz \
               --title "v$VERSION" \
               --notes-file /tmp/notes.md \
               $PRERELEASE_FLAG
           fi
 
+  update-beta-ref:
+    needs: [prepare, publish-npm, github-release]
+    if: needs.prepare.outputs.prerelease == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Force-move beta tag to release commit
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin "refs/tags/v$VERSION:refs/tags/v$VERSION"
+          TARGET_SHA=$(git rev-list -n 1 "v$VERSION")
+          # Capture the current remote `beta` tag SHA (if any) so we can use
+          # an explicit lease when pushing. `--force-with-lease` without a
+          # value relies on a remote-tracking ref that doesn't exist for tags,
+          # so the push is rejected as stale after the first move.
+          git fetch origin "+refs/tags/beta:refs/tags/beta" 2>/dev/null || true
+          OLD_SHA=$(git rev-parse --verify "refs/tags/beta^{}" 2>/dev/null \
+                    || git rev-parse --verify "refs/tags/beta" 2>/dev/null \
+                    || echo "")
+          echo "Moving beta tag from ${OLD_SHA:-<absent>} to $TARGET_SHA (v$VERSION)"
+          git tag -f beta "$TARGET_SHA"
+          if [ -n "$OLD_SHA" ]; then
+            git push origin "refs/tags/beta" --force-with-lease="refs/tags/beta:$OLD_SHA"
+          else
+            git push origin "refs/tags/beta"
+          fi
+
+  update-stable-ref:
+    needs: [prepare, publish-npm, github-release]
+    if: needs.prepare.outputs.prerelease == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Force-move stable tag to release commit
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin "refs/tags/v$VERSION:refs/tags/v$VERSION"
+          TARGET_SHA=$(git rev-list -n 1 "v$VERSION")
+          # Capture the current remote `stable` tag SHA (if any) so we can
+          # use an explicit lease when pushing. `--force-with-lease` without
+          # a value relies on a remote-tracking ref that doesn't exist for
+          # tags, so the push is rejected as stale after the first move.
+          git fetch origin "+refs/tags/stable:refs/tags/stable" 2>/dev/null || true
+          OLD_SHA=$(git rev-parse --verify "refs/tags/stable^{}" 2>/dev/null \
+                    || git rev-parse --verify "refs/tags/stable" 2>/dev/null \
+                    || echo "")
+          echo "Moving stable tag from ${OLD_SHA:-<absent>} to $TARGET_SHA (v$VERSION)"
+          git tag -f stable "$TARGET_SHA"
+          if [ -n "$OLD_SHA" ]; then
+            git push origin "refs/tags/stable" --force-with-lease="refs/tags/stable:$OLD_SHA"
+          else
+            git push origin "refs/tags/stable"
+          fi
+
+      - name: Mark GitHub Release as latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          gh release edit "v$VERSION" --prerelease=false --latest
+
   notify-failure:
-    needs: [prepare, build-and-test, create-tag, publish-npm, github-release]
+    needs: [prepare, build-and-test, create-tag, publish-npm, github-release, update-beta-ref, update-stable-ref]
     if: failure()
     runs-on: ubuntu-latest
     permissions:
       issues: write
 
     steps:
+      - name: Compose failure summary
+        id: summary
+        env:
+          PREPARE: ${{ needs.prepare.result }}
+          BUILD: ${{ needs.build-and-test.result }}
+          TAG: ${{ needs.create-tag.result }}
+          PUBLISH: ${{ needs.publish-npm.result }}
+          RELEASE: ${{ needs.github-release.result }}
+          BETA_REF: ${{ needs.update-beta-ref.result }}
+          STABLE_REF: ${{ needs.update-stable-ref.result }}
+        run: |
+          FAILED_STAGES=""
+          for stage in "prepare:$PREPARE" "build-and-test:$BUILD" "create-tag:$TAG" "publish-npm:$PUBLISH" "github-release:$RELEASE" "update-beta-ref:$BETA_REF" "update-stable-ref:$STABLE_REF"; do
+            name="${stage%%:*}"
+            result="${stage#*:}"
+            if [ "$result" = "failure" ]; then
+              FAILED_STAGES="${FAILED_STAGES:+$FAILED_STAGES, }$name"
+            fi
+          done
+          if [ -z "$FAILED_STAGES" ]; then
+            FAILED_STAGES="unknown"
+          fi
+          echo "stages=$FAILED_STAGES" >> $GITHUB_OUTPUT
+
       - name: Create failure issue
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.prepare.outputs.version }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+          FAILED_STAGES: ${{ steps.summary.outputs.stages }}
         run: |
+          KIND=$([ "$PRERELEASE" = "true" ] && echo "beta" || echo "stable")
+          {
+            echo "Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo ""
+            echo "Failed stages: \`$FAILED_STAGES\`"
+            echo ""
+            echo "If \`publish-npm\` succeeded but a later stage failed, the npm artifact is already live — re-running the workflow is safe (later stages are idempotent). If \`publish-npm\` itself failed, check for partial state on npm before retrying."
+          } > /tmp/issue-body.md
           gh issue create \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Release v$VERSION failed" \
-            --body "Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --title "Release v$VERSION ($KIND) failed at: $FAILED_STAGES" \
+            --body-file /tmp/issue-body.md \
             --label "bug"
