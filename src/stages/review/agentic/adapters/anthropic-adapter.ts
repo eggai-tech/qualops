@@ -1,90 +1,178 @@
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 
-import { createAgenticTools } from '../tools';
+import { createToolSet, type ToolSet } from '../tools';
 import type { AgentAdapter, AgentAdapterParams, AgentAdapterResult } from './agent-adapter';
 import { logger } from '../../../../shared/utils/logger';
 
+type QueryOptions = Parameters<typeof query>[0]['options'];
+
+// These are covered by Claude's built-in tools (Read, Grep, Glob) and do not need MCP duplicates.
+const BUILTIN_COVERED_TOOLS = new Set(['read_file', 'grep_files', 'glob_files']);
+
+function toMcpServer(toolSet: ToolSet): ReturnType<typeof createSdkMcpServer> {
+  const sdkTools = toolSet.tools
+    .filter((def) => !BUILTIN_COVERED_TOOLS.has(def.name))
+    .map((def) =>
+      tool(def.name, def.description, def.schema.shape, async (args) => ({
+        content: [{ type: 'text', text: await def.execute(args as Record<string, unknown>) }],
+      })),
+    );
+  return createSdkMcpServer({
+    name: 'qualops-agentic-tools',
+    version: '1.0.0',
+    tools: sdkTools,
+  });
+}
+
+function buildQueryOptions(
+  params: AgentAdapterParams,
+  toolServer: ReturnType<typeof createSdkMcpServer>,
+): QueryOptions {
+  const { systemPrompt, agents, model, cwd, maxTurns, maxBudgetUsd } = params;
+  const executablePath = process.env.CLAUDE_CODE_EXECUTABLE;
+
+  return {
+    systemPrompt,
+    ...(executablePath && { pathToClaudeCodeExecutable: executablePath }),
+    // Explicitly enumerate the safe built-in tools. This prevents the SDK's
+    // built-in Bash tool from being available — all shell access must go
+    // through our MCP bash tool so policy enforcement is guaranteed.
+    tools: ['Read', 'Grep', 'Glob'],
+    allowedTools: [
+      'Read',
+      'Grep',
+      'Glob',
+      'mcp__qualops-agentic-tools__bash',
+      'mcp__qualops-agentic-tools__find_usages',
+      'mcp__qualops-agentic-tools__git_diff_analysis',
+      'mcp__qualops-agentic-tools__list_changed_files',
+    ],
+    mcpServers: { 'qualops-agentic-tools': toolServer },
+    agents,
+    maxTurns,
+    ...(maxBudgetUsd && { maxBudgetUsd }),
+    ...(model && { model }),
+    cwd,
+    permissionMode: 'bypassPermissions',
+  };
+}
+
+function logBashToolResult(resultContent: string): void {
+  try {
+    const parsed = JSON.parse(resultContent) as Record<string, unknown>;
+    if (!('exit_code' in parsed || 'stdout' in parsed)) return;
+    const stdout = String(parsed['stdout'] ?? '').substring(0, 500);
+    const stderr = String(parsed['stderr'] ?? '').substring(0, 200);
+    const hint = parsed['semantic_hint'] ? ` (${parsed['semantic_hint']})` : '';
+    logger.info(`[bash] ← exit=${parsed['exit_code']}${hint}`);
+    if (stdout) logger.info(`[bash] ← stdout: ${stdout}`);
+    if (stderr) logger.info(`[bash] ← stderr: ${stderr}`);
+  } catch {
+    // not a bash result
+  }
+}
+
+function extractToolResultContent(block: { content: unknown }): string {
+  return Array.isArray(block.content)
+    ? (block.content as { type: string; text?: string }[])
+        .map((c) => (c.type === 'text' ? c.text : ''))
+        .join('')
+    : String(block.content ?? '');
+}
+
+type SDKMessage = { type: string; subtype?: string; [key: string]: unknown };
+
+function handleAssistantMessage(
+  message: SDKMessage,
+  turnIndex: number,
+  onToolCall: AgentAdapterParams['onToolCall'],
+): void {
+  const raw = message as { message?: { content?: unknown } };
+  const content = raw.message?.content;
+  if (!content || !Array.isArray(content)) return;
+  for (const block of content as {
+    type: string;
+    text?: string;
+    name?: string;
+    input?: unknown;
+  }[]) {
+    if (block.type === 'text') {
+      logger.info(
+        `[Agentic/Anthropic] Assistant text (first 200 chars): ${block.text!.substring(0, 200)}`,
+      );
+    } else if (block.type === 'tool_use') {
+      logger.info(`[Agentic/Anthropic] Tool call: ${block.name}`);
+      onToolCall?.(turnIndex, block.name!, block.input);
+    }
+  }
+}
+
+function handleUserMessage(message: SDKMessage): void {
+  const raw = message as { message?: { content?: unknown } };
+  const content = raw.message?.content;
+  if (!content || !Array.isArray(content)) return;
+  for (const block of content as Record<string, unknown>[]) {
+    if (block['type'] === 'tool_result' && 'tool_use_id' in block && 'content' in block) {
+      const resultContent = extractToolResultContent(block as { content: unknown });
+      if (resultContent.length > 0) logBashToolResult(resultContent);
+    }
+  }
+}
+
+function handleResultMessage(
+  message: SDKMessage,
+  state: { output: string; inputTokens?: number; outputTokens?: number; errorSubtype?: string },
+): void {
+  const msg = message as {
+    subtype: string;
+    result?: string;
+    usage?: { input_tokens?: number; output_tokens?: number };
+  };
+  if (msg.subtype === 'success' && msg.result) {
+    logger.info(
+      `[Agentic/Anthropic] Success result (first 500 chars): ${msg.result.substring(0, 500)}`,
+    );
+    state.output = msg.result;
+    state.inputTokens = msg.usage?.input_tokens;
+    state.outputTokens = msg.usage?.output_tokens;
+  } else if (msg.subtype !== 'success') {
+    state.errorSubtype = msg.subtype;
+    logger.error(`[Agentic/Anthropic] Agent error: ${msg.subtype}`);
+  }
+}
+
 export class AnthropicAdapter implements AgentAdapter {
   async run(params: AgentAdapterParams): Promise<AgentAdapterResult> {
-    const { systemPrompt, userPrompt, agents, model, cwd, maxTurns, maxBudgetUsd, onToolCall } =
-      params;
+    const toolSet = await createToolSet(params.cwd, params.toolConfig);
 
-    const toolServer = createAgenticTools(cwd);
+    try {
+      const toolServer = toMcpServer(toolSet);
+      const result = query({
+        prompt: params.userPrompt,
+        options: buildQueryOptions(params, toolServer),
+      });
 
-    const executablePath = process.env.CLAUDE_CODE_EXECUTABLE;
+      const state = {
+        output: '',
+        inputTokens: undefined as number | undefined,
+        outputTokens: undefined as number | undefined,
+        errorSubtype: undefined as string | undefined,
+      };
+      let turnIndex = 0;
 
-    const result = query({
-      prompt: userPrompt,
-      options: {
-        systemPrompt,
-        ...(executablePath && { pathToClaudeCodeExecutable: executablePath }),
-        allowedTools: [
-          'Read',
-          'Grep',
-          'Glob',
-          'mcp__qualops-agentic-tools__find_usages',
-          'mcp__qualops-agentic-tools__git_diff_analysis',
-          'mcp__qualops-agentic-tools__list_changed_files',
-        ],
-        mcpServers: {
-          'qualops-agentic-tools': toolServer,
-        },
-        agents,
-        maxTurns,
-        ...(maxBudgetUsd && { maxBudgetUsd }),
-        ...(model && { model }),
-        cwd,
-        permissionMode: 'bypassPermissions',
-      },
-    });
-
-    let output = '';
-    let inputTokens: number | undefined;
-    let outputTokens: number | undefined;
-    let errorSubtype: string | undefined;
-    let turnIndex = 0;
-
-    for await (const message of result) {
-      logger.info(
-        `[Agentic/Anthropic] Message: type=${message.type}, subtype=${'subtype' in message ? message.subtype : 'N/A'}`,
-      );
-
-      if (message.type === 'assistant') {
-        turnIndex++;
-        const content = 'message' in message ? message.message?.content : null;
-        if (content && Array.isArray(content)) {
-          for (const block of content) {
-            if (block.type === 'text') {
-              logger.info(
-                `[Agentic/Anthropic] Assistant text (first 200 chars): ${block.text.substring(0, 200)}`,
-              );
-            } else if (block.type === 'tool_use') {
-              logger.info(`[Agentic/Anthropic] Tool call: ${block.name}`);
-              onToolCall?.(turnIndex, block.name, block.input);
-            }
-          }
-        }
+      for await (const message of result) {
+        const msg = message as SDKMessage;
+        logger.info(
+          `[Agentic/Anthropic] Message: type=${msg.type}, subtype=${msg.subtype ?? 'N/A'}`,
+        );
+        if (msg.type === 'assistant') handleAssistantMessage(msg, ++turnIndex, params.onToolCall);
+        if (msg.type === 'user') handleUserMessage(msg);
+        if (msg.type === 'result') handleResultMessage(msg, state);
       }
 
-      if (message.type === 'result') {
-        if (message.subtype === 'success' && message.result) {
-          logger.info(
-            `[Agentic/Anthropic] Success result (first 500 chars): ${message.result.substring(0, 500)}`,
-          );
-          output = message.result;
-          const usage =
-            'usage' in message
-              ? (message.usage as { input_tokens?: number; output_tokens?: number } | undefined)
-              : undefined;
-          inputTokens = usage?.input_tokens;
-          outputTokens = usage?.output_tokens;
-        } else if (message.subtype !== 'success') {
-          errorSubtype = message.subtype;
-          logger.error(`[Agentic/Anthropic] Agent error: ${message.subtype}`);
-        }
-      }
+      return state;
+    } finally {
+      await toolSet.dispose();
     }
-
-    return { output, inputTokens, outputTokens, errorSubtype };
   }
 }

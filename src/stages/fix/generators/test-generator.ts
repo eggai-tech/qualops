@@ -310,7 +310,7 @@ function extractDependencies(testCode: string, framework: string): string[] {
 
   dependencies.add(framework);
 
-  const importMatches = testCode.match(/import.*from ['"]([^'"]+)['"]/g) || [];
+  const importMatches: string[] = testCode.match(/import.*from ['"]([^'"]+)['"]/g) ?? [];
   importMatches.forEach((match) => {
     const moduleMatch = match.match(/from ['"]([^'"]+)['"]/);
     if (moduleMatch) {

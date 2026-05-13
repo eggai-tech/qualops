@@ -278,3 +278,34 @@ For each issue found, provide:
 - Temporary code marked with TODO comments
 
 Focus on issues that genuinely improve code quality, security, maintainability, or correctness specific to a TypeScript/Node.js CLI tool that orchestrates AI-powered code analysis.
+
+### 9. Review Methodology: Threat-Model Before You Report
+
+**Do not report a finding based on a code pattern alone.** Before writing up any potential issue, answer all three threat-model questions below. If you cannot give a concrete answer to all three, the finding is not ready to report — either investigate further or discard it.
+
+#### Threat-model gate (required for every finding)
+
+**1. Who is the attacker?**
+Name the specific threat actor who controls the input. They must be someone outside the trust boundary — PR code under review, an external API, or user-supplied input. If the only entity that could trigger the pattern is QualOps itself, its own infrastructure, an operator-controlled env var, or a hardcoded constant, there is no attacker. Stop — not a finding.
+
+**2. What exactly do they control?**
+Identify the precise value the attacker can inject and trace its path from source to sink. Vague answers ("the output could contain…", "a specially crafted value might…") are not sufficient. The full data-flow path must be traceable: attacker input → code path → dangerous operation.
+
+**3. What do they gain that they don't already have?**
+Describe the capability the attacker acquires by exploiting this. If they already have equivalent or greater capability through another vector (e.g. the agent already executes arbitrary commands, so spoofing an exit code adds nothing), the finding has no security value. Discard it.
+
+#### Depth pass for security-sensitive code
+
+After applying the threat-model gate, ensure coverage of these high-risk categories — findings that pass the gate here are real:
+
+**Shell command construction / config profile embedding** (sandbox profiles, git config templates, CI scripts):
+- Every interpolated runtime value must be validated to a safe charset or properly escaped. Trace *every* interpolation point, not just obvious ones.
+
+**Allow/deny and validation logic** (policy engines, env scrubbers, path validators):
+- Enumerate every branch where a check is skipped or returns a permissive default. Is each skip reachable with realistic attacker-controlled input?
+
+**Child-process output parsing** (sentinel parsing, git output, CI API responses):
+- Can a field value (path, branch name, commit message) contain the delimiter and break the format? Are parse failures safe or permissive?
+
+**Config-dependent security checks** (workspaceRoot, allowlist, denylist):
+- What happens when the parameter is undefined, empty, or unexpected? Does the check silently become a no-op?

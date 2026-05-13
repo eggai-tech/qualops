@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import type {
   agenticConfigSchema,
   agenticSubagentTypeSchema,
+  bashConfigSchema,
   customAgentDefinitionSchema,
   deduplicationConfigSchema,
   pipelineJobSchema,
@@ -19,6 +20,7 @@ export type AgenticSubagentType = z.infer<typeof agenticSubagentTypeSchema>;
 
 export type CustomAgentDefinition = z.infer<typeof customAgentDefinitionSchema>;
 export type AgenticConfig = z.infer<typeof agenticConfigSchema>;
+export type BashConfig = z.infer<typeof bashConfigSchema>;
 export type ReviewConfig = z.infer<typeof reviewConfigSchema>;
 export type PipelineJob = z.infer<typeof pipelineJobSchema>;
 export type ReviewPass = z.infer<typeof reviewPassSchema>;

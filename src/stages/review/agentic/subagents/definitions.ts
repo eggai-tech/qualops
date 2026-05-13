@@ -175,10 +175,17 @@ export function createSubagentDefinitions(config: AgenticConfig): Record<string,
     config.enabledSubagents || (Object.keys(SUBAGENT_DEFINITIONS) as AgenticSubagentType[]);
   const definitions: Record<string, AgentDefinition> = {};
 
+  const bashSubagentAccess = config.bash?.subagentAccess ?? 'all';
+  const addBash = bashSubagentAccess === 'all';
+
   for (const entry of enabled) {
     const type = typeof entry === 'string' ? entry : entry.name;
     if (type in SUBAGENT_DEFINITIONS) {
-      definitions[type] = { ...SUBAGENT_DEFINITIONS[type as AgenticSubagentType] };
+      const def = { ...SUBAGENT_DEFINITIONS[type as AgenticSubagentType] };
+      if (addBash && !def.tools.includes('Bash')) {
+        def.tools = [...def.tools, 'Bash'];
+      }
+      definitions[type] = def;
     }
   }
 

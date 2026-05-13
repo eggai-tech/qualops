@@ -227,6 +227,41 @@ const subagentOverrideSchema = z
     description: 'Built-in subagent identifier with an explicit model override.',
   });
 
+export const bashConfigSchema = z
+  .object({
+    mode: z
+      .enum(['auto', 'ci', 'local-besteffort', 'none'])
+      .optional()
+      .meta({
+        description:
+          'Sandbox mode for the bash tool. auto = detect from environment, ' +
+          'ci = CI runner sandbox, local-besteffort = bwrap/Seatbelt, none = unsandboxed (test only).',
+      }),
+    workspaceRoot: z
+      .string()
+      .optional()
+      .meta({ description: 'Absolute path to the workspace root. Default: /workspace.' }),
+    maxCallsPerReview: z
+      .int()
+      .min(1)
+      .max(500)
+      .optional()
+      .meta({ description: 'Maximum bash tool calls per review session. Default: 200.' }),
+    subagentAccess: z
+      .enum(['all', 'none'])
+      .optional()
+      .meta({ description: 'Whether subagents can use the bash tool. Default: all.' }),
+    extraDeniedBinaries: z
+      .array(z.string().min(1))
+      .optional()
+      .meta({ description: 'Additional binary names to deny beyond the built-in list.' }),
+  })
+  .strict()
+  .meta({
+    defName: 'bashConfig',
+    description: 'Configuration for the bash interrogation tool used by agentic review agents.',
+  });
+
 export const agenticConfigSchema = z
   .object({
     maxTurns: z
@@ -273,6 +308,9 @@ export const agenticConfigSchema = z
       .min(1)
       .optional()
       .meta({ description: 'Total token budget for all file contexts in one agentic run.' }),
+    bash: bashConfigSchema
+      .optional()
+      .meta({ description: 'Bash tool configuration for agentic review agents.' }),
   })
   .strict()
   .meta({

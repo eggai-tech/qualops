@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 import { Command, Option } from 'commander';
 
 import { executeAllStages } from './cli/commands/all-command';

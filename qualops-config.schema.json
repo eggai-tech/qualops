@@ -483,6 +483,10 @@
           "description": "Total token budget for all file contexts in one agentic run.",
           "type": "integer",
           "minimum": 1
+        },
+        "bash": {
+          "description": "Bash tool configuration for agentic review agents.",
+          "$ref": "#/$defs/bashConfig"
         }
       }
     },
@@ -557,6 +561,49 @@
         "full",
         "auto"
       ]
+    },
+    "bashConfig": {
+      "description": "Configuration for the bash interrogation tool used by agentic review agents.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "description": "Sandbox mode for the bash tool. auto = detect from environment, ci = CI runner sandbox, local-besteffort = bwrap/Seatbelt, none = unsandboxed (test only).",
+          "type": "string",
+          "enum": [
+            "auto",
+            "ci",
+            "local-besteffort",
+            "none"
+          ]
+        },
+        "workspaceRoot": {
+          "description": "Absolute path to the workspace root. Default: /workspace.",
+          "type": "string"
+        },
+        "maxCallsPerReview": {
+          "description": "Maximum bash tool calls per review session. Default: 200.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500
+        },
+        "subagentAccess": {
+          "description": "Whether subagents can use the bash tool. Default: all.",
+          "type": "string",
+          "enum": [
+            "all",
+            "none"
+          ]
+        },
+        "extraDeniedBinaries": {
+          "description": "Additional binary names to deny beyond the built-in list.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     },
     "reviewPass": {
       "description": "Single review pass executed within a file-by-file pipeline job.",
