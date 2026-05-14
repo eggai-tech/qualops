@@ -4,6 +4,7 @@ import { join, basename, resolve } from 'node:path';
 import type { AgenticConfig, CustomAgentDefinition } from '../../../../shared/types/config';
 import { logger } from '../../../../shared/utils/logger';
 import { resolveWithinCwd } from '../../../../shared/utils/security';
+import { AGENT_SEARCH_PATHS } from '../../loaders/search-paths';
 import type { AgentDefinition } from '../subagents/definitions';
 
 interface MarkdownAgentFrontmatter {
@@ -48,10 +49,39 @@ export class AgentLoader {
         const filePath = join(fullAgentsDir, file);
         const agent = this.loadAgentFromMarkdown(filePath);
 
+        if (!agent) continue;
+        const name = basename(file, '.md');
+        if (agents[name]) continue;
+        agents[name] = agent;
+        logger.debug(`[AgentLoader] Loaded agent from file: ${name}`);
+      }
+    }
+
+    // Load bundled default agents as lowest-priority fallback (user agents win)
+    const bundledAgents = this.loadAgentsFromSearchPaths();
+    for (const [name, agent] of Object.entries(bundledAgents)) {
+      if (!agents[name]) {
+        agents[name] = agent;
+      }
+    }
+
+    return agents;
+  }
+
+  private loadAgentsFromSearchPaths(): Record<string, AgentDefinition> {
+    const agents: Record<string, AgentDefinition> = {};
+
+    for (const base of AGENT_SEARCH_PATHS) {
+      if (!existsSync(base)) continue;
+      const files = readdirSync(base).filter((f) => f.endsWith('.md'));
+
+      for (const file of files) {
+        const name = basename(file, '.md');
+        if (agents[name]) continue; // earlier path already provided this agent
+        const agent = this.loadAgentFromMarkdown(join(base, file));
         if (agent) {
-          const name = basename(file, '.md');
           agents[name] = agent;
-          logger.debug(`[AgentLoader] Loaded agent from file: ${name}`);
+          logger.debug(`[AgentLoader] Loaded bundled agent from ${base}: ${name}`);
         }
       }
     }

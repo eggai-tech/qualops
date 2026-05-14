@@ -1,22 +1,10 @@
 import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
+import { PROVIDER_DEFAULTS } from '../../config/config';
 import { logger } from '../../shared/utils/logger';
 
 export type Provider = 'anthropic' | 'openai' | 'bedrock';
-
-const PROVIDER_DEFAULTS: Record<
-  Provider,
-  { model: string; inputPerMillion: number; outputPerMillion: number }
-> = {
-  anthropic: { model: 'claude-sonnet-4-6', inputPerMillion: 3, outputPerMillion: 15 },
-  openai: { model: 'gpt-4.1', inputPerMillion: 2, outputPerMillion: 8 },
-  bedrock: {
-    model: 'us.anthropic.claude-sonnet-4-6-v1:0',
-    inputPerMillion: 3,
-    outputPerMillion: 15,
-  },
-};
 
 const DEFAULT_QUALITY_PROMPT = `# Code Quality Review
 

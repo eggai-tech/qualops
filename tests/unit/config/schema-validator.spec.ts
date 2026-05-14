@@ -218,14 +218,12 @@ describe('assertValidConfig', () => {
   });
 
   describe('schema violations (throws)', () => {
-    it('throws when ai section is missing', () => {
-      expect(() => assertValidConfig({ review: minimalValidConfig.review })).toThrow(
-        ConfigValidationError,
-      );
+    it('does not throw when ai section is omitted (now optional)', () => {
+      expect(() => assertValidConfig({ review: minimalValidConfig.review })).not.toThrow();
     });
 
-    it('throws when review section is missing', () => {
-      expect(() => assertValidConfig({ ai: minimalValidConfig.ai })).toThrow(ConfigValidationError);
+    it('does not throw when review section is omitted (now optional)', () => {
+      expect(() => assertValidConfig({ ai: minimalValidConfig.ai })).not.toThrow();
     });
 
     it('throws on unknown top-level field', () => {
@@ -240,10 +238,8 @@ describe('assertValidConfig', () => {
       );
     });
 
-    it('throws when ai.reviewStage is missing', () => {
-      expect(() => assertValidConfig({ ai: {}, review: minimalValidConfig.review })).toThrow(
-        ConfigValidationError,
-      );
+    it('does not throw when ai.reviewStage is omitted (now optional)', () => {
+      expect(() => assertValidConfig({ ai: {}, review: minimalValidConfig.review })).not.toThrow();
     });
 
     it('throws when pipeline is empty', () => {
@@ -372,7 +368,7 @@ describe('assertValidConfig', () => {
 
     it('exposes ZodIssue objects on the error instance', () => {
       try {
-        assertValidConfig({ review: minimalValidConfig.review });
+        assertValidConfig({ ...minimalValidConfig, unknownField: true });
         fail('expected ConfigValidationError');
       } catch (err) {
         expect(err).toBeInstanceOf(ConfigValidationError);
@@ -382,7 +378,7 @@ describe('assertValidConfig', () => {
 
     it('exposes a stable machine-readable error code', () => {
       try {
-        assertValidConfig({ review: minimalValidConfig.review });
+        assertValidConfig({ ...minimalValidConfig, unknownField: true });
         fail('expected ConfigValidationError');
       } catch (err) {
         expect(err).toBeInstanceOf(ConfigValidationError);
@@ -393,7 +389,7 @@ describe('assertValidConfig', () => {
 
     it('marks the error as user-facing so the CLI can suppress the stack trace', () => {
       try {
-        assertValidConfig({ review: minimalValidConfig.review });
+        assertValidConfig({ ...minimalValidConfig, unknownField: true });
         fail('expected ConfigValidationError');
       } catch (err) {
         expect((err as ConfigValidationError).userFacing).toBe(true);

@@ -396,6 +396,8 @@ describe('ConfigService', () => {
     });
 
     it('should throw error when stage config not found', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify(VALID_MINIMAL_CONFIG));
       const instance = ConfigService.getInstance();
       instance.set('ai', {});
       expect(() => instance.getAIStageConfig('review')).toThrow(
@@ -403,11 +405,38 @@ describe('ConfigService', () => {
       );
     });
 
-    it('should throw error when AI config is undefined', () => {
+    it('throws with API key hint when ai is undefined and no config file exists', () => {
+      // No config file, no API key — rawConfig is {}
+      mockExistsSync.mockReturnValue(false);
       const instance = ConfigService.getInstance();
       instance.set('ai', undefined);
       expect(() => instance.getAIStageConfig('review')).toThrow(
-        'AI configuration for stage "review" not found in .qualopsrc.json',
+        'No AI provider configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY',
+      );
+    });
+
+    it('throws with API key hint when config file has no ai section and no API key is set', () => {
+      // Config file present, no ai section, no API key — ai remains undefined
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify({ review: VALID_MINIMAL_CONFIG.review }));
+      mockEnvConfig.getAll = jest.fn(() => ({ debug: false, verbose: false }));
+      const instance = ConfigService.getInstance();
+      expect(() => instance.getAIStageConfig('review')).toThrow(
+        'No AI provider configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY',
+      );
+    });
+
+    it('throws with config hint when stage is missing in zero-config mode', () => {
+      // No config file, API key present — auto-configures reviewStage but not fixStage
+      mockExistsSync.mockReturnValue(false);
+      mockEnvConfig.getAll = jest.fn(() => ({
+        anthropicApiKey: 'sk-ant-test',
+        debug: false,
+        verbose: false,
+      }));
+      const instance = ConfigService.getInstance();
+      expect(() => instance.getAIStageConfig('fix')).toThrow(
+        'Stage "fix" requires explicit AI configuration',
       );
     });
 
@@ -531,6 +560,8 @@ describe('ConfigService', () => {
     });
 
     it('throws when stage config is missing (delegates to getAIStageConfig)', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify(VALID_MINIMAL_CONFIG));
       const instance = ConfigService.getInstance();
       instance.set('ai', {});
       expect(() => instance.getResolvedStageConfig('review')).toThrow(

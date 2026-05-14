@@ -96,4 +96,34 @@ describe('AgentLoader', () => {
       expect(result['inline-agent'].model).toBeUndefined();
     });
   });
+
+  describe('loading priority', () => {
+    it('inline config agent wins over agentsDir agent with same name', () => {
+      const loader = new AgentLoader(tmpDir);
+      // test-agent exists on disk in agentsDir; inline config also defines test-agent
+      const result = loader.loadCustomAgents({
+        agentsDir: '.qualops/agents',
+        customAgents: [{ name: 'test-agent', description: 'Inline wins', prompt: 'Inline.' }],
+      });
+      expect(result['test-agent'].description).toBe('Inline wins');
+    });
+
+    it('agentsDir agent wins over bundled agent with same name', () => {
+      // Write a bundled-dir competitor alongside the real agents dir
+      const competingDir = join(tmpDir, 'competing-bundled');
+      mkdirSync(competingDir, { recursive: true });
+      writeFileSync(
+        join(competingDir, 'test-agent.md'),
+        '---\ndescription: Bundled version\n---\nBundled prompt.',
+      );
+
+      // AgentLoader reads agentsDir first, then AGENT_SEARCH_PATHS.
+      // Since test-agent is already in agents, the bundled version is skipped.
+      const loader = new AgentLoader(tmpDir);
+      const result = loader.loadCustomAgents({ agentsDir: '.qualops/agents' });
+      expect(result['test-agent'].description).toBe('A test agent');
+
+      rmSync(competingDir, { recursive: true, force: true });
+    });
+  });
 });

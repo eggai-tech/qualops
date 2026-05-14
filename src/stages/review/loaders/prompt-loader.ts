@@ -1,10 +1,9 @@
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 
+import { PROMPT_SEARCH_PATHS } from './search-paths';
 import type { PromptConfig } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
-
-const PROMPTS_BASE_PATH = resolve(process.cwd(), '.qualops/prompts');
+import { resolveWithinCwd } from '../../../shared/utils/security';
 
 interface LoadedPrompt {
   content: string;
@@ -30,22 +29,24 @@ export class PromptLoader {
       return cached;
     }
 
-    const fullPath = resolve(PROMPTS_BASE_PATH, promptPath);
-
-    if (!fullPath.startsWith(PROMPTS_BASE_PATH)) {
-      throw new Error(
-        `Prompt path "${promptPath}" resolves outside the prompts directory. Path traversal is not allowed.`,
-      );
+    for (const base of PROMPT_SEARCH_PATHS) {
+      const fullPath = resolveWithinCwd(base, promptPath);
+      if (!fullPath) {
+        throw new Error(`Prompt path "${promptPath}" resolves outside the prompts directory.`);
+      }
+      try {
+        const content = await readFile(fullPath, 'utf-8');
+        this.cache.set(promptPath, content);
+        logger.debug(`[PromptLoader] Loaded from ${base}: ${promptPath}`);
+        return content;
+      } catch {
+        // not found in this location — try next
+      }
     }
 
-    try {
-      const content = await readFile(fullPath, 'utf-8');
-      this.cache.set(promptPath, content);
-      logger.debug(`[PromptLoader] Loaded: ${promptPath}`);
-      return content;
-    } catch (error) {
-      throw new Error(`Failed to load prompt: ${promptPath} (${fullPath}): ${error}`);
-    }
+    throw new Error(
+      `Failed to load prompt: ${promptPath} (searched: ${PROMPT_SEARCH_PATHS.join(', ')})`,
+    );
   }
 
   static clearCache(): void {

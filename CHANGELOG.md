@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Zero-config mode: run `qualops` with just `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` and no `.qualopsrc.json`. Provider is auto-detected (Anthropic takes priority), defaulting to an agentic review with all built-in subagents.
+- Bundled default prompt (`src/config/prompts/review/quality.md`) and agent placeholder (`src/config/agents/`) shipped with the package and used as fallbacks via layered search paths.
+
 ### Fixed
 - Fix GitHub Action post-integration step
 - Update the logger config loading to read from `${cwd}/.qualops/.qualopsrc.json` instead of CWD

@@ -2,7 +2,9 @@ import { validateAndProcessStages } from './argument-validator';
 import { parseFilePatterns } from './file-parser';
 import { parseStageOptions, type QualOpsOptions } from './option-parser';
 import { buildSessionPath } from '../../config/buildSessionPath';
+import { ConfigService } from '../../config/config';
 import { setCurrentSession } from '../../shared/runtime/session-context';
+import { logger } from '../../shared/utils/logger';
 import { getDefaultReportRoot } from '../../shared/utils/report-root';
 
 export interface MergedConfig {
@@ -20,7 +22,19 @@ export interface MergedConfig {
 export async function mergeConfiguration(options: QualOpsOptions): Promise<MergedConfig> {
   // Parse and validate stage options
   const { stages: rawStages, sessionName } = parseStageOptions(options);
-  const stages = validateAndProcessStages(rawStages);
+  let stages = validateAndProcessStages(rawStages);
+
+  // Drop 'fix' from the default run when no fixStage AI config is present.
+  // Users can still opt in explicitly with --stages fix or --stages all.
+  if (!options.stages && stages.includes('fix')) {
+    const fixConfigured = !!ConfigService.getInstance().get('ai')?.fixStage;
+    if (!fixConfigured) {
+      logger.info(
+        'Skipping fix stage: no fixStage AI config. Use --stages fix to run it explicitly.',
+      );
+      stages = stages.filter((s) => s !== 'fix');
+    }
+  }
 
   const reportRoot = options.reportRoot || getDefaultReportRoot();
 
