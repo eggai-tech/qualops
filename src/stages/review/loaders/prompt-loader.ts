@@ -1,9 +1,8 @@
 import { readFile } from 'node:fs/promises';
 
-import { PROMPT_SEARCH_PATHS } from './search-paths';
+import { resolvePromptPath, ALL_PROMPT_SEARCH_PATHS } from './search-paths';
 import type { PromptConfig } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
-import { resolveWithinCwd } from '../../../shared/utils/security';
 
 interface LoadedPrompt {
   content: string;
@@ -29,24 +28,23 @@ export class PromptLoader {
       return cached;
     }
 
-    for (const base of PROMPT_SEARCH_PATHS) {
-      const fullPath = resolveWithinCwd(base, promptPath);
-      if (!fullPath) {
-        throw new Error(`Prompt path "${promptPath}" resolves outside the prompts directory.`);
-      }
-      try {
-        const content = await readFile(fullPath, 'utf-8');
-        this.cache.set(promptPath, content);
-        logger.debug(`[PromptLoader] Loaded from ${base}: ${promptPath}`);
-        return content;
-      } catch {
-        // not found in this location — try next
-      }
+    const fullPath = resolvePromptPath(promptPath);
+    if (!fullPath) {
+      throw new Error(
+        `Failed to load prompt: ${promptPath} (searched: ${ALL_PROMPT_SEARCH_PATHS.join(', ')})`,
+      );
     }
 
-    throw new Error(
-      `Failed to load prompt: ${promptPath} (searched: ${PROMPT_SEARCH_PATHS.join(', ')})`,
-    );
+    try {
+      const content = await readFile(fullPath, 'utf-8');
+      this.cache.set(promptPath, content);
+      logger.debug(`[PromptLoader] Loaded prompt: ${promptPath}`);
+      return content;
+    } catch {
+      throw new Error(
+        `Failed to load prompt: ${promptPath} (searched: ${ALL_PROMPT_SEARCH_PATHS.join(', ')})`,
+      );
+    }
   }
 
   static clearCache(): void {

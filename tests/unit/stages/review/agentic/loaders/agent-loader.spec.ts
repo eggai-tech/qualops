@@ -97,6 +97,14 @@ describe('AgentLoader', () => {
     });
   });
 
+  describe('default agents directory', () => {
+    it('scans .qualops/agents when no agentsDir is configured', () => {
+      const loader = new AgentLoader(tmpDir);
+      const result = loader.loadCustomAgents({});
+      expect(Object.keys(result)).toContain('test-agent');
+    });
+  });
+
   describe('loading priority', () => {
     it('inline config agent wins over agentsDir agent with same name', () => {
       const loader = new AgentLoader(tmpDir);

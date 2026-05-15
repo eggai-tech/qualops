@@ -1,10 +1,9 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, basename, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 
 import type { AgenticConfig, CustomAgentDefinition } from '../../../../shared/types/config';
 import { logger } from '../../../../shared/utils/logger';
-import { resolveWithinCwd } from '../../../../shared/utils/security';
-import { AGENT_SEARCH_PATHS } from '../../loaders/search-paths';
+import { resolveCustomAgentsDir } from '../../loaders/search-paths';
 import type { AgentDefinition } from '../subagents/definitions';
 
 interface MarkdownAgentFrontmatter {
@@ -31,57 +30,24 @@ export class AgentLoader {
       }
     }
 
-    // Load from agents directory
-    const agentsDir = config.agentsDir || '.qualops/agents';
-    const fullAgentsDir = resolveWithinCwd(this.cwd, agentsDir);
+    // Load from custom agents directory (.qualops/agents) — user-defined agents, scanned by file
+    const customAgentsDir = resolveCustomAgentsDir(this.cwd, config.agentsDir);
 
-    if (!fullAgentsDir) {
+    if (!customAgentsDir) {
       logger.warn(
-        `[AgentLoader] agentsDir "${agentsDir}" resolves outside project directory. Path traversal is not allowed.`,
+        `[AgentLoader] agentsDir "${config.agentsDir}" resolves outside project directory. Path traversal is not allowed.`,
       );
       return agents;
     }
 
-    if (existsSync(fullAgentsDir)) {
-      const files = readdirSync(fullAgentsDir).filter((f) => f.endsWith('.md'));
-
-      for (const file of files) {
-        const filePath = join(fullAgentsDir, file);
-        const agent = this.loadAgentFromMarkdown(filePath);
-
-        if (!agent) continue;
+    if (existsSync(customAgentsDir)) {
+      for (const file of readdirSync(customAgentsDir).filter((f) => f.endsWith('.md'))) {
         const name = basename(file, '.md');
         if (agents[name]) continue;
-        agents[name] = agent;
-        logger.debug(`[AgentLoader] Loaded agent from file: ${name}`);
-      }
-    }
-
-    // Load bundled default agents as lowest-priority fallback (user agents win)
-    const bundledAgents = this.loadAgentsFromSearchPaths();
-    for (const [name, agent] of Object.entries(bundledAgents)) {
-      if (!agents[name]) {
-        agents[name] = agent;
-      }
-    }
-
-    return agents;
-  }
-
-  private loadAgentsFromSearchPaths(): Record<string, AgentDefinition> {
-    const agents: Record<string, AgentDefinition> = {};
-
-    for (const base of AGENT_SEARCH_PATHS) {
-      if (!existsSync(base)) continue;
-      const files = readdirSync(base).filter((f) => f.endsWith('.md'));
-
-      for (const file of files) {
-        const name = basename(file, '.md');
-        if (agents[name]) continue; // earlier path already provided this agent
-        const agent = this.loadAgentFromMarkdown(join(base, file));
+        const agent = this.loadAgentFromMarkdown(join(customAgentsDir, file));
         if (agent) {
           agents[name] = agent;
-          logger.debug(`[AgentLoader] Loaded bundled agent from ${base}: ${name}`);
+          logger.debug(`[AgentLoader] Loaded custom agent from file: ${name}`);
         }
       }
     }
@@ -90,10 +56,6 @@ export class AgentLoader {
   }
 
   private loadAgentFromMarkdown(filePath: string): AgentDefinition | null {
-    if (!resolveWithinCwd(this.cwd, filePath)) {
-      logger.warn(`[AgentLoader] Rejected agent path outside project directory: ${filePath}`);
-      return null;
-    }
     try {
       const content = readFileSync(filePath, 'utf-8');
       const { frontmatter, body } = this.parseMarkdown(content);
