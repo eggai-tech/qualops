@@ -1,4 +1,6 @@
 import type { AIProvider } from '../../../ai/providers/provider';
+import { DedupIndicesSchema } from '../../../ai/shared/schemas/dedup-indices';
+import { StructuredOutputError } from '../../../ai/shared/structured';
 import type { ReviewIssue } from '../../../shared/types';
 import type {
   DeduplicationConfig,
@@ -15,21 +17,9 @@ const ISSUES_SECTION = `
 
 ## Issues to Deduplicate
 
-Below are the issues found for this file. Identify duplicates and return indices of issues to KEEP.
+Below are the issues found for this file. Identify duplicates.
 
 {{ISSUES_LIST}}
-`;
-
-const DEDUP_RESPONSE_SPEC = `
-
-<response_format>
-Return a JSON array containing the indices of issues to KEEP (non-duplicates).
-
-Examples:
-- Issues at indices 0, 2, 4 should be kept: [0, 2, 4]
-- All issues are unique: [0, 1, 2, 3, 4, 5]
-- All are duplicates of first one: [0]
-</response_format>
 `;
 
 export class DeduplicationResolver {
@@ -109,7 +99,7 @@ export class DeduplicationResolver {
       2,
     );
 
-    const fullPrompt = content + ISSUES_SECTION + DEDUP_RESPONSE_SPEC;
+    const fullPrompt = content + ISSUES_SECTION;
     const prompt = TemplateEngine.render(fullPrompt, {
       ISSUES_LIST: issuesJson,
       MIN_CONFIDENCE: this.globalConfig.validation?.minConfidence ?? 7,
@@ -118,21 +108,22 @@ export class DeduplicationResolver {
 
     await getGlobalRateLimiter().throttleApiCall(this.aiProvider.name);
 
-    const response = await this.aiProvider.complete({
-      messages: [{ role: 'user', content: prompt }],
-      maxTokens: 4000,
-      temperature: 0,
-    });
-
-    const indices = this.parseIndices(response.content);
-    return issues.filter((_, idx) => indices.includes(idx));
-  }
-
-  private parseIndices(content: string): number[] {
-    const match = content.match(/\[[\s\S]*?\]/);
-    if (!match) return [];
-
-    const parsed = JSON.parse(match[0]);
-    return Array.isArray(parsed) ? parsed.filter((idx: any) => typeof idx === 'number') : [];
+    try {
+      const response = await this.aiProvider.complete({
+        messages: [{ role: 'user', content: prompt }],
+        schema: DedupIndicesSchema,
+        maxTokens: 4000,
+        temperature: 0,
+      });
+      const indices = new Set(response.content);
+      return issues.filter((_, idx) => indices.has(idx));
+    } catch (error) {
+      if (error instanceof StructuredOutputError) {
+        logger.warn(`[Dedup] Structured output failed: ${error.message}`);
+        logger.warn(`[Dedup] Raw preview: ${error.raw.slice(0, 300)}...`);
+        return issues;
+      }
+      throw error;
+    }
   }
 }

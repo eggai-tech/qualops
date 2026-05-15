@@ -98,7 +98,7 @@ export function createMockAIProvider() {
       content: 'Mock AI response',
       usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 },
     }),
-    completeWithStructure: jest.fn().mockResolvedValue({}),
+    getTemperature: jest.fn().mockReturnValue(0),
     invoke: jest.fn().mockResolvedValue('Mock response'),
     isAvailable: jest.fn().mockReturnValue(true),
     getModelName: jest.fn().mockReturnValue('claude-sonnet-4-20250514'),

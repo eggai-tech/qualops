@@ -1,58 +1,44 @@
 import type OpenAI from 'openai';
-import type { ChatCompletionCreateParams } from 'openai/resources/chat/completions/completions';
+import { zodResponseFormat } from 'openai/helpers/zod';
+import type {
+  ChatCompletionCreateParamsNonStreaming,
+  ChatCompletionMessageParam,
+} from 'openai/resources/chat/completions/completions';
+import type { z } from 'zod';
 
+import {
+  parseAndValidate,
+  resolveSchemaName,
+  schemaToJsonSchema,
+  StructuredOutputError,
+} from '@/ai/shared/structured';
 import { estimateTokens } from '@/ai/shared/token-utils';
-import { envConfig } from '@/config/env';
 import type { ResolvedStageConfig } from '@/shared/types';
 import { logger } from '@/shared/utils/logger';
 
-import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
+import { BaseAIProvider, type PricingMultipliers } from './base';
+import type { AICompletionOptions, AICompletionOptionsWithSchema, AIResponse } from './provider';
 
 interface OpenAICompatibleProviderConfig {
-  /** Internal name of the provider */
   name: 'github' | 'openai' | (string & {});
-  /** Friendly name of the provider, used in error messages */
   friendlyName: 'GitHub Models' | 'OpenAI' | (string & {});
-  /**
-   * Provider API Key..
-   *
-   * Defaults to process.env['OPENAI_API_KEY'].
-   */
   apiKey?: string;
-  /**
-   * Base URL for the provider API. Leave empty to load from OPENAI_API_KEY.
-   *
-   * Defaults to process.env['OPENAI_BASE_URL'].
-   */
   baseURL?: string;
 }
 
-export abstract class OpenAICompatibleProvider implements AIProvider {
+export abstract class OpenAICompatibleProvider extends BaseAIProvider {
   readonly name: OpenAICompatibleProviderConfig['name'];
+  protected readonly apiKey: string;
   private readonly friendlyName: OpenAICompatibleProviderConfig['friendlyName'];
-
+  private readonly baseURL: string | undefined;
   private client: OpenAI | null = null;
   private initialized = false;
-  protected readonly apiKey: string;
-  private readonly baseURL: string;
-  private readonly maxTokens = 8000;
-  private readonly stageConfig: ResolvedStageConfig;
-  private readonly tokenStats: TokenStats = {
-    totalInputTokens: 0,
-    totalOutputTokens: 0,
-    totalTokens: 0,
-    invocationCount: 0,
-    startTime: new Date(),
-    estimatedCost: 0,
-  };
-  private cachedTokens = 0;
-  private cacheHits = 0;
 
   constructor(stageConfig: ResolvedStageConfig, providerConfig: OpenAICompatibleProviderConfig) {
+    super(stageConfig, 8000);
     this.name = providerConfig.name;
     this.friendlyName = providerConfig.friendlyName;
-    this.stageConfig = stageConfig;
-    this.apiKey = providerConfig.apiKey;
+    this.apiKey = providerConfig.apiKey ?? '';
     this.baseURL = providerConfig.baseURL;
 
     this.validateApiKey();
@@ -64,7 +50,6 @@ export abstract class OpenAICompatibleProvider implements AIProvider {
   private validateConfiguration(): void {
     const required = ['provider', 'model', 'inputPerMillion', 'outputPerMillion'];
     const missing = required.filter((key) => !(key in this.stageConfig));
-
     if (missing.length > 0) {
       throw new Error(`Missing required ${this.friendlyName} config: ${missing.join(', ')}`);
     }
@@ -72,90 +57,115 @@ export abstract class OpenAICompatibleProvider implements AIProvider {
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
-
     try {
       const { default: OpenAI } = await import('openai');
       this.client = new OpenAI({
         apiKey: this.apiKey,
         baseURL: this.baseURL,
         maxRetries: 0,
-        timeout: 60000,
+        timeout: 60_000,
       });
       this.initialized = true;
     } catch (error) {
       throw new Error(
-        `Failed to initialize ${this.friendlyName} provider: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to initialize ${this.friendlyName} provider: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
   }
 
-  private updateTokenStats(inputTokens: number, outputTokens: number, cachedTokens?: number): void {
-    this.tokenStats.totalInputTokens += inputTokens;
-    this.tokenStats.totalOutputTokens += outputTokens;
-    this.tokenStats.totalTokens += inputTokens + outputTokens;
-    this.tokenStats.invocationCount++;
+  isAvailable(): boolean {
+    return Boolean(this.apiKey);
+  }
 
-    // Track prompt caching
-    if (cachedTokens && cachedTokens > 0) {
-      this.cachedTokens += cachedTokens;
-      this.cacheHits++;
-    }
+  protected pricingMultipliers(): PricingMultipliers {
+    return { cacheWriteMultiplier: 1.0, cacheReadMultiplier: 0.5 };
+  }
 
-    const pricing = {
-      inputPerMillion: this.stageConfig.inputPerMillion,
-      outputPerMillion: this.stageConfig.outputPerMillion,
-    };
+  protected async completeText(options: AICompletionOptions): Promise<AIResponse<string>> {
+    const client = await this.requireClient();
+    const params = this.buildBaseParams(options);
 
-    // OpenAI gives 50% discount on cached tokens
-    const fullPriceTokens = inputTokens - (cachedTokens || 0);
-    const cachedPriceTokens = cachedTokens || 0;
-
-    const inputCost = (fullPriceTokens / 1_000_000) * pricing.inputPerMillion;
-    const cachedCost = (cachedPriceTokens / 1_000_000) * (pricing.inputPerMillion * 0.5);
-    const outputCost = (outputTokens / 1_000_000) * pricing.outputPerMillion;
-    this.tokenStats.estimatedCost += inputCost + cachedCost + outputCost;
-
-    if (this.tokenStats.invocationCount % 10 === 0 || this.tokenStats.estimatedCost >= 1.0) {
-      this.logTokenUsage();
+    try {
+      const response = await client.chat.completions.create(params);
+      const content = response.choices[0]?.message?.content ?? '';
+      this.recordResponseUsage(response, params, content);
+      return {
+        content,
+        raw: content,
+        usage: this.toTokenUsage(response.usage),
+        model: response.model,
+      };
+    } catch (error) {
+      throw this.wrapError(error);
     }
   }
 
-  private logTokenUsage(): void {
-    const stats = this.tokenStats;
-    const runtime = (Date.now() - stats.startTime.getTime()) / 1000 / 60;
+  protected async completeStructured<S extends z.ZodType>(
+    options: AICompletionOptionsWithSchema<S>,
+  ): Promise<AIResponse<z.infer<S>>> {
+    const client = await this.requireClient();
+    const baseParams = this.buildBaseParams(options);
+    const schemaName = resolveSchemaName(options.schema, options.schemaName);
 
-    if (envConfig.isDevelopment() || envConfig.get('nodeEnv') === 'test') {
-      logger.info(`\n[TOKEN USAGE] AI Provider Statistics:`);
-      logger.info(`   Model: ${this.stageConfig.model}`);
-      logger.info(`   Invocations: ${stats.invocationCount}`);
-      logger.info(`   Input tokens: ${stats.totalInputTokens.toLocaleString()}`);
-      logger.info(`   Output tokens: ${stats.totalOutputTokens.toLocaleString()}`);
-      logger.info(`   Total tokens: ${stats.totalTokens.toLocaleString()}`);
-
-      // Prompt caching stats
-      if (this.cachedTokens > 0) {
-        const cacheHitRate = ((this.cacheHits / stats.invocationCount) * 100).toFixed(1);
-        const cachedSavings =
-          (this.cachedTokens / 1_000_000) * (this.stageConfig.inputPerMillion * 0.5);
-        logger.info(
-          `   Cached tokens: ${this.cachedTokens.toLocaleString()} (${cacheHitRate}% cache hit rate)`,
-        );
-        logger.info(`   Cache savings: $${cachedSavings.toFixed(4)}`);
+    if (this.capabilities.structuredDialect === 'openai-json-schema-strict') {
+      try {
+        const completion = await client.chat.completions.parse({
+          ...baseParams,
+          response_format: zodResponseFormat(options.schema, schemaName),
+        });
+        const message = completion.choices[0]?.message;
+        const raw = message?.content ?? '';
+        if (!message?.parsed) {
+          throw new StructuredOutputError('OpenAI strict parser returned no parsed payload', raw);
+        }
+        this.recordResponseUsage(completion, baseParams, raw);
+        return {
+          content: message.parsed as z.infer<S>,
+          raw,
+          usage: this.toTokenUsage(completion.usage),
+          model: completion.model,
+        };
+      } catch (error) {
+        if (error instanceof StructuredOutputError) throw error;
+        throw this.wrapError(error);
       }
+    }
 
-      logger.info(`   Estimated cost: $${stats.estimatedCost.toFixed(4)}`);
-      logger.info(`   Runtime: ${runtime.toFixed(1)} minutes`);
-      logger.info(
-        `   Avg tokens/call: ${Math.round(stats.invocationCount > 0 ? stats.totalTokens / stats.invocationCount : 0)}`,
-      );
+    // json_object dialect: ask for JSON, validate with zod ourselves.
+    const jsonSchema = schemaToJsonSchema(options.schema);
+    const schemaInstruction =
+      `Respond with a single JSON value that conforms to this JSON Schema. Do not wrap in markdown.\n\n` +
+      `Schema (${schemaName}):\n${JSON.stringify(jsonSchema, null, 2)}`;
+
+    const messages: ChatCompletionMessageParam[] = [
+      { role: 'system', content: schemaInstruction },
+      ...((baseParams.messages as ChatCompletionMessageParam[]) ?? []),
+    ];
+
+    try {
+      const response = await client.chat.completions.create({
+        ...baseParams,
+        messages,
+        response_format: { type: 'json_object' },
+      });
+      const raw = response.choices[0]?.message?.content ?? '';
+      const parsed = parseAndValidate(raw, options.schema);
+      this.recordResponseUsage(response, baseParams, raw);
+      return {
+        content: parsed,
+        raw,
+        usage: this.toTokenUsage(response.usage),
+        model: response.model,
+      };
+    } catch (error) {
+      if (error instanceof StructuredOutputError) throw error;
+      throw this.wrapError(error);
     }
   }
 
-  async complete(options: AICompletionOptions): Promise<AIResponse> {
-    if (!this.initialized) {
-      await this.initialize();
-    }
-
+  private buildBaseParams(options: AICompletionOptions): ChatCompletionCreateParamsNonStreaming {
     const {
       messages,
       temperature = this.stageConfig.temperature ?? 0,
@@ -166,129 +176,69 @@ export abstract class OpenAICompatibleProvider implements AIProvider {
 
     logger.debug(`[${this.name}] model=${model} messages=${messages.length}`);
 
-    if (!this.client) {
-      throw new Error(`${this.friendlyName} client not initialized`);
+    const openaiMessages: ChatCompletionMessageParam[] = messages.map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+    if (systemPrompt) {
+      openaiMessages.unshift({ role: 'system', content: systemPrompt });
     }
 
-    try {
-      const openaiMessages = messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
-      if (systemPrompt) {
-        openaiMessages.unshift({
-          role: 'system',
-          content: systemPrompt,
-        });
-      }
-
-      const options: ChatCompletionCreateParams = {
-        model,
-        messages: openaiMessages,
-      };
-
-      // Note: temperature is not valid for gpt-5 models
-      // Note: max_tokens is deprecated for gpt-5 models, use max_completion_tokens instead
-      if (model.includes('gpt-5')) {
-        options.max_completion_tokens = maxTokens;
-      } else {
-        options.max_tokens = maxTokens;
-        options.temperature = temperature;
-      }
-
-      const response = await this.client.chat.completions.create(options);
-
-      const content = response.choices[0]?.message?.content || '';
-      const inputTokens = response.usage?.prompt_tokens ?? estimateTokens(JSON.stringify(messages));
-      const outputTokens = response.usage?.completion_tokens ?? estimateTokens(content);
-      const cachedTokens = response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
-
-      // Log cache hits for visibility
-      if (cachedTokens > 0) {
-        logger.debug(
-          `[CACHE HIT] ${cachedTokens.toLocaleString()} tokens cached (${((cachedTokens / inputTokens) * 100).toFixed(1)}% of input)`,
-        );
-      }
-
-      this.updateTokenStats(inputTokens, outputTokens, cachedTokens);
-
-      return {
-        content,
-        usage: response.usage
-          ? {
-              promptTokens: response.usage.prompt_tokens,
-              completionTokens: response.usage.completion_tokens,
-              totalTokens: response.usage.total_tokens,
-              cachedTokens,
-            }
-          : undefined,
-        model: response.model,
-      };
-    } catch (error) {
-      if (error instanceof Error) {
-        error.message = `${this.friendlyName} completion failed: ${error.message}`;
-        throw error;
-      }
-      throw new Error(`${this.friendlyName} completion failed: ${String(error)}`);
+    const params: ChatCompletionCreateParamsNonStreaming = { model, messages: openaiMessages };
+    if (this.capabilities.maxTokensField === 'max_completion_tokens') {
+      params.max_completion_tokens = maxTokens;
+    } else {
+      params.max_tokens = maxTokens;
     }
+    if (this.capabilities.supportsTemperature) {
+      params.temperature = temperature;
+    }
+    return params;
   }
 
-  async completeWithStructure<T>(options: AICompletionOptions & { schema: unknown }): Promise<T> {
-    const response = await this.complete({
-      ...options,
-      responseFormat: 'json',
-    });
+  private recordResponseUsage(
+    response: { usage?: OpenAI.CompletionUsage | null },
+    params: ChatCompletionCreateParamsNonStreaming,
+    content: string,
+  ): void {
+    const inputTokens =
+      response.usage?.prompt_tokens ?? estimateTokens(JSON.stringify(params.messages));
+    const outputTokens = response.usage?.completion_tokens ?? estimateTokens(content);
+    const cachedTokens = response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
 
-    try {
-      const jsonMatch = response.content.match(/```json\n?([\s\S]*?)\n?```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : response.content;
-      return JSON.parse(jsonStr) as T;
-    } catch (error) {
-      throw new Error(
-        `Failed to parse structured response: ${error instanceof Error ? error.message : String(error)}`,
+    if (cachedTokens > 0) {
+      logger.debug(
+        `[CACHE HIT] ${cachedTokens.toLocaleString()} tokens cached (${(
+          (cachedTokens / Math.max(1, inputTokens)) *
+          100
+        ).toFixed(1)}% of input)`,
       );
     }
+
+    this.recordUsage(inputTokens, outputTokens, { cachedReadTokens: cachedTokens });
   }
 
-  async invoke(prompt: string, maxTokens?: number, _options?: { stage?: string }): Promise<string> {
-    const model = this.stageConfig.model;
-    const response = await this.complete({
-      messages: [{ role: 'user', content: prompt }],
-      maxTokens: maxTokens || this.maxTokens,
-      model,
-    });
-    return response.content;
+  private toTokenUsage(usage?: OpenAI.CompletionUsage | null) {
+    if (!usage) return undefined;
+    return {
+      promptTokens: usage.prompt_tokens,
+      completionTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens,
+      cachedTokens: usage.prompt_tokens_details?.cached_tokens ?? 0,
+    };
   }
 
-  isAvailable(): boolean {
-    return !!this.apiKey;
+  private async requireClient(): Promise<OpenAI> {
+    if (!this.initialized) await this.initialize();
+    if (!this.client) throw new Error(`${this.friendlyName} client not initialized`);
+    return this.client;
   }
 
-  getModelName(): string {
-    return this.stageConfig.model;
-  }
-
-  getMaxTokens(): number {
-    return this.maxTokens;
-  }
-
-  getTemperature(): number {
-    return this.stageConfig.temperature ?? 0;
-  }
-
-  getTokenStats(): TokenStats {
-    return { ...this.tokenStats };
-  }
-
-  resetTokenStats(): void {
-    this.tokenStats.totalInputTokens = 0;
-    this.tokenStats.totalOutputTokens = 0;
-    this.tokenStats.totalTokens = 0;
-    this.tokenStats.invocationCount = 0;
-    this.tokenStats.startTime = new Date();
-    this.tokenStats.estimatedCost = 0;
-    this.cachedTokens = 0;
-    this.cacheHits = 0;
+  private wrapError(error: unknown): Error {
+    if (error instanceof Error) {
+      error.message = `${this.friendlyName} completion failed: ${error.message}`;
+      return error;
+    }
+    return new Error(`${this.friendlyName} completion failed: ${String(error)}`);
   }
 }
