@@ -1,6 +1,6 @@
 'use strict';
 
-const { scoreParser } = require('./parse');
+import { scoreParser } from './parse';
 
 describe('scoreParser', () => {
   it('returns 0 for non-array input', () => {

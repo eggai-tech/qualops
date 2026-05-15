@@ -1,6 +1,6 @@
 'use strict';
 
-const { scoreSeverity } = require('./severity');
+import { scoreSeverity } from './severity';
 
 describe('scoreSeverity', () => {
   it('returns 0 when no expected issues', () => {

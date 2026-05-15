@@ -1,19 +1,22 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
+import path from 'node:path';
+import fs from 'node:fs';
+import { spawnSync } from 'node:child_process';
 
-const { QUALOPS_ROOT } = require('./config');
+import { QUALOPS_ROOT } from './config';
+import type { RunLog } from './run-log';
 
 let _initialized = false;
 
-function loadEnv() {
+function loadEnv(): void {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('dotenv').config({ path: path.join(QUALOPS_ROOT, '.env') });
   } catch {}
 }
 
-async function ensureInit() {
+export async function ensureInit(): Promise<void> {
   if (_initialized) return;
   loadEnv();
 
@@ -24,10 +27,16 @@ async function ensureInit() {
   _initialized = true;
 }
 
-function parseDiffLines(diffStr) {
-  const additions = new Set();
-  const deletions = new Set();
-  const modifications = new Set();
+export interface DiffLineResult {
+  additions: Set<number>;
+  deletions: Set<number>;
+  modifications: Set<number>;
+}
+
+export function parseDiffLines(diffStr: string): DiffLineResult {
+  const additions = new Set<number>();
+  const deletions = new Set<number>();
+  const modifications = new Set<number>();
 
   if (!diffStr) return { additions, deletions, modifications };
 
@@ -43,8 +52,15 @@ function parseDiffLines(diffStr) {
   return { additions, deletions, modifications };
 }
 
-function splitMultiFileDiff(rawDiff) {
-  const files = [];
+interface FileDiff {
+  path: string;
+  content: string;
+  diff: DiffLineResult;
+  rawDiff: string;
+}
+
+export function splitMultiFileDiff(rawDiff: string): FileDiff[] {
+  const files: FileDiff[] = [];
   const fileHeaderRe = /^diff --git a\/.+ b\/(.+)$/m;
   const chunks = rawDiff.split(/^(?=diff --git )/m).filter(Boolean);
 
@@ -59,7 +75,42 @@ function splitMultiFileDiff(rawDiff) {
   return files;
 }
 
-function resolveRepoCwd(itemInput, runLog) {
+interface GitMeta {
+  repo_path?: string;
+  head_sha?: string;
+  base_sha?: string;
+  [key: string]: unknown;
+}
+
+interface ItemInput {
+  caseId?: string;
+  git?: GitMeta;
+  source?: string;
+  diff?: string;
+  fullContent?: string;
+  fileContent?: string;
+  language?: string;
+  filePath?: string;
+}
+
+interface RepoCwd {
+  cwd: string | null;
+  cleanup: (() => void) | null;
+}
+
+interface RunConfig {
+  model: string;
+  mode: string;
+  provider: string | null;
+  configPath: string;
+}
+
+interface RunContext {
+  config: RunConfig;
+  runLog: RunLog;
+}
+
+export function resolveRepoCwd(itemInput: ItemInput, runLog: RunLog): RepoCwd {
   if (!itemInput.git?.repo_path) {
     runLog.add({
       level: 'warn',
@@ -87,7 +138,6 @@ function resolveRepoCwd(itemInput, runLog) {
     return { cwd: repoPath, cleanup: null };
   }
 
-  const { spawnSync } = require('child_process');
   const worktreeDir = path.join(
     repoPath, '.worktrees',
     `eval-${itemInput.caseId || Date.now()}-${itemInput.git.head_sha.slice(0, 8)}`,
@@ -109,7 +159,7 @@ function resolveRepoCwd(itemInput, runLog) {
     return { cwd: repoPath, cleanup: null };
   }
 
-  const cleanup = () => {
+  const cleanup = (): void => {
     try {
       spawnSync('git', ['worktree', 'remove', '--force', worktreeDir], {
         cwd: repoPath, encoding: 'utf-8', stdio: 'pipe',
@@ -120,7 +170,7 @@ function resolveRepoCwd(itemInput, runLog) {
   return { cwd: worktreeDir, cleanup };
 }
 
-async function runReviewForItem(itemInput, ctx) {
+export async function runReviewForItem(itemInput: ItemInput, ctx: RunContext): Promise<{ issues: unknown[]; durationMs: number }> {
   const { config, runLog } = ctx;
   await ensureInit();
 
@@ -137,7 +187,8 @@ async function runReviewForItem(itemInput, ctx) {
 
   try {
     if (itemInput.source === 'crb' || (!itemInput.fullContent && !itemInput.fileContent)) {
-      const { runReviewMultiFile } = require('./qualops-bridge/provider');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { runReviewMultiFile } = require('./qualops-bridge/provider') as { runReviewMultiFile: (files: FileDiff[], config: typeof evalConfig) => Promise<{ issues: unknown[]; durationMs: number }> };
       const rawDiff = itemInput.diff || '';
       const files = splitMultiFileDiff(rawDiff);
       if (files.length === 0) {
@@ -146,7 +197,8 @@ async function runReviewForItem(itemInput, ctx) {
       return await runReviewMultiFile(files, evalConfig);
     }
 
-    const { runReview } = require('./qualops-bridge/provider');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { runReview } = require('./qualops-bridge/provider') as { runReview: (evalCase: unknown, config: typeof evalConfig) => Promise<{ issues: unknown[]; durationMs: number }> };
     const rawContent = itemInput.fullContent || '';
     const rawDiff = itemInput.diff || '';
 
@@ -164,5 +216,3 @@ async function runReviewForItem(itemInput, ctx) {
     if (cleanup) cleanup();
   }
 }
-
-module.exports = { parseDiffLines, splitMultiFileDiff, resolveRepoCwd, runReviewForItem, ensureInit };

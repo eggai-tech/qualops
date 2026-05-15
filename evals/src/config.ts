@@ -1,16 +1,53 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
+import path from 'node:path';
+import fs from 'node:fs';
 
-const QUALOPS_ROOT = path.join(__dirname, '../..');
-const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
-const DEFAULT_QUALOPSRC = '.qualops/.qualopsrc.json';
-const LOGS_DIR = path.join(QUALOPS_ROOT, 'evals/logs');
+export const QUALOPS_ROOT = path.join(__dirname, '../..');
+export const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
+export const DEFAULT_QUALOPSRC = '.qualops/.qualopsrc.json';
+export const LOGS_DIR = path.join(QUALOPS_ROOT, 'evals/logs');
 
-const CRB_REPOS = ['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak'];
+export const CRB_REPOS = ['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak'] as const;
 
-function resolvePreset(name) {
+export interface PresetMeta {
+  model?: string;
+  provider?: string;
+  mode?: string;
+}
+
+export interface EvalArgs {
+  dataset?: string;
+  source?: string;
+  preset?: string;
+  mode?: string;
+  model?: string;
+  provider?: string;
+  limit?: string;
+  'no-judge'?: string;
+  severity?: string;
+  experiment?: string;
+  concurrency?: string;
+  [key: string]: string | undefined;
+}
+
+export interface EvalBuildConfig {
+  mode: string;
+  model: string;
+  modelOverride: string | null;
+  provider: string | null;
+  limit: number;
+  skipJudge: boolean;
+  presetLabel: string;
+  presetName: string | null;
+  presetFile: string | null;
+  experimentName: string;
+  concurrency: number;
+  configPath: string;
+  severityFilter: Set<string> | null;
+}
+
+export function resolvePreset(name: string | null | undefined): string | null {
   if (!name || name === 'default') return null;
   const presetFile = path.join(PRESETS_DIR, `${name}.json`);
   if (!fs.existsSync(presetFile)) {
@@ -20,19 +57,20 @@ function resolvePreset(name) {
   return presetFile;
 }
 
-function listPresets() {
+export function listPresets(): string[] {
   if (!fs.existsSync(PRESETS_DIR)) return [];
   return fs.readdirSync(PRESETS_DIR)
     .filter((f) => f.endsWith('.json'))
     .map((f) => f.replace('.json', ''));
 }
 
-function readPresetMeta(presetFile) {
+export function readPresetMeta(presetFile: string): PresetMeta {
   try {
-    const { ConfigService } = require('@/config/config');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { ConfigService } = require('@/config/config') as { ConfigService: { setConfigPath(p: string): void; getInstance(): { getResolvedStageConfig(stage: string): { model: string; provider: string } } } };
     ConfigService.setConfigPath(path.relative(QUALOPS_ROOT, presetFile));
     const resolved = ConfigService.getInstance().getResolvedStageConfig('review');
-    const rawConfig = JSON.parse(fs.readFileSync(presetFile, 'utf-8'));
+    const rawConfig = JSON.parse(fs.readFileSync(presetFile, 'utf-8')) as { review?: { pipeline?: Array<{ enabled?: boolean; mode?: string }> } };
     return {
       model: resolved.model,
       provider: resolved.provider,
@@ -43,7 +81,7 @@ function readPresetMeta(presetFile) {
   }
 }
 
-function parseArgs(argv) {
+export function parseArgs(argv: string[]): EvalArgs {
   return Object.fromEntries(
     argv
       .filter((a) => a.startsWith('--'))
@@ -51,10 +89,10 @@ function parseArgs(argv) {
         const [k, v] = a.slice(2).split('=');
         return [k, v || 'true'];
       }),
-  );
+  ) as EvalArgs;
 }
 
-function resolveDatasets(args) {
+export function resolveDatasets(args?: EvalArgs): string[] {
   if (!args) args = {};
   if (args.dataset) return [args.dataset];
   if (args.source === 'crb') return CRB_REPOS.map((r) => `qualops/crb-${r}`);
@@ -63,11 +101,11 @@ function resolveDatasets(args) {
   return ['qualops/qualops'];
 }
 
-function buildConfig(args) {
+export function buildConfig(args: EvalArgs): EvalBuildConfig {
   const presetName = args.preset || null;
   const presetFile = resolvePreset(presetName);
 
-  let presetMeta = {};
+  let presetMeta: PresetMeta = {};
   const metaFile = presetFile || path.join(QUALOPS_ROOT, DEFAULT_QUALOPSRC);
   if (fs.existsSync(metaFile)) {
     presetMeta = readPresetMeta(metaFile);
@@ -103,17 +141,3 @@ function buildConfig(args) {
     severityFilter,
   };
 }
-
-module.exports = {
-  QUALOPS_ROOT,
-  PRESETS_DIR,
-  DEFAULT_QUALOPSRC,
-  LOGS_DIR,
-  CRB_REPOS,
-  resolvePreset,
-  listPresets,
-  readPresetMeta,
-  parseArgs,
-  resolveDatasets,
-  buildConfig,
-};

@@ -1,19 +1,33 @@
 'use strict';
 
-/**
- * Line accuracy scorer — IoU-based metric measuring how accurately detected issues
- * point to the correct lines in the diff.
- *
- * Skipped for datasets with no line numbers (e.g. CRB).
- * Applies to: qualops
- */
+import type { Issue } from './types';
 
-function normalizeFile(f) {
+interface RefBugInput {
+  relevantFile?: string;
+  file?: string;
+  relevantLinesStart?: number | null;
+  relevantLinesEnd?: number | null;
+  line?: number | null;
+  lineEnd?: number | null;
+}
+
+interface RefBugMerged {
+  file: string;
+  start: number;
+  end: number;
+}
+
+interface Range {
+  start: number;
+  end: number;
+}
+
+export function normalizeFile(f: string | undefined): string {
   return (f || '').replace(/^\.\//, '');
 }
 
-function mergeRefBugs(refBugs) {
-  const byFile = {};
+export function mergeRefBugs(refBugs: RefBugInput[]): RefBugMerged[] {
+  const byFile: Record<string, Range[]> = {};
   for (const bug of refBugs) {
     const key = normalizeFile(bug.relevantFile || bug.file || '');
     if (!byFile[key]) byFile[key] = [];
@@ -23,10 +37,10 @@ function mergeRefBugs(refBugs) {
     });
   }
 
-  const merged = [];
+  const merged: RefBugMerged[] = [];
   for (const [file, ranges] of Object.entries(byFile)) {
     ranges.sort((a, b) => a.start - b.start || b.end - a.end);
-    const groups = [];
+    const groups: Range[] = [];
     let cur = { ...ranges[0] };
     for (let i = 1; i < ranges.length; i++) {
       const r = ranges[i];
@@ -43,7 +57,7 @@ function mergeRefBugs(refBugs) {
   return merged;
 }
 
-function lineIoU(ref, pred) {
+export function lineIoU(ref: Range, pred: Range): number {
   const intStart = Math.max(ref.start, pred.start);
   const intEnd = Math.min(ref.end, pred.end);
   const intersection = Math.max(0, intEnd - intStart + 1);
@@ -53,26 +67,25 @@ function lineIoU(ref, pred) {
   return union > 0 ? intersection / union : 0;
 }
 
-function scoreLineAccuracy(issues, referenceBugs) {
+export function scoreLineAccuracy(issues: Issue[], referenceBugs: RefBugInput[]): { pass: boolean; score: number | null; reason: string } {
   if (referenceBugs.length === 0) {
     return { pass: true, score: 1, reason: 'LINE_METRICS: line_acc=1.000 avg_iou=1.000 within3=1.000 matched=0/0' };
   }
 
-  // CRB golden comments have no line numbers — skip line accuracy for this dataset
   const allNull = referenceBugs.every((b) => b.relevantLinesStart == null && b.line == null);
   if (allNull) {
     return { pass: true, score: null, reason: 'LINE_METRICS: skipped (dataset has no line numbers)' };
   }
 
   const refBugs = mergeRefBugs(referenceBugs);
-  const ious = [];
-  const matchedIssues = [];
+  const ious: number[] = [];
+  const matchedIssues: (Issue | null)[] = [];
 
   for (const ref of refBugs) {
     let bestIoU = 0;
-    let bestIssue = null;
+    let bestIssue: Issue | null = null;
     for (const issue of issues) {
-      const issueFile = normalizeFile(issue.file || '');
+      const issueFile = normalizeFile(issue.file);
       if (ref.file && issueFile && ref.file !== issueFile) continue;
       const issueLine = issue.line || 0;
       const issueLineEnd = issue.lineEnd || issueLine;
@@ -103,5 +116,3 @@ function scoreLineAccuracy(issues, referenceBugs) {
 
   return { pass: lineAcc >= 0.15, score: lineAcc, reason };
 }
-
-module.exports = { scoreLineAccuracy, mergeRefBugs, lineIoU, normalizeFile };

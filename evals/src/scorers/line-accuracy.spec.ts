@@ -1,6 +1,6 @@
 'use strict';
 
-const { scoreLineAccuracy } = require('./line-accuracy');
+import { scoreLineAccuracy } from './line-accuracy';
 
 describe('scoreLineAccuracy', () => {
   it('returns 1 when no reference bugs', () => {

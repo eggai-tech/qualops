@@ -2,7 +2,7 @@
 
 jest.mock('langfuse', () => ({ Langfuse: jest.fn() }));
 
-const { buildQualOpsItem, buildCrbItem } = require('./upload-datasets');
+import { buildQualOpsItem, buildCrbItem } from './upload-datasets';
 
 describe('buildQualOpsItem', () => {
   it('builds item with all fields', () => {
@@ -35,7 +35,7 @@ describe('buildQualOpsItem', () => {
       ],
     };
     const item = buildQualOpsItem(data, 0);
-    const bug = item.expectedOutput.referenceBugs[0];
+    const bug = item.expectedOutput.referenceBugs[0] as { relevantFile?: string; relevantLinesStart?: number; relevantLinesEnd?: number; type?: string; severity?: string; description?: string };
 
     expect(bug.relevantFile).toBe('a.ts');
     expect(bug.relevantLinesStart).toBe(10);
@@ -107,6 +107,7 @@ describe('buildCrbItem', () => {
     expect(item.expectedOutput.referenceExpected).toHaveLength(1);
     expect(item.expectedOutput.referenceBugs).toHaveLength(1);
     expect(item.expectedOutput.referenceExpected[0].line).toBe(5);
-    expect(item.expectedOutput.referenceBugs[0].relevantLinesStart).toBe(5);
+    const bug = item.expectedOutput.referenceBugs[0] as { relevantLinesStart?: number };
+    expect(bug.relevantLinesStart).toBe(5);
   });
 });

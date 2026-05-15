@@ -1,26 +1,25 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
-const os = require('os');
-const {
+import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
+
+import {
   generateReport,
   collateGoldenData,
   computeSummary,
   formatMarkdown,
   formatJson,
   parseCliArgs,
-} = require('./recall-report');
+  type LogFile,
+  type LogItem,
+} from './recall-report';
 
-function makeTmpDir() {
+function makeTmpDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'recall-report-test-'));
 }
 
-function writeLog(dir, filename, data) {
-  fs.writeFileSync(path.join(dir, filename), JSON.stringify(data, null, 2));
-}
-
-function makeLogData({ model = 'claude-sonnet-4-6', preset = 'fast', items = [] }) {
+function makeLogData({ model = 'claude-sonnet-4-6', preset = 'fast', items = [] as LogItem[] }) {
   return {
     experiment: 'test-run',
     preset,
@@ -36,7 +35,12 @@ function makeLogData({ model = 'claude-sonnet-4-6', preset = 'fast', items = [] 
   };
 }
 
-function makeItem({ caseId, dataset, goldenDetails = null, scores = {} }) {
+function makeItem({ caseId, dataset, goldenDetails = null, scores = {} }: {
+  caseId: string;
+  dataset: string;
+  goldenDetails?: unknown[] | null;
+  scores?: Record<string, unknown>;
+}): LogItem {
   return {
     timestamp: '2026-03-30T10:01:00Z',
     level: 'info',
@@ -67,7 +71,7 @@ describe('parseCliArgs', () => {
 
 describe('collateGoldenData', () => {
   it('collates goldenDetails from logs with per-golden data', () => {
-    const logs = [{
+    const logs: LogFile[] = [{
       file: 'run1.json',
       meta: { model: 'sonnet' },
       items: [makeItem({
@@ -85,21 +89,22 @@ describe('collateGoldenData', () => {
     expect(runsWithoutDetails).toBe(0);
     expect(goldenMap.size).toBe(2);
 
-    const g0 = goldenMap.get('crb-sentry-1:golden-0');
+    const g0 = goldenMap.get('crb-sentry-1:golden-0')!;
     expect(g0.runs).toHaveLength(1);
     expect(g0.runs[0].matched).toBe(true);
 
-    const g1 = goldenMap.get('crb-sentry-1:golden-1');
+    const g1 = goldenMap.get('crb-sentry-1:golden-1')!;
     expect(g1.runs[0].matched).toBe(false);
   });
 
   it('creates stub entries for old logs without goldenDetails', () => {
-    const datasetGoldens = new Map();
-    datasetGoldens.set('crb-sentry-1', [
-      { goldenIndex: 0, description: 'Bug A', type: 'bug', severity: 'high' },
+    const datasetGoldens = new Map([
+      ['crb-sentry-1', [
+        { goldenIndex: 0, description: 'Bug A', type: 'bug', severity: 'high' },
+      ]],
     ]);
 
-    const logs = [{
+    const logs: LogFile[] = [{
       file: 'old-run.json',
       meta: { model: 'sonnet' },
       items: [makeItem({
@@ -114,17 +119,18 @@ describe('collateGoldenData', () => {
     expect(runsWithoutDetails).toBe(1);
     expect(goldenMap.size).toBe(1);
 
-    const g0 = goldenMap.get('crb-sentry-1:golden-0');
+    const g0 = goldenMap.get('crb-sentry-1:golden-0')!;
     expect(g0.runs[0].matched).toBeNull();
   });
 
   it('falls back to stub when goldenDetails fail validation', () => {
-    const datasetGoldens = new Map();
-    datasetGoldens.set('crb-sentry-1', [
-      { goldenIndex: 0, description: 'Bug A', type: 'bug', severity: 'high' },
+    const datasetGoldens = new Map([
+      ['crb-sentry-1', [
+        { goldenIndex: 0, description: 'Bug A', type: 'bug', severity: 'high' },
+      ]],
     ]);
 
-    const logs = [{
+    const logs: LogFile[] = [{
       file: 'bad-run.json',
       meta: { model: 'sonnet' },
       items: [makeItem({
@@ -141,7 +147,7 @@ describe('collateGoldenData', () => {
     expect(runsWithDetails).toBe(0);
     expect(runsWithoutDetails).toBe(1);
     expect(goldenMap.size).toBe(1);
-    expect(goldenMap.get('crb-sentry-1:golden-0').runs[0].matched).toBeNull();
+    expect(goldenMap.get('crb-sentry-1:golden-0')!.runs[0].matched).toBeNull();
   });
 
   it('merges runs from multiple log files', () => {
@@ -149,13 +155,13 @@ describe('collateGoldenData', () => {
       { goldenIndex: 0, description: 'Bug A', type: 'bug', severity: 'high', matched: true, confidence: 0.9, matchedCandidate: 'x' },
     ];
 
-    const logs = [
+    const logs: LogFile[] = [
       { file: 'run1.json', meta: {}, items: [makeItem({ caseId: 'crb-sentry-1', dataset: 'qualops/crb-sentry', goldenDetails })] },
       { file: 'run2.json', meta: {}, items: [makeItem({ caseId: 'crb-sentry-1', dataset: 'qualops/crb-sentry', goldenDetails: [{ ...goldenDetails[0], matched: false, confidence: 0 }] })] },
     ];
 
     const { goldenMap } = collateGoldenData(logs, new Map());
-    const g0 = goldenMap.get('crb-sentry-1:golden-0');
+    const g0 = goldenMap.get('crb-sentry-1:golden-0')!;
     expect(g0.runs).toHaveLength(2);
     expect(g0.runs[0].matched).toBe(true);
     expect(g0.runs[1].matched).toBe(false);
@@ -164,10 +170,11 @@ describe('collateGoldenData', () => {
 
 describe('computeSummary', () => {
   it('classifies always/never/flaky correctly', () => {
-    const goldenMap = new Map();
-    goldenMap.set('a:golden-0', { runs: [{ matched: true }, { matched: true }] });
-    goldenMap.set('a:golden-1', { runs: [{ matched: false }, { matched: false }] });
-    goldenMap.set('a:golden-2', { runs: [{ matched: true }, { matched: false }] });
+    const goldenMap = new Map([
+      ['a:golden-0', { caseId: 'a', goldenIndex: 0, description: '', type: null, severity: null, runs: [{ matched: true, confidence: 1, runFile: 'r1' }, { matched: true, confidence: 1, runFile: 'r2' }] }],
+      ['a:golden-1', { caseId: 'a', goldenIndex: 1, description: '', type: null, severity: null, runs: [{ matched: false, confidence: 0, runFile: 'r1' }, { matched: false, confidence: 0, runFile: 'r2' }] }],
+      ['a:golden-2', { caseId: 'a', goldenIndex: 2, description: '', type: null, severity: null, runs: [{ matched: true, confidence: 1, runFile: 'r1' }, { matched: false, confidence: 0, runFile: 'r2' }] }],
+    ]);
 
     const summary = computeSummary(goldenMap);
     expect(summary.alwaysDetected).toBe(1);
@@ -177,8 +184,9 @@ describe('computeSummary', () => {
   });
 
   it('ignores stub runs (matched=null) in classification', () => {
-    const goldenMap = new Map();
-    goldenMap.set('a:golden-0', { runs: [{ matched: null }, { matched: true }] });
+    const goldenMap = new Map([
+      ['a:golden-0', { caseId: 'a', goldenIndex: 0, description: '', type: null, severity: null, runs: [{ matched: null, confidence: null, runFile: 'r1' }, { matched: true, confidence: 1, runFile: 'r2' }] }],
+    ]);
 
     const summary = computeSummary(goldenMap);
     expect(summary.alwaysDetected).toBe(1);
@@ -186,8 +194,9 @@ describe('computeSummary', () => {
   });
 
   it('skips entries with only stub runs', () => {
-    const goldenMap = new Map();
-    goldenMap.set('a:golden-0', { runs: [{ matched: null }] });
+    const goldenMap = new Map([
+      ['a:golden-0', { caseId: 'a', goldenIndex: 0, description: '', type: null, severity: null, runs: [{ matched: null, confidence: null, runFile: 'r1' }] }],
+    ]);
 
     const summary = computeSummary(goldenMap);
     expect(summary.total).toBe(0);
@@ -196,17 +205,18 @@ describe('computeSummary', () => {
 
 describe('formatMarkdown', () => {
   it('produces valid markdown output', () => {
-    const goldenMap = new Map();
-    goldenMap.set('crb-sentry-1:golden-0', {
-      caseId: 'crb-sentry-1',
-      goldenIndex: 0,
-      description: 'Django querysets do not support negative slicing',
-      type: 'bug',
-      severity: 'high',
-      runs: [{ matched: true, runFile: 'r1.json' }, { matched: false, runFile: 'r2.json' }],
-    });
+    const goldenMap = new Map([
+      ['crb-sentry-1:golden-0', {
+        caseId: 'crb-sentry-1',
+        goldenIndex: 0,
+        description: 'Django querysets do not support negative slicing',
+        type: 'bug',
+        severity: 'high',
+        runs: [{ matched: true, confidence: 0.9, runFile: 'r1.json' }, { matched: false, confidence: 0, runFile: 'r2.json' }],
+      }],
+    ]);
 
-    const logs = [{ file: 'r1.json', meta: { model: 'sonnet' } }, { file: 'r2.json', meta: { model: 'sonnet' } }];
+    const logs: LogFile[] = [{ file: 'r1.json', meta: { model: 'sonnet' }, items: [] }, { file: 'r2.json', meta: { model: 'sonnet' }, items: [] }];
     const summary = computeSummary(goldenMap);
     const md = formatMarkdown(logs, goldenMap, summary, 2, 0);
 
@@ -223,17 +233,18 @@ describe('formatMarkdown', () => {
   });
 
   it('shows stub markers for old runs', () => {
-    const goldenMap = new Map();
-    goldenMap.set('crb-sentry-1:golden-0', {
-      caseId: 'crb-sentry-1',
-      goldenIndex: 0,
-      description: 'Bug',
-      type: 'bug',
-      severity: 'high',
-      runs: [{ matched: null, runFile: 'r1.json' }, { matched: true, runFile: 'r2.json' }],
-    });
+    const goldenMap = new Map([
+      ['crb-sentry-1:golden-0', {
+        caseId: 'crb-sentry-1',
+        goldenIndex: 0,
+        description: 'Bug',
+        type: 'bug',
+        severity: 'high',
+        runs: [{ matched: null, confidence: null, runFile: 'r1.json' }, { matched: true, confidence: 0.9, runFile: 'r2.json' }],
+      }],
+    ]);
 
-    const logs = [{ file: 'r1.json', meta: { model: 'sonnet' } }];
+    const logs: LogFile[] = [{ file: 'r1.json', meta: { model: 'sonnet' }, items: [] }];
     const summary = computeSummary(goldenMap);
     const md = formatMarkdown(logs, goldenMap, summary, 1, 1);
 
@@ -242,33 +253,31 @@ describe('formatMarkdown', () => {
   });
 
   it('aligns run slots across goldens present in different runs', () => {
-    const goldenMap = new Map();
-    goldenMap.set('case-1:golden-0', {
-      caseId: 'case-1',
-      goldenIndex: 0,
-      description: 'Bug A',
-      type: 'bug',
-      severity: 'high',
-      runs: [{ matched: true, runFile: 'r1.json' }],
-    });
-    goldenMap.set('case-1:golden-1', {
-      caseId: 'case-1',
-      goldenIndex: 1,
-      description: 'Bug B',
-      type: 'bug',
-      severity: 'low',
-      runs: [{ matched: false, runFile: 'r2.json' }],
-    });
+    const goldenMap = new Map([
+      ['case-1:golden-0', {
+        caseId: 'case-1',
+        goldenIndex: 0,
+        description: 'Bug A',
+        type: 'bug',
+        severity: 'high',
+        runs: [{ matched: true, confidence: 0.9, runFile: 'r1.json' }],
+      }],
+      ['case-1:golden-1', {
+        caseId: 'case-1',
+        goldenIndex: 1,
+        description: 'Bug B',
+        type: 'bug',
+        severity: 'low',
+        runs: [{ matched: false, confidence: 0, runFile: 'r2.json' }],
+      }],
+    ]);
 
-    const logs = [{ file: 'r1.json', meta: { model: 'sonnet' } }, { file: 'r2.json', meta: { model: 'sonnet' } }];
+    const logs: LogFile[] = [{ file: 'r1.json', meta: { model: 'sonnet' }, items: [] }, { file: 'r2.json', meta: { model: 'sonnet' }, items: [] }];
     const summary = computeSummary(goldenMap);
     const md = formatMarkdown(logs, goldenMap, summary, 2, 0);
 
     const lines = md.split('\n').filter((l) => l.includes('| case-1'));
     expect(lines).toHaveLength(2);
-    // Both Runs cells should be same length (2 slots)
-    const runCols = lines.map((l) => l.split('|').pop().trim());
-    // golden-0 only in r1: "✓ ", golden-1 only in r2: " ✗"
     expect(lines[0]).toContain('✓ ');
     expect(lines[1]).toContain(' ✗');
   });
@@ -276,15 +285,16 @@ describe('formatMarkdown', () => {
 
 describe('formatJson', () => {
   it('produces valid JSON with summary and goldens', () => {
-    const goldenMap = new Map();
-    goldenMap.set('crb-sentry-1:golden-0', {
-      caseId: 'crb-sentry-1',
-      goldenIndex: 0,
-      description: 'Bug A',
-      type: 'bug',
-      severity: 'high',
-      runs: [{ matched: true }, { matched: false }],
-    });
+    const goldenMap = new Map([
+      ['crb-sentry-1:golden-0', {
+        caseId: 'crb-sentry-1',
+        goldenIndex: 0,
+        description: 'Bug A',
+        type: 'bug',
+        severity: 'high',
+        runs: [{ matched: true, confidence: 0.9, runFile: 'r1' }, { matched: false, confidence: 0, runFile: 'r2' }],
+      }],
+    ]);
 
     const summary = computeSummary(goldenMap);
     const json = formatJson(goldenMap, summary, 2, 0);

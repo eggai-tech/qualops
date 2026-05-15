@@ -1,6 +1,6 @@
 'use strict';
 
-const { scoreCoverage } = require('./coverage');
+import { scoreCoverage } from './coverage';
 
 describe('scoreCoverage', () => {
   it('returns 1 when no expected issues', () => {
