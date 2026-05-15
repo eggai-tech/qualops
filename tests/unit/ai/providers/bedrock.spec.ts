@@ -645,115 +645,74 @@ describe('BedrockProvider', () => {
     });
   });
 
-  describe('completeWithStructure', () => {
+  describe('complete with schema (tool_use dialect)', () => {
+    const { z } = require('zod');
+    const PingSchema = z.object({ key: z.string() });
+
     beforeEach(async () => {
       provider = new BedrockProvider(validStageConfig);
       await provider.initialize();
       (provider as unknown as { client: MockBedrockClient }).client = mockBedrockClient;
     });
 
-    it('should parse JSON response', async () => {
-      const mockResponse = {
+    it('extracts and validates tool_use input against the schema', async () => {
+      mockBedrockClient.send.mockResolvedValue({
         body: new TextEncoder().encode(
           JSON.stringify({
-            content: [{ type: 'text', text: '{"key": "value"}' }],
+            content: [{ type: 'tool_use', name: 'ping', input: { key: 'value' } }],
             usage: { input_tokens: 10, output_tokens: 5 },
           }),
         ),
-      };
-      mockBedrockClient.send.mockResolvedValue(mockResponse);
-
-      const result = await provider.completeWithStructure({
-        messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
       });
 
-      expect(result).toEqual({ key: 'value' });
-    });
-
-    it('should parse complex nested JSON', async () => {
-      const mockResponse = {
-        body: new TextEncoder().encode(
-          JSON.stringify({
-            content: [
-              {
-                type: 'text',
-                text: '{"nested": {"deep": {"value": 123}}, "array": [1, 2, 3]}',
-              },
-            ],
-            usage: { input_tokens: 10, output_tokens: 5 },
-          }),
-        ),
-      };
-      mockBedrockClient.send.mockResolvedValue(mockResponse);
-
-      const result = await provider.completeWithStructure<{
-        nested: { deep: { value: number } };
-        array: number[];
-      }>({
+      const response = await provider.complete({
         messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
+        schema: PingSchema,
+        schemaName: 'ping',
       });
 
-      expect(result.nested.deep.value).toBe(123);
-      expect(result.array).toEqual([1, 2, 3]);
+      expect(response.content).toEqual({ key: 'value' });
+
+      const call = mockBedrockClient.send.mock.calls[0][0] as { input: { body: string } };
+      const payload = JSON.parse(call.input.body);
+      expect(payload.tool_choice).toEqual({ type: 'tool', name: 'ping' });
+      expect(payload.tools[0]).toMatchObject({ name: 'ping' });
     });
 
-    it('should throw error on invalid JSON', async () => {
-      const mockResponse = {
+    it('throws StructuredOutputError when validation fails', async () => {
+      mockBedrockClient.send.mockResolvedValue({
         body: new TextEncoder().encode(
           JSON.stringify({
-            content: [{ type: 'text', text: 'invalid json' }],
+            content: [{ type: 'tool_use', name: 'ping', input: { key: 123 } }],
             usage: { input_tokens: 10, output_tokens: 5 },
           }),
         ),
-      };
-      mockBedrockClient.send.mockResolvedValue(mockResponse);
+      });
 
       await expect(
-        provider.completeWithStructure({
+        provider.complete({
           messages: [{ role: 'user', content: 'Hello' }],
-          schema: {},
+          schema: PingSchema,
         }),
-      ).rejects.toThrow('Failed to parse structured response from AWS Bedrock');
+      ).rejects.toThrow('Schema validation failed');
     });
 
-    it('should handle empty JSON object', async () => {
-      const mockResponse = {
+    it('falls back to text-block parsing when no tool_use block is returned', async () => {
+      mockBedrockClient.send.mockResolvedValue({
         body: new TextEncoder().encode(
           JSON.stringify({
-            content: [{ type: 'text', text: '{}' }],
+            content: [{ type: 'text', text: '{"key":"value"}' }],
             usage: { input_tokens: 10, output_tokens: 5 },
           }),
         ),
-      };
-      mockBedrockClient.send.mockResolvedValue(mockResponse);
-
-      const result = await provider.completeWithStructure({
-        messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
       });
 
-      expect(result).toEqual({});
-    });
-
-    it('should handle JSON array', async () => {
-      const mockResponse = {
-        body: new TextEncoder().encode(
-          JSON.stringify({
-            content: [{ type: 'text', text: '[1, 2, 3]' }],
-            usage: { input_tokens: 10, output_tokens: 5 },
-          }),
-        ),
-      };
-      mockBedrockClient.send.mockResolvedValue(mockResponse);
-
-      const result = await provider.completeWithStructure({
-        messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
-      });
-
-      expect(result).toEqual([1, 2, 3]);
+      await expect(
+        provider.complete({
+          messages: [{ role: 'user', content: 'Hello' }],
+          schema: PingSchema,
+        }),
+      ).rejects.toThrow('no tool_use block');
     });
   });
 

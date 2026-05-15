@@ -574,7 +574,7 @@ describe('AnthropicProvider', () => {
       expect(call.messages[0].role).toBe('user');
     });
 
-    it('should handle message with cache_control', async () => {
+    it('should honor cacheControl on system messages', async () => {
       const mockResponse = {
         content: [{ text: 'Response' }],
         usage: { input_tokens: 10, output_tokens: 5 },
@@ -587,8 +587,8 @@ describe('AnthropicProvider', () => {
           {
             role: 'system',
             content: 'Cached system message',
-            cache_control: { type: 'ephemeral' },
-          } as { role: 'system'; content: string; cache_control: { type: 'ephemeral' } },
+            cacheControl: { ttl: '5m' },
+          },
           { role: 'user', content: 'Hello' },
         ],
       });
@@ -598,132 +598,102 @@ describe('AnthropicProvider', () => {
     });
   });
 
-  describe('completeWithStructure', () => {
-    beforeEach(async () => {
-      provider = new AnthropicProvider(validStageConfig);
-      await provider.initialize();
+  describe('complete with schema', () => {
+    const { z } = require('zod');
+    const PingSchema = z.object({ key: z.string() });
 
-      (provider as any).client = mockAnthropicClient;
-    });
-
-    it('should parse JSON from code block', async () => {
-      const mockResponse = {
-        content: [{ text: '```json\n{"key": "value"}\n```' }],
-        usage: { input_tokens: 10, output_tokens: 5 },
-        model: 'claude-sonnet-4-5-20250929',
-      };
-      mockAnthropicClient.messages.create.mockResolvedValue(mockResponse);
-
-      const result = await provider.completeWithStructure({
-        messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
+    describe('native output_config dialect (Claude 4.5+)', () => {
+      beforeEach(async () => {
+        provider = new AnthropicProvider(validStageConfig);
+        await provider.initialize();
+        mockAnthropicClient.messages.parse = jest.fn();
+        (provider as any).client = mockAnthropicClient;
       });
 
-      expect(result).toEqual({ key: 'value' });
-    });
+      it('returns parsed_output typed by the zod schema', async () => {
+        mockAnthropicClient.messages.parse.mockResolvedValue({
+          content: [{ text: '{"key":"value"}' }],
+          parsed_output: { key: 'value' },
+          usage: { input_tokens: 10, output_tokens: 5 },
+          model: 'claude-sonnet-4-5-20250929',
+        });
 
-    it('should parse JSON without code block', async () => {
-      const mockResponse = {
-        content: [{ text: '{"key": "value"}' }],
-        usage: { input_tokens: 10, output_tokens: 5 },
-        model: 'claude-sonnet-4-5-20250929',
-      };
-      mockAnthropicClient.messages.create.mockResolvedValue(mockResponse);
-
-      const result = await provider.completeWithStructure({
-        messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
-      });
-
-      expect(result).toEqual({ key: 'value' });
-    });
-
-    it('should parse complex nested JSON', async () => {
-      const mockResponse = {
-        content: [
-          {
-            text: '```json\n{"nested": {"deep": {"value": 123}}, "array": [1, 2, 3]}\n```',
-          },
-        ],
-        usage: { input_tokens: 10, output_tokens: 5 },
-        model: 'claude-sonnet-4-5-20250929',
-      };
-      mockAnthropicClient.messages.create.mockResolvedValue(mockResponse);
-
-      const result = await provider.completeWithStructure<{
-        nested: { deep: { value: number } };
-        array: number[];
-      }>({
-        messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
-      });
-
-      expect(result.nested.deep.value).toBe(123);
-      expect(result.array).toEqual([1, 2, 3]);
-    });
-
-    it('should throw error on invalid JSON', async () => {
-      const mockResponse = {
-        content: [{ text: 'invalid json' }],
-        usage: { input_tokens: 10, output_tokens: 5 },
-        model: 'claude-sonnet-4-5-20250929',
-      };
-      mockAnthropicClient.messages.create.mockResolvedValue(mockResponse);
-
-      await expect(
-        provider.completeWithStructure({
+        const response = await provider.complete({
           messages: [{ role: 'user', content: 'Hello' }],
-          schema: {},
-        }),
-      ).rejects.toThrow('Failed to parse structured response');
-    });
+          schema: PingSchema,
+          schemaName: 'ping',
+        });
 
-    it('should handle empty JSON object', async () => {
-      const mockResponse = {
-        content: [{ text: '{}' }],
-        usage: { input_tokens: 10, output_tokens: 5 },
-        model: 'claude-sonnet-4-5-20250929',
-      };
-      mockAnthropicClient.messages.create.mockResolvedValue(mockResponse);
-
-      const result = await provider.completeWithStructure({
-        messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
+        expect(response.content).toEqual({ key: 'value' });
+        expect(mockAnthropicClient.messages.parse).toHaveBeenCalledWith(
+          expect.objectContaining({
+            output_config: expect.objectContaining({
+              format: expect.objectContaining({ type: 'json_schema' }),
+            }),
+          }),
+        );
       });
 
-      expect(result).toEqual({});
+      it('throws StructuredOutputError when no parsed_output is returned', async () => {
+        mockAnthropicClient.messages.parse.mockResolvedValue({
+          content: [{ text: 'no parse' }],
+          parsed_output: null,
+          usage: { input_tokens: 10, output_tokens: 5 },
+          model: 'claude-sonnet-4-5-20250929',
+        });
+
+        await expect(
+          provider.complete({
+            messages: [{ role: 'user', content: 'Hello' }],
+            schema: PingSchema,
+          }),
+        ).rejects.toThrow('no parsed_output');
+      });
     });
 
-    it('should handle JSON array', async () => {
-      const mockResponse = {
-        content: [{ text: '[1, 2, 3]' }],
-        usage: { input_tokens: 10, output_tokens: 5 },
-        model: 'claude-sonnet-4-5-20250929',
-      };
-      mockAnthropicClient.messages.create.mockResolvedValue(mockResponse);
-
-      const result = await provider.completeWithStructure({
-        messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
+    describe('tool_use fallback dialect (older Claude)', () => {
+      beforeEach(async () => {
+        provider = new AnthropicProvider({
+          ...validStageConfig,
+          model: 'claude-3-haiku-20240307',
+        });
+        await provider.initialize();
+        (provider as any).client = mockAnthropicClient;
       });
 
-      expect(result).toEqual([1, 2, 3]);
-    });
+      it('extracts and validates tool_use input against the schema', async () => {
+        mockAnthropicClient.messages.create.mockResolvedValue({
+          content: [{ type: 'tool_use', name: 'ping', input: { key: 'value' } }],
+          usage: { input_tokens: 10, output_tokens: 5 },
+          model: 'claude-3-haiku-20240307',
+        });
 
-    it('should pass responseFormat as json', async () => {
-      const mockResponse = {
-        content: [{ text: '{"key": "value"}' }],
-        usage: { input_tokens: 10, output_tokens: 5 },
-        model: 'claude-sonnet-4-5-20250929',
-      };
-      mockAnthropicClient.messages.create.mockResolvedValue(mockResponse);
+        const response = await provider.complete({
+          messages: [{ role: 'user', content: 'Hello' }],
+          schema: PingSchema,
+          schemaName: 'ping',
+        });
 
-      await provider.completeWithStructure({
-        messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
+        expect(response.content).toEqual({ key: 'value' });
+        const call = mockAnthropicClient.messages.create.mock.calls[0][0];
+        expect(call.tool_choice).toEqual({ type: 'tool', name: 'ping' });
+        expect(call.tools[0]).toMatchObject({ name: 'ping' });
       });
 
-      expect(mockAnthropicClient.messages.create).toHaveBeenCalled();
+      it('throws StructuredOutputError when validation fails', async () => {
+        mockAnthropicClient.messages.create.mockResolvedValue({
+          content: [{ type: 'tool_use', name: 'ping', input: { key: 123 } }],
+          usage: { input_tokens: 10, output_tokens: 5 },
+          model: 'claude-3-haiku-20240307',
+        });
+
+        await expect(
+          provider.complete({
+            messages: [{ role: 'user', content: 'Hello' }],
+            schema: PingSchema,
+          }),
+        ).rejects.toThrow('Schema validation failed');
+      });
     });
   });
 

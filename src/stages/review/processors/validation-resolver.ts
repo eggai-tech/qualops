@@ -1,4 +1,9 @@
 import type { AIProvider } from '../../../ai/providers/provider';
+import {
+  ValidationResultsSchema,
+  type ValidationResultItem,
+} from '../../../ai/shared/schemas/validation-result';
+import { StructuredOutputError } from '../../../ai/shared/structured';
 import type { ReviewIssue } from '../../../shared/types';
 import type {
   PipelineJob,
@@ -15,52 +20,10 @@ const ISSUES_SECTION = `
 
 ## Issues to Validate
 
-Below are the issues found during code review. Validate each one and return a JSON array with your validation results.
+Below are the issues found during code review. Validate each one.
 
 {{ISSUES_LIST}}
 `;
-
-const VALIDATION_RESPONSE_SPEC = `
-
-<response_format>
-Return a JSON array with validation for each issue index.
-
-For each issue, provide:
-- index: the issue index (0-based)
-- is_false_positive: true if this is a false positive, false if valid
-- confidence: revised confidence score (1-10)
-- severity: revised severity ("critical"|"high"|"medium"|"low")
-- reasoning: explanation of why confidence/severity were adjusted or why it's a false positive
-
-Example:
-[
-  {
-    "index": 0,
-    "is_false_positive": false,
-    "confidence": 8,
-    "severity": "high",
-    "reasoning": "Confirmed as valid issue. Severity remains high due to security impact."
-  },
-  {
-    "index": 1,
-    "is_false_positive": true,
-    "confidence": 3,
-    "severity": "low",
-    "reasoning": "This is a false positive because the code pattern is correct for this framework version."
-  }
-]
-
-You must return validation for ALL issues in the same order they were provided.
-</response_format>
-`;
-
-interface ValidationResult {
-  index: number;
-  is_false_positive: boolean;
-  confidence: number;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  reasoning: string;
-}
 
 export class ValidationResolver {
   private globalConfig: ReviewConfig;
@@ -138,7 +101,7 @@ export class ValidationResolver {
       2,
     );
 
-    const fullPrompt = content + ISSUES_SECTION + VALIDATION_RESPONSE_SPEC;
+    const fullPrompt = content + ISSUES_SECTION;
     const prompt = TemplateEngine.render(fullPrompt, {
       ISSUES_LIST: issuesJson,
       MIN_CONFIDENCE: this.globalConfig.validation?.minConfidence ?? 7,
@@ -147,13 +110,23 @@ export class ValidationResolver {
 
     await getGlobalRateLimiter().throttleApiCall(this.aiProvider.name);
 
-    const response = await this.aiProvider.complete({
-      messages: [{ role: 'user', content: prompt }],
-      maxTokens: 8000,
-      temperature: 0,
-    });
-
-    const validations = this.parseValidations(response.content);
+    let validations: ValidationResultItem[];
+    try {
+      const response = await this.aiProvider.complete({
+        messages: [{ role: 'user', content: prompt }],
+        schema: ValidationResultsSchema,
+        maxTokens: 8000,
+        temperature: 0,
+      });
+      validations = response.content;
+    } catch (error) {
+      if (error instanceof StructuredOutputError) {
+        logger.warn(`[Validation] Structured output failed: ${error.message}`);
+        logger.warn(`[Validation] Raw preview: ${error.raw.slice(0, 300)}...`);
+        return [];
+      }
+      throw error;
+    }
 
     const validatedIssues: ReviewIssue[] = [];
 
@@ -174,7 +147,6 @@ export class ValidationResolver {
       issue.confidence = validation.confidence;
       issue.severity = validation.severity;
       issue.validation_reasoning = validation.reasoning;
-
       validatedIssues.push(issue);
     }
 
@@ -183,93 +155,5 @@ export class ValidationResolver {
     );
 
     return validatedIssues;
-  }
-
-  private parseValidations(content: string): ValidationResult[] {
-    if (!content || content.trim() === '') {
-      logger.warn('[Validation] Empty response from AI');
-      return [];
-    }
-
-    // Try code block first, then raw array
-    const codeBlockMatch = content.match(/```(?:json)?\n?([\s\S]*?)\n?```/);
-    const arrayMatch = content.match(/\[[\s\S]*\]/);
-    const jsonString = codeBlockMatch?.[1] || arrayMatch?.[0];
-
-    if (!jsonString) {
-      logger.warn('[Validation] No JSON array found in AI response');
-      logger.warn(`[Validation] Response preview: ${content.slice(0, 300)}...`);
-      return [];
-    }
-
-    try {
-      const fixedJson = this.fixMalformedJson(jsonString);
-      const parsed = JSON.parse(fixedJson);
-      if (!Array.isArray(parsed)) {
-        logger.warn('[Validation] Response is not an array');
-        logger.warn(`[Validation] Parsed value: ${JSON.stringify(parsed).slice(0, 200)}`);
-        return [];
-      }
-
-      return parsed.filter(
-        (v: any) =>
-          typeof v.index === 'number' &&
-          typeof v.is_false_positive === 'boolean' &&
-          typeof v.confidence === 'number' &&
-          typeof v.severity === 'string' &&
-          typeof v.reasoning === 'string',
-      );
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown parse error';
-      logger.warn(`[Validation] JSON parse error: ${errorMsg}`);
-      logger.warn(`[Validation] JSON preview: ${jsonString.slice(0, 300)}...`);
-      return [];
-    }
-  }
-
-  private fixMalformedJson(json: string): string {
-    let inString = false;
-    let escaped = false;
-    let result = '';
-
-    for (let i = 0; i < json.length; i++) {
-      const char = json[i];
-
-      if (escaped) {
-        result += char;
-        escaped = false;
-        continue;
-      }
-
-      if (char === '\\') {
-        escaped = true;
-        result += char;
-        continue;
-      }
-
-      if (char === '"') {
-        inString = !inString;
-        result += char;
-        continue;
-      }
-
-      if (inString && char === '\n') {
-        result += '\\n';
-        continue;
-      }
-
-      if (inString && char === '\r') {
-        continue;
-      }
-
-      if (inString && char === '\t') {
-        result += '\\t';
-        continue;
-      }
-
-      result += char;
-    }
-
-    return result;
   }
 }

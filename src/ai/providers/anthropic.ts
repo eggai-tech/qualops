@@ -1,38 +1,47 @@
 import type Anthropic from '@anthropic-ai/sdk';
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import type { z } from 'zod';
 
+import {
+  resolveSchemaName,
+  schemaToJsonSchema,
+  StructuredOutputError,
+} from '@/ai/shared/structured';
 import { estimateTokens } from '@/ai/shared/token-utils';
 import { ConfigService } from '@/config/config';
 import { envConfig } from '@/config/env';
 import type { ResolvedStageConfig } from '@/shared/types';
 import { logger } from '@/shared/utils/logger';
 
+import { BaseAIProvider, type PricingMultipliers } from './base';
 import { AIProviderType } from './factory';
-import type { AICompletionOptions, AIProvider, AIResponse, TokenStats } from './provider';
+import type {
+  AICompletionOptions,
+  AICompletionOptionsWithSchema,
+  AIMessage,
+  AIResponse,
+} from './provider';
 
-export class AnthropicProvider implements AIProvider {
+type AnthropicSystemBlock = {
+  type: 'text';
+  text: string;
+  cache_control?: { type: 'ephemeral'; ttl?: '1h' };
+};
+
+type AnthropicMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
+export class AnthropicProvider extends BaseAIProvider {
   readonly name = AIProviderType.ANTHROPIC;
   private client: Anthropic | null = null;
   private initialized = false;
-  private apiKey: string;
-  private maxTokens = 8000;
-  private stageConfig: ResolvedStageConfig;
-  private readonly tokenStats: TokenStats = {
-    totalInputTokens: 0,
-    totalOutputTokens: 0,
-    totalTokens: 0,
-    invocationCount: 0,
-    startTime: new Date(),
-    estimatedCost: 0,
-  };
-  private cacheCreationTokens = 0;
-  private cacheReadTokens = 0;
-  private cacheHits = 0;
-  private cache1HourCreationTokens = 0;
+  private readonly apiKey: string;
 
   constructor(stageConfig: ResolvedStageConfig) {
-    this.stageConfig = stageConfig;
+    super(stageConfig, 8000);
     this.apiKey = envConfig.get('anthropicApiKey') || '';
-
     this.validateConfiguration();
   }
 
@@ -40,25 +49,18 @@ export class AnthropicProvider implements AIProvider {
     if (!this.apiKey) {
       throw new Error('ANTHROPIC_API_KEY environment variable is required for anthropic provider');
     }
-
-    // Validate API key format
     if (!this.apiKey.startsWith('sk-ant-')) {
       throw new Error('Invalid Anthropic API key format');
     }
-
-    // Validate API key length (Anthropic keys should be at least 100 characters)
     if (this.apiKey.length < 100) {
       throw new Error('Anthropic API key appears to be truncated');
     }
-
-    // Validate API key contains only valid characters (alphanumeric, hyphens, underscores)
     if (!/^[a-zA-Z0-9_-]+$/.test(this.apiKey)) {
       throw new Error('API key contains invalid characters');
     }
 
     const required = ['provider', 'model', 'inputPerMillion', 'outputPerMillion'];
     const missing = required.filter((key) => !(key in this.stageConfig));
-
     if (missing.length > 0) {
       throw new Error(`Missing required Anthropic config: ${missing.join(', ')}`);
     }
@@ -66,153 +68,40 @@ export class AnthropicProvider implements AIProvider {
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
-
     const { default: Anthropic } = await import('@anthropic-ai/sdk');
-
-    this.client = new Anthropic({
-      apiKey: this.apiKey,
-      maxRetries: 3,
-      timeout: 200000,
-    });
+    this.client = new Anthropic({ apiKey: this.apiKey, maxRetries: 3, timeout: 200_000 });
     this.initialized = true;
   }
 
-  private updateTokenStats(
-    inputTokens: number,
-    outputTokens: number,
-    cacheCreationTokens?: number,
-    cacheReadTokens?: number,
-    use1HourCache?: boolean,
-  ): void {
-    this.tokenStats.totalInputTokens += inputTokens;
-    this.tokenStats.totalOutputTokens += outputTokens;
-    this.tokenStats.totalTokens += inputTokens + outputTokens;
-    this.tokenStats.invocationCount++;
-
-    if (cacheCreationTokens && cacheCreationTokens > 0) {
-      this.cacheCreationTokens += cacheCreationTokens;
-      if (use1HourCache) {
-        this.cache1HourCreationTokens += cacheCreationTokens;
-      }
-    }
-    if (cacheReadTokens && cacheReadTokens > 0) {
-      this.cacheReadTokens += cacheReadTokens;
-      this.cacheHits++;
-    }
-
-    const pricing = {
-      inputPerMillion: this.stageConfig.inputPerMillion,
-      outputPerMillion: this.stageConfig.outputPerMillion,
-    };
-
-    const regularInputCost = (inputTokens / 1_000_000) * pricing.inputPerMillion;
-
-    // Apply correct pricing multiplier based on cache TTL:
-    // - 5-minute cache: 1.25x base price
-    // - 1-hour cache: 2x base price
-    const cacheWriteMultiplier = use1HourCache ? 2.0 : 1.25;
-    const cacheWriteCost =
-      ((cacheCreationTokens || 0) / 1_000_000) * (pricing.inputPerMillion * cacheWriteMultiplier);
-
-    // Cache reads are always 0.1x (90% discount)
-    const cacheReadCost = ((cacheReadTokens || 0) / 1_000_000) * (pricing.inputPerMillion * 0.1);
-    const outputCost = (outputTokens / 1_000_000) * pricing.outputPerMillion;
-    this.tokenStats.estimatedCost += regularInputCost + cacheWriteCost + cacheReadCost + outputCost;
+  isAvailable(): boolean {
+    return Boolean(this.apiKey);
   }
 
-  async complete(options: AICompletionOptions): Promise<AIResponse> {
-    await this.initialize();
+  protected pricingMultipliers(use1HourCache?: boolean): PricingMultipliers {
+    return {
+      cacheWriteMultiplier: use1HourCache ? 2.0 : 1.25,
+      cacheReadMultiplier: 0.1,
+    };
+  }
 
-    const {
-      messages,
-      temperature = this.stageConfig.temperature ?? 0,
-      maxTokens = this.maxTokens,
-      model = this.stageConfig.model,
-      systemPrompt,
-    } = options;
-
-    logger.debug(`[anthropic] model=${model} messages=${messages.length}`);
-
-    if (!this.client) {
-      throw new Error('Anthropic client not initialized');
-    }
+  protected async completeText(options: AICompletionOptions): Promise<AIResponse<string>> {
+    const client = await this.requireClient();
+    const { messages, temperature, maxTokens, model, systemPrompt } = this.normalize(options);
+    const { use1HourCache, system } = this.buildSystemBlocks(messages, systemPrompt);
 
     try {
-      const systemMessages = messages.filter((m) => m.role === 'system');
-      const nonSystemMessages = messages.filter((m) => m.role !== 'system');
-
-      const cacheTTL = ConfigService.getInstance().get('cacheTTL');
-      const use1HourCache = Boolean(cacheTTL && cacheTTL >= 3600000);
-
-      const systemContent = systemPrompt
-        ? [
-            {
-              type: 'text' as const,
-              text: systemPrompt,
-              cache_control: use1HourCache
-                ? { type: 'ephemeral' as const, ttl: '1h' as const }
-                : { type: 'ephemeral' as const },
-            },
-          ]
-        : systemMessages.length > 0
-          ? systemMessages.map((m) => ({
-              type: 'text' as const,
-              text: m.content,
-              ...('cache_control' in m && m.cache_control
-                ? { cache_control: m.cache_control as { type: 'ephemeral' } }
-                : {}),
-            }))
-          : undefined;
-
-      const response = await this.client.messages.create({
+      const response = await client.messages.create({
         model,
         max_tokens: maxTokens,
         temperature,
-        system: systemContent,
-        messages: nonSystemMessages.map((m) => ({
-          role: m.role === 'user' ? 'user' : 'assistant',
-          content: m.content,
-        })),
+        system,
+        messages: this.toAnthropicMessages(messages),
       });
-
-      const firstBlock = response.content[0];
-      const content = firstBlock && 'text' in firstBlock ? firstBlock.text : '';
-      const inputTokens = response.usage?.input_tokens || estimateTokens(JSON.stringify(messages));
-      const outputTokens = response.usage?.output_tokens || estimateTokens(content);
-
-      type AnthropicUsage = Anthropic.Messages.Message['usage'] & {
-        cache_creation_input_tokens?: number;
-        cache_read_input_tokens?: number;
-      };
-
-      const cacheCreationTokens =
-        (response.usage as AnthropicUsage)?.cache_creation_input_tokens || 0;
-
-      const cacheReadTokens = (response.usage as AnthropicUsage)?.cache_read_input_tokens || 0;
-
-      if (cacheReadTokens > 0) {
-        logger.debug(
-          `[CACHE HIT] ${cacheReadTokens.toLocaleString()} tokens from cache (90% discount)`,
-        );
-      }
-      if (cacheCreationTokens > 0) {
-        const cacheTTL = use1HourCache ? '1-hour' : '5-minute';
-        const multiplier = use1HourCache ? '2x' : '1.25x';
-        logger.debug(
-          `[CACHE WRITE] ${cacheCreationTokens.toLocaleString()} tokens written to ${cacheTTL} cache (${multiplier} cost)`,
-        );
-      }
-
-      this.updateTokenStats(
-        inputTokens,
-        outputTokens,
-        cacheCreationTokens,
-        cacheReadTokens,
-        use1HourCache,
-      );
-
+      const raw = this.extractText(response);
+      this.recordResponseUsage(response, messages, raw, use1HourCache);
       return {
-        content,
+        content: raw,
+        raw,
         usage: response.usage
           ? {
               promptTokens: response.usage.input_tokens,
@@ -223,69 +112,215 @@ export class AnthropicProvider implements AIProvider {
         model: response.model,
       };
     } catch (error) {
-      throw new Error(
-        `Anthropic completion failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      throw this.wrapError(error);
     }
   }
 
-  async completeWithStructure<T>(options: AICompletionOptions & { schema: unknown }): Promise<T> {
-    const response = await this.complete({
-      ...options,
-      responseFormat: 'json',
-    });
+  protected async completeStructured<S extends z.ZodType>(
+    options: AICompletionOptionsWithSchema<S>,
+  ): Promise<AIResponse<z.infer<S>>> {
+    const client = await this.requireClient();
+    const { messages, temperature, maxTokens, model, systemPrompt } = this.normalize(options);
+    const { use1HourCache, system } = this.buildSystemBlocks(messages, systemPrompt);
+    const schemaName = resolveSchemaName(options.schema, options.schemaName);
 
+    if (this.capabilities.structuredDialect === 'anthropic-output-config') {
+      try {
+        const response = await client.messages.parse({
+          model,
+          max_tokens: maxTokens,
+          temperature,
+          system,
+          messages: this.toAnthropicMessages(messages),
+          output_config: { format: zodOutputFormat(options.schema) },
+        });
+        const raw = this.extractText(response);
+        if (response.parsed_output == null) {
+          throw new StructuredOutputError('Anthropic returned no parsed_output', raw);
+        }
+        this.recordResponseUsage(response, messages, raw, use1HourCache);
+        return {
+          content: response.parsed_output as z.infer<S>,
+          raw,
+          usage: this.toTokenUsage(response.usage),
+          model: response.model,
+        };
+      } catch (error) {
+        if (error instanceof StructuredOutputError) throw error;
+        throw this.wrapError(error);
+      }
+    }
+
+    // tool_use fallback for Claude < 4.5
+    const toolSchema = schemaToJsonSchema(options.schema) as Record<string, unknown>;
     try {
-      const jsonMatch = response.content.match(/```json\n?([\s\S]*?)\n?```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : response.content;
-      return JSON.parse(jsonStr) as T;
-    } catch (error) {
-      throw new Error(
-        `Failed to parse structured response: ${error instanceof Error ? error.message : String(error)}`,
+      const response = await client.messages.create({
+        model,
+        max_tokens: maxTokens,
+        temperature,
+        system,
+        messages: this.toAnthropicMessages(messages),
+        tools: [
+          {
+            name: schemaName,
+            description: 'Return the result in this exact shape.',
+            input_schema: toolSchema as Anthropic.Messages.Tool['input_schema'],
+          },
+        ],
+        tool_choice: { type: 'tool', name: schemaName },
+      });
+
+      const toolUseBlock = response.content.find(
+        (b): b is Anthropic.Messages.ToolUseBlock => b.type === 'tool_use',
       );
+      const raw = JSON.stringify(toolUseBlock?.input ?? null);
+      if (!toolUseBlock) {
+        throw new StructuredOutputError('Anthropic returned no tool_use block', raw);
+      }
+      const parsed = options.schema.safeParse(toolUseBlock.input);
+      if (!parsed.success) {
+        throw new StructuredOutputError(
+          `Schema validation failed: ${parsed.error.message}`,
+          raw,
+          parsed.error,
+        );
+      }
+      this.recordResponseUsage(response, messages, raw, use1HourCache);
+      return {
+        content: parsed.data,
+        raw,
+        usage: this.toTokenUsage(response.usage),
+        model: response.model,
+      };
+    } catch (error) {
+      if (error instanceof StructuredOutputError) throw error;
+      throw this.wrapError(error);
     }
   }
 
-  async invoke(prompt: string, maxTokens?: number, _options?: { stage?: string }): Promise<string> {
-    const model = this.stageConfig.model;
-    const response = await this.complete({
-      messages: [{ role: 'user', content: prompt }],
-      maxTokens: maxTokens || this.maxTokens,
-      model,
+  private normalize(options: AICompletionOptions): {
+    messages: AIMessage[];
+    temperature: number;
+    maxTokens: number;
+    model: string;
+    systemPrompt?: string;
+  } {
+    return {
+      messages: options.messages,
+      temperature: options.temperature ?? this.stageConfig.temperature ?? 0,
+      maxTokens: options.maxTokens ?? this.maxTokens,
+      model: options.model ?? this.stageConfig.model,
+      systemPrompt: options.systemPrompt,
+    };
+  }
+
+  private buildSystemBlocks(
+    messages: AIMessage[],
+    systemPrompt?: string,
+  ): { use1HourCache: boolean; system: AnthropicSystemBlock[] | undefined } {
+    const cacheTTL = ConfigService.getInstance().get('cacheTTL');
+    const use1HourCache = Boolean(cacheTTL && cacheTTL >= 3_600_000);
+
+    if (systemPrompt) {
+      return {
+        use1HourCache,
+        system: [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: use1HourCache ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' },
+          },
+        ],
+      };
+    }
+
+    const systemMessages = messages.filter((m) => m.role === 'system');
+    if (systemMessages.length === 0) return { use1HourCache, system: undefined };
+
+    return {
+      use1HourCache,
+      system: systemMessages.map((m) => {
+        const block: AnthropicSystemBlock = { type: 'text', text: m.content };
+        if (m.cacheControl) {
+          block.cache_control =
+            m.cacheControl.ttl === '1h' ? { type: 'ephemeral', ttl: '1h' } : { type: 'ephemeral' };
+        }
+        return block;
+      }),
+    };
+  }
+
+  private toAnthropicMessages(messages: AIMessage[]): AnthropicMessage[] {
+    return messages
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.content,
+      }));
+  }
+
+  private extractText(response: { content: Anthropic.Messages.ContentBlock[] }): string {
+    return response.content
+      .map((block) => ('text' in block && typeof block.text === 'string' ? block.text : ''))
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  private recordResponseUsage(
+    response: { usage?: Anthropic.Messages.Message['usage'] },
+    messages: AIMessage[],
+    raw: string,
+    use1HourCache: boolean,
+  ): void {
+    type AnthropicUsage = Anthropic.Messages.Message['usage'] & {
+      cache_creation_input_tokens?: number;
+      cache_read_input_tokens?: number;
+    };
+    const usage = response.usage as AnthropicUsage | undefined;
+    const inputTokens = usage?.input_tokens ?? estimateTokens(JSON.stringify(messages));
+    const outputTokens = usage?.output_tokens ?? estimateTokens(raw);
+    const cachedReadTokens = usage?.cache_read_input_tokens ?? 0;
+    const cacheCreationTokens = usage?.cache_creation_input_tokens ?? 0;
+
+    if (cachedReadTokens > 0) {
+      logger.debug(
+        `[CACHE HIT] ${cachedReadTokens.toLocaleString()} tokens from cache (90% discount)`,
+      );
+    }
+    if (cacheCreationTokens > 0) {
+      logger.debug(
+        `[CACHE WRITE] ${cacheCreationTokens.toLocaleString()} tokens to ${
+          use1HourCache ? '1-hour' : '5-minute'
+        } cache`,
+      );
+    }
+
+    this.recordUsage(inputTokens, outputTokens, {
+      fullPriceInput: inputTokens,
+      cachedReadTokens,
+      cacheCreationTokens,
+      use1HourCache,
     });
-    return response.content;
   }
 
-  isAvailable(): boolean {
-    return !!this.apiKey;
+  private toTokenUsage(usage?: Anthropic.Messages.Message['usage']) {
+    if (!usage) return undefined;
+    return {
+      promptTokens: usage.input_tokens,
+      completionTokens: usage.output_tokens,
+      totalTokens: usage.input_tokens + usage.output_tokens,
+    };
   }
 
-  getModelName(): string {
-    return this.stageConfig.model;
+  private async requireClient(): Promise<Anthropic> {
+    if (!this.initialized) await this.initialize();
+    if (!this.client) throw new Error('Anthropic client not initialized');
+    return this.client;
   }
 
-  getMaxTokens(): number {
-    return this.maxTokens;
-  }
-
-  getTemperature(): number {
-    return this.stageConfig.temperature ?? 0;
-  }
-
-  getTokenStats(): TokenStats {
-    return { ...this.tokenStats };
-  }
-
-  resetTokenStats(): void {
-    this.tokenStats.totalInputTokens = 0;
-    this.tokenStats.totalOutputTokens = 0;
-    this.tokenStats.totalTokens = 0;
-    this.tokenStats.invocationCount = 0;
-    this.tokenStats.startTime = new Date();
-    this.tokenStats.estimatedCost = 0;
-    this.cacheCreationTokens = 0;
-    this.cacheReadTokens = 0;
-    this.cacheHits = 0;
-    this.cache1HourCreationTokens = 0;
+  private wrapError(error: unknown): Error {
+    return new Error(
+      `Anthropic completion failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }

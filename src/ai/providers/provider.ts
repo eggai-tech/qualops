@@ -1,25 +1,35 @@
+import type { z } from 'zod';
+
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  cacheControl?: { ttl?: '5m' | '1h' };
 }
 
 export interface AICompletionOptions {
   messages: AIMessage[];
+  systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
   model?: string;
-  systemPrompt?: string;
-  responseFormat?: 'text' | 'json';
 }
 
-export interface AIResponse {
-  content: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-    cachedTokens?: number;
-  };
+export type AICompletionOptionsWithSchema<S extends z.ZodType> = AICompletionOptions & {
+  schema: S;
+  schemaName?: string;
+};
+
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  cachedTokens?: number;
+}
+
+export interface AIResponse<T = string> {
+  content: T;
+  raw: string;
+  usage?: TokenUsage;
   model?: string;
 }
 
@@ -28,9 +38,10 @@ export interface AIProvider {
 
   initialize(): Promise<void>;
 
-  complete(options: AICompletionOptions): Promise<AIResponse>;
-
-  completeWithStructure<T>(options: AICompletionOptions & { schema: unknown }): Promise<T>;
+  complete<S extends z.ZodType>(
+    options: AICompletionOptionsWithSchema<S>,
+  ): Promise<AIResponse<z.infer<S>>>;
+  complete(options: AICompletionOptions): Promise<AIResponse<string>>;
 
   invoke(
     prompt: string,
@@ -39,22 +50,11 @@ export interface AIProvider {
   ): Promise<string>;
 
   isAvailable(): boolean;
-
   getModelName(): string;
-
   getMaxTokens(): number;
-
   getTemperature(): number;
-
   getTokenStats(): TokenStats;
-
   resetTokenStats?(): void;
-}
-
-export interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
 }
 
 export interface TokenStats {

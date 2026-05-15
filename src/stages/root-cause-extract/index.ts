@@ -3,10 +3,12 @@ import { join } from 'node:path';
 
 import { getRootCauseByKey, getRootCauseKeys, ROOT_CAUSE_TAXONOMY } from './taxonomy';
 import { AIFactory } from '../../ai/providers';
+import { RootCauseClassificationsSchema } from '../../ai/shared/schemas/root-cause-classification';
+import { StructuredOutputError } from '../../ai/shared/structured';
 import { addStageTokenStats, getCurrentSessionPaths } from '../../shared/runtime/session-context';
 import type { RootCauseMetadata } from '../../shared/types';
 import { logger } from '../../shared/utils/logger';
-import { isClassificationResultArray, isPathTraversalSafe } from '../../shared/utils/security';
+import { isPathTraversalSafe } from '../../shared/utils/security';
 
 interface IssueForClassification {
   id: string;
@@ -85,40 +87,21 @@ Reasoning: ${issue.reasoning.substring(0, 500)}`;
 Root Cause Categories:
 ${taxonomyDescription}
 
-Rules:
-1. Choose the most specific category that matches
-2. If multiple categories apply, choose the primary one
-3. Use "other" only if no category fits
-4. Return confidence 1-10 (10 = very confident)
-
 Issues to classify:
-${issuesForPrompt}
-
-Return ONLY a JSON array with this exact format:
-[
-  {"issueId": "ISSUE-001", "rootCause": "memory_leaks_cleanup", "confidence": 9},
-  {"issueId": "ISSUE-002", "rootCause": "security_input_validation", "confidence": 8}
-]`;
+${issuesForPrompt}`;
 
   try {
-    const content = await aiProvider.invoke(prompt, 4000);
-    const trimmedContent = content.trim();
-
-    const jsonMatch = trimmedContent.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      throw new Error('No JSON array found in response');
-    }
-
-    // Validate JSON structure
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (!isClassificationResultArray(parsed)) {
-      throw new Error('Invalid response structure from AI');
-    }
-    const results = parsed;
+    const response = await aiProvider.complete({
+      messages: [{ role: 'user', content: prompt }],
+      schema: RootCauseClassificationsSchema,
+      maxTokens: 4000,
+    });
+    const results = response.content;
 
     const validKeys = getRootCauseKeys();
     for (const result of results) {
-      // Validate rootCause is in allowed list AND safe for path operations
+      // Defense-in-depth: still verify rootCause is in the allowed taxonomy AND path-safe.
+      // The schema constrains the type but the taxonomy is dynamic and not encoded in zod.
       if (!validKeys.includes(result.rootCause) || !isPathTraversalSafe(result.rootCause)) {
         logger.warn(
           `Invalid root cause key "${result.rootCause}" for ${result.issueId}, setting to "other"`,
@@ -129,7 +112,11 @@ Return ONLY a JSON array with this exact format:
 
     return results;
   } catch (error) {
-    logger.error(`Failed to classify batch: ${error}`);
+    if (error instanceof StructuredOutputError) {
+      logger.error(`Failed to classify batch: ${error.message}`);
+    } else {
+      logger.error(`Failed to classify batch: ${error}`);
+    }
     return issues.map((issue) => ({
       issueId: issue.id,
       rootCause: 'other',

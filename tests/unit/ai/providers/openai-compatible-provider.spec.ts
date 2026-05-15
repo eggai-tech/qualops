@@ -378,44 +378,50 @@ describe('OpenAICompatibleProvider', () => {
     });
   });
 
-  describe('completeWithStructure', () => {
+  describe('complete with schema (json_object fallback dialect)', () => {
+    const { z } = require('zod');
+    const PingSchema = z.object({ key: z.string() });
+
     beforeEach(async () => {
       provider = new TestProvider(validStageConfig);
       await provider.initialize();
       (provider as any).client = mockOpenAIClient;
     });
 
-    it('should parse JSON from code block', async () => {
+    it('parses and validates raw JSON content against the schema', async () => {
       mockOpenAIClient.chat.completions.create.mockResolvedValue({
-        choices: [{ message: { content: '```json\n{"key": "value"}\n```' } }],
+        choices: [{ message: { content: '{"key":"value"}' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
         model: 'test-model',
       });
 
-      const result = await provider.completeWithStructure({
+      const response = await provider.complete({
         messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
+        schema: PingSchema,
+        schemaName: 'ping',
       });
 
-      expect(result).toEqual({ key: 'value' });
+      expect(response.content).toEqual({ key: 'value' });
+      const call = mockOpenAIClient.chat.completions.create.mock.calls[0][0];
+      expect(call.response_format).toEqual({ type: 'json_object' });
     });
 
-    it('should parse JSON without code block', async () => {
+    it('parses JSON wrapped in a code fence', async () => {
       mockOpenAIClient.chat.completions.create.mockResolvedValue({
-        choices: [{ message: { content: '{"key": "value"}' } }],
+        choices: [{ message: { content: '```json\n{"key":"value"}\n```' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
         model: 'test-model',
       });
 
-      const result = await provider.completeWithStructure({
+      const response = await provider.complete({
         messages: [{ role: 'user', content: 'Hello' }],
-        schema: {},
+        schema: PingSchema,
       });
 
-      expect(result).toEqual({ key: 'value' });
+      expect(response.content).toEqual({ key: 'value' });
     });
 
-    it('should throw on invalid JSON', async () => {
+    it('throws StructuredOutputError when content cannot be parsed', async () => {
       mockOpenAIClient.chat.completions.create.mockResolvedValue({
         choices: [{ message: { content: 'not json' } }],
         usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
@@ -423,11 +429,26 @@ describe('OpenAICompatibleProvider', () => {
       });
 
       await expect(
-        provider.completeWithStructure({
+        provider.complete({
           messages: [{ role: 'user', content: 'Hello' }],
-          schema: {},
+          schema: PingSchema,
         }),
-      ).rejects.toThrow('Failed to parse structured response');
+      ).rejects.toThrow();
+    });
+
+    it('throws StructuredOutputError when content fails schema validation', async () => {
+      mockOpenAIClient.chat.completions.create.mockResolvedValue({
+        choices: [{ message: { content: '{"key":123}' } }],
+        usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        model: 'test-model',
+      });
+
+      await expect(
+        provider.complete({
+          messages: [{ role: 'user', content: 'Hello' }],
+          schema: PingSchema,
+        }),
+      ).rejects.toThrow('Schema validation failed');
     });
   });
 
@@ -682,7 +703,7 @@ describe('OpenAICompatibleProvider', () => {
         await provider.complete({ messages: [{ role: 'user', content: 'Hello' }] });
       }
 
-      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Cached tokens'));
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Cache reads/writes'));
     });
   });
 });

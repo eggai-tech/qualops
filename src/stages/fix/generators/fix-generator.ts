@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 
 import type { AIProvider } from '../../../ai/providers/provider';
+import { SearchReplaceFixSchema } from '../../../ai/shared/schemas/search-replace-fix';
+import { StructuredOutputError } from '../../../ai/shared/structured';
 import type { FixSuggestion, ReviewIssue } from '../../../shared/types';
 
 export function getIssueFilePath(issue: ReviewIssue): string {
@@ -8,7 +10,7 @@ export function getIssueFilePath(issue: ReviewIssue): string {
 }
 
 export function extractLineNumber(issue: ReviewIssue): number {
-  if (issue.line) return issue.line - 1; // Convert to 0-based index
+  if (issue.line) return issue.line - 1;
 
   if (issue.location) {
     const locationParts = issue.location.split(':');
@@ -16,11 +18,11 @@ export function extractLineNumber(issue: ReviewIssue): number {
       locationParts.length > 1 ? locationParts[locationParts.length - 1] : locationParts[0];
     const lineMatch = lineStr.match(/^(\d+)(?:-(\d+))?$/);
     if (lineMatch) {
-      return parseInt(lineMatch[1], 10) - 1; // Convert to 0-based index
+      return parseInt(lineMatch[1], 10) - 1;
     }
   }
 
-  return 0; // Default to first line
+  return 0;
 }
 
 function createSearchReplacePrompt(
@@ -48,25 +50,7 @@ ${contextCode}
 ${fileContent}
 \`\`\`
 
-${issue.suggestion ? `**SUGGESTED FIX:**\n${issue.suggestion}\n\n` : ''}
-
-**INSTRUCTIONS:**
-Return a JSON object with a search/replace operation:
-
-{
-  "search": "exact code block to find (5-10 lines, must be unique)",
-  "replace": "fixed version of the same code block",
-  "explanation": "what changed and why",
-  "confidence": "high|medium|low",
-  "breaking": true|false
-}
-
-**RULES:**
-1. Search string must appear EXACTLY ONCE in the file
-2. Include 2-3 lines before/after the problem for uniqueness
-3. Preserve exact indentation and whitespace
-4. Only include code that needs changing
-5. Return ONLY the JSON, no markdown or extra text`;
+${issue.suggestion ? `**SUGGESTED FIX:**\n${issue.suggestion}\n\n` : ''}Return a search/replace operation that resolves the issue.`;
 }
 
 export async function generateAIFix(
@@ -79,33 +63,26 @@ export async function generateAIFix(
   const issueLineNumber = extractLineNumber(issue);
   const contextStart = Math.max(0, issueLineNumber - 15);
   const contextEnd = Math.min(lines.length, issueLineNumber + 15);
-
   const contextCode = lines.slice(contextStart, contextEnd).join('\n');
 
   const prompt = createSearchReplacePrompt(issue, fileContent, contextCode, issueLineNumber);
 
-  const response = await aiProvider.invoke(prompt, 4000, { enableCaching: true });
-
-  let jsonStr = response.trim();
-  if (jsonStr.startsWith('```json')) {
-    jsonStr = jsonStr
-      .replace(/```json\n?/g, '')
-      .replace(/```\s*$/g, '')
-      .trim();
-  } else if (jsonStr.startsWith('```')) {
-    jsonStr = jsonStr
-      .replace(/```\n?/g, '')
-      .replace(/```\s*$/g, '')
-      .trim();
+  let fix;
+  try {
+    const response = await aiProvider.complete({
+      messages: [{ role: 'user', content: prompt, cacheControl: { ttl: '5m' } }],
+      schema: SearchReplaceFixSchema,
+      maxTokens: 4000,
+    });
+    fix = response.content;
+  } catch (error) {
+    if (error instanceof StructuredOutputError) {
+      throw new Error(`Failed to generate fix: ${error.message}`);
+    }
+    throw error;
   }
 
-  const fixData = JSON.parse(jsonStr);
-
-  if (!fixData.search || !fixData.replace) {
-    throw new Error('AI response missing search or replace fields');
-  }
-
-  const searchOccurrences = fileContent.split(fixData.search).length - 1;
+  const searchOccurrences = fileContent.split(fix.search).length - 1;
   if (searchOccurrences === 0) {
     throw new Error('Search string not found in file');
   }
@@ -115,13 +92,13 @@ export async function generateAIFix(
 
   return {
     issueId: issue.id,
-    file: file,
+    file,
     line: issueLineNumber + 1,
-    originalCode: fixData.search,
-    suggestedCode: fixData.replace,
-    explanation: fixData.explanation || 'Fix applied',
-    confidence: (fixData.confidence || 'medium') as 'high' | 'medium' | 'low',
-    breaking: fixData.breaking === true,
+    originalCode: fix.search,
+    suggestedCode: fix.replace,
+    explanation: fix.explanation,
+    confidence: fix.confidence,
+    breaking: fix.breaking,
     applied: false,
   };
 }
