@@ -65,7 +65,7 @@ export function createRunLog(config: RunLogConfig): RunLog {
     write(): string {
       const finishedAt = new Date().toISOString();
 
-      const successes = entries.filter((e) => e.level === 'info').length;
+      const successes = entries.filter((e) => e.level === 'info' && e.event === 'item_complete').length;
       const errors = entries.filter((e) => e.level === 'error').length;
       const warnings = entries.filter((e) => e.level === 'warn').length;
 
