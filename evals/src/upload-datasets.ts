@@ -211,8 +211,8 @@ async function ensureDataset(langfuse: Langfuse, name: string, description: stri
     await langfuse.api.datasetsCreate({ name, description, metadata: { uploadedAt: new Date().toISOString() } });
     console.log(`  Created dataset: ${name}`);
   } catch (err) {
-    const e = err as { status?: number; message?: string };
-    if (e?.status === 409 || e?.message?.includes('already exists') || e?.message?.includes('Conflict')) {
+    const e = err as { status?: number };
+    if (e?.status === 409) {
       console.log(`  Dataset exists: ${name}`);
     } else {
       throw err;
