@@ -8,7 +8,7 @@ export const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
 export const DEFAULT_QUALOPSRC = '.qualops/.qualopsrc.json';
 export const LOGS_DIR = path.join(QUALOPS_ROOT, 'evals/logs');
 
-export const CRB_REPOS = ['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak'] as const;
+import { CRB_REPOS } from './crb-repos';
 
 export interface PresetMeta {
   model?: string;
@@ -95,9 +95,9 @@ export function parseArgs(argv: string[]): EvalArgs {
 export function resolveDatasets(args?: EvalArgs): string[] {
   if (!args) args = {};
   if (args.dataset) return [args.dataset];
-  if (args.source === 'crb') return CRB_REPOS.map((r) => `qualops/crb-${r}`);
+  if (args.source === 'crb') return Object.keys(CRB_REPOS).map((r) => `qualops/crb-${r}`);
   if (args.source === 'qualops') return ['qualops/qualops'];
-  if (args.source === 'all') return ['qualops/qualops', ...CRB_REPOS.map((r) => `qualops/crb-${r}`)];
+  if (args.source === 'all') return ['qualops/qualops', ...Object.keys(CRB_REPOS).map((r) => `qualops/crb-${r}`)];
   return ['qualops/qualops'];
 }
 

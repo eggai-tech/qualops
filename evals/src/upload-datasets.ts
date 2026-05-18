@@ -45,13 +45,7 @@ const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
 const QUALOPS_DATASETS_DIR = path.join(__dirname, '../datasets');
 const CRB_DATASETS_DIR = path.join(__dirname, '../datasets/crb');
 
-export const CRB_REPOS: Record<string, string> = {
-  sentry: 'python',
-  grafana: 'go',
-  cal_dot_com: 'typescript',
-  discourse: 'ruby',
-  keycloak: 'java',
-};
+import { CRB_REPOS } from './crb-repos';
 
 interface RawExpected {
   line?: number | null;
