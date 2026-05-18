@@ -1,14 +1,7 @@
 'use strict';
 
-import type { Issue } from './types';
+import type { Issue, ExpectedIssue } from './types';
 import { matchIssues } from './coverage';
-
-interface ExpectedIssue {
-  line?: number | null;
-  lineEnd?: number | null;
-  category?: string;
-  severity?: string;
-}
 
 export function scoreSeverity(issues: Issue[], referenceExpected: ExpectedIssue[]): { pass: boolean; score: number; reason: string } {
   if (referenceExpected.length === 0) {

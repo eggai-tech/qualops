@@ -1,15 +1,8 @@
 'use strict';
 
-import type { Issue } from './types';
+import type { Issue, ExpectedIssue } from './types';
 
 const LINE_TOLERANCE = 3;
-
-interface ExpectedIssue {
-  line?: number | null;
-  lineEnd?: number | null;
-  category?: string;
-  severity?: string;
-}
 
 interface MatchedPair {
   detected: Issue;

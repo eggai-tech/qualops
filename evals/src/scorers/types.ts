@@ -28,3 +28,10 @@ export interface ScorerEntry {
   datasets: string[];
   fn: ScorerFn;
 }
+
+export interface ExpectedIssue {
+  line?: number | null;
+  lineEnd?: number | null;
+  category?: string;
+  severity?: string;
+}
