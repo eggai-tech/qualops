@@ -83,7 +83,7 @@ export function createRunLog(config: RunLogConfig): RunLog {
 
       const summary = {
         experimentName: config.experimentName,
-        presetLabel: config.presetLabel,
+        preset: config.presetLabel,
         configPath: config.configPath,
         model: config.model,
         mode: config.mode,
