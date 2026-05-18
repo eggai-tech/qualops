@@ -101,7 +101,13 @@ export function loadLogFiles(filters: { preset?: string | null; model?: string |
   const logs: LogFile[] = [];
 
   for (const file of files) {
-    const data = JSON.parse(fs.readFileSync(path.join(LOGS_DIR, file), 'utf-8')) as RunMeta & { entries?: LogItem[] };
+    let data: RunMeta & { entries?: LogItem[] };
+    try {
+      data = JSON.parse(fs.readFileSync(path.join(LOGS_DIR, file), 'utf-8'));
+    } catch {
+      console.warn(`[recall-report] Skipping malformed log file: ${file}`);
+      continue;
+    }
 
     if (filters.preset && data.preset !== filters.preset) continue;
     if (filters.model && !String(data.model ?? '').includes(filters.model)) continue;
