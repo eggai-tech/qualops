@@ -121,7 +121,8 @@ export function resolveRepoCwd(itemInput: ItemInput, runLog: RunLog): RepoCwd {
     });
     return { cwd: null, cleanup: null };
   }
-  const repoPath = path.resolve(QUALOPS_ROOT, itemInput.git.repo_path);
+  // repo_path is already resolved and validated to be within QUALOPS_ROOT at the entry boundary.
+  const repoPath = itemInput.git.repo_path;
   if (!fs.existsSync(repoPath)) {
     console.warn(`  WARN: repo path not found: ${repoPath} (run npm run eval:fetch:crb to clone repos)`);
     runLog.add({

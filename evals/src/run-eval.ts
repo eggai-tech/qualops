@@ -40,6 +40,7 @@ import {
   readPresetMeta,
 } from './config';
 import { classifyError, createRunLog } from './run-log';
+import { resolveWithinCwd, isPathTraversalSafe } from '@/shared/utils/security';
 import { runReviewForItem } from './reviewer';
 import { runAllScorers, scoreFor } from './scorers/index';
 import {
@@ -138,7 +139,22 @@ async function _runEvalItem(
   const referenceBugs = (itemExpected.referenceBugs as unknown[]) || [];
   const referenceExpected = (itemExpected.referenceExpected as unknown[]) || [];
 
-  const caseId = (itemInput.caseId as string) || (item.id as string);
+  // Validate untrusted fields at the boundary before they reach internal functions.
+  const rawCaseId = (itemInput.caseId as string) || (item.id as string);
+  const caseId = isPathTraversalSafe(rawCaseId)
+    ? rawCaseId
+    : rawCaseId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  const git = itemInput.git as Record<string, unknown> | undefined;
+  if (git?.repo_path && typeof git.repo_path === 'string') {
+    const safeRepoPath = resolveWithinCwd(QUALOPS_ROOT, git.repo_path);
+    if (!safeRepoPath) {
+      console.warn(`  WARN: item ${caseId} has repo_path that escapes QUALOPS_ROOT, clearing it`);
+      git.repo_path = null;
+    } else {
+      git.repo_path = safeRepoPath;
+    }
+  }
   const traceName = `eval/${datasetName}/${caseId}`;
 
   let issues: unknown[] = [];
