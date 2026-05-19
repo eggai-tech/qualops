@@ -49,7 +49,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsc -p tsconfig.lib.json && tsc-alias -p tsconfig.lib.json",
+    "build": "tsc -p tsconfig.lib.json && tsc-alias -p tsconfig.lib.json && cp -r src/config/prompts dist/config/prompts && cp -r src/config/agents dist/config/agents",
     "build:check": "tsc -p tsconfig.lib.json --noEmit",
     "dev": "tsx --env-file=.env src/cli.ts",
     "test": "LC_ALL=en_US jest",
@@ -100,8 +100,8 @@
     "zod": "^4.3.6"
   },
   "optionalDependencies": {
-    "@anthropic-ai/claude-agent-sdk-linux-x64": "0.2.139",
-    "@anthropic-ai/claude-agent-sdk-linux-arm64": "0.2.121"
+    "@anthropic-ai/claude-agent-sdk-linux-arm64": "0.2.121",
+    "@anthropic-ai/claude-agent-sdk-linux-x64": "0.2.139"
   },
   "devDependencies": {
     "@types/diff": "^7.0.2",

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Zero-config mode: run `qualops` with just `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` and no `.qualopsrc.json`. Provider is auto-detected (Anthropic takes priority), defaulting to an agentic review with all built-in subagents.
+- Bundled default prompt (`src/config/prompts/review/quality.md`) and agent placeholder (`src/config/agents/`) shipped with the package and used as fallbacks via layered search paths.
 - Native LLM structured-response support across all stages (QUALOPS-18). Replaces fragile fenced-JSON parsing with provider-native structured output: OpenAI `response_format: json_schema` (strict mode where supported) + `json_object` fallback; Anthropic `output_config` (Claude 4.5+) + forced `tool_use` fallback; Bedrock forced `tool_use` with `input_schema`. Schema is the single source of truth — zod definitions emit JSON Schema with field descriptions transmitted to the model via the structured channel; responses are parsed and validated by zod automatically.
 - New `BaseAIProvider` consolidating shared token accounting + cost computation while preserving exact per-provider semantics (OpenAI `prompt_tokens` incl. cached, Anthropic/Bedrock `input_tokens` excl. cached; Bedrock log policy unchanged).
 - New `ProviderCapabilities` descriptor that routes `(provider, model)` to the right structured-output dialect, replacing model-name string sniffing.

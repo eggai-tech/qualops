@@ -5,10 +5,6 @@
   "description": "Schema for QualOps project configuration.",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "ai",
-    "review"
-  ],
   "properties": {
     "$schema": {
       "description": "Optional JSON Schema reference for editor/validator tooling.",
@@ -16,9 +12,11 @@
       "format": "uri-reference"
     },
     "ai": {
+      "description": "AI provider and model settings for each stage. When omitted, the provider is auto-detected from environment variables.",
       "$ref": "#/$defs/aiConfig"
     },
     "review": {
+      "description": "Review pipeline configuration. When omitted, a default agentic review pipeline is used.",
       "$ref": "#/$defs/reviewConfig"
     },
     "performance": {
@@ -144,12 +142,9 @@
       "description": "AI provider and model settings for each stage.",
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "reviewStage"
-      ],
       "properties": {
         "reviewStage": {
-          "description": "Settings for the review stage runtime. Although stages can be skipped, a previous review is always required for a fix stage, therefore this setting is required.",
+          "description": "Settings for the review stage runtime. When omitted, QualOps auto-detects the provider from ANTHROPIC_API_KEY or OPENAI_API_KEY and uses the default model for that provider.",
           "$ref": "#/$defs/aiStageConfig"
         },
         "fixStage": {
@@ -162,8 +157,87 @@
         }
       }
     },
+    "aiStageConfig": {
+      "description": "AI configuration for a specific stage.",
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "model",
+        "inputPerMillion",
+        "outputPerMillion"
+      ],
+      "properties": {
+        "provider": {
+          "description": "Deprecated. Prefer specifying provider inside the model object.",
+          "deprecated": true,
+          "$ref": "#/$defs/aiProvider"
+        },
+        "model": {
+          "description": "Model name or { provider, name } object.",
+          "$ref": "#/$defs/modelConfig"
+        },
+        "inputPerMillion": {
+          "description": "Estimated input token cost per million tokens.",
+          "type": "number",
+          "minimum": 0
+        },
+        "outputPerMillion": {
+          "description": "Estimated output token cost per million tokens.",
+          "type": "number",
+          "minimum": 0
+        },
+        "temperature": {
+          "description": "Sampling temperature used by compatible providers.",
+          "type": "number",
+          "minimum": 0
+        },
+        "maxTokens": {
+          "description": "Optional model output token cap.",
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "passthrough": true
+    },
+    "aiProvider": {
+      "description": "Supported AI provider names.",
+      "type": "string",
+      "enum": [
+        "anthropic",
+        "openai",
+        "bedrock",
+        "github"
+      ]
+    },
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "modelConfig": {
+      "description": "Model to use: a string name (inherits provider from context) or an object with an explicit name and optional provider override.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nonEmptyString"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name"
+          ],
+          "properties": {
+            "provider": {
+              "$ref": "#/$defs/aiProvider"
+            },
+            "name": {
+              "$ref": "#/$defs/nonEmptyString"
+            }
+          }
+        }
+      ]
+    },
     "reviewConfig": {
-      "description": "Review pipeline configuration. Must include at least one pipeline job.",
+      "description": "Top-level review stage configuration and job pipeline.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -223,85 +297,6 @@
           "type": "boolean"
         }
       }
-    },
-    "aiProvider": {
-      "description": "Supported AI provider names.",
-      "type": "string",
-      "enum": [
-        "anthropic",
-        "openai",
-        "bedrock",
-        "github"
-      ]
-    },
-    "nonEmptyString": {
-      "type": "string",
-      "minLength": 1
-    },
-    "modelConfig": {
-      "description": "Model to use: a string name (inherits provider from context) or an object with an explicit name and optional provider override.",
-      "oneOf": [
-        {
-          "$ref": "#/$defs/nonEmptyString"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "name"
-          ],
-          "properties": {
-            "provider": {
-              "$ref": "#/$defs/aiProvider"
-            },
-            "name": {
-              "$ref": "#/$defs/nonEmptyString"
-            }
-          }
-        }
-      ]
-    },
-    "aiStageConfig": {
-      "description": "AI configuration for a specific stage.",
-      "type": "object",
-      "additionalProperties": true,
-      "required": [
-        "model",
-        "inputPerMillion",
-        "outputPerMillion"
-      ],
-      "properties": {
-        "provider": {
-          "description": "Deprecated. Prefer specifying provider inside the model object.",
-          "deprecated": true,
-          "$ref": "#/$defs/aiProvider"
-        },
-        "model": {
-          "description": "Model name or { provider, name } object.",
-          "$ref": "#/$defs/modelConfig"
-        },
-        "inputPerMillion": {
-          "description": "Estimated input token cost per million tokens.",
-          "type": "number",
-          "minimum": 0
-        },
-        "outputPerMillion": {
-          "description": "Estimated output token cost per million tokens.",
-          "type": "number",
-          "minimum": 0
-        },
-        "temperature": {
-          "description": "Sampling temperature used by compatible providers.",
-          "type": "number",
-          "minimum": 0
-        },
-        "maxTokens": {
-          "description": "Optional model output token cap.",
-          "type": "integer",
-          "minimum": 1
-        }
-      },
-      "passthrough": true
     },
     "confidenceScore": {
       "description": "Integer confidence score from 1 (lowest) to 10 (highest).",

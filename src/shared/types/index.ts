@@ -6,6 +6,8 @@ import type { z } from 'zod';
 
 import type { aiProvider, modelConfigSchema } from '@/config/config-schema';
 
+import type { ReviewConfig } from './config';
+
 export type FilePath = string;
 export type SessionId = string;
 
@@ -69,10 +71,7 @@ export type Config = {
     fixStage?: AIStageConfig;
     judgeStage?: AIStageConfig;
   };
-  review?: {
-    maxConcurrentFiles: number;
-    minConfidence?: number;
-  };
+  review?: ReviewConfig;
   fix?: {
     maxConcurrentFixes: number;
   };

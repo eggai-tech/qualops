@@ -83,9 +83,9 @@ const aiStageConfigSchema = z
 
 const aiConfigSchema = z
   .object({
-    reviewStage: aiStageConfigSchema.meta({
+    reviewStage: aiStageConfigSchema.optional().meta({
       description:
-        'Settings for the review stage runtime. Although stages can be skipped, a previous review is always required for a fix stage, therefore this setting is required.',
+        'Settings for the review stage runtime. When omitted, QualOps auto-detects the provider from ANTHROPIC_API_KEY or OPENAI_API_KEY and uses the default model for that provider.',
     }),
     fixStage: aiStageConfigSchema
       .optional()
@@ -625,9 +625,13 @@ export const qualopsConfigSchema = z
       description: 'Optional JSON Schema reference for editor/validator tooling.',
       format: 'uri-reference',
     }),
-    ai: aiConfigSchema.meta({ description: 'AI provider and model settings for each stage.' }),
-    review: reviewConfigSchema.meta({
-      description: 'Review pipeline configuration. Must include at least one pipeline job.',
+    ai: aiConfigSchema.optional().meta({
+      description:
+        'AI provider and model settings for each stage. When omitted, the provider is auto-detected from environment variables.',
+    }),
+    review: reviewConfigSchema.optional().meta({
+      description:
+        'Review pipeline configuration. When omitted, a default agentic review pipeline is used.',
     }),
     performance: performanceConfigSchema.optional().meta({
       description:

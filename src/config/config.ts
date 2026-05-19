@@ -31,6 +31,19 @@ export const CACHE_CONFIG = {
 
 export const DEFAULT_CONFIG_PATH = '.qualops/.qualopsrc.json';
 
+export const PROVIDER_DEFAULTS: Record<
+  'anthropic' | 'openai' | 'bedrock',
+  { model: string; inputPerMillion: number; outputPerMillion: number }
+> = {
+  anthropic: { model: 'claude-sonnet-4-6', inputPerMillion: 3, outputPerMillion: 15 },
+  openai: { model: 'gpt-4.1', inputPerMillion: 2, outputPerMillion: 8 },
+  bedrock: {
+    model: 'us.anthropic.claude-sonnet-4-6-v1:0',
+    inputPerMillion: 3,
+    outputPerMillion: 15,
+  },
+};
+
 export class ConfigService {
   private static instance: ConfigService | undefined;
   private static configPath = DEFAULT_CONFIG_PATH;
@@ -38,6 +51,31 @@ export class ConfigService {
   private static readonly DEFAULT_MODEL = 'claude-sonnet-4-6';
   private config: Config;
   private rawConfig: Record<string, unknown>;
+
+  /**
+   * Resolves the default AI stage config from environment variables.
+   * Priority: ANTHROPIC_API_KEY > OPENAI_API_KEY > undefined (no default).
+   * When undefined, getAIStageConfig throws a clear error at runtime.
+   */
+  private static resolveDefaultAI(): Config['ai'] | undefined {
+    const env = envConfig.getAll();
+    const provider: 'anthropic' | 'openai' | undefined = env.anthropicApiKey
+      ? 'anthropic'
+      : env.openaiApiKey
+        ? 'openai'
+        : undefined;
+    if (!provider) return undefined;
+    const d = PROVIDER_DEFAULTS[provider];
+    return {
+      reviewStage: {
+        provider,
+        model: d.model,
+        inputPerMillion: d.inputPerMillion,
+        outputPerMillion: d.outputPerMillion,
+      },
+    };
+  }
+
   private readonly defaultConfig: Config = {
     maxFilesPerBatch: 7,
     maxConcurrency: 3,
@@ -50,6 +88,16 @@ export class ConfigService {
     maxTokensPerFile: 1000000,
     maxReactSteps: 5,
     skipPatterns: ['node_modules/**', '.git/**', 'dist/**', 'build/**', 'coverage/**'],
+    ai: ConfigService.resolveDefaultAI(),
+    review: {
+      pipeline: [
+        {
+          name: 'codeQuality',
+          enabled: true,
+          mode: 'agentic',
+        },
+      ],
+    },
   };
 
   private constructor() {
@@ -240,8 +288,20 @@ export class ConfigService {
     const stageKey = `${stage}Stage` as keyof NonNullable<Config['ai']>;
     const stageConfig = this.config.ai?.[stageKey];
 
+    const hasConfigFile = Object.keys(this.rawConfig).length > 0;
+
+    if (!this.config.ai) {
+      throw new Error(
+        `No AI provider configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, or add an "ai" section to .qualopsrc.json`,
+      );
+    }
+
     if (!stageConfig) {
-      throw new Error(`AI configuration for stage "${stage}" not found in .qualopsrc.json`);
+      throw new Error(
+        hasConfigFile
+          ? `AI configuration for stage "${stage}" not found in .qualopsrc.json`
+          : `Stage "${stage}" requires explicit AI configuration. Add a "${stage}Stage" section under "ai" in .qualopsrc.json`,
+      );
     }
 
     const required = ['model', 'inputPerMillion', 'outputPerMillion'];
