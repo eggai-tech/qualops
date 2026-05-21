@@ -1,0 +1,66 @@
+name: Provider Dialect Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      providers:
+        description: 'Comma-separated provider list (anthropic,openai,bedrock,github). Defaults to all.'
+        required: false
+        default: ''
+      model:
+        description: 'Optional model override applied to every provider.'
+        required: false
+        default: ''
+  schedule:
+    # Nightly at 03:17 UTC. Off-peak; staggered minute keeps us out of the top-of-hour herd.
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: provider-dialect-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: 20.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run provider-dialect smoke matrix
+        env:
+          # Secret names mirror env-var names; runtime reads these via src/config/env.ts.
+          # Missing secrets cause that provider to be skipped (warn), not failed.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          GITHUB_API_KEY: ${{ secrets.GITHUB_API_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          ARGS=()
+          if [ -n "${{ inputs.providers }}" ]; then ARGS+=(--providers=${{ inputs.providers }}); fi
+          if [ -n "${{ inputs.model }}" ]; then ARGS+=(--model=${{ inputs.model }}); fi
+          npm run test:smoke -- "${ARGS[@]}"
+
+      - name: Upload run log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: smoke-run-log-${{ github.run_id }}
+          path: evals/logs/smoke_*.json
+          if-no-files-found: warn
+          retention-days: 30

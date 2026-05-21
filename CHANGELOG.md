@@ -11,10 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `skipPatterns` config field is now fully functional as a pre-filter: excluded files never reach the review pipeline in file-by-file mode, and agentic tool calls (`read_file`, `grep_files`, `glob_files`) enforce patterns at the handler layer for both OpenAI and Anthropic providers.
 - Anthropic agentic mode now uses MCP tools for file access instead of SDK built-ins, ensuring `skipPatterns` enforcement is consistent across providers.
 - `globFiles` tool upgraded from `find`-based to `glob` npm package for proper `**` glob support.
-
-### Changed
 - Default `skipPatterns` in `ConfigService` changed from infrastructure dirs to empty (`[]`) — patterns are project-specific and should be set per project. qualops's own `.qualopsrc.json` now lists its TS-specific patterns.
 - Removed `file-exclusions.ts` (dead code — `applyPenalty()` was never called).
+- Provider-dialect smoke harness (QUALOPS-45): `npm run test:smoke` runs the 4 AI caller stages migrated in PR #145 (`file-reviewer`, `validation-resolver`, `dedup-resolver`, `root-cause-extract`) against each real provider (`anthropic`, `openai`, `bedrock`, `github`) using one eval dataset entry as input. Validates that the structured-output dialect path returns a zod-validated response without throwing. Providers with missing credentials are skipped, not failed. Standalone `tsx` script at `tests/smoke/provider-dialect-smoke.ts` (not Jest). Nightly + manual CI workflow at `.github/workflows/provider-dialect-smoke.yml`. Automates the unchecked manual smoke item from PR #145's test plan; distinct from the deferred per-stage golden-evals item which validates output quality.
 
 ## [0.2.3] - 2026-05-28
 

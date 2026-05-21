@@ -45,6 +45,13 @@ npx tsx evals/src/run-eval.ts --model=claude-opus-4-20250514 --concurrency=2
 npx tsx evals/src/run-eval.ts --list-presets
 ```
 
+## Related: provider-dialect smoke
+
+For a thin, real-API smoke harness that exercises the per-provider structured-output
+dialect paths introduced in PR #145, see `tests/smoke/` (`npm run test:smoke`). It
+borrows one row from `evals/datasets/typescript-bugs.jsonl` as input but is otherwise
+independent of this eval infrastructure.
+
 ### Options
 
 | Flag | Default | Description |

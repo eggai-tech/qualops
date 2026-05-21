@@ -77,6 +77,7 @@
     "eval:upload:qualops": "npx tsx evals/src/upload-datasets.ts --source=qualops",
     "eval:upload:crb:all": "npx tsx evals/src/upload-datasets.ts --source=crb",
     "eval:recall-report": "npx tsx evals/src/recall-report.ts",
+    "test:smoke": "npx tsx tests/smoke/provider-dialect-smoke.ts",
     "generate:schema": "ts-node --transpile-only --project tsconfig.lib.json scripts/generate-config-schema.ts"
   },
   "dependencies": {
