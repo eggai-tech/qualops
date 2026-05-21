@@ -47,10 +47,11 @@ npx tsx evals/src/run-eval.ts --list-presets
 
 ## Related: provider-dialect smoke
 
-For a thin, real-API smoke harness that exercises the per-provider structured-output
-dialect paths introduced in PR #145, see `tests/smoke/` (`npm run test:smoke`). It
-borrows one row from `evals/datasets/typescript-bugs.jsonl` as input but is otherwise
-independent of this eval infrastructure.
+For a real-API Jest spec that exercises the per-provider structured-output dialect
+paths introduced in PR #145, see `tests/smoke/` (`npm run test:smoke`). It reads a
+slice fixture from `evals/datasets/inbox/smoke-sql-injection/` (loosely following
+TDR 0002) but is otherwise independent of the Langfuse-backed eval infrastructure
+described in this README.
 
 ### Options
 
