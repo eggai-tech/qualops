@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 
 import { QUALOPS_ROOT } from './config';
 import type { RunLog } from './run-log';
+import type { ReviewResult } from './qualops-bridge/types';
 
 let _initialized = false;
 
@@ -171,7 +172,7 @@ export function resolveRepoCwd(itemInput: ItemInput, runLog: RunLog): RepoCwd {
   return { cwd: worktreeDir, cleanup };
 }
 
-export async function runReviewForItem(itemInput: ItemInput, ctx: RunContext): Promise<{ issues: unknown[]; durationMs: number }> {
+export async function runReviewForItem(itemInput: ItemInput, ctx: RunContext): Promise<ReviewResult> {
   const { config, runLog } = ctx;
   await ensureInit();
 
@@ -189,7 +190,7 @@ export async function runReviewForItem(itemInput: ItemInput, ctx: RunContext): P
   try {
     if (itemInput.source === 'crb' || (!itemInput.fullContent && !itemInput.fileContent)) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { runReviewMultiFile } = require('./qualops-bridge/provider') as { runReviewMultiFile: (files: FileDiff[], config: typeof evalConfig) => Promise<{ issues: unknown[]; durationMs: number }> };
+      const { runReviewMultiFile } = require('./qualops-bridge/provider') as { runReviewMultiFile: (files: FileDiff[], config: typeof evalConfig) => Promise<ReviewResult> };
       const rawDiff = itemInput.diff || '';
       const files = splitMultiFileDiff(rawDiff);
       if (files.length === 0) {
@@ -199,7 +200,7 @@ export async function runReviewForItem(itemInput: ItemInput, ctx: RunContext): P
     }
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { runReview } = require('./qualops-bridge/provider') as { runReview: (evalCase: unknown, config: typeof evalConfig) => Promise<{ issues: unknown[]; durationMs: number }> };
+    const { runReview } = require('./qualops-bridge/provider') as { runReview: (evalCase: unknown, config: typeof evalConfig) => Promise<ReviewResult> };
     const rawContent = itemInput.fullContent || '';
     const rawDiff = itemInput.diff || '';
 
