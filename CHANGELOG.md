@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Bump `@anthropic-ai/claude-agent-sdk` from 0.2.139 to 0.3.144.
+
 ## [0.2.2] - 2026-05-19
 
 ### Added
