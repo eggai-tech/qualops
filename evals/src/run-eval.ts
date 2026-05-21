@@ -44,7 +44,7 @@ import { resolveWithinCwd, isPathTraversalSafe } from '@/shared/utils/security';
 import { runReviewForItem } from './reviewer';
 import type { ItemInput } from './reviewer';
 import { runAllScorers, scoreFor } from './scorers/index';
-import type { Score } from './scorers/types';
+import type { Issue, Score } from './scorers/types';
 import {
   setupTracing,
   getTracer,
@@ -139,8 +139,8 @@ async function _runEvalItem(
 ) {
   const itemInput = item.input as ItemInput;
   const itemExpected = (item.expectedOutput as Record<string, unknown>) || {};
-  const referenceBugs = (itemExpected.referenceBugs as unknown[]) || [];
-  const referenceExpected = (itemExpected.referenceExpected as unknown[]) || [];
+  const referenceBugs = (itemExpected.referenceBugs as Issue[]) || [];
+  const referenceExpected = (itemExpected.referenceExpected as Issue[]) || [];
 
   // Validate untrusted fields at the boundary before they reach internal functions.
   const rawCaseId = itemInput.caseId || (item.id as string);
@@ -353,8 +353,8 @@ interface ScoreEvalItemOpts {
   caseId: string;
   issues: unknown[];
   itemInput: ItemInput;
-  referenceBugs: unknown[];
-  referenceExpected: unknown[];
+  referenceBugs: Issue[];
+  referenceExpected: Issue[];
   itemIndex: number;
   total: number;
   durationMs: number;
@@ -373,17 +373,18 @@ async function scoreEvalItem({
   total,
   durationMs,
 }: ScoreEvalItemOpts) {
-  const source = itemInput.source as string;
+  const source = itemInput.source || 'unknown';
 
   let scores;
   if (config.skipJudge) {
-    scores = await scoreFor(source, issues, {
+    scores = await scoreFor(source, issues as Issue[], {
       referenceBugs,
       referenceExpected,
       skipNames: new Set(['judge']),
+      source,
     });
   } else {
-    scores = await runAllScorers(issues, { referenceBugs, referenceExpected, source });
+    scores = await runAllScorers(issues as Issue[], { referenceBugs, referenceExpected, source });
   }
 
   for (const score of scores) {
