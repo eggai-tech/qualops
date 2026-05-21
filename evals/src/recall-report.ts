@@ -58,7 +58,7 @@ interface GoldenEntry {
   runs: { matched: boolean | null; confidence: number | null; runFile: string }[];
 }
 
-interface CollatdResult {
+interface CollatedResult {
   goldenMap: Map<string, GoldenEntry>;
   runsWithDetails: number;
   runsWithoutDetails: number;
@@ -137,7 +137,7 @@ function truncate(str: string | undefined, len = 120): string {
 export function collateGoldenData(
   logs: LogFile[],
   datasetGoldens: Map<string, { goldenIndex: number; description: string; type: string | null; severity: string | null }[]>,
-): CollatdResult {
+): CollatedResult {
   const goldenMap = new Map<string, GoldenEntry>();
   let runsWithDetails = 0;
   let runsWithoutDetails = 0;
