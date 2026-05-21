@@ -82,7 +82,7 @@ interface GitMeta {
   [key: string]: unknown;
 }
 
-interface ItemInput {
+export interface ItemInput {
   caseId?: string;
   git?: GitMeta;
   source?: string;

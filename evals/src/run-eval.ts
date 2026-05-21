@@ -42,6 +42,7 @@ import {
 import { classifyError, createRunLog } from './run-log';
 import { resolveWithinCwd, isPathTraversalSafe } from '@/shared/utils/security';
 import { runReviewForItem } from './reviewer';
+import type { ItemInput } from './reviewer';
 import { runAllScorers, scoreFor } from './scorers/index';
 import type { Score } from './scorers/types';
 import {
@@ -110,20 +111,21 @@ async function runEvalItem(
   try {
     return await _runEvalItem(langfuse, item, itemIndex, total, datasetName, tracer);
   } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
     const errorCode = classifyError(err);
     console.error(
-      `  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${err.message || err}`,
+      `  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${error.message}`,
     );
     runLog.add({
       level: 'error',
       event: 'uncaught_error',
       errorCode,
       dataset: datasetName,
-      caseId: item.input?.caseId || item.id,
-      message: err.message || String(err),
-      stack: err.stack || null,
+      caseId: (item.input as Record<string, unknown>)?.caseId as string | undefined || item.id as string,
+      message: error.message,
+      stack: error.stack || null,
     });
-    return { caseId: item.id, issues: [], reviewError: err.message || String(err) };
+    return { caseId: item.id, issues: [], reviewError: error.message };
   }
 }
 
@@ -135,13 +137,13 @@ async function _runEvalItem(
   datasetName: string,
   tracer: Tracer,
 ) {
-  const itemInput = item.input as Record<string, unknown>;
+  const itemInput = item.input as ItemInput;
   const itemExpected = (item.expectedOutput as Record<string, unknown>) || {};
   const referenceBugs = (itemExpected.referenceBugs as unknown[]) || [];
   const referenceExpected = (itemExpected.referenceExpected as unknown[]) || [];
 
   // Validate untrusted fields at the boundary before they reach internal functions.
-  const rawCaseId = (itemInput.caseId as string) || (item.id as string);
+  const rawCaseId = itemInput.caseId || (item.id as string);
   const caseId = isPathTraversalSafe(rawCaseId)
     ? rawCaseId
     : rawCaseId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -247,7 +249,7 @@ async function _runEvalItem(
 async function runReviewSpan(
   tracer: Tracer,
   rootSpan: Span,
-  itemInput: Record<string, unknown>,
+  itemInput: ItemInput,
   caseId: string,
   itemIndex: number,
   total: number,
@@ -350,7 +352,7 @@ interface ScoreEvalItemOpts {
   genSpanId: string | undefined;
   caseId: string;
   issues: unknown[];
-  itemInput: Record<string, unknown>;
+  itemInput: ItemInput;
   referenceBugs: unknown[];
   referenceExpected: unknown[];
   itemIndex: number;
