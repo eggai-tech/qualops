@@ -51,7 +51,7 @@ describe('resolveDatasets', () => {
   });
 
   it('returns CRB_REPOS list', () => {
-    expect(CRB_REPOS).toEqual(['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak']);
+    expect(Object.keys(CRB_REPOS)).toEqual(['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak']);
   });
 });
 

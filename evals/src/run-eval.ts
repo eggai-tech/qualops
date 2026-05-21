@@ -43,6 +43,7 @@ import { classifyError, createRunLog } from './run-log';
 import { resolveWithinCwd, isPathTraversalSafe } from '@/shared/utils/security';
 import { runReviewForItem } from './reviewer';
 import { runAllScorers, scoreFor } from './scorers/index';
+import type { Score } from './scorers/types';
 import {
   setupTracing,
   getTracer,
@@ -411,10 +412,10 @@ async function scoreEvalItem({
   }
 
   const scoreMap = Object.fromEntries(
-    scores.map((s: { name: string; value: number }) => [s.name, s.value]),
+    scores.map((s: Score) => [s.name, s.value]),
   );
   const summary = scores
-    .map((s: { name: string; value: number }) => `${s.name}=${s.value.toFixed(3)}`)
+    .map((s: Score) => `${s.name}=${s.value!.toFixed(3)}`)
     .join(' ');
   console.log(`  [${itemIndex + 1}/${total}] ${caseId} issues=${issues.length} ${summary}`);
 
