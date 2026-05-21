@@ -1,6 +1,6 @@
 {
   "name": "@eggai/qualops",
-  "version": "0.2.2",
+  "version": "0.2.3-beta.1",
   "description": "AI-powered code quality analysis with GitHub Actions integration - automated PR reviews, checks, and annotations",
   "keywords": [
     "code-quality",
@@ -100,7 +100,7 @@
     "zod": "^4.3.6"
   },
   "optionalDependencies": {
-    "@anthropic-ai/claude-agent-sdk-linux-arm64": "0.2.121",
+    "@anthropic-ai/claude-agent-sdk-linux-arm64": "0.3.144",
     "@anthropic-ai/claude-agent-sdk-linux-x64": "0.2.139"
   },
   "devDependencies": {
