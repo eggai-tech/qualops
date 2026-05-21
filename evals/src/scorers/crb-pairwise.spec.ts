@@ -93,7 +93,7 @@ describe('buildCrbGoldenCommentDetails schema conformance', () => {
   it('output passes parseCrbGoldenCommentDetails', () => {
     const referenceExpected = [
       { description: 'Bug A', type: 'bug', severity: 'high' },
-      { description: 'Bug B', type: null, severity: null },
+      { description: 'Bug B', type: undefined, severity: undefined },
     ];
     const details = buildCrbGoldenCommentDetails(referenceExpected, null);
     for (const detail of details) {
