@@ -1,6 +1,6 @@
 {
   "name": "@eggai/qualops",
-  "version": "0.2.2",
+  "version": "0.2.3-beta.1",
   "description": "AI-powered code quality analysis with GitHub Actions integration - automated PR reviews, checks, and annotations",
   "keywords": [
     "code-quality",
@@ -89,7 +89,7 @@
     "@openai/agents": "^0.11.4",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.217.0",
-    "@opentelemetry/sdk-node": "^0.217.0",
+    "@opentelemetry/sdk-node": "^0.218.0",
     "@opentelemetry/sdk-trace-base": "^2.6.1",
     "@types/commander": "2.12.5",
     "commander": "^14.0.3",
