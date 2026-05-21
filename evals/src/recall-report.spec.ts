@@ -35,10 +35,10 @@ function makeLogData({ model = 'claude-sonnet-4-6', preset = 'fast', items = [] 
   };
 }
 
-function makeItem({ caseId, dataset, goldenDetails = null, scores = {} }: {
+function makeItem({ caseId, dataset, goldenDetails = undefined, scores = {} }: {
   caseId: string;
   dataset: string;
-  goldenDetails?: unknown[] | null;
+  goldenDetails?: unknown[];
   scores?: Record<string, unknown>;
 }): LogItem {
   return {
@@ -110,7 +110,7 @@ describe('collateGoldenData', () => {
       items: [makeItem({
         caseId: 'crb-sentry-1',
         dataset: 'qualops/crb-sentry',
-        goldenDetails: null,
+        goldenDetails: undefined,
       })],
     }];
 
