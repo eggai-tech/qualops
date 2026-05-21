@@ -2,6 +2,7 @@
 
 import path from 'node:path';
 import fs from 'node:fs';
+import { detectProvider } from '@/config/config';
 
 export const QUALOPS_ROOT = path.join(__dirname, '../..');
 export const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
@@ -35,7 +36,7 @@ export interface EvalBuildConfig {
   mode: string;
   model: string;
   modelOverride: string | null;
-  provider: string | null;
+  provider: string;
   limit: number;
   skipJudge: boolean;
   presetLabel: string;
@@ -114,7 +115,12 @@ export function buildConfig(args: EvalArgs): EvalBuildConfig {
   const mode = args.mode || presetMeta.mode || 'file-by-file';
   const modelOverride = args.model || null;
   const model = modelOverride || presetMeta.model || 'claude-sonnet-4-6';
-  const provider = args.provider || presetMeta.provider || null;
+  const provider = args.provider || presetMeta.provider || detectProvider();
+  if (!provider) {
+    throw new Error(
+      'No AI provider configured. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, or specify --provider.',
+    );
+  }
   const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
   const skipJudge = args['no-judge'] === 'true';
   const severityFilter = args.severity

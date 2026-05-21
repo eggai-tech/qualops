@@ -44,6 +44,17 @@ export const PROVIDER_DEFAULTS: Record<
   },
 };
 
+/**
+ * Detects the AI provider from environment variables.
+ * Priority: ANTHROPIC_API_KEY > OPENAI_API_KEY > undefined.
+ */
+export function detectProvider(): 'anthropic' | 'openai' | undefined {
+  const env = envConfig.getAll();
+  if (env.anthropicApiKey) return 'anthropic';
+  if (env.openaiApiKey) return 'openai';
+  return undefined;
+}
+
 export class ConfigService {
   private static instance: ConfigService | undefined;
   private static configPath = DEFAULT_CONFIG_PATH;
@@ -58,12 +69,7 @@ export class ConfigService {
    * When undefined, getAIStageConfig throws a clear error at runtime.
    */
   private static resolveDefaultAI(): Config['ai'] | undefined {
-    const env = envConfig.getAll();
-    const provider: 'anthropic' | 'openai' | undefined = env.anthropicApiKey
-      ? 'anthropic'
-      : env.openaiApiKey
-        ? 'openai'
-        : undefined;
+    const provider = detectProvider();
     if (!provider) return undefined;
     const d = PROVIDER_DEFAULTS[provider];
     return {
