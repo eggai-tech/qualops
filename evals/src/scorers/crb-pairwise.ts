@@ -88,7 +88,7 @@ export async function scoreCrb(issues: Issue[], referenceExpected: Issue[]): Pro
     ];
   }
 
-  const goldenComments = referenceExpected.map((e) => e.description).filter(Boolean) as string[];
+  const goldenComments = referenceExpected.map((e) => e.description).filter((d): d is string => Boolean(d));
   const candidates = issues.map((i) => (i as Issue & { summary?: string }).description || (i as Issue & { summary?: string }).summary || '').filter(Boolean);
 
   if (candidates.length === 0) {
