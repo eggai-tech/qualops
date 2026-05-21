@@ -106,9 +106,9 @@ export async function scoreFor(source: string, issues: Issue[], ctx: ScorerConte
 
 export async function runAllScorers(
   issues: Issue[],
-  { referenceBugs, referenceExpected, source }: { referenceBugs?: Issue[]; referenceExpected?: Issue[]; source: string },
+  { referenceBugs, referenceExpected, source, skipNames }: { referenceBugs?: Issue[]; referenceExpected?: Issue[]; source: string; skipNames?: Set<string> },
 ): Promise<Score[]> {
-  return scoreFor(source, issues, { referenceBugs, referenceExpected, source });
+  return scoreFor(source, issues, { referenceBugs, referenceExpected, source, skipNames });
 }
 
 export { scoreParser, scoreLineAccuracy, scoreCoverage, scoreSeverity, scoreJudge, scoreCrb };

@@ -44,7 +44,7 @@ import { classifyError, createRunLog } from './run-log';
 import { resolveWithinCwd, isPathTraversalSafe } from '@/shared/utils/security';
 import { runReviewForItem } from './reviewer';
 import type { ItemInput } from './reviewer';
-import { runAllScorers, scoreFor } from './scorers/index';
+import { runAllScorers } from './scorers/index';
 import type { Issue, Score } from './scorers/types';
 import type { CrbGoldenCommentDetails } from './scorers/schemas';
 import {
@@ -377,17 +377,12 @@ async function scoreEvalItem({
 }: ScoreEvalItemOpts) {
   const source = itemInput.source || 'unknown';
 
-  let scores;
-  if (config.skipJudge) {
-    scores = await scoreFor(source, issues as Issue[], {
-      referenceBugs,
-      referenceExpected,
-      skipNames: new Set(['judge']),
-      source,
-    });
-  } else {
-    scores = await runAllScorers(issues as Issue[], { referenceBugs, referenceExpected, source });
-  }
+  const scores = await runAllScorers(issues as Issue[], {
+    referenceBugs,
+    referenceExpected,
+    source,
+    skipNames: config.skipJudge ? new Set(['judge']) : undefined,
+  });
 
   for (const score of scores) {
     langfuse.score({
