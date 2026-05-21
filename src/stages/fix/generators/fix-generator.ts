@@ -41,12 +41,12 @@ function createSearchReplacePrompt(
 - File: ${issue.file}
 
 **CODE CONTEXT (30 lines around issue):**
-\`\`\`typescript
+\`\`\`
 ${contextCode}
 \`\`\`
 
 **FULL FILE (for reference):**
-\`\`\`typescript
+\`\`\`
 ${fileContent}
 \`\`\`
 
