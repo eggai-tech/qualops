@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Bump `@anthropic-ai/claude-agent-sdk` from 0.2.139 to 0.3.144.
+- Bump `@anthropic-ai/claude-agent-sdk-linux-x64` from 0.2.139 to 0.3.144.
 - Bump `@opentelemetry/sdk-node` from 0.217.0 to 0.218.0.
 
 ### Fixed
