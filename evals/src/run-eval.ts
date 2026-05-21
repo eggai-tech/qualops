@@ -471,13 +471,14 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
   }
 
   if (config.severityFilter) {
+    const severityFilter = config.severityFilter;
     const before = allItems.length;
     allItems = allItems.filter((item) => {
       const expected: Array<{ severity?: string }> = item.expectedOutput?.referenceExpected || [];
-      return expected.some((e) => config.severityFilter.has((e.severity || '').toLowerCase()));
+      return expected.some((e) => severityFilter.has((e.severity || '').toLowerCase()));
     });
     console.log(
-      `Severity filter: ${[...config.severityFilter].join(',')} — ${allItems.length}/${before} items`,
+      `Severity filter: ${[...severityFilter].join(',')} — ${allItems.length}/${before} items`,
     );
   }
 
