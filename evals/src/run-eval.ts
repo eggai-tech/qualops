@@ -45,6 +45,7 @@ import { runReviewForItem } from './reviewer';
 import type { ItemInput } from './reviewer';
 import { runAllScorers, scoreFor } from './scorers/index';
 import type { Issue, Score } from './scorers/types';
+import type { CrbGoldenCommentDetails } from './scorers/schemas';
 import {
   setupTracing,
   getTracer,
@@ -399,7 +400,7 @@ async function scoreEvalItem({
   }
 
   const recallScore = scores.find((s: { name: string }) => s.name === 'crb_recall');
-  const goldenDetails = recallScore?.metadata?.goldenDetails || null;
+  const goldenDetails = (recallScore?.metadata?.goldenDetails as CrbGoldenCommentDetails[] | undefined) || null;
 
   if (goldenDetails) {
     for (const gd of goldenDetails) {
