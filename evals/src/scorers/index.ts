@@ -1,6 +1,6 @@
 'use strict';
 
-import type { Issue, Score, ScorerFn, ScorerEntry } from './types';
+import type { Issue, Score, ScorerContext, ScorerFn } from './types';
 import { scoreParser } from './parse';
 import { scoreLineAccuracy } from './line-accuracy';
 import { scoreCoverage } from './coverage';
@@ -75,13 +75,6 @@ register('crb_pairwise', {
   },
 });
 
-interface ScorerContext {
-  referenceBugs?: Issue[];
-  referenceExpected?: Issue[];
-  skipNames?: Set<string>;
-  [key: string]: unknown;
-}
-
 export async function scoreFor(source: string, issues: Issue[], ctx: ScorerContext): Promise<Score[]> {
   const skipNames = ctx.skipNames instanceof Set ? ctx.skipNames : new Set<string>();
   const applicable = [..._registry.entries()].filter(
@@ -115,7 +108,7 @@ export async function runAllScorers(
   issues: Issue[],
   { referenceBugs, referenceExpected, source }: { referenceBugs?: Issue[]; referenceExpected?: Issue[]; source: string },
 ): Promise<Score[]> {
-  return scoreFor(source, issues, { referenceBugs, referenceExpected });
+  return scoreFor(source, issues, { referenceBugs, referenceExpected, source });
 }
 
 export { scoreParser, scoreLineAccuracy, scoreCoverage, scoreSeverity, scoreJudge, scoreCrb };

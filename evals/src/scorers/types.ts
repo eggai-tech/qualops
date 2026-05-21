@@ -20,6 +20,8 @@ export interface ScorerContext {
   referenceBugs?: Issue[];
   referenceExpected?: Issue[];
   source: string;
+  skipNames?: Set<string>;
+  [key: string]: unknown;
 }
 
 export type ScorerFn = (detected: Issue[], context: ScorerContext) => Promise<Score | null>;
