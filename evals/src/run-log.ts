@@ -13,6 +13,7 @@ export type ErrorCode =
   | 'PARSE_ERROR'
   | 'NETWORK_ERROR'
   | 'API_ERROR'
+  | 'LANGFUSE_API_ERROR'
   | 'UNKNOWN';
 
 export interface LogEntry {

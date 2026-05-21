@@ -338,7 +338,7 @@ async function linkDatasetRunItem(
     runLog.add({
       level: 'error',
       event: 'langfuse_link_error',
-      errorCode: 'LANGFUSE_API',
+      errorCode: 'LANGFUSE_API_ERROR',
       dataset: datasetName,
       caseId,
       message,
