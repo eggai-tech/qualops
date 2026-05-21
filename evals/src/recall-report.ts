@@ -17,7 +17,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 
 import { LOGS_DIR } from './config';
-import { parseCrbGoldenCommentDetails, parseRecallReport } from './scorers/schemas';
+import { parseCrbGoldenCommentDetails, parseRecallReport, type RecallReportEntry } from './scorers/schemas';
 import type { CrbGoldenCommentDetails, RecallReportSummary } from './scorers/schemas';
 
 interface CliArgs {
@@ -339,7 +339,7 @@ export function formatJson(
   runsWithDetails: number,
   runsWithoutDetails: number,
 ): string {
-  const entries = [];
+  const entries: RecallReportEntry[] = [];
   for (const [key, entry] of goldenMap) {
     const knownRuns = entry.runs.filter((r) => r.matched !== null);
     const matchCount = knownRuns.filter((r) => r.matched).length;
