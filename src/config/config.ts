@@ -55,11 +55,21 @@ export function detectProvider(): 'anthropic' | 'openai' | undefined {
   return undefined;
 }
 
+/**
+ * Returns the default model name for a given provider.
+ * Falls back to the anthropic default when the provider is unknown.
+ */
+export function defaultModelForProvider(provider: string | undefined): string {
+  return (
+    PROVIDER_DEFAULTS[provider as keyof typeof PROVIDER_DEFAULTS]?.model ??
+    PROVIDER_DEFAULTS.anthropic.model
+  );
+}
+
 export class ConfigService {
   private static instance: ConfigService | undefined;
   private static configPath = DEFAULT_CONFIG_PATH;
   private static readonly DEFAULT_PROVIDER = 'anthropic';
-  private static readonly DEFAULT_MODEL = 'claude-sonnet-4-6';
   private config: Config;
   private rawConfig: Record<string, unknown>;
 
@@ -266,7 +276,7 @@ export class ConfigService {
       const stageModel = stage.model;
       return typeof stageModel === 'string' ? stageModel : stageModel.name;
     }
-    return ConfigService.DEFAULT_MODEL;
+    return defaultModelForProvider(this.resolveProvider(stage, model));
   }
 
   /**
