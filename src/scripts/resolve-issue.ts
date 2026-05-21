@@ -95,6 +95,11 @@ async function resolveIssue(
   logger.info(`\n📖 Parsing issue: ${issuePath}`);
   const issue = await parseIssueFile(issuePath);
 
+  if (!/^ISSUE-\d+$/.test(issue.id ?? '')) {
+    logger.error(`❌ Rejected malformed issue ID: ${JSON.stringify(issue.id)}`);
+    return;
+  }
+
   logger.info(`\n📋 Issue Details:`);
   logger.info(`   ID: ${issue.id}`);
   logger.info(`   Severity: ${issue.severity}`);
