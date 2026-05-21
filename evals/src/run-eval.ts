@@ -392,7 +392,7 @@ async function scoreEvalItem({
       traceId,
       observationId: genSpanId,
       name: score.name,
-      value: score.value,
+      value: score.value!,
       comment: score.comment,
       dataType: 'NUMERIC',
     });
