@@ -28,6 +28,7 @@ import dotenv from 'dotenv';
 import { ROOT_CONTEXT, SpanStatusCode } from '@opentelemetry/api';
 import type { Tracer, Span } from '@opentelemetry/api';
 import { Langfuse } from 'langfuse';
+import type { ApiDatasetItem } from 'langfuse';
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import {
@@ -103,7 +104,7 @@ async function runWithConcurrency<T>(
 
 async function runEvalItem(
   langfuse: Langfuse,
-  item: Record<string, unknown>,
+  item: ApiDatasetItem,
   itemIndex: number,
   total: number,
   datasetName: string,
@@ -122,7 +123,7 @@ async function runEvalItem(
       event: 'uncaught_error',
       errorCode,
       dataset: datasetName,
-      caseId: (item.input as Record<string, unknown>)?.caseId as string | undefined || item.id as string,
+      caseId: item.input?.caseId || item.id,
       message: error.message,
       stack: error.stack || null,
     });
@@ -132,19 +133,19 @@ async function runEvalItem(
 
 async function _runEvalItem(
   langfuse: Langfuse,
-  item: Record<string, unknown>,
+  item: ApiDatasetItem,
   itemIndex: number,
   total: number,
   datasetName: string,
   tracer: Tracer,
 ) {
-  const itemInput = item.input as ItemInput;
-  const itemExpected = (item.expectedOutput as Record<string, unknown>) || {};
-  const referenceBugs = (itemExpected.referenceBugs as Issue[]) || [];
-  const referenceExpected = (itemExpected.referenceExpected as Issue[]) || [];
+  const itemInput: ItemInput = item.input || {};
+  const itemExpected = item.expectedOutput || {};
+  const referenceBugs: Issue[] = itemExpected.referenceBugs || [];
+  const referenceExpected: Issue[] = itemExpected.referenceExpected || [];
 
   // Validate untrusted fields at the boundary before they reach internal functions.
-  const rawCaseId = itemInput.caseId || (item.id as string);
+  const rawCaseId = itemInput.caseId || item.id;
   const caseId = isPathTraversalSafe(rawCaseId)
     ? rawCaseId
     : rawCaseId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -460,11 +461,11 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
     return { total: 0, errors: 1 };
   }
 
-  let allItems: Record<string, unknown>[] = [];
+  let allItems: ApiDatasetItem[] = [];
   let page = 1;
   while (true) {
     const resp = await langfuse.api.datasetItemsList({ datasetName, page, limit: 100 });
-    allItems.push(...((resp.data as Record<string, unknown>[]) || []));
+    allItems.push(...(resp.data || []));
     if (!resp.meta?.totalPages || page >= resp.meta.totalPages) break;
     page++;
   }
@@ -472,10 +473,7 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
   if (config.severityFilter) {
     const before = allItems.length;
     allItems = allItems.filter((item) => {
-      const expected =
-        ((item.expectedOutput as Record<string, unknown>)?.referenceExpected as Array<{
-          severity?: string;
-        }>) || [];
+      const expected: Array<{ severity?: string }> = item.expectedOutput?.referenceExpected || [];
       return expected.some((e) => config.severityFilter.has((e.severity || '').toLowerCase()));
     });
     console.log(
