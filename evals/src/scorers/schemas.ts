@@ -2,6 +2,14 @@
 
 import { z } from 'zod';
 
+export const PairwiseResultSchema = z.object({
+  reasoning: z.string().optional(),
+  match: z.boolean(),
+  confidence: z.number().min(0).max(1),
+});
+
+export type PairwiseResult = z.infer<typeof PairwiseResultSchema>;
+
 export const CrbGoldenCommentSchema = z.object({
   goldenIndex: z.number().int().nonnegative(),
   description: z.string(),

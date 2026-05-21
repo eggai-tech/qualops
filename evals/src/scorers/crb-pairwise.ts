@@ -2,13 +2,8 @@
 
 import type { Issue } from './types';
 import { callJudgeLLM, hasJudgeKeys } from './llm-client';
-import type { CrbGoldenCommentDetails } from './schemas';
-
-interface PairwiseResult {
-  reasoning?: string;
-  match: boolean;
-  confidence: number;
-}
+import type { CrbGoldenCommentDetails, PairwiseResult } from './schemas';
+import { PairwiseResultSchema } from './schemas';
 
 interface MatchState {
   matched: boolean;
@@ -46,10 +41,8 @@ export function parsePairwiseResult(text: string): PairwiseResult | null {
   try {
     const m = text.match(/\{[\s\S]*\}/);
     if (!m) return null;
-    const obj = JSON.parse(m[0]) as Record<string, unknown>;
-    if (typeof obj.match === 'boolean' && typeof obj.confidence === 'number') {
-      return obj as unknown as PairwiseResult;
-    }
+    const result = PairwiseResultSchema.safeParse(JSON.parse(m[0]));
+    return result.success ? result.data : null;
   } catch { /* fall through */ }
   return null;
 }
