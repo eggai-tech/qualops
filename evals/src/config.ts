@@ -29,7 +29,7 @@ export interface EvalArgs {
   severity?: string;
   experiment?: string;
   concurrency?: string;
-  [key: string]: string | undefined;
+  'list-presets'?: string;
 }
 
 export interface EvalBuildConfig {
