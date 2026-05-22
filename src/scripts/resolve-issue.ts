@@ -1,6 +1,7 @@
 #!/usr/bin/env node --env-file=.env --experimental-strip-types
 
 import { readFile, writeFile } from 'fs/promises';
+import { extname } from 'node:path';
 
 import { AIFactory } from '../ai/providers/factory';
 import { logger } from '../shared/utils/logger';
@@ -59,7 +60,7 @@ async function parseIssueFile(issuePath: string): Promise<ParsedIssue> {
       const contextLines: string[] = [];
       let inCodeBlock = false;
       while (i < lines.length && (inCodeBlock || !lines[i].startsWith('##'))) {
-        if (lines[i].trim() === '```typescript' || lines[i].trim() === '```') {
+        if (lines[i].trim().startsWith('```')) {
           inCodeBlock = !inCodeBlock;
         }
         contextLines.push(lines[i]);
@@ -94,6 +95,11 @@ async function resolveIssue(
   logger.info(`\n📖 Parsing issue: ${issuePath}`);
   const issue = await parseIssueFile(issuePath);
 
+  if (!/^ISSUE-\d+$/.test(issue.id ?? '')) {
+    logger.error(`❌ Rejected malformed issue ID: ${JSON.stringify(issue.id)}`);
+    return;
+  }
+
   logger.info(`\n📋 Issue Details:`);
   logger.info(`   ID: ${issue.id}`);
   logger.info(`   Severity: ${issue.severity}`);
@@ -120,7 +126,7 @@ async function resolveIssue(
 
   logger.info(`\n🤖 Generating fix...`);
 
-  const prompt = `You are a code fixing assistant. You need to apply a fix to a TypeScript file.
+  const prompt = `You are a code fixing assistant. You need to apply a fix to a source file.
 
 ISSUE DETAILS:
 Description: ${issue.description}
@@ -131,11 +137,11 @@ ORIGINAL CODE CONTEXT:
 ${issue.context}
 
 FULL FILE CONTENT:
-\`\`\`typescript
+\`\`\`
 ${sourceContent}
 \`\`\`
 
-Your task: Apply the fix to the code. Return ONLY the complete fixed file content, nothing else. No explanations, no markdown code blocks, just the raw TypeScript code.`;
+Your task: Apply the fix to the code. Return ONLY the complete fixed file content, nothing else. No explanations, no markdown code blocks, just the raw source code.`;
 
   const provider = await AIFactory.createForStage('review');
   let fixedContent = await provider.invoke(prompt, 8000);
@@ -146,7 +152,7 @@ Your task: Apply the fix to the code. Return ONLY the complete fixed file conten
   }
 
   fixedContent = fixedContent
-    .replace(/^```typescript\n/, '')
+    .replace(/^```[^\n]*\n/, '')
     .replace(/\n```$/, '')
     .trim();
 
@@ -156,7 +162,7 @@ Your task: Apply the fix to the code. Return ONLY the complete fixed file conten
     logger.info(`\n🔍 DRY RUN MODE - Changes not applied`);
     logger.info(`\nTo apply changes, run with --apply flag`);
 
-    const previewPath = `/tmp/qualops-preview-${issue.id}.ts`;
+    const previewPath = `/tmp/qualops-preview-${issue.id}${extname(filePath) || '.txt'}`;
     await writeFile(previewPath, fixedContent, 'utf-8');
     logger.info(`\n📁 Full preview saved to: ${previewPath}`);
 

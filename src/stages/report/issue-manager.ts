@@ -59,7 +59,7 @@ export class IssueManager {
 
     if (issue.context) {
       markdown += `## Context\n\n`;
-      markdown += `\`\`\`typescript\n${issue.context}\n\`\`\`\n\n`;
+      markdown += `\`\`\`\n${issue.context}\n\`\`\`\n\n`;
     }
 
     if (issue.suggestion) {
