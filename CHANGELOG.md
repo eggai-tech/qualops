@@ -8,16 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
-- Neutralize language-specific wording in built-in prompts where the underlying tooling is genuinely language-agnostic, so review output is no longer TypeScript-flavored when qualops is pointed at a non-TS repo:
-  - `src/stages/fix/generators/fix-generator.ts`: drop `typescript` tag from prompt code fences (use bare ```` ``` ````). The LLM gets full file content; fence tag added no signal.
-  - `src/stages/fix/generators/test-generator.ts`: drop `typescript` tag from the prompt code fences in `createTestPrompt` and the regression test prompt. (Note: the rest of test-generator — framework selection, `.test.ts` filenames — is unchanged; that work is gated on actually wiring test generation into the pipeline.)
-  - `src/stages/report/issue-manager.ts`: drop `typescript` tag from the `## Context` code fence in generated issue markdown, so reports for non-TS files don't carry a misleading language tag (also prevents the stale tag from being re-injected into `resolve-issue.ts`'s fix prompt).
-  - `src/scripts/resolve-issue.ts`: drop `typescript` from the fix prompt's code fence and the LLM-output strip regex; detect issue-file fence open/close by `\`\`\`` prefix regardless of language tag (so it handles both old TS-tagged and new bare-fenced issue reports); preview tmp file uses the source file's extension instead of hard-coded `.ts`; replace "TypeScript file"/"TypeScript code" with "source file"/"source code".
-- Neutralize built-in agent prompts (the JIRA story's [QUALOPS-46] primary goal):
-  - `src/config/agents/dependency-tracer.md`: drop the "for TypeScript/JavaScript codebases" framing; generalize import/export wording to dependency relationships (imports, requires, includes, uses) and "public symbols" instead of "exported symbols". Drop the TS-locked MCP tools (`trace_imports`, `find_usages`) from the tool list and instruct the agent to use Bash with language-appropriate `rg` / `git` invocations (e.g. `rg -n '<pattern>' --type <lang>`), with example patterns for Python, JS/TS, Rust, Go, Ruby, C/C++.
-  - `src/config/agents/breaking-change-detector.md`: rephrase "interface/type definitions" as "type signatures, interfaces, protocols, or other public contracts"; generalize "exports" to "public symbols (exports, public functions, public classes)" so the agent applies to non-typed languages. Drop the TS-locked MCP tools (`git_diff_analysis`, `analyze_exports`, `find_interface_changes`, `find_usages`) from the tool list and instruct the agent to use Bash with `git diff`, `git show`, and `rg` directly, picking signature patterns appropriate to the project's language.
-
-Note: the MCP tool registrations (`trace_imports`, `find_usages`, `find_interface_changes`, `analyze_exports`, `git_diff_analysis`) in `src/stages/review/agentic/tools/index.ts` and their handler functions in `src/stages/review/agentic/tools/handlers.ts` are not removed in this change — `security-analyzer.md` still references `find_usages` and `trace_imports`. A follow-up JIRA can decommission the unused tools once `security-analyzer.md` is migrated to Bash too.
+- Neutralize language-specific wording in built-in prompts where the underlying tooling is genuinely language-agnostic, so review output is no longer TypeScript-flavored when qualops is pointed at a non-TS repo.
 
 ### Changed
 - Bump `@anthropic-ai/claude-agent-sdk` from 0.2.139 to 0.3.144.
