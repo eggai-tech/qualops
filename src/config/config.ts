@@ -44,11 +44,32 @@ export const PROVIDER_DEFAULTS: Record<
   },
 };
 
+/**
+ * Detects the AI provider from environment variables.
+ * Priority: ANTHROPIC_API_KEY > OPENAI_API_KEY > undefined.
+ */
+export function detectProvider(): 'anthropic' | 'openai' | undefined {
+  const env = envConfig.getAll();
+  if (env.anthropicApiKey) return 'anthropic';
+  if (env.openaiApiKey) return 'openai';
+  return undefined;
+}
+
+/**
+ * Returns the default model name for a given provider.
+ * Falls back to the anthropic default when the provider is unknown.
+ */
+export function defaultModelForProvider(provider: string | undefined): string {
+  return (
+    PROVIDER_DEFAULTS[provider as keyof typeof PROVIDER_DEFAULTS]?.model ??
+    PROVIDER_DEFAULTS.anthropic.model
+  );
+}
+
 export class ConfigService {
   private static instance: ConfigService | undefined;
   private static configPath = DEFAULT_CONFIG_PATH;
   private static readonly DEFAULT_PROVIDER = 'anthropic';
-  private static readonly DEFAULT_MODEL = 'claude-sonnet-4-6';
   private config: Config;
   private rawConfig: Record<string, unknown>;
 
@@ -58,12 +79,7 @@ export class ConfigService {
    * When undefined, getAIStageConfig throws a clear error at runtime.
    */
   private static resolveDefaultAI(): Config['ai'] | undefined {
-    const env = envConfig.getAll();
-    const provider: 'anthropic' | 'openai' | undefined = env.anthropicApiKey
-      ? 'anthropic'
-      : env.openaiApiKey
-        ? 'openai'
-        : undefined;
+    const provider = detectProvider();
     if (!provider) return undefined;
     const d = PROVIDER_DEFAULTS[provider];
     return {
@@ -260,7 +276,7 @@ export class ConfigService {
       const stageModel = stage.model;
       return typeof stageModel === 'string' ? stageModel : stageModel.name;
     }
-    return ConfigService.DEFAULT_MODEL;
+    return defaultModelForProvider(this.resolveProvider(stage, model));
   }
 
   /**

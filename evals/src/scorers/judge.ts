@@ -1,14 +1,9 @@
 'use strict';
 
-/**
- * Averaged LLM judge scorer for qualops datasets.
- * Scores each detected issue 1-10 against reference issues, then averages.
- * Applies to: qualops
- */
+import type { Issue } from './types';
+import { callAnthropic, callOpenAI } from './llm-client';
 
-const { callAnthropic, callOpenAI } = require('./llm-client');
-
-function buildJudgePrompt(referenceExpected, detectedIssues) {
+export function buildJudgePrompt(referenceExpected: Issue[], detectedIssues: Issue[]): string {
   return `You are a code review quality judge. You are evaluating whether a set of detected issues are valid and useful.
 
 ## Reference issues (ground truth):
@@ -39,7 +34,7 @@ Example: [8, 6, 9]
 If there are no detected issues, respond with: []`;
 }
 
-function parseScores(text) {
+export function parseScores(text: string): number[] | null {
   const jsonMatch = text.match(/\[[\d\s,.]+\]/);
   if (jsonMatch) {
     try {
@@ -52,23 +47,23 @@ function parseScores(text) {
   return null;
 }
 
-async function scoreJudge(issues, referenceExpected) {
+export async function scoreJudge(issues: Issue[], referenceExpected: Issue[]): Promise<{ pass: boolean; score: number; reason: string }> {
   if (issues.length === 0) {
     return { pass: false, score: 0, reason: 'JUDGE_SKIP: No issues to judge (empty array)' };
   }
 
   const judgePrompt = buildJudgePrompt(referenceExpected, issues);
 
-  const judges = [];
-  if (process.env.ANTHROPIC_API_KEY) judges.push({ name: 'anthropic', call: () => callAnthropic(judgePrompt) });
-  if (process.env.OPENAI_API_KEY) judges.push({ name: 'openai', call: () => callOpenAI(judgePrompt) });
+  const judges: { name: string; call: () => Promise<string> }[] = [];
+  if (process.env.ANTHROPIC_API_KEY) judges.push({ name: 'anthropic', call: () => callAnthropic([{ role: 'user', content: judgePrompt }]) });
+  if (process.env.OPENAI_API_KEY) judges.push({ name: 'openai', call: () => callOpenAI([{ role: 'user', content: judgePrompt }]) });
 
   if (judges.length === 0) {
     return { pass: false, score: 0, reason: 'JUDGE_SKIP: No judge API keys configured' };
   }
 
   const results = await Promise.allSettled(judges.map((j) => j.call()));
-  const scoreArrays = [];
+  const scoreArrays: number[][] = [];
   let judgeDetails = '';
 
   for (let i = 0; i < judges.length; i++) {
@@ -79,7 +74,8 @@ async function scoreJudge(issues, referenceExpected) {
       if (scores) scoreArrays.push(scores);
       judgeDetails += `\n--- ${name.toUpperCase()} JUDGE ---\n${result.value.slice(-500)}`;
     } else {
-      judgeDetails += `\n--- ${name.toUpperCase()} JUDGE ---\nERROR: ${result.reason?.message || result.reason}`;
+      const reason = result.reason as { message?: string } | string;
+      judgeDetails += `\n--- ${name.toUpperCase()} JUDGE ---\nERROR: ${typeof reason === 'object' ? reason?.message : reason}`;
     }
   }
 
@@ -92,7 +88,7 @@ async function scoreJudge(issues, referenceExpected) {
     return { pass: false, score: 0, reason: 'JUDGE_ERROR: All judges returned empty score arrays' + judgeDetails };
   }
 
-  const perIssueAvg = [];
+  const perIssueAvg: number[] = [];
   for (let i = 0; i < maxLen; i++) {
     const vals = scoreArrays.map((a) => a[i]).filter((v) => v != null);
     perIssueAvg.push(vals.reduce((a, b) => a + b, 0) / vals.length);
@@ -105,5 +101,3 @@ async function scoreJudge(issues, referenceExpected) {
 
   return { pass: normalizedScore >= 0.6, score: normalizedScore, reason };
 }
-
-module.exports = { scoreJudge, buildJudgePrompt, parseScores };

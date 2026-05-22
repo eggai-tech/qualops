@@ -15,18 +15,19 @@
  *   npm run eval:fetch:crb
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
 
 const QUALOPS_ROOT = path.join(__dirname, '../..');
 
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('dotenv').config({ path: path.join(QUALOPS_ROOT, '.env') });
 } catch {
   // rely on shell env
 }
 
-const { Langfuse } = require('langfuse');
+import { Langfuse } from 'langfuse';
 
 const args = Object.fromEntries(
   process.argv
@@ -44,15 +45,78 @@ const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
 const QUALOPS_DATASETS_DIR = path.join(__dirname, '../datasets');
 const CRB_DATASETS_DIR = path.join(__dirname, '../datasets/crb');
 
-const CRB_REPOS = {
-  sentry: 'python',
-  grafana: 'go',
-  cal_dot_com: 'typescript',
-  discourse: 'ruby',
-  keycloak: 'java',
-};
+import { CRB_REPOS } from './crb-repos';
 
-function readJsonlLines(filePath, maxLines) {
+interface RawExpected {
+  line?: number | null;
+  lineEnd?: number | null;
+  type?: string;
+  severity?: string;
+  description?: string;
+}
+
+interface RawDataItem {
+  id?: string;
+  filePath?: string;
+  language?: string;
+  fullContent?: string;
+  diff?: string;
+  expected?: RawExpected[];
+  pr_url?: string;
+  pr_title?: string;
+  source_repo?: string;
+  git?: unknown;
+}
+
+export interface QualOpsItem {
+  id: string;
+  input: {
+    caseId: string;
+    source: 'qualops';
+    filePath: string;
+    language: string;
+    fullContent: string;
+    diff: string;
+  };
+  expectedOutput: {
+    referenceBugs: unknown[];
+    referenceExpected: RawExpected[];
+  };
+  metadata: {
+    source: 'qualops';
+    filePath?: string;
+    language?: string;
+  };
+}
+
+export interface CrbItem {
+  id: string;
+  input: {
+    caseId: string;
+    source: 'crb';
+    filePath: string;
+    language: string;
+    fullContent: string;
+    diff: string;
+    prTitle?: string;
+    prUrl?: string;
+    sourceRepo?: string;
+    git: unknown;
+  };
+  expectedOutput: {
+    referenceBugs: unknown[];
+    referenceExpected: RawExpected[];
+  };
+  metadata: {
+    source: 'crb';
+    repo: string;
+    prUrl?: string;
+    prTitle?: string;
+    language?: string;
+  };
+}
+
+export function readJsonlLines(filePath: string, maxLines: number): string[] {
   if (!fs.existsSync(filePath)) {
     console.warn(`Warning: ${filePath} not found, skipping`);
     return [];
@@ -67,7 +131,7 @@ function readJsonlLines(filePath, maxLines) {
     .slice(0, maxLines);
 }
 
-function buildQualOpsItem(data, index) {
+export function buildQualOpsItem(data: RawDataItem, index: number): QualOpsItem {
   const referenceBugs = (data.expected || []).map((e) => ({
     relevantFile: data.filePath,
     relevantLinesStart: e.line,
@@ -99,7 +163,7 @@ function buildQualOpsItem(data, index) {
   };
 }
 
-function buildCrbItem(data, index, repoName) {
+export function buildCrbItem(data: RawDataItem, index: number, repoName: string): CrbItem {
   const referenceExpected = (data.expected || []).map((e) => ({
     line: e.line,
     lineEnd: e.lineEnd,
@@ -142,12 +206,13 @@ function buildCrbItem(data, index, repoName) {
   };
 }
 
-async function ensureDataset(langfuse, name, description) {
+async function ensureDataset(langfuse: Langfuse, name: string, description: string): Promise<void> {
   try {
     await langfuse.api.datasetsCreate({ name, description, metadata: { uploadedAt: new Date().toISOString() } });
     console.log(`  Created dataset: ${name}`);
   } catch (err) {
-    if (err?.status === 409 || err?.message?.includes('already exists') || err?.message?.includes('Conflict')) {
+    const e = err as { status?: number };
+    if (e?.status === 409) {
       console.log(`  Dataset exists: ${name}`);
     } else {
       throw err;
@@ -155,7 +220,7 @@ async function ensureDataset(langfuse, name, description) {
   }
 }
 
-async function uploadBatch(langfuse, datasetName, items) {
+async function uploadBatch(langfuse: Langfuse, datasetName: string, items: (QualOpsItem | CrbItem)[]): Promise<void> {
   let uploaded = 0;
   let failed = 0;
   for (const item of items) {
@@ -170,7 +235,8 @@ async function uploadBatch(langfuse, datasetName, items) {
       uploaded++;
       process.stdout.write(`\r  Uploading items: ${uploaded}/${items.length}`);
     } catch (err) {
-      const msg = err?.message || JSON.stringify(err?.error || err);
+      const e = err as { message?: string; error?: unknown };
+      const msg = e?.message || JSON.stringify(e?.error || e);
       console.warn(`\n  Warning: failed to upload item ${item.id}: ${msg}`);
       failed++;
     }
@@ -178,22 +244,22 @@ async function uploadBatch(langfuse, datasetName, items) {
   console.log(`\n  Done: ${uploaded} uploaded, ${failed} failed`);
 }
 
-async function uploadQualOps(langfuse) {
+async function uploadQualOps(langfuse: Langfuse): Promise<void> {
   const datasetName = 'qualops/qualops';
   console.log(`\nUploading qualops dataset → ${datasetName}`);
   await ensureDataset(langfuse, datasetName, 'QualOps native eval dataset');
 
   const files = fs.readdirSync(QUALOPS_DATASETS_DIR).filter((f) => f.endsWith('.jsonl'));
-  const items = [];
+  const items: QualOpsItem[] = [];
   for (const file of files) {
     const lines = readJsonlLines(path.join(QUALOPS_DATASETS_DIR, file), limit);
-    items.push(...lines.map((l, i) => buildQualOpsItem(JSON.parse(l), i)));
+    items.push(...lines.map((l, i) => buildQualOpsItem(JSON.parse(l) as RawDataItem, i)));
   }
   console.log(`  Found ${items.length} items`);
   await uploadBatch(langfuse, datasetName, items);
 }
 
-async function uploadCrb(langfuse) {
+async function uploadCrb(langfuse: Langfuse): Promise<void> {
   const repos =
     repo === 'all'
       ? Object.keys(CRB_REPOS)
@@ -204,7 +270,7 @@ async function uploadCrb(langfuse) {
   for (const r of repos) {
     const filePath = path.join(CRB_DATASETS_DIR, `${r}.jsonl`);
     const lines = readJsonlLines(filePath, limit);
-    const items = lines.map((l, i) => buildCrbItem(JSON.parse(l), i, r));
+    const items = lines.map((l, i) => buildCrbItem(JSON.parse(l) as RawDataItem, i, r));
 
     const datasetName = `qualops/crb-${r}`;
     console.log(`\nUploading crb/${r} → ${datasetName}`);
@@ -214,7 +280,7 @@ async function uploadCrb(langfuse) {
   }
 }
 
-async function main() {
+async function main(): Promise<void> {
   const langfuseSecretKey = process.env.LANGFUSE_SECRET_KEY;
   const langfusePublicKey = process.env.LANGFUSE_PUBLIC_KEY;
   const langfuseHost = process.env.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
@@ -249,10 +315,8 @@ async function main() {
 }
 
 if (require.main === module) {
-  main().catch((err) => {
+  main().catch((err: Error) => {
     console.error('Fatal:', err.message || err);
     process.exit(1);
   });
 }
-
-module.exports = { buildQualOpsItem, buildCrbItem, readJsonlLines, CRB_REPOS };

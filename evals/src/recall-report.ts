@@ -13,14 +13,59 @@
  *   node evals/src/recall-report.js --format=json             # JSON output
  */
 
-const path = require('path');
-const fs = require('fs');
+import path from 'node:path';
+import fs from 'node:fs';
 
-const { LOGS_DIR } = require('./config');
-const { parseCrbGoldenCommentDetails, parseRecallReport } = require('./scorers/schemas');
+import { LOGS_DIR } from './config';
+import { parseCrbGoldenCommentDetails, parseRecallReport, type RecallReportEntry } from './scorers/schemas';
+import type { CrbGoldenCommentDetails, RecallReportSummary } from './scorers/schemas';
 
-function parseCliArgs(argv) {
-  const args = {};
+interface CliArgs {
+  preset?: string;
+  model?: string;
+  dataset?: string;
+  severity?: string;
+  format?: string;
+  [key: string]: string | undefined;
+}
+
+interface RunMeta {
+  model?: string;
+  preset?: string;
+  [key: string]: unknown;
+}
+
+export interface LogItem {
+  event?: string;
+  dataset?: string;
+  caseId?: string;
+  goldenDetails?: unknown[];
+  [key: string]: unknown;
+}
+
+export interface LogFile {
+  file: string;
+  meta: RunMeta;
+  items: LogItem[];
+}
+
+interface GoldenEntry {
+  caseId: string;
+  goldenIndex: number;
+  description: string;
+  type: string | null;
+  severity: string | null;
+  runs: { matched: boolean | null; confidence: number | null; runFile: string }[];
+}
+
+interface CollatedResult {
+  goldenMap: Map<string, GoldenEntry>;
+  runsWithDetails: number;
+  runsWithoutDetails: number;
+}
+
+export function parseCliArgs(argv: string[]): CliArgs {
+  const args: CliArgs = {};
   for (const arg of argv.slice(2)) {
     const m = arg.match(/^--([^=]+)(?:=(.*))?$/);
     if (m) args[m[1]] = m[2] !== undefined ? m[2] : 'true';
@@ -28,16 +73,16 @@ function parseCliArgs(argv) {
   return args;
 }
 
-function loadCrbDatasets() {
+export function loadCrbDatasets(): Map<string, { goldenIndex: number; description: string; type: string | null; severity: string | null }[]> {
   const crbDir = path.join(path.dirname(__dirname), 'datasets', 'crb');
-  const datasetGoldens = new Map();
+  const datasetGoldens = new Map<string, { goldenIndex: number; description: string; type: string | null; severity: string | null }[]>();
   if (!fs.existsSync(crbDir)) return datasetGoldens;
 
   for (const file of fs.readdirSync(crbDir).filter((f) => f.endsWith('.jsonl'))) {
     const lines = fs.readFileSync(path.join(crbDir, file), 'utf-8').trim().split('\n');
     for (const line of lines) {
-      const entry = JSON.parse(line);
-      const caseId = entry.id;
+      const entry = JSON.parse(line) as { id?: string; expected?: { description?: string; type?: string; severity?: string }[] };
+      const caseId = entry.id ?? '';
       const expected = entry.expected || [];
       datasetGoldens.set(caseId, expected.map((e, i) => ({
         goldenIndex: i,
@@ -50,24 +95,30 @@ function loadCrbDatasets() {
   return datasetGoldens;
 }
 
-function loadLogFiles(filters) {
+export function loadLogFiles(filters: { preset?: string | null; model?: string | null; dataset?: string | null }): LogFile[] {
   if (!fs.existsSync(LOGS_DIR)) return [];
   const files = fs.readdirSync(LOGS_DIR).filter((f) => f.endsWith('.json'));
-  const logs = [];
+  const logs: LogFile[] = [];
 
   for (const file of files) {
-    const data = JSON.parse(fs.readFileSync(path.join(LOGS_DIR, file), 'utf-8'));
+    let data: RunMeta & { entries?: LogItem[] };
+    try {
+      data = JSON.parse(fs.readFileSync(path.join(LOGS_DIR, file), 'utf-8'));
+    } catch {
+      console.warn(`[recall-report] Skipping malformed log file: ${file}`);
+      continue;
+    }
 
     if (filters.preset && data.preset !== filters.preset) continue;
-    if (filters.model && !data.model?.includes(filters.model)) continue;
+    if (filters.model && !String(data.model ?? '').includes(filters.model)) continue;
 
     const crbItems = (data.entries || []).filter(
-      (e) => e.event === 'item_complete' && e.dataset && e.dataset.includes('crb'),
+      (e) => e.event === 'item_complete' && e.dataset && String(e.dataset).includes('crb'),
     );
     if (crbItems.length === 0) continue;
 
     if (filters.dataset) {
-      const filtered = crbItems.filter((e) => e.dataset.includes(filters.dataset) || e.caseId?.includes(filters.dataset));
+      const filtered = crbItems.filter((e) => String(e.dataset).includes(filters.dataset!) || String(e.caseId ?? '').includes(filters.dataset!));
       if (filtered.length === 0) continue;
       logs.push({ file, meta: data, items: filtered });
     } else {
@@ -78,23 +129,30 @@ function loadLogFiles(filters) {
   return logs;
 }
 
-function collateGoldenData(logs, datasetGoldens) {
-  // key: "{caseId}:golden-{index}" -> { description, type, severity, runs: [{ matched, confidence, runFile }] }
-  const goldenMap = new Map();
+function truncate(str: string | undefined, len = 120): string {
+  if (!str || str.length <= len) return str || '';
+  return str.slice(0, len - 1) + '…';
+}
+
+export function collateGoldenData(
+  logs: LogFile[],
+  datasetGoldens: Map<string, { goldenIndex: number; description: string; type: string | null; severity: string | null }[]>,
+): CollatedResult {
+  const goldenMap = new Map<string, GoldenEntry>();
   let runsWithDetails = 0;
   let runsWithoutDetails = 0;
 
   for (const log of logs) {
     for (const item of log.items) {
-      const caseId = item.caseId;
+      const caseId = String(item.caseId ?? '');
       const hasDetails = Array.isArray(item.goldenDetails) && item.goldenDetails.length > 0;
 
       if (hasDetails) {
-        let validated;
+        let validated: CrbGoldenCommentDetails[] | null;
         try {
-          validated = item.goldenDetails.map((gd) => parseCrbGoldenCommentDetails(gd));
+          validated = (item.goldenDetails as unknown[]).map((gd) => parseCrbGoldenCommentDetails(gd));
         } catch (err) {
-          console.warn(`[recall-report] Invalid goldenDetails in ${log.file} case ${caseId}, treating as stub: ${err.message}`);
+          console.warn(`[recall-report] Invalid goldenDetails in ${log.file} case ${caseId}, treating as stub: ${(err as Error).message}`);
           validated = null;
         }
 
@@ -112,7 +170,7 @@ function collateGoldenData(logs, datasetGoldens) {
                 runs: [],
               });
             }
-            goldenMap.get(key).runs.push({
+            goldenMap.get(key)!.runs.push({
               matched: gd.matched,
               confidence: gd.confidence,
               runFile: log.file,
@@ -134,11 +192,7 @@ function collateGoldenData(logs, datasetGoldens) {
                   runs: [],
                 });
               }
-              goldenMap.get(key).runs.push({
-                matched: null,
-                confidence: null,
-                runFile: log.file,
-              });
+              goldenMap.get(key)!.runs.push({ matched: null, confidence: null, runFile: log.file });
             }
           }
         }
@@ -158,11 +212,7 @@ function collateGoldenData(logs, datasetGoldens) {
                 runs: [],
               });
             }
-            goldenMap.get(key).runs.push({
-              matched: null, // unknown — old run
-              confidence: null,
-              runFile: log.file,
-            });
+            goldenMap.get(key)!.runs.push({ matched: null, confidence: null, runFile: log.file });
           }
         }
       }
@@ -172,12 +222,7 @@ function collateGoldenData(logs, datasetGoldens) {
   return { goldenMap, runsWithDetails, runsWithoutDetails };
 }
 
-function truncate(str, len = 120) {
-  if (!str || str.length <= len) return str || '';
-  return str.slice(0, len - 1) + '…';
-}
-
-function computeSummary(goldenMap) {
+export function computeSummary(goldenMap: Map<string, GoldenEntry>): RecallReportSummary {
   let alwaysDetected = 0;
   let neverDetected = 0;
   let flaky = 0;
@@ -195,25 +240,25 @@ function computeSummary(goldenMap) {
   return { alwaysDetected, neverDetected, flaky, total };
 }
 
-function collectRunFiles(goldenMap) {
-  const set = new Set();
+function collectRunFiles(goldenMap: Map<string, GoldenEntry>): string[] {
+  const set = new Set<string>();
   for (const [, entry] of goldenMap) {
     for (const r of entry.runs) set.add(r.runFile);
   }
   return [...set];
 }
 
-function groupByCaseId(goldenMap) {
-  const byCaseId = new Map();
+function groupByCaseId(goldenMap: Map<string, GoldenEntry>): Map<string, (GoldenEntry & { key: string })[]> {
+  const byCaseId = new Map<string, (GoldenEntry & { key: string })[]>();
   for (const [key, entry] of goldenMap) {
     if (!byCaseId.has(entry.caseId)) byCaseId.set(entry.caseId, []);
-    byCaseId.get(entry.caseId).push({ key, ...entry });
+    byCaseId.get(entry.caseId)!.push({ key, ...entry });
   }
   return byCaseId;
 }
 
-function buildRunMarks(entryRuns, runFiles) {
-  const byFile = new Map();
+function buildRunMarks(entryRuns: GoldenEntry['runs'], runFiles: string[]): string {
+  const byFile = new Map<string, { matched: boolean | null }>();
   for (const r of entryRuns) byFile.set(r.runFile, r);
 
   return runFiles.map((f) => {
@@ -224,20 +269,26 @@ function buildRunMarks(entryRuns, runFiles) {
   }).join('');
 }
 
-function formatAlignedTable(headers, rows) {
+function formatAlignedTable(headers: string[], rows: string[][]): string[] {
   const colWidths = headers.map((h, i) =>
     Math.max(h.length, ...rows.map((r) => r[i].length)),
   );
-  const pad = (s, w) => s + ' '.repeat(w - s.length);
-  const fmtRow = (cols) => '| ' + cols.map((c, i) => pad(c, colWidths[i])).join(' | ') + ' |';
+  const pad = (s: string, w: number): string => s + ' '.repeat(w - s.length);
+  const fmtRow = (cols: string[]): string => '| ' + cols.map((c, i) => pad(c, colWidths[i])).join(' | ') + ' |';
   const sepRow = '|' + colWidths.map((w) => '-'.repeat(w + 2)).join('|') + '|';
 
   return [fmtRow(headers), sepRow, ...rows.map(fmtRow)];
 }
 
-function formatMarkdown(logs, goldenMap, summary, runsWithDetails, runsWithoutDetails) {
+export function formatMarkdown(
+  logs: LogFile[],
+  goldenMap: Map<string, GoldenEntry>,
+  summary: RecallReportSummary,
+  runsWithDetails: number,
+  runsWithoutDetails: number,
+): string {
   const models = [...new Set(logs.map((l) => l.meta.model).filter(Boolean))];
-  const lines = [];
+  const lines: string[] = [];
 
   lines.push('# CRB Recall Report');
   lines.push(`Runs: ${logs.length} | Models: ${models.join(', ') || 'unknown'}`);
@@ -246,7 +297,7 @@ function formatMarkdown(logs, goldenMap, summary, runsWithDetails, runsWithoutDe
   }
   lines.push('');
 
-  const pct = (n) => summary.total > 0 ? `${Math.round((n / summary.total) * 100)}%` : '0%';
+  const pct = (n: number): string => summary.total > 0 ? `${Math.round((n / summary.total) * 100)}%` : '0%';
   lines.push('## Summary');
   lines.push('| Always detected | Never detected | Flaky |');
   lines.push('|-----------------|----------------|-------|');
@@ -258,10 +309,10 @@ function formatMarkdown(logs, goldenMap, summary, runsWithDetails, runsWithoutDe
   const sortedCaseIds = [...byCaseId.keys()].sort();
 
   const headers = ['Case', '#', 'Sev', 'Golden Comment', 'Rate', 'Runs'];
-  const rows = [];
+  const rows: string[][] = [];
 
   for (const caseId of sortedCaseIds) {
-    const entries = byCaseId.get(caseId);
+    const entries = byCaseId.get(caseId)!;
     entries.sort((a, b) => a.goldenIndex - b.goldenIndex);
 
     for (const entry of entries) {
@@ -282,8 +333,13 @@ function formatMarkdown(logs, goldenMap, summary, runsWithDetails, runsWithoutDe
   return lines.join('\n');
 }
 
-function formatJson(goldenMap, summary, runsWithDetails, runsWithoutDetails) {
-  const entries = [];
+export function formatJson(
+  goldenMap: Map<string, GoldenEntry>,
+  summary: RecallReportSummary,
+  runsWithDetails: number,
+  runsWithoutDetails: number,
+): string {
+  const entries: RecallReportEntry[] = [];
   for (const [key, entry] of goldenMap) {
     const knownRuns = entry.runs.filter((r) => r.matched !== null);
     const matchCount = knownRuns.filter((r) => r.matched).length;
@@ -313,7 +369,7 @@ function formatJson(goldenMap, summary, runsWithDetails, runsWithoutDetails) {
   return JSON.stringify(report, null, 2);
 }
 
-function generateReport(args) {
+export function generateReport(args: CliArgs): string {
   const filters = {
     preset: args.preset || null,
     model: args.model || null,
@@ -354,14 +410,3 @@ if (require.main === module) {
   const args = parseCliArgs(process.argv);
   console.log(generateReport(args));
 }
-
-module.exports = {
-  generateReport,
-  loadLogFiles,
-  loadCrbDatasets,
-  collateGoldenData,
-  computeSummary,
-  formatMarkdown,
-  formatJson,
-  parseCliArgs,
-};

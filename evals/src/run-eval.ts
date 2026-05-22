@@ -28,6 +28,7 @@ import dotenv from 'dotenv';
 import { ROOT_CONTEXT, SpanStatusCode } from '@opentelemetry/api';
 import type { Tracer, Span } from '@opentelemetry/api';
 import { Langfuse } from 'langfuse';
+import type { ApiDatasetItem } from 'langfuse';
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import {
@@ -40,8 +41,12 @@ import {
   readPresetMeta,
 } from './config';
 import { classifyError, createRunLog } from './run-log';
+import { resolveWithinCwd, isPathTraversalSafe } from '@/shared/utils/security';
 import { runReviewForItem } from './reviewer';
-import { runAllScorers, scoreFor } from './scorers/index';
+import type { ItemInput } from './reviewer';
+import { runAllScorers } from './scorers/index';
+import type { Issue, Score } from './scorers/types';
+import type { CrbGoldenCommentDetails } from './scorers/schemas';
 import {
   setupTracing,
   getTracer,
@@ -99,7 +104,7 @@ async function runWithConcurrency<T>(
 
 async function runEvalItem(
   langfuse: Langfuse,
-  item: Record<string, unknown>,
+  item: ApiDatasetItem,
   itemIndex: number,
   total: number,
   datasetName: string,
@@ -108,9 +113,10 @@ async function runEvalItem(
   try {
     return await _runEvalItem(langfuse, item, itemIndex, total, datasetName, tracer);
   } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
     const errorCode = classifyError(err);
     console.error(
-      `  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${err.message || err}`,
+      `  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${error.message}`,
     );
     runLog.add({
       level: 'error',
@@ -118,27 +124,42 @@ async function runEvalItem(
       errorCode,
       dataset: datasetName,
       caseId: item.input?.caseId || item.id,
-      message: err.message || String(err),
-      stack: err.stack || null,
+      message: error.message,
+      stack: error.stack || null,
     });
-    return { caseId: item.id, issues: [], reviewError: err.message || String(err) };
+    return { caseId: item.id, issues: [], reviewError: error.message };
   }
 }
 
 async function _runEvalItem(
   langfuse: Langfuse,
-  item: Record<string, unknown>,
+  item: ApiDatasetItem,
   itemIndex: number,
   total: number,
   datasetName: string,
   tracer: Tracer,
 ) {
-  const itemInput = item.input as Record<string, unknown>;
-  const itemExpected = (item.expectedOutput as Record<string, unknown>) || {};
-  const referenceBugs = (itemExpected.referenceBugs as unknown[]) || [];
-  const referenceExpected = (itemExpected.referenceExpected as unknown[]) || [];
+  const itemInput: ItemInput = item.input || {};
+  const itemExpected = item.expectedOutput || {};
+  const referenceBugs: Issue[] = itemExpected.referenceBugs || [];
+  const referenceExpected: Issue[] = itemExpected.referenceExpected || [];
 
-  const caseId = (itemInput.caseId as string) || (item.id as string);
+  // Validate untrusted fields at the boundary before they reach internal functions.
+  const rawCaseId = itemInput.caseId || item.id;
+  const caseId = isPathTraversalSafe(rawCaseId)
+    ? rawCaseId
+    : rawCaseId.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  const git = itemInput.git as Record<string, unknown> | undefined;
+  if (git?.repo_path && typeof git.repo_path === 'string') {
+    const safeRepoPath = resolveWithinCwd(QUALOPS_ROOT, git.repo_path);
+    if (!safeRepoPath) {
+      console.warn(`  WARN: item ${caseId} has repo_path that escapes QUALOPS_ROOT, clearing it`);
+      git.repo_path = null;
+    } else {
+      git.repo_path = safeRepoPath;
+    }
+  }
   const traceName = `eval/${datasetName}/${caseId}`;
 
   let issues: unknown[] = [];
@@ -230,7 +251,7 @@ async function _runEvalItem(
 async function runReviewSpan(
   tracer: Tracer,
   rootSpan: Span,
-  itemInput: Record<string, unknown>,
+  itemInput: ItemInput,
   caseId: string,
   itemIndex: number,
   total: number,
@@ -319,7 +340,7 @@ async function linkDatasetRunItem(
     runLog.add({
       level: 'error',
       event: 'langfuse_link_error',
-      errorCode: 'LANGFUSE_API',
+      errorCode: 'LANGFUSE_API_ERROR',
       dataset: datasetName,
       caseId,
       message,
@@ -333,9 +354,9 @@ interface ScoreEvalItemOpts {
   genSpanId: string | undefined;
   caseId: string;
   issues: unknown[];
-  itemInput: Record<string, unknown>;
-  referenceBugs: unknown[];
-  referenceExpected: unknown[];
+  itemInput: ItemInput;
+  referenceBugs: Issue[];
+  referenceExpected: Issue[];
   itemIndex: number;
   total: number;
   durationMs: number;
@@ -354,32 +375,28 @@ async function scoreEvalItem({
   total,
   durationMs,
 }: ScoreEvalItemOpts) {
-  const source = itemInput.source as string;
+  const source = itemInput.source || 'unknown';
 
-  let scores;
-  if (config.skipJudge) {
-    scores = await scoreFor(source, issues, {
-      referenceBugs,
-      referenceExpected,
-      skipNames: new Set(['judge']),
-    });
-  } else {
-    scores = await runAllScorers(issues, { referenceBugs, referenceExpected, source });
-  }
+  const scores = await runAllScorers(issues as Issue[], {
+    referenceBugs,
+    referenceExpected,
+    source,
+    skipNames: config.skipJudge ? new Set(['judge']) : undefined,
+  });
 
   for (const score of scores) {
     langfuse.score({
       traceId,
       observationId: genSpanId,
       name: score.name,
-      value: score.value,
+      value: score.value!,
       comment: score.comment,
       dataType: 'NUMERIC',
     });
   }
 
   const recallScore = scores.find((s: { name: string }) => s.name === 'crb_recall');
-  const goldenDetails = recallScore?.metadata?.goldenDetails || null;
+  const goldenDetails = (recallScore?.metadata?.goldenDetails as CrbGoldenCommentDetails[] | undefined) || null;
 
   if (goldenDetails) {
     for (const gd of goldenDetails) {
@@ -395,10 +412,10 @@ async function scoreEvalItem({
   }
 
   const scoreMap = Object.fromEntries(
-    scores.map((s: { name: string; value: number }) => [s.name, s.value]),
+    scores.map((s: Score) => [s.name, s.value]),
   );
   const summary = scores
-    .map((s: { name: string; value: number }) => `${s.name}=${s.value.toFixed(3)}`)
+    .map((s: Score) => `${s.name}=${s.value!.toFixed(3)}`)
     .join(' ');
   console.log(`  [${itemIndex + 1}/${total}] ${caseId} issues=${issues.length} ${summary}`);
 
@@ -439,26 +456,24 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
     return { total: 0, errors: 1 };
   }
 
-  let allItems: Record<string, unknown>[] = [];
+  let allItems: ApiDatasetItem[] = [];
   let page = 1;
   while (true) {
     const resp = await langfuse.api.datasetItemsList({ datasetName, page, limit: 100 });
-    allItems.push(...((resp.data as Record<string, unknown>[]) || []));
+    allItems.push(...(resp.data || []));
     if (!resp.meta?.totalPages || page >= resp.meta.totalPages) break;
     page++;
   }
 
   if (config.severityFilter) {
+    const severityFilter = config.severityFilter;
     const before = allItems.length;
     allItems = allItems.filter((item) => {
-      const expected =
-        ((item.expectedOutput as Record<string, unknown>)?.referenceExpected as Array<{
-          severity?: string;
-        }>) || [];
-      return expected.some((e) => config.severityFilter.has((e.severity || '').toLowerCase()));
+      const expected: Array<{ severity?: string }> = item.expectedOutput?.referenceExpected || [];
+      return expected.some((e) => severityFilter.has((e.severity || '').toLowerCase()));
     });
     console.log(
-      `Severity filter: ${[...config.severityFilter].join(',')} — ${allItems.length}/${before} items`,
+      `Severity filter: ${[...severityFilter].join(',')} — ${allItems.length}/${before} items`,
     );
   }
 

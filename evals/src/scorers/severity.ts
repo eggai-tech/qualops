@@ -1,14 +1,9 @@
 'use strict';
 
-/**
- * Severity scorer — measures how accurately the tool labels severity.
- * Always passes (non-blocking) — recorded for observability only.
- * Applies to all datasets.
- */
+import type { Issue, ExpectedIssue } from './types';
+import { matchIssues } from './coverage';
 
-const { matchIssues } = require('./coverage');
-
-function scoreSeverity(issues, referenceExpected) {
+export function scoreSeverity(issues: Issue[], referenceExpected: ExpectedIssue[]): { pass: boolean; score: number; reason: string } {
   if (referenceExpected.length === 0) {
     return { pass: true, score: 0, reason: 'SEVERITY: severity_acc=0.000 (no matched pairs)' };
   }
@@ -30,5 +25,3 @@ function scoreSeverity(issues, referenceExpected) {
     reason: `SEVERITY: severity_acc=${severityAcc.toFixed(3)} correct=${correct}/${matched.length}`,
   };
 }
-
-module.exports = { scoreSeverity };

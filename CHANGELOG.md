@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@anthropic-ai/claude-agent-sdk` from 0.2.139 to 0.3.144.
 - Bump `@anthropic-ai/claude-agent-sdk-linux-x64` from 0.2.139 to 0.3.144.
 - Bump `@opentelemetry/sdk-node` from 0.217.0 to 0.218.0.
+- Migrated all `evals/` JavaScript files to TypeScript: scorers, schemas, llm-client, config, reviewer, run-log, upload-datasets, recall-report, fetch-crb-dataset, jest config, and all spec files.
 
 ### Fixed
 - `npm-publish` workflow: remove `npm install -g npm@latest` step.

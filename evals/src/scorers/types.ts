@@ -1,0 +1,39 @@
+'use strict';
+
+export interface Issue {
+  type?: string;
+  severity?: string;
+  description?: string;
+  line?: number;
+  lineEnd?: number;
+  file?: string;
+}
+
+export interface Score {
+  name: string;
+  value: number | null;
+  comment: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ScorerContext {
+  referenceBugs?: Issue[];
+  referenceExpected?: Issue[];
+  source: string;
+  skipNames?: Set<string>;
+  [key: string]: unknown;
+}
+
+export type ScorerFn = (detected: Issue[], context: ScorerContext) => Promise<Score | null>;
+
+export interface ScorerEntry {
+  datasets: string[];
+  fn: ScorerFn;
+}
+
+export interface ExpectedIssue {
+  line?: number | null;
+  lineEnd?: number | null;
+  category?: string;
+  severity?: string;
+}

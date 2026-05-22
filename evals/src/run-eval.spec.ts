@@ -2,9 +2,12 @@
 
 jest.mock('langfuse', () => ({ Langfuse: jest.fn() }));
 
-const { parseDiffLines } = require('./reviewer');
-const { resolveDatasets, resolvePreset, listPresets, CRB_REPOS } = require('./config');
-const { classifyError, createRunLog } = require('./run-log');
+import { parseDiffLines } from './reviewer';
+import { resolveDatasets, resolvePreset, listPresets } from './config';
+import { CRB_REPOS } from './crb-repos';
+import { classifyError, createRunLog } from './run-log';
+import fs from 'node:fs';
+import path from 'node:path';
 
 describe('parseDiffLines', () => {
   it('returns empty sets for empty/null input', () => {
@@ -48,7 +51,7 @@ describe('resolveDatasets', () => {
   });
 
   it('returns CRB_REPOS list', () => {
-    expect(CRB_REPOS).toEqual(['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak']);
+    expect(Object.keys(CRB_REPOS)).toEqual(['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak']);
   });
 });
 
@@ -98,9 +101,6 @@ describe('classifyError', () => {
 });
 
 describe('createRunLog', () => {
-  const fs = require('fs');
-  const path = require('path');
-
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -123,7 +123,7 @@ describe('createRunLog', () => {
     expect(writeSpy).toHaveBeenCalledTimes(1);
     expect(logFile).toMatch(/\.json$/);
 
-    const written = JSON.parse(writeSpy.mock.calls[0][1]);
+    const written = JSON.parse((writeSpy.mock.calls[0] as [string, string])[1]);
     expect(written.totals.successes).toBe(1);
     expect(written.totals.errors).toBe(3);
     expect(written.totals.warnings).toBe(2);
@@ -140,7 +140,7 @@ describe('createRunLog', () => {
     log.add({ level: 'info', event: 'test' });
     log.write();
 
-    const written = JSON.parse(fs.writeFileSync.mock.calls[0][1]);
+    const written = JSON.parse((fs.writeFileSync as jest.MockedFunction<typeof fs.writeFileSync>).mock.calls[0][1] as string);
     expect(written.entries[0].timestamp).toBeDefined();
     expect(written.startedAt).toBeDefined();
     expect(written.finishedAt).toBeDefined();
@@ -159,9 +159,6 @@ describe('listPresets', () => {
 });
 
 describe('resolvePreset', () => {
-  const fs = require('fs');
-  const path = require('path');
-
   it('returns null for default preset', () => {
     expect(resolvePreset(null)).toBeNull();
     expect(resolvePreset('default')).toBeNull();
@@ -177,7 +174,7 @@ describe('resolvePreset', () => {
   });
 
   it('returned path points to a valid JSON file', () => {
-    const presetPath = resolvePreset('thorough');
+    const presetPath = resolvePreset('thorough')!;
     const content = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
     expect(content.ai).toBeDefined();
     expect(content.ai.reviewStage.model).toBeDefined();
@@ -185,19 +182,19 @@ describe('resolvePreset', () => {
   });
 
   it('preset config has an enabled agentic job', () => {
-    const presetPath = resolvePreset('sonnet-agentic');
+    const presetPath = resolvePreset('sonnet-agentic')!;
     const content = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
-    const agenticJob = content.review.pipeline.find((j) => j.mode === 'agentic' && j.enabled);
+    const agenticJob = content.review.pipeline.find((j: { mode: string; enabled: boolean }) => j.mode === 'agentic' && j.enabled);
     expect(agenticJob).toBeDefined();
     expect(agenticJob.agentic.maxTurns).toBeGreaterThan(0);
   });
 
   it('presets differ from each other in meaningful ways', () => {
-    const fast = JSON.parse(fs.readFileSync(resolvePreset('fast'), 'utf-8'));
-    const thorough = JSON.parse(fs.readFileSync(resolvePreset('thorough'), 'utf-8'));
+    const fast = JSON.parse(fs.readFileSync(resolvePreset('fast')!, 'utf-8'));
+    const thorough = JSON.parse(fs.readFileSync(resolvePreset('thorough')!, 'utf-8'));
 
-    const fastJob = fast.review.pipeline.find((j) => j.enabled);
-    const thoroughJob = thorough.review.pipeline.find((j) => j.enabled);
+    const fastJob = fast.review.pipeline.find((j: { enabled: boolean }) => j.enabled);
+    const thoroughJob = thorough.review.pipeline.find((j: { enabled: boolean }) => j.enabled);
 
     expect(thoroughJob.agentic.maxTurns).toBeGreaterThan(fastJob.agentic.maxTurns);
     expect(thoroughJob.agentic.maxBudgetUsd).toBeGreaterThan(fastJob.agentic.maxBudgetUsd);
@@ -209,14 +206,14 @@ describe('resolvePreset', () => {
   it('preset configs differ from default qualopsrc in expected ways', () => {
     const QUALOPS_ROOT = path.join(__dirname, '../..');
     const defaultRc = JSON.parse(fs.readFileSync(path.join(QUALOPS_ROOT, '.qualops/.qualopsrc.json'), 'utf-8'));
-    const fastRc = JSON.parse(fs.readFileSync(resolvePreset('fast'), 'utf-8'));
-    const thoroughRc = JSON.parse(fs.readFileSync(resolvePreset('thorough'), 'utf-8'));
+    const fastRc = JSON.parse(fs.readFileSync(resolvePreset('fast')!, 'utf-8'));
+    const thoroughRc = JSON.parse(fs.readFileSync(resolvePreset('thorough')!, 'utf-8'));
 
     expect(defaultRc.review.validation.enabled).toBe(true);
     expect(fastRc.review.validation.enabled).toBe(false);
 
-    const fastJob = fastRc.review.pipeline.find((j) => j.mode === 'agentic' && j.enabled);
-    const thoroughJob = thoroughRc.review.pipeline.find((j) => j.mode === 'agentic' && j.enabled);
+    const fastJob = fastRc.review.pipeline.find((j: { mode: string; enabled: boolean }) => j.mode === 'agentic' && j.enabled);
+    const thoroughJob = thoroughRc.review.pipeline.find((j: { mode: string; enabled: boolean }) => j.mode === 'agentic' && j.enabled);
     expect(thoroughJob.agentic.maxTurns).toBeGreaterThan(fastJob.agentic.maxTurns);
     expect(thoroughJob.agentic.maxBudgetUsd).toBeGreaterThan(fastJob.agentic.maxBudgetUsd);
 
@@ -228,7 +225,7 @@ describe('resolvePreset', () => {
 
   it('each preset has the required config structure for qualops', () => {
     for (const name of listPresets()) {
-      const presetPath = resolvePreset(name);
+      const presetPath = resolvePreset(name)!;
       const config = JSON.parse(fs.readFileSync(presetPath, 'utf-8'));
 
       expect(config.ai).toBeDefined();
@@ -240,7 +237,7 @@ describe('resolvePreset', () => {
       expect(config.review.pipeline).toBeDefined();
       expect(config.review.pipeline.length).toBeGreaterThan(0);
 
-      const enabledJob = config.review.pipeline.find((j) => j.enabled);
+      const enabledJob = config.review.pipeline.find((j: { enabled: boolean }) => j.enabled);
       expect(enabledJob).toBeDefined();
     }
   });

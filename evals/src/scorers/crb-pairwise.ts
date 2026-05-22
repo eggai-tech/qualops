@@ -1,18 +1,24 @@
 'use strict';
 
-/**
- * CRB-compatible pairwise precision/recall scorer.
- * Uses the exact methodology from withmartian/code-review-benchmark step3_judge_comments.py.
- *
- * For each (golden, candidate) pair, an LLM judge decides if they describe the same issue.
- * Results in crb_precision, crb_recall, crb_f1 scores.
- *
- * Applies to: crb
- */
+import type { Issue } from './types';
+import { callJudgeLLM, hasJudgeKeys } from './llm-client';
+import type { CrbGoldenCommentDetails, PairwiseResult } from './schemas';
+import { PairwiseResultSchema } from './schemas';
 
-const { callJudgeLLM, hasJudgeKeys } = require('./llm-client');
+interface MatchState {
+  matched: boolean;
+  candidate: string | null;
+  confidence: number;
+}
 
-function buildPairwiseJudgePrompt(goldenComment, candidate) {
+interface ScoreEntry {
+  name: string;
+  value: number | null;
+  comment: string;
+  metadata?: { goldenDetails: CrbGoldenCommentDetails[] };
+}
+
+export function buildPairwiseJudgePrompt(goldenComment: string, candidate: string): string {
   return `You are evaluating AI code review tools.
 Determine if the candidate issue matches the golden (expected) comment.
 
@@ -31,29 +37,32 @@ Respond with ONLY a JSON object:
 {"reasoning": "brief explanation", "match": true/false, "confidence": 0.0-1.0}`;
 }
 
-function parsePairwiseResult(text) {
+export function parsePairwiseResult(text: string): PairwiseResult | null {
   try {
     const m = text.match(/\{[\s\S]*\}/);
     if (!m) return null;
-    const obj = JSON.parse(m[0]);
-    if (typeof obj.match === 'boolean' && typeof obj.confidence === 'number') return obj;
+    const result = PairwiseResultSchema.safeParse(JSON.parse(m[0]));
+    return result.success ? result.data : null;
   } catch { /* fall through */ }
   return null;
 }
 
-async function judgeOnePair(goldenComment, candidate) {
+async function judgeOnePair(goldenComment: string, candidate: string): Promise<PairwiseResult | null> {
   const prompt = buildPairwiseJudgePrompt(goldenComment, candidate);
-  const text = await callJudgeLLM(prompt);
+  const text = await callJudgeLLM([{ role: 'user', content: prompt }]);
   if (!text) return null;
   return parsePairwiseResult(text);
 }
 
-function truncate(str, len = 120) {
+function truncate(str: string | undefined, len = 120): string {
   if (!str || str.length <= len) return str || '';
   return str.slice(0, len - 1) + '…';
 }
 
-function buildCrbGoldenCommentDetails(referenceExpected, goldenMatched) {
+export function buildCrbGoldenCommentDetails(
+  referenceExpected: Issue[],
+  goldenMatched: Map<string, MatchState> | null,
+): CrbGoldenCommentDetails[] {
   return referenceExpected.map((entry, idx) => {
     const desc = entry.description || '';
     const match = goldenMatched ? goldenMatched.get(desc) : null;
@@ -69,7 +78,7 @@ function buildCrbGoldenCommentDetails(referenceExpected, goldenMatched) {
   });
 }
 
-async function scoreCrb(issues, referenceExpected) {
+export async function scoreCrb(issues: Issue[], referenceExpected: Issue[]): Promise<ScoreEntry[]> {
   if (!hasJudgeKeys()) {
     const goldenDetails = buildCrbGoldenCommentDetails(referenceExpected, null);
     return [
@@ -79,8 +88,8 @@ async function scoreCrb(issues, referenceExpected) {
     ];
   }
 
-  const goldenComments = referenceExpected.map((e) => e.description).filter(Boolean);
-  const candidates = issues.map((i) => i.description || i.summary || '').filter(Boolean);
+  const goldenComments = referenceExpected.map((e) => e.description).filter((d): d is string => Boolean(d));
+  const candidates = issues.map((i) => i.description || '').filter(Boolean);
 
   if (candidates.length === 0) {
     const goldenDetails = buildCrbGoldenCommentDetails(referenceExpected, null);
@@ -99,7 +108,7 @@ async function scoreCrb(issues, referenceExpected) {
     ];
   }
 
-  const pairs = [];
+  const pairs: { golden: string; candidate: string }[] = [];
   for (const golden of goldenComments) {
     for (const candidate of candidates) {
       pairs.push({ golden, candidate });
@@ -116,7 +125,7 @@ async function scoreCrb(issues, referenceExpected) {
     }),
   );
 
-  const goldenMatched = new Map();
+  const goldenMatched = new Map<string, MatchState>();
   for (const g of goldenComments) {
     goldenMatched.set(g, { matched: false, candidate: null, confidence: 0 });
   }
@@ -125,7 +134,7 @@ async function scoreCrb(issues, referenceExpected) {
     const result = results[pi];
     if (!result || !result.match) continue;
     const { golden, candidate } = pairs[pi];
-    const current = goldenMatched.get(golden);
+    const current = goldenMatched.get(golden)!;
     if (result.confidence > current.confidence) {
       goldenMatched.set(golden, { matched: true, candidate, confidence: result.confidence });
     }
@@ -151,5 +160,3 @@ async function scoreCrb(issues, referenceExpected) {
     { name: 'crb_f1', value: f1, comment: `CRB: f1=${f1.toFixed(3)} precision=${precision.toFixed(3)} recall=${recall.toFixed(3)}` },
   ];
 }
-
-module.exports = { scoreCrb, buildCrbGoldenCommentDetails, buildPairwiseJudgePrompt, parsePairwiseResult };
