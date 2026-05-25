@@ -1,0 +1,31 @@
+{
+  "id": "crb-grafana-8",
+  "source": "crb",
+  "prUrl": "https://github.com/grafana/grafana/pull/90939",
+  "prTitle": "Frontend Asset Optimization",
+  "sourceRepo": "grafana",
+  "language": "go",
+  "baseSha": "3ce1a5b0caab215346a51629b0344b90d67e9478",
+  "headSha": "b1613e320acff00623e6efc59f00ee68c7684a97",
+  "baseRef": "main",
+  "headRef": "diegommm/fix-data-race-get-web-assets",
+  "upstreamOwner": "grafana",
+  "upstreamRepo": "grafana",
+  "diff": "diff --git a/pkg/api/webassets/webassets.go b/pkg/api/webassets/webassets.go\nindex 197c5f7628151..dc26b5761e6c9 100644\n--- a/pkg/api/webassets/webassets.go\n+++ b/pkg/api/webassets/webassets.go\n@@ -8,6 +8,7 @@ import (\n \t\"net/http\"\n \t\"os\"\n \t\"path/filepath\"\n+\t\"sync\"\n \n \t\"github.com/grafana/grafana/pkg/api/dtos\"\n \t\"github.com/grafana/grafana/pkg/services/licensing\"\n@@ -31,12 +32,21 @@ type EntryPointInfo struct {\n \t} `json:\"assets,omitempty\"`\n }\n \n-var entryPointAssetsCache *dtos.EntryPointAssets = nil\n+var (\n+\tentryPointAssetsCacheMu sync.RWMutex           // guard entryPointAssetsCache\n+\tentryPointAssetsCache   *dtos.EntryPointAssets // TODO: get rid of global state\n+)\n \n func GetWebAssets(ctx context.Context, cfg *setting.Cfg, license licensing.Licensing) (*dtos.EntryPointAssets, error) {\n-\tif cfg.Env != setting.Dev && entryPointAssetsCache != nil {\n-\t\treturn entryPointAssetsCache, nil\n+\tentryPointAssetsCacheMu.RLock()\n+\tret := entryPointAssetsCache\n+\tentryPointAssetsCacheMu.RUnlock()\n+\n+\tif cfg.Env != setting.Dev && ret != nil {\n+\t\treturn ret, nil\n \t}\n+\tentryPointAssetsCacheMu.Lock()\n+\tdefer entryPointAssetsCacheMu.Unlock()\n \n \tvar err error\n \tvar result *dtos.EntryPointAssets\n",
+  "expected": [
+    {
+      "line": null,
+      "lineEnd": null,
+      "type": "bug",
+      "severity": "medium",
+      "description": "The GetWebAssets function implements an incomplete double-checked locking pattern for caching web assets. The function first checks if the cache is populated using a read lock (RLock), and if the cache is empty, it acquires a write lock to populate it. However, it fails to re-check whether the cache was populated by another goroutine while waiting to acquire the write lock."
+    },
+    {
+      "line": null,
+      "lineEnd": null,
+      "type": "bug",
+      "severity": "high",
+      "description": "In addition to the missing double-check, the function has a critical flaw in its error handling: it unconditionally assigns the fetch result to the cache (line 69: entryPointAssetsCache = result) regardless of whether the fetch succeeded or failed. When an error occurs during asset fetching, result is nil, and this nil value overwrites any previously valid cache entry."
+    }
+  ]
+}
