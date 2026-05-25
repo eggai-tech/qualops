@@ -256,6 +256,72 @@ async function uploadQualOps(langfuse: Langfuse): Promise<void> {
   await uploadBatch(langfuse, datasetName, items);
 }
 
+function loadCrbSlices(repoSlug: string, maxItems: number): CrbItem[] {
+  const items: CrbItem[] = [];
+  if (!fs.existsSync(CRB_DATASETS_DIR)) return items;
+  for (const entry of fs.readdirSync(CRB_DATASETS_DIR).sort()) {
+    if (!entry.startsWith(`crb-${repoSlug}-`)) continue;
+    const slicePath = path.join(CRB_DATASETS_DIR, entry, 'slice.json');
+    if (!fs.existsSync(slicePath)) continue;
+    const slice = JSON.parse(fs.readFileSync(slicePath, 'utf-8')) as {
+      id: string;
+      prUrl?: string;
+      prTitle?: string;
+      sourceRepo?: string;
+      language?: string;
+      diff?: string;
+      expected?: RawExpected[];
+      baseSha?: string;
+      headSha?: string;
+    };
+    const repoDir = path.join(CRB_DATASETS_DIR, entry, 'repo');
+    const referenceExpected = (slice.expected || []).map((e) => ({
+      line: e.line,
+      lineEnd: e.lineEnd,
+      type: e.type || 'bug',
+      severity: e.severity || 'medium',
+      description: e.description || '',
+    }));
+    const referenceBugs = referenceExpected.map((e) => ({
+      relevantFile: slice.prUrl,
+      relevantLinesStart: e.line,
+      relevantLinesEnd: e.lineEnd,
+      type: e.type,
+      severity: e.severity,
+      description: e.description,
+    }));
+    items.push({
+      id: slice.id,
+      input: {
+        caseId: slice.id,
+        source: 'crb',
+        filePath: slice.prUrl || 'unknown',
+        language: slice.language || CRB_REPOS[repoSlug] || 'unknown',
+        fullContent: '',
+        diff: slice.diff || '',
+        prTitle: slice.prTitle,
+        prUrl: slice.prUrl,
+        sourceRepo: slice.sourceRepo,
+        git: {
+          repo_path: repoDir,
+          head_sha: '',
+          base_sha: slice.baseSha || '',
+        },
+      },
+      expectedOutput: { referenceBugs, referenceExpected },
+      metadata: {
+        source: 'crb',
+        repo: repoSlug,
+        prUrl: slice.prUrl,
+        prTitle: slice.prTitle,
+        language: slice.language || CRB_REPOS[repoSlug],
+      },
+    });
+    if (items.length >= maxItems) break;
+  }
+  return items;
+}
+
 async function uploadCrb(langfuse: Langfuse): Promise<void> {
   const repos =
     repo === 'all'
@@ -265,10 +331,7 @@ async function uploadCrb(langfuse: Langfuse): Promise<void> {
         : (() => { console.error(`Unknown repo: ${repo}. Options: ${Object.keys(CRB_REPOS).join(', ')}, all`); process.exit(1); })();
 
   for (const r of repos) {
-    const filePath = path.join(CRB_DATASETS_DIR, `${r}.jsonl`);
-    const lines = readJsonlLines(filePath, limit);
-    const items = lines.map((l, i) => buildCrbItem(JSON.parse(l) as RawDataItem, i, r));
-
+    const items = loadCrbSlices(r, limit);
     const datasetName = `qualops/crb-${r}`;
     console.log(`\nUploading crb/${r} → ${datasetName}`);
     await ensureDataset(langfuse, datasetName, `Code Review Bench: ${r} (${CRB_REPOS[r]})`);

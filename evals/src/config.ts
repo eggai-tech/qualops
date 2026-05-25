@@ -8,8 +8,47 @@ export const QUALOPS_ROOT = path.join(__dirname, '../..');
 export const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
 export const DEFAULT_QUALOPSRC = '.qualops/.qualopsrc.json';
 export const LOGS_DIR = path.join(QUALOPS_ROOT, 'evals/logs');
+export const CRB_DATASETS_DIR = path.join(QUALOPS_ROOT, 'evals/datasets/crb');
 
 import { CRB_REPOS } from './crb-repos';
+
+export interface CrbExpected {
+  line: number | null;
+  lineEnd: number | null;
+  type: string;
+  severity: string;
+  description: string;
+}
+
+export interface CrbSlice {
+  id: string;
+  source: 'crb';
+  prUrl: string;
+  prTitle: string;
+  sourceRepo: string;
+  language: string;
+  baseSha: string;
+  headSha: string;
+  baseRef: string;
+  headRef: string;
+  upstreamOwner: string;
+  upstreamRepo: string;
+  diff: string;
+  expected: CrbExpected[];
+}
+
+/** Load all CRB slice items for a given repo slug (e.g. 'sentry'). */
+export function loadCrbItems(repoSlug: string): CrbSlice[] {
+  if (!fs.existsSync(CRB_DATASETS_DIR)) return [];
+  const items: CrbSlice[] = [];
+  for (const entry of fs.readdirSync(CRB_DATASETS_DIR).sort()) {
+    if (!entry.startsWith(`crb-${repoSlug}-`)) continue;
+    const slicePath = path.join(CRB_DATASETS_DIR, entry, 'slice.json');
+    if (!fs.existsSync(slicePath)) continue;
+    items.push(JSON.parse(fs.readFileSync(slicePath, 'utf-8')) as CrbSlice);
+  }
+  return items;
+}
 
 export interface PresetMeta {
   model?: string;

@@ -18,8 +18,9 @@
  * Presets are qualopsrc config files in evals/qualopsrc/.
  * CLI flags (--model, --mode, --provider) override preset values.
  *
- * Datasets must be uploaded first:
+ * Datasets must be uploaded to Langfuse first (one-time setup):
  *   npx tsx upload-datasets.ts --source=all
+ * CRB items are read from local slices at run time (no re-upload needed after initial setup).
  */
 
 import path from 'path';
@@ -33,13 +34,16 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import {
   QUALOPS_ROOT,
+  CRB_DATASETS_DIR,
   PRESETS_DIR,
   parseArgs,
   resolveDatasets,
   buildConfig,
   listPresets,
   readPresetMeta,
+  loadCrbItems,
 } from './config';
+import { CRB_REPOS } from './crb-repos';
 import { classifyError, createRunLog } from './run-log';
 import { resolveWithinCwd, isPathTraversalSafe } from '@/shared/utils/security';
 import { runReviewForItem } from './reviewer';
@@ -102,9 +106,30 @@ async function runWithConcurrency<T>(
   return results;
 }
 
+interface NormalizedItem {
+  id: string;
+  /** Langfuse dataset item ID — present only for items fetched from Langfuse. */
+  langfuseItemId?: string;
+  input: ItemInput;
+  referenceBugs: Issue[];
+  referenceExpected: Issue[];
+}
+
+function normalizeApiItem(item: ApiDatasetItem): NormalizedItem {
+  const itemInput: ItemInput = item.input || {};
+  const itemExpected = item.expectedOutput || {};
+  return {
+    id: item.id as string,
+    langfuseItemId: item.id as string,
+    input: itemInput,
+    referenceBugs: itemExpected.referenceBugs || [],
+    referenceExpected: itemExpected.referenceExpected || [],
+  };
+}
+
 async function runEvalItem(
   langfuse: Langfuse,
-  item: ApiDatasetItem,
+  item: NormalizedItem,
   itemIndex: number,
   total: number,
   datasetName: string,
@@ -133,16 +158,15 @@ async function runEvalItem(
 
 async function _runEvalItem(
   langfuse: Langfuse,
-  item: ApiDatasetItem,
+  item: NormalizedItem,
   itemIndex: number,
   total: number,
   datasetName: string,
   tracer: Tracer,
 ) {
-  const itemInput: ItemInput = item.input || {};
-  const itemExpected = item.expectedOutput || {};
-  const referenceBugs: Issue[] = itemExpected.referenceBugs || [];
-  const referenceExpected: Issue[] = itemExpected.referenceExpected || [];
+  const itemInput: ItemInput = item.input;
+  const referenceBugs: Issue[] = item.referenceBugs;
+  const referenceExpected: Issue[] = item.referenceExpected;
 
   // Validate untrusted fields at the boundary before they reach internal functions.
   const rawCaseId = itemInput.caseId || item.id;
@@ -211,7 +235,7 @@ async function _runEvalItem(
 
       await linkDatasetRunItem(
         langfuse,
-        item.id as string,
+        item.langfuseItemId ?? item.id,
         traceId,
         durationMs,
         datasetName,
@@ -434,9 +458,119 @@ async function scoreEvalItem({
   return { goldenDetails };
 }
 
+/** Extract CRB repo slug from a dataset name like 'qualops/crb-sentry' → 'sentry' */
+function crbRepoSlugFromDatasetName(datasetName: string): string | null {
+  const m = datasetName.match(/^qualops\/crb-(.+)$/);
+  return m ? m[1] : null;
+}
+
+/** Build a NormalizedItem from a local CRB slice. */
+function crbSliceToItem(slice: ReturnType<typeof loadCrbItems>[number]): NormalizedItem {
+  const repoDir = path.join(CRB_DATASETS_DIR, slice.id, 'repo');
+  const referenceExpected = slice.expected.map((e) => ({
+    line: e.line,
+    lineEnd: e.lineEnd,
+    type: e.type || 'bug',
+    severity: e.severity || 'medium',
+    description: e.description || '',
+  }));
+  const referenceBugs = referenceExpected.map((e) => ({
+    relevantFile: slice.prUrl,
+    relevantLinesStart: e.line,
+    relevantLinesEnd: e.lineEnd,
+    type: e.type,
+    severity: e.severity,
+    description: e.description,
+  }));
+  return {
+    id: slice.id,
+    langfuseItemId: slice.id,   // slice id is used as the Langfuse item id on upload
+    input: {
+      caseId: slice.id,
+      source: slice.source,
+      filePath: slice.prUrl,
+      language: slice.language,
+      diff: slice.diff,
+      git: {
+        repo_path: repoDir,
+        head_sha: '',   // empty = use repo_path directly (no worktree)
+        base_sha: slice.baseSha,
+      },
+    },
+    referenceBugs: referenceBugs as Issue[],
+    referenceExpected: referenceExpected as Issue[],
+  };
+}
+
+async function runItems(
+  langfuse: Langfuse,
+  items: NormalizedItem[],
+  datasetName: string,
+  tracer: Tracer,
+) {
+  if (config.severityFilter) {
+    const severityFilter = config.severityFilter;
+    const before = items.length;
+    items = items.filter((item) => {
+      return item.referenceExpected.some(
+        (e) => severityFilter.has(((e as { severity?: string }).severity || '').toLowerCase()),
+      );
+    });
+    console.log(
+      `Severity filter: ${[...severityFilter].join(',')} — ${items.length}/${before} items`,
+    );
+  }
+
+  if (config.limit < Infinity) {
+    items = items.slice(0, config.limit);
+  }
+
+  console.log(
+    `Found ${items.length} items. Running with concurrency=${config.concurrency}...\n`,
+  );
+
+  const results = { total: items.length, passed: 0, errors: 0 } as {
+    total: number;
+    passed: number;
+    errors: number;
+  };
+
+  const tasks = items.map(
+    (item, i) => () => runEvalItem(langfuse, item, i, items.length, datasetName, tracer),
+  );
+  const runResults = await runWithConcurrency(tasks, config.concurrency);
+
+  for (const r of runResults) {
+    if (r.status === 'rejected' || r.value.reviewError) {
+      results.errors++;
+    } else {
+      results.passed++;
+    }
+  }
+
+  return results;
+}
+
 async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Tracer) {
   console.log(`\n═══ Dataset: ${datasetName} ═══`);
 
+  // CRB datasets are served from local slices — no Langfuse fetch needed.
+  const crbSlug = crbRepoSlugFromDatasetName(datasetName);
+  if (crbSlug) {
+    if (!CRB_REPOS[crbSlug]) {
+      console.error(`Error: unknown CRB repo slug "${crbSlug}" in dataset "${datasetName}"`);
+      return { total: 0, errors: 1 };
+    }
+    const slices = loadCrbItems(crbSlug);
+    if (slices.length === 0) {
+      console.error(`Error: no slices found for crb-${crbSlug} under evals/datasets/crb/`);
+      return { total: 0, errors: 1 };
+    }
+    const items = slices.map(crbSliceToItem);
+    return runItems(langfuse, items, datasetName, tracer);
+  }
+
+  // Non-CRB datasets are fetched from Langfuse.
   try {
     await langfuse.api.datasetsGet(encodeURIComponent(datasetName));
   } catch (err) {
@@ -456,55 +590,17 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
     return { total: 0, errors: 1 };
   }
 
-  let allItems: ApiDatasetItem[] = [];
+  let allApiItems: ApiDatasetItem[] = [];
   let page = 1;
   while (true) {
     const resp = await langfuse.api.datasetItemsList({ datasetName, page, limit: 100 });
-    allItems.push(...(resp.data || []));
+    allApiItems.push(...(resp.data || []));
     if (!resp.meta?.totalPages || page >= resp.meta.totalPages) break;
     page++;
   }
 
-  if (config.severityFilter) {
-    const severityFilter = config.severityFilter;
-    const before = allItems.length;
-    allItems = allItems.filter((item) => {
-      const expected: Array<{ severity?: string }> = item.expectedOutput?.referenceExpected || [];
-      return expected.some((e) => severityFilter.has((e.severity || '').toLowerCase()));
-    });
-    console.log(
-      `Severity filter: ${[...severityFilter].join(',')} — ${allItems.length}/${before} items`,
-    );
-  }
-
-  if (config.limit < Infinity) {
-    allItems = allItems.slice(0, config.limit);
-  }
-
-  console.log(
-    `Found ${allItems.length} items. Running with concurrency=${config.concurrency}...\n`,
-  );
-
-  const results = { total: allItems.length, passed: 0, errors: 0 } as {
-    total: number;
-    passed: number;
-    errors: number;
-  };
-
-  const tasks = allItems.map(
-    (item, i) => () => runEvalItem(langfuse, item, i, allItems.length, datasetName, tracer),
-  );
-  const runResults = await runWithConcurrency(tasks, config.concurrency);
-
-  for (const r of runResults) {
-    if (r.status === 'rejected' || r.value.reviewError) {
-      results.errors++;
-    } else {
-      results.passed++;
-    }
-  }
-
-  return results;
+  const items = allApiItems.map(normalizeApiItem);
+  return runItems(langfuse, items, datasetName, tracer);
 }
 
 async function main(): Promise<void> {
