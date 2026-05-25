@@ -64,48 +64,56 @@ function localPrUrls(repoSlug: string): Set<string> {
   return urls;
 }
 
-const ghCheck = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', stdio: 'pipe' });
-if (ghCheck.status !== 0) {
-  console.warn('WARN: gh CLI not authenticated — skipping CRB staleness check');
-  process.exit(0);
-}
-
-console.log('Checking CRB staleness against upstream withmartian/code-review-benchmark...\n');
-
-let stale = false;
-
-for (const repo of REPOS) {
+function checkRepo(repo: string): boolean {
   const upstreamEntries = fetchUpstreamEntries(repo);
   if (upstreamEntries === null) {
     console.log(`  ${repo}: upstream unavailable`);
-    continue;
+    return false;
   }
 
   const localUrls = localPrUrls(repo);
   const missing = upstreamEntries.filter((e) => !localUrls.has(e.url));
   const extra = [...localUrls].filter((u) => !upstreamEntries.some((e) => e.url === u));
 
-  if (missing.length > 0 || extra.length > 0) {
-    if (missing.length > 0) {
-      console.warn(`  STALE ${repo}: ${missing.length} upstream PR(s) not in local slices:`);
-      for (const e of missing) console.warn(`    + ${e.url}  (${e.pr_title ?? ''})`);
-    }
-    if (extra.length > 0) {
-      console.warn(`  EXTRA ${repo}: ${extra.length} local slice(s) not in upstream:`);
-      for (const u of extra) console.warn(`    - ${u}`);
-    }
-    stale = true;
-  } else {
+  if (missing.length === 0 && extra.length === 0) {
     console.log(`  OK    ${repo}: ${localUrls.size}/${upstreamEntries.length} PRs match`);
+    return false;
+  }
+
+  if (missing.length > 0) {
+    console.warn(`  STALE ${repo}: ${missing.length} upstream PR(s) not in local slices:`);
+    for (const e of missing) console.warn(`    + ${e.url}  (${e.pr_title ?? ''})`);
+  }
+  if (extra.length > 0) {
+    console.warn(`  EXTRA ${repo}: ${extra.length} local slice(s) not in upstream:`);
+    for (const u of extra) console.warn(`    - ${u}`);
+  }
+  return true;
+}
+
+function main(): void {
+  const ghCheck = spawnSync('gh', ['auth', 'status'], { encoding: 'utf-8', stdio: 'pipe' });
+  if (ghCheck.status !== 0) {
+    console.warn('WARN: gh CLI not authenticated — skipping CRB staleness check');
+    process.exit(0);
+  }
+
+  console.log('Checking CRB staleness against upstream withmartian/code-review-benchmark...\n');
+
+  const stale = REPOS.some(checkRepo);
+
+  if (stale) {
+    console.error(
+      '\nUpstream CRB has new benchmark PRs not captured in our slices.' +
+      '\nNew slices must be added manually — see docs/tdr/0002-evals-from-real-prs.md for the slice format.',
+    );
+    process.exit(1);
+  } else {
+    console.log('\nAll CRB repos are up to date.');
   }
 }
 
-if (stale) {
-  console.error(
-    '\nUpstream CRB has new benchmark PRs not captured in our slices.' +
-    '\nNew slices must be added manually — see docs/tdr/0002-evals-from-real-prs.md for the slice format.',
-  );
-  process.exit(1);
-} else {
-  console.log('\nAll CRB repos are up to date.');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+if (require.main === module) {
+  main();
 }
