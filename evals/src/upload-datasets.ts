@@ -10,9 +10,6 @@
  *   node upload-datasets.js --source=crb            # Upload all CRB per-repo datasets
  *   node upload-datasets.js --source=crb --repo=sentry
  *   node upload-datasets.js --limit=10
- *
- * Fetch CRB data first:
- *   npm run eval:fetch:crb
  */
 
 import fs from 'node:fs';
