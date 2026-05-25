@@ -16,7 +16,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 
-import { LOGS_DIR } from './config';
+import { LOGS_DIR, CRB_REPOS, loadCrbItems } from './config';
 import { parseCrbGoldenCommentDetails, parseRecallReport, type RecallReportEntry } from './scorers/schemas';
 import type { CrbGoldenCommentDetails, RecallReportSummary } from './scorers/schemas';
 
@@ -74,17 +74,10 @@ export function parseCliArgs(argv: string[]): CliArgs {
 }
 
 export function loadCrbDatasets(): Map<string, { goldenIndex: number; description: string; type: string | null; severity: string | null }[]> {
-  const crbDir = path.join(path.dirname(__dirname), 'datasets', 'crb');
   const datasetGoldens = new Map<string, { goldenIndex: number; description: string; type: string | null; severity: string | null }[]>();
-  if (!fs.existsSync(crbDir)) return datasetGoldens;
-
-  for (const file of fs.readdirSync(crbDir).filter((f) => f.endsWith('.jsonl'))) {
-    const lines = fs.readFileSync(path.join(crbDir, file), 'utf-8').trim().split('\n');
-    for (const line of lines) {
-      const entry = JSON.parse(line) as { id?: string; expected?: { description?: string; type?: string; severity?: string }[] };
-      const caseId = entry.id ?? '';
-      const expected = entry.expected || [];
-      datasetGoldens.set(caseId, expected.map((e, i) => ({
+  for (const repoSlug of Object.keys(CRB_REPOS)) {
+    for (const slice of loadCrbItems(repoSlug)) {
+      datasetGoldens.set(slice.id, slice.expected.map((e, i) => ({
         goldenIndex: i,
         description: e.description || '',
         type: e.type || null,

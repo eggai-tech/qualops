@@ -14,7 +14,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { CRB_DATASETS_DIR, QUALOPS_ROOT, loadCrbItems, buildCrbExpectedPair } from './config';
+import { CRB_DATASETS_DIR, QUALOPS_DATASETS_DIR, QUALOPS_ROOT, loadCrbItems, buildCrbExpectedPair, crbDatasetName } from './config';
 import type { CrbSlice } from './config';
 
 try {
@@ -39,9 +39,7 @@ const source = args.source || 'all';
 const repo = args.repo || 'all';
 const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
 
-const QUALOPS_DATASETS_DIR = path.join(__dirname, '../datasets');
-
-import { CRB_REPOS } from './crb-repos';
+import { CRB_REPOS } from './config';
 
 interface RawExpected {
   line?: number | null;
@@ -251,7 +249,7 @@ async function uploadCrb(langfuse: Langfuse): Promise<void> {
     let slices = loadCrbItems(r);
     if (limit < Infinity) slices = slices.slice(0, limit);
     const items = slices.map((s) => crbSliceToCrbItem(s, r));
-    const datasetName = `qualops/crb-${r}`;
+    const datasetName = crbDatasetName(r);
     console.log(`\nUploading crb/${r} → ${datasetName}`);
     await ensureDataset(langfuse, datasetName, `Code Review Bench: ${r} (${CRB_REPOS[r]})`);
     console.log(`  Found ${items.length} items`);

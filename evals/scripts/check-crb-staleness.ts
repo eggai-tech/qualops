@@ -16,15 +16,9 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { CRB_DATASETS_DIR, CRB_GITHUB_REPO, CRB_GOLDEN_PATH, CRB_REPOS, crbSlicePrefix } from '../src/config';
 
-const SCRIPT_DIR = __dirname;
-const QUALOPS_ROOT = path.join(SCRIPT_DIR, '../..');
-const CRB_DIR = path.join(QUALOPS_ROOT, 'evals/datasets/crb');
-
-const CRB_GITHUB_REPO = 'withmartian/code-review-benchmark';
-const CRB_GOLDEN_PATH = 'offline/golden_comments';
-
-const REPOS = ['sentry', 'grafana', 'cal_dot_com', 'discourse', 'keycloak'];
+const REPOS = Object.keys(CRB_REPOS);
 
 interface UpstreamEntry {
   url: string;
@@ -53,10 +47,10 @@ function fetchUpstreamEntries(repoSlug: string): UpstreamEntry[] | null {
 
 function localPrUrls(repoSlug: string): Set<string> {
   const urls = new Set<string>();
-  if (!fs.existsSync(CRB_DIR)) return urls;
-  for (const entry of fs.readdirSync(CRB_DIR)) {
-    if (!entry.startsWith(`crb-${repoSlug}-`)) continue;
-    const sliceJsonPath = path.join(CRB_DIR, entry, 'slice.json');
+  if (!fs.existsSync(CRB_DATASETS_DIR)) return urls;
+  for (const entry of fs.readdirSync(CRB_DATASETS_DIR)) {
+    if (!entry.startsWith(crbSlicePrefix(repoSlug))) continue;
+    const sliceJsonPath = path.join(CRB_DATASETS_DIR, entry, 'slice.json');
     if (!fs.existsSync(sliceJsonPath)) continue;
     const sj = JSON.parse(fs.readFileSync(sliceJsonPath, 'utf-8')) as { prUrl?: string };
     if (sj.prUrl) urls.add(sj.prUrl);

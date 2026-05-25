@@ -8,9 +8,27 @@ export const QUALOPS_ROOT = path.join(__dirname, '../..');
 export const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
 export const DEFAULT_QUALOPSRC = '.qualops/.qualopsrc.json';
 export const LOGS_DIR = path.join(QUALOPS_ROOT, 'evals/logs');
+export const QUALOPS_DATASETS_DIR = path.join(QUALOPS_ROOT, 'evals/datasets');
 export const CRB_DATASETS_DIR = path.join(QUALOPS_ROOT, 'evals/datasets/crb');
 
-import { CRB_REPOS } from './crb-repos';
+/** Upstream GitHub repo for the Code Review Benchmark. */
+export const CRB_GITHUB_REPO = 'withmartian/code-review-benchmark';
+export const CRB_GOLDEN_PATH = 'offline/golden_comments';
+
+/** Langfuse dataset name for a CRB repo slug, e.g. 'sentry' → 'qualops/crb-sentry'. */
+export const crbDatasetName = (repoSlug: string): string => `qualops/crb-${repoSlug}`;
+
+/** Directory prefix for CRB slice entries, e.g. 'sentry' → 'crb-sentry-'. */
+export const crbSlicePrefix = (repoSlug: string): string => `crb-${repoSlug}-`;
+
+/** CRB repo slugs and their primary language. */
+export const CRB_REPOS: Record<string, string> = {
+  sentry: 'python',
+  grafana: 'go',
+  cal_dot_com: 'typescript',
+  discourse: 'ruby',
+  keycloak: 'java',
+};
 
 export interface CrbExpected {
   line: number | null;
@@ -75,7 +93,7 @@ export function loadCrbItems(repoSlug: string): CrbSlice[] {
   if (!fs.existsSync(CRB_DATASETS_DIR)) return [];
   const items: CrbSlice[] = [];
   for (const entry of fs.readdirSync(CRB_DATASETS_DIR).sort()) {
-    if (!entry.startsWith(`crb-${repoSlug}-`)) continue;
+    if (!entry.startsWith(crbSlicePrefix(repoSlug))) continue;
     const slicePath = path.join(CRB_DATASETS_DIR, entry, 'slice.json');
     if (!fs.existsSync(slicePath)) continue;
     items.push(JSON.parse(fs.readFileSync(slicePath, 'utf-8')) as CrbSlice);
@@ -168,9 +186,9 @@ export function parseArgs(argv: string[]): EvalArgs {
 export function resolveDatasets(args?: EvalArgs): string[] {
   if (!args) args = {};
   if (args.dataset) return [args.dataset];
-  if (args.source === 'crb') return Object.keys(CRB_REPOS).map((r) => `qualops/crb-${r}`);
+  if (args.source === 'crb') return Object.keys(CRB_REPOS).map(crbDatasetName);
   if (args.source === 'qualops') return ['qualops/qualops'];
-  if (args.source === 'all') return ['qualops/qualops', ...Object.keys(CRB_REPOS).map((r) => `qualops/crb-${r}`)];
+  if (args.source === 'all') return ['qualops/qualops', ...Object.keys(CRB_REPOS).map(crbDatasetName)];
   return ['qualops/qualops'];
 }
 

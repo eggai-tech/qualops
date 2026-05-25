@@ -43,9 +43,10 @@ import {
   readPresetMeta,
   loadCrbItems,
   buildCrbExpectedPair,
+  crbDatasetName,
+  CRB_REPOS,
 } from './config';
 import type { CrbSlice } from './config';
-import { CRB_REPOS } from './crb-repos';
 import { classifyError, createRunLog } from './run-log';
 import { resolveWithinCwd, isPathTraversalSafe } from '@/shared/utils/security';
 import { runReviewForItem } from './reviewer';
@@ -418,10 +419,9 @@ async function scoreEvalItem({
   return { goldenDetails };
 }
 
-/** Extract CRB repo slug from a dataset name like 'qualops/crb-sentry' → 'sentry' */
+/** Extract CRB repo slug from a dataset name like 'qualops/crb-sentry' → 'sentry', or null. */
 function crbRepoSlugFromDatasetName(datasetName: string): string | null {
-  const m = datasetName.match(/^qualops\/crb-(.+)$/);
-  return m ? m[1] : null;
+  return Object.keys(CRB_REPOS).find((slug) => crbDatasetName(slug) === datasetName) ?? null;
 }
 
 /** Build a NormalizedItem from a local CRB slice. */
@@ -506,7 +506,7 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
     }
     const slices = loadCrbItems(crbSlug);
     if (slices.length === 0) {
-      console.error(`Error: no slices found for crb-${crbSlug} under evals/datasets/crb/`);
+      console.error(`Error: no slices found for ${crbSlug} under ${CRB_DATASETS_DIR}`);
       return { total: 0, errors: 1 };
     }
     const items = slices.map(crbSliceToItem);

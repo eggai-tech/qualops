@@ -4,7 +4,7 @@ jest.mock('langfuse', () => ({ Langfuse: jest.fn() }));
 
 import { parseDiffLines } from './reviewer';
 import { resolveDatasets, resolvePreset, listPresets } from './config';
-import { CRB_REPOS } from './crb-repos';
+import { CRB_REPOS } from './config';
 import { classifyError, createRunLog } from './run-log';
 import fs from 'node:fs';
 import path from 'node:path';
