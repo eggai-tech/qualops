@@ -42,7 +42,9 @@ import {
   listPresets,
   readPresetMeta,
   loadCrbItems,
+  buildCrbExpectedPair,
 } from './config';
+import type { CrbSlice } from './config';
 import { CRB_REPOS } from './crb-repos';
 import { classifyError, createRunLog } from './run-log';
 import { resolveWithinCwd, isPathTraversalSafe } from '@/shared/utils/security';
@@ -135,56 +137,9 @@ async function runEvalItem(
   datasetName: string,
   tracer: Tracer,
 ) {
-  try {
-    return await _runEvalItem(langfuse, item, itemIndex, total, datasetName, tracer);
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    const errorCode = classifyError(err);
-    console.error(
-      `  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${error.message}`,
-    );
-    runLog.add({
-      level: 'error',
-      event: 'uncaught_error',
-      errorCode,
-      dataset: datasetName,
-      caseId: item.input?.caseId || item.id,
-      message: error.message,
-      stack: error.stack || null,
-    });
-    return { caseId: item.id, issues: [], reviewError: error.message };
-  }
-}
-
-async function _runEvalItem(
-  langfuse: Langfuse,
-  item: NormalizedItem,
-  itemIndex: number,
-  total: number,
-  datasetName: string,
-  tracer: Tracer,
-) {
   const itemInput: ItemInput = item.input;
-  const referenceBugs: Issue[] = item.referenceBugs;
-  const referenceExpected: Issue[] = item.referenceExpected;
-
-  // Validate untrusted fields at the boundary before they reach internal functions.
-  const rawCaseId = itemInput.caseId || item.id;
-  const caseId = isPathTraversalSafe(rawCaseId)
-    ? rawCaseId
-    : rawCaseId.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-  const git = itemInput.git as Record<string, unknown> | undefined;
-  if (git?.repo_path && typeof git.repo_path === 'string') {
-    const safeRepoPath = resolveWithinCwd(QUALOPS_ROOT, git.repo_path);
-    if (!safeRepoPath) {
-      console.warn(`  WARN: item ${caseId} has repo_path that escapes QUALOPS_ROOT, clearing it`);
-      git.repo_path = null;
-    } else {
-      git.repo_path = safeRepoPath;
-    }
-  }
-  const traceName = `eval/${datasetName}/${caseId}`;
+  const caseId = sanitizeCaseId(itemInput.caseId || item.id);
+  sanitizeRepoCwd(itemInput, caseId);
 
   let issues: unknown[] = [];
   let reviewError: string | null = null;
@@ -192,13 +147,13 @@ async function _runEvalItem(
   let traceId: string | undefined;
   let genSpanId: string | undefined;
 
-  // rootSpan stays open until after scoring so we can attach goldenDetails
-  // Use ROOT_CONTEXT so concurrent eval items each start a fresh trace
-  await tracer.startActiveSpan(traceName, {}, ROOT_CONTEXT, async (rootSpan: Span) => {
+  // Use ROOT_CONTEXT so concurrent eval items each start a fresh trace.
+  // rootSpan stays open until after scoring so we can attach goldenDetails.
+  await tracer.startActiveSpan(`eval/${datasetName}/${caseId}`, {}, ROOT_CONTEXT, async (rootSpan: Span) => {
     try {
       setTraceAttributes(rootSpan, {
         sessionId: config.experimentName,
-        traceName,
+        traceName: `eval/${datasetName}/${caseId}`,
         model: config.model,
         tags: ['eval', itemInput.source || 'unknown', config.mode],
         metadata: {
@@ -216,53 +171,42 @@ async function _runEvalItem(
       setTraceIO(rootSpan, { input: itemInput });
       traceId = rootSpan.spanContext().traceId;
 
-      const reviewResult = await runReviewSpan(
-        tracer,
-        rootSpan,
-        itemInput,
-        caseId,
-        itemIndex,
-        total,
-        datasetName,
-      );
+      const reviewResult = await runReviewSpan(tracer, rootSpan, itemInput, caseId, itemIndex, total, datasetName);
       issues = reviewResult.issues;
       reviewError = reviewResult.reviewError;
       durationMs = reviewResult.durationMs;
       genSpanId = reviewResult.genSpanId;
 
-      // Flush before linking trace to dataset run item
       await forceFlushTracing();
-
-      await linkDatasetRunItem(
-        langfuse,
-        item.langfuseItemId ?? item.id,
-        traceId,
-        durationMs,
-        datasetName,
-        caseId,
-      );
+      await linkDatasetRunItem(langfuse, item.langfuseItemId ?? item.id, traceId, durationMs, datasetName, caseId);
 
       if (!reviewError) {
         const scoringResult = await scoreEvalItem({
-          langfuse,
-          traceId,
-          genSpanId,
-          caseId,
-          issues,
-          itemInput,
-          referenceBugs,
-          referenceExpected,
-          itemIndex,
-          total,
-          durationMs,
+          langfuse, traceId, genSpanId, caseId,
+          issues, itemInput,
+          referenceBugs: item.referenceBugs,
+          referenceExpected: item.referenceExpected,
+          itemIndex, total, durationMs,
         });
         if (scoringResult.goldenDetails) {
           setGoldenDetails(rootSpan, scoringResult.goldenDetails);
         }
       }
-    } catch (error) {
-      recordSpanError(rootSpan, error);
-      throw error;
+    } catch (err) {
+      recordSpanError(rootSpan, err);
+      const error = err instanceof Error ? err : new Error(String(err));
+      const errorCode = classifyError(err);
+      console.error(`  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${error.message}`);
+      runLog.add({
+        level: 'error',
+        event: 'uncaught_error',
+        errorCode,
+        dataset: datasetName,
+        caseId,
+        message: error.message,
+        stack: error.stack || null,
+      });
+      reviewError = error.message;
     } finally {
       rootSpan.end();
     }
@@ -270,6 +214,22 @@ async function _runEvalItem(
 
   await forceFlushTracing();
   return { caseId, issues, reviewError };
+}
+
+function sanitizeCaseId(raw: string): string {
+  return isPathTraversalSafe(raw) ? raw : raw.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function sanitizeRepoCwd(itemInput: ItemInput, caseId: string): void {
+  const git = itemInput.git as Record<string, unknown> | undefined;
+  if (!git?.repo_path || typeof git.repo_path !== 'string') return;
+  const safe = resolveWithinCwd(QUALOPS_ROOT, git.repo_path);
+  if (!safe) {
+    console.warn(`  WARN: item ${caseId} has repo_path that escapes QUALOPS_ROOT, clearing it`);
+    git.repo_path = null;
+  } else {
+    git.repo_path = safe;
+  }
 }
 
 async function runReviewSpan(
@@ -465,26 +425,11 @@ function crbRepoSlugFromDatasetName(datasetName: string): string | null {
 }
 
 /** Build a NormalizedItem from a local CRB slice. */
-function crbSliceToItem(slice: ReturnType<typeof loadCrbItems>[number]): NormalizedItem {
-  const repoDir = path.join(CRB_DATASETS_DIR, slice.id, 'repo');
-  const referenceExpected = slice.expected.map((e) => ({
-    line: e.line,
-    lineEnd: e.lineEnd,
-    type: e.type || 'bug',
-    severity: e.severity || 'medium',
-    description: e.description || '',
-  }));
-  const referenceBugs = referenceExpected.map((e) => ({
-    relevantFile: slice.prUrl,
-    relevantLinesStart: e.line,
-    relevantLinesEnd: e.lineEnd,
-    type: e.type,
-    severity: e.severity,
-    description: e.description,
-  }));
+function crbSliceToItem(slice: CrbSlice): NormalizedItem {
+  const { referenceExpected, referenceBugs } = buildCrbExpectedPair(slice);
   return {
     id: slice.id,
-    langfuseItemId: slice.id,   // slice id is used as the Langfuse item id on upload
+    langfuseItemId: slice.id, // slice id is used as the Langfuse item id on upload
     input: {
       caseId: slice.id,
       source: slice.source,
@@ -492,8 +437,8 @@ function crbSliceToItem(slice: ReturnType<typeof loadCrbItems>[number]): Normali
       language: slice.language,
       diff: slice.diff,
       git: {
-        repo_path: repoDir,
-        head_sha: '',   // empty = use repo_path directly (no worktree)
+        repo_path: path.join(CRB_DATASETS_DIR, slice.id, 'repo'),
+        head_sha: '', // empty = use repo_path directly (no worktree)
         base_sha: slice.baseSha,
       },
     },
@@ -511,14 +456,12 @@ async function runItems(
   if (config.severityFilter) {
     const severityFilter = config.severityFilter;
     const before = items.length;
-    items = items.filter((item) => {
-      return item.referenceExpected.some(
-        (e) => severityFilter.has(((e as { severity?: string }).severity || '').toLowerCase()),
-      );
-    });
-    console.log(
-      `Severity filter: ${[...severityFilter].join(',')} — ${items.length}/${before} items`,
+    items = items.filter((item) =>
+      item.referenceExpected.some((e) =>
+        severityFilter.has(((e as { severity?: string }).severity ?? '').toLowerCase()),
+      ),
     );
+    console.log(`Severity filter: ${[...severityFilter].join(',')} — ${items.length}/${before} items`);
   }
 
   if (config.limit < Infinity) {

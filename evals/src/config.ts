@@ -37,6 +37,39 @@ export interface CrbSlice {
   expected: CrbExpected[];
 }
 
+/** Normalised expected/bug pair shared by both the runner and the uploader. */
+export interface CrbExpectedPair {
+  referenceExpected: CrbExpected[];
+  referenceBugs: Array<{
+    relevantFile: string;
+    relevantLinesStart: number | null;
+    relevantLinesEnd: number | null;
+    type: string;
+    severity: string;
+    description: string;
+  }>;
+}
+
+/** Build the referenceExpected + referenceBugs arrays from a slice's expected list. */
+export function buildCrbExpectedPair(slice: Pick<CrbSlice, 'prUrl' | 'expected'>): CrbExpectedPair {
+  const referenceExpected: CrbExpected[] = slice.expected.map((e) => ({
+    line: e.line,
+    lineEnd: e.lineEnd,
+    type: e.type || 'bug',
+    severity: e.severity || 'medium',
+    description: e.description || '',
+  }));
+  const referenceBugs = referenceExpected.map((e) => ({
+    relevantFile: slice.prUrl,
+    relevantLinesStart: e.line,
+    relevantLinesEnd: e.lineEnd,
+    type: e.type,
+    severity: e.severity,
+    description: e.description,
+  }));
+  return { referenceExpected, referenceBugs };
+}
+
 /** Load all CRB slice items for a given repo slug (e.g. 'sentry'). */
 export function loadCrbItems(repoSlug: string): CrbSlice[] {
   if (!fs.existsSync(CRB_DATASETS_DIR)) return [];

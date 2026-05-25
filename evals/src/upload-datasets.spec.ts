@@ -2,7 +2,8 @@
 
 jest.mock('langfuse', () => ({ Langfuse: jest.fn() }));
 
-import { buildQualOpsItem, buildCrbItem } from './upload-datasets';
+import { buildQualOpsItem, crbSliceToCrbItem } from './upload-datasets';
+import { buildCrbExpectedPair } from './config';
 
 describe('buildQualOpsItem', () => {
   it('builds item with all fields', () => {
@@ -62,22 +63,52 @@ describe('buildQualOpsItem', () => {
   });
 });
 
-describe('buildCrbItem', () => {
-  it('builds item with repo metadata', () => {
-    const data = {
-      id: 'crb-1',
-      pr_title: 'Fix pagination',
-      pr_url: 'https://github.com/org/repo/pull/1',
-      source_repo: 'sentry',
-      diff: '--- a/file.py\n+++ b/file.py',
-      language: 'python',
-      expected: [
-        { line: 10, type: 'bug', severity: 'high', description: 'off-by-one' },
-      ],
-    };
-    const item = buildCrbItem(data, 0, 'sentry');
+describe('buildCrbExpectedPair', () => {
+  it('normalises expected entries with defaults', () => {
+    const { referenceExpected, referenceBugs } = buildCrbExpectedPair({
+      prUrl: 'https://github.com/org/repo/pull/1',
+      expected: [{ line: 5, lineEnd: 10, type: 'security', severity: 'critical', description: 'injection' }],
+    });
 
-    expect(item.id).toBe('crb-1');
+    expect(referenceExpected).toHaveLength(1);
+    expect(referenceExpected[0]).toMatchObject({ line: 5, lineEnd: 10, type: 'security', severity: 'critical' });
+    expect(referenceBugs).toHaveLength(1);
+    expect(referenceBugs[0].relevantFile).toBe('https://github.com/org/repo/pull/1');
+    expect(referenceBugs[0].relevantLinesStart).toBe(5);
+  });
+
+  it('applies default type and severity when missing', () => {
+    const { referenceExpected } = buildCrbExpectedPair({
+      prUrl: 'https://github.com/org/repo/pull/2',
+      expected: [{ line: null, lineEnd: null, type: '', severity: '', description: '' }],
+    });
+    expect(referenceExpected[0].type).toBe('bug');
+    expect(referenceExpected[0].severity).toBe('medium');
+  });
+});
+
+describe('crbSliceToCrbItem', () => {
+  const baseSlice = {
+    id: 'crb-sentry-1',
+    source: 'crb' as const,
+    prUrl: 'https://github.com/org/repo/pull/1',
+    prTitle: 'Fix pagination',
+    sourceRepo: 'sentry',
+    language: 'python',
+    baseSha: 'abc',
+    headSha: 'def',
+    baseRef: 'master',
+    headRef: 'fix-branch',
+    upstreamOwner: 'org',
+    upstreamRepo: 'repo',
+    diff: '--- a/file.py\n+++ b/file.py',
+    expected: [{ line: 10, lineEnd: 10, type: 'bug', severity: 'high', description: 'off-by-one' }],
+  };
+
+  it('builds item with slice metadata', () => {
+    const item = crbSliceToCrbItem(baseSlice, 'sentry');
+
+    expect(item.id).toBe('crb-sentry-1');
     expect(item.input.source).toBe('crb');
     expect(item.input.prTitle).toBe('Fix pagination');
     expect(item.input.prUrl).toBe('https://github.com/org/repo/pull/1');
@@ -86,28 +117,24 @@ describe('buildCrbItem', () => {
     expect(item.metadata.repo).toBe('sentry');
   });
 
-  it('generates fallback id from repo and index', () => {
-    const item = buildCrbItem({}, 2, 'grafana');
-    expect(item.id).toBe('crb-grafana-3');
-  });
-
-  it('falls back to CRB_REPOS language', () => {
-    const item = buildCrbItem({}, 0, 'grafana');
+  it('falls back to CRB_REPOS language when slice language is empty', () => {
+    const item = crbSliceToCrbItem({ ...baseSlice, language: '' }, 'grafana');
     expect(item.input.language).toBe('go');
   });
 
   it('maps expected to both referenceBugs and referenceExpected', () => {
-    const data = {
-      expected: [
-        { line: 5, lineEnd: 10, type: 'security', severity: 'critical', description: 'injection' },
-      ],
-    };
-    const item = buildCrbItem(data, 0, 'sentry');
+    const item = crbSliceToCrbItem(baseSlice, 'sentry');
 
     expect(item.expectedOutput.referenceExpected).toHaveLength(1);
     expect(item.expectedOutput.referenceBugs).toHaveLength(1);
-    expect(item.expectedOutput.referenceExpected[0].line).toBe(5);
+    expect(item.expectedOutput.referenceExpected[0].line).toBe(10);
     const bug = item.expectedOutput.referenceBugs[0] as { relevantLinesStart?: number };
-    expect(bug.relevantLinesStart).toBe(5);
+    expect(bug.relevantLinesStart).toBe(10);
+  });
+
+  it('sets git.head_sha to empty string so repo_path is used directly', () => {
+    const item = crbSliceToCrbItem(baseSlice, 'sentry');
+    const git = item.input.git as { head_sha: string };
+    expect(git.head_sha).toBe('');
   });
 });
