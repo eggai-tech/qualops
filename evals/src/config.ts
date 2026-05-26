@@ -8,8 +8,98 @@ export const QUALOPS_ROOT = path.join(__dirname, '../..');
 export const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
 export const DEFAULT_QUALOPSRC = '.qualops/.qualopsrc.json';
 export const LOGS_DIR = path.join(QUALOPS_ROOT, 'evals/logs');
+export const QUALOPS_DATASETS_DIR = path.join(QUALOPS_ROOT, 'evals/datasets');
+export const CRB_DATASETS_DIR = path.join(QUALOPS_ROOT, 'evals/datasets/crb');
 
-import { CRB_REPOS } from './crb-repos';
+/** Upstream GitHub repo for the Code Review Benchmark. */
+export const CRB_GITHUB_REPO = 'withmartian/code-review-benchmark';
+export const CRB_GOLDEN_PATH = 'offline/golden_comments';
+
+/** Langfuse dataset name for a CRB repo slug, e.g. 'sentry' → 'qualops/crb-sentry'. */
+export const crbDatasetName = (repoSlug: string): string => `qualops/crb-${repoSlug}`;
+
+/** Directory prefix for CRB slice entries, e.g. 'sentry' → 'crb-sentry-'. */
+export const crbSlicePrefix = (repoSlug: string): string => `crb-${repoSlug}-`;
+
+/** CRB repo slugs and their primary language. */
+export const CRB_REPOS: Record<string, string> = {
+  sentry: 'python',
+  grafana: 'go',
+  cal_dot_com: 'typescript',
+  discourse: 'ruby',
+  keycloak: 'java',
+};
+
+export interface CrbExpected {
+  line: number | null;
+  lineEnd: number | null;
+  type: string;
+  severity: string;
+  description: string;
+}
+
+export interface CrbSlice {
+  id: string;
+  source: 'crb';
+  prUrl: string;
+  prTitle: string;
+  sourceRepo: string;
+  language: string;
+  baseSha: string;
+  headSha: string;
+  baseRef: string;
+  headRef: string;
+  upstreamOwner: string;
+  upstreamRepo: string;
+  diff: string;
+  expected: CrbExpected[];
+}
+
+/** Normalised expected/bug pair shared by both the runner and the uploader. */
+export interface CrbExpectedPair {
+  referenceExpected: CrbExpected[];
+  referenceBugs: Array<{
+    relevantFile: string;
+    relevantLinesStart: number | null;
+    relevantLinesEnd: number | null;
+    type: string;
+    severity: string;
+    description: string;
+  }>;
+}
+
+/** Build the referenceExpected + referenceBugs arrays from a slice's expected list. */
+export function buildCrbExpectedPair(slice: Pick<CrbSlice, 'prUrl' | 'expected'>): CrbExpectedPair {
+  const referenceExpected: CrbExpected[] = slice.expected.map((e) => ({
+    line: e.line,
+    lineEnd: e.lineEnd,
+    type: e.type || 'bug',
+    severity: e.severity || 'medium',
+    description: e.description || '',
+  }));
+  const referenceBugs = referenceExpected.map((e) => ({
+    relevantFile: slice.prUrl,
+    relevantLinesStart: e.line,
+    relevantLinesEnd: e.lineEnd,
+    type: e.type,
+    severity: e.severity,
+    description: e.description,
+  }));
+  return { referenceExpected, referenceBugs };
+}
+
+/** Load all CRB slice items for a given repo slug (e.g. 'sentry'). */
+export function loadCrbItems(repoSlug: string): CrbSlice[] {
+  if (!fs.existsSync(CRB_DATASETS_DIR)) return [];
+  const items: CrbSlice[] = [];
+  for (const entry of fs.readdirSync(CRB_DATASETS_DIR).sort()) {
+    if (!entry.startsWith(crbSlicePrefix(repoSlug))) continue;
+    const slicePath = path.join(CRB_DATASETS_DIR, entry, 'slice.json');
+    if (!fs.existsSync(slicePath)) continue;
+    items.push(JSON.parse(fs.readFileSync(slicePath, 'utf-8')) as CrbSlice);
+  }
+  return items;
+}
 
 export interface PresetMeta {
   model?: string;
@@ -96,9 +186,9 @@ export function parseArgs(argv: string[]): EvalArgs {
 export function resolveDatasets(args?: EvalArgs): string[] {
   if (!args) args = {};
   if (args.dataset) return [args.dataset];
-  if (args.source === 'crb') return Object.keys(CRB_REPOS).map((r) => `qualops/crb-${r}`);
+  if (args.source === 'crb') return Object.keys(CRB_REPOS).map(crbDatasetName);
   if (args.source === 'qualops') return ['qualops/qualops'];
-  if (args.source === 'all') return ['qualops/qualops', ...Object.keys(CRB_REPOS).map((r) => `qualops/crb-${r}`)];
+  if (args.source === 'all') return ['qualops/qualops', ...Object.keys(CRB_REPOS).map(crbDatasetName)];
   return ['qualops/qualops'];
 }
 

@@ -4,7 +4,7 @@ jest.mock('langfuse', () => ({ Langfuse: jest.fn() }));
 
 import { parseDiffLines } from './reviewer';
 import { resolveDatasets, resolvePreset, listPresets } from './config';
-import { CRB_REPOS } from './crb-repos';
+import { CRB_REPOS } from './config';
 import { classifyError, createRunLog } from './run-log';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -114,7 +114,7 @@ describe('createRunLog', () => {
     log.add({ level: 'error', event: 'review_error', errorCode: 'TIMEOUT', caseId: 'b' });
     log.add({ level: 'error', event: 'review_error', errorCode: 'TIMEOUT', caseId: 'c' });
     log.add({ level: 'error', event: 'review_error', errorCode: 'AUTH_FAILED', caseId: 'd' });
-    log.add({ level: 'warn', event: 'repo_not_found', warnCode: 'REPO_NOT_CLONED', caseId: 'e' });
+    log.add({ level: 'warn', event: 'repo_not_found', warnCode: 'REPO_NOT_FOUND', caseId: 'e' });
     log.add({ level: 'warn', event: 'checkout_failed', warnCode: 'CHECKOUT_FAILED', caseId: 'f' });
 
     const logFile = log.write();
@@ -128,7 +128,7 @@ describe('createRunLog', () => {
     expect(written.totals.errors).toBe(3);
     expect(written.totals.warnings).toBe(2);
     expect(written.errorBreakdown).toEqual({ TIMEOUT: 2, AUTH_FAILED: 1 });
-    expect(written.warningBreakdown).toEqual({ REPO_NOT_CLONED: 1, CHECKOUT_FAILED: 1 });
+    expect(written.warningBreakdown).toEqual({ REPO_NOT_FOUND: 1, CHECKOUT_FAILED: 1 });
     expect(written.entries).toHaveLength(6);
   });
 

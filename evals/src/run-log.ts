@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { QUALOPS_ROOT } from './config';
+import { LOGS_DIR } from './config';
 
 export type ErrorCode =
   | 'RATE_LIMITED'
@@ -99,9 +99,8 @@ export function createRunLog(config: RunLogConfig): RunLog {
         entries,
       };
 
-      const logsDir = path.join(QUALOPS_ROOT, 'evals', 'logs');
-      fs.mkdirSync(logsDir, { recursive: true });
-      const logFile = path.join(logsDir, `${config.experimentName}-${Date.now()}.json`);
+      fs.mkdirSync(LOGS_DIR, { recursive: true });
+      const logFile = path.join(LOGS_DIR, `${config.experimentName}-${Date.now()}.json`);
       fs.writeFileSync(logFile, JSON.stringify(summary, null, 2));
       return logFile;
     },

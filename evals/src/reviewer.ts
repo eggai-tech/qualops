@@ -125,11 +125,11 @@ export function resolveRepoCwd(itemInput: ItemInput, runLog: RunLog): RepoCwd {
   // repo_path is already resolved and validated to be within QUALOPS_ROOT at the entry boundary.
   const repoPath = itemInput.git.repo_path;
   if (!fs.existsSync(repoPath)) {
-    console.warn(`  WARN: repo path not found: ${repoPath} (run npm run eval:fetch:crb to clone repos)`);
+    console.warn(`  WARN: repo path not found: ${repoPath}`);
     runLog.add({
       level: 'warn',
       event: 'repo_not_found',
-      warnCode: 'REPO_NOT_CLONED',
+      warnCode: 'REPO_NOT_FOUND',
       caseId: itemInput.caseId,
       repoPath: itemInput.git.repo_path,
       message: `Repo not cloned at ${repoPath} — agentic tools will use qualops root`,

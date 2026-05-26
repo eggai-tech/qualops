@@ -18,8 +18,9 @@
  * Presets are qualopsrc config files in evals/qualopsrc/.
  * CLI flags (--model, --mode, --provider) override preset values.
  *
- * Datasets must be uploaded first:
+ * Datasets must be uploaded to Langfuse first (one-time setup):
  *   npx tsx upload-datasets.ts --source=all
+ * CRB items are read from local slices at run time (no re-upload needed after initial setup).
  */
 
 import path from 'path';
@@ -33,13 +34,19 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import {
   QUALOPS_ROOT,
+  CRB_DATASETS_DIR,
   PRESETS_DIR,
   parseArgs,
   resolveDatasets,
   buildConfig,
   listPresets,
   readPresetMeta,
+  loadCrbItems,
+  buildCrbExpectedPair,
+  crbDatasetName,
+  CRB_REPOS,
 } from './config';
+import type { CrbSlice } from './config';
 import { classifyError, createRunLog } from './run-log';
 import { resolveWithinCwd, isPathTraversalSafe } from '@/shared/utils/security';
 import { runReviewForItem } from './reviewer';
@@ -102,143 +109,94 @@ async function runWithConcurrency<T>(
   return results;
 }
 
-async function runEvalItem(
-  langfuse: Langfuse,
-  item: ApiDatasetItem,
-  itemIndex: number,
-  total: number,
-  datasetName: string,
-  tracer: Tracer,
-) {
-  try {
-    return await _runEvalItem(langfuse, item, itemIndex, total, datasetName, tracer);
-  } catch (err) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    const errorCode = classifyError(err);
-    console.error(
-      `  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${error.message}`,
-    );
-    runLog.add({
-      level: 'error',
-      event: 'uncaught_error',
-      errorCode,
-      dataset: datasetName,
-      caseId: item.input?.caseId || item.id,
-      message: error.message,
-      stack: error.stack || null,
-    });
-    return { caseId: item.id, issues: [], reviewError: error.message };
-  }
+interface NormalizedItem {
+  id: string;
+  /** Langfuse dataset item ID — present only for items fetched from Langfuse. */
+  langfuseItemId?: string;
+  input: ItemInput;
+  referenceBugs: Issue[];
+  referenceExpected: Issue[];
 }
 
-async function _runEvalItem(
+function normalizeApiItem(item: ApiDatasetItem): NormalizedItem {
+  const itemInput: ItemInput = item.input || {};
+  const itemExpected = item.expectedOutput || {};
+  return {
+    id: item.id as string,
+    langfuseItemId: item.id as string,
+    input: itemInput,
+    referenceBugs: itemExpected.referenceBugs || [],
+    referenceExpected: itemExpected.referenceExpected || [],
+  };
+}
+
+function attachTraceAttributes(rootSpan: Span, itemInput: ItemInput, caseId: string, datasetName: string): void {
+  setTraceAttributes(rootSpan, {
+    sessionId: config.experimentName,
+    traceName: `eval/${datasetName}/${caseId}`,
+    model: config.model,
+    tags: ['eval', itemInput.source || 'unknown', config.mode],
+    metadata: {
+      dataset: datasetName,
+      experiment: config.experimentName,
+      model: config.model,
+      mode: config.mode,
+      provider: config.provider,
+      caseId,
+      source: itemInput.source,
+      filePath: itemInput.filePath,
+      language: itemInput.language,
+    },
+  });
+  setTraceIO(rootSpan, { input: itemInput });
+}
+
+async function runEvalItem(
   langfuse: Langfuse,
-  item: ApiDatasetItem,
+  item: NormalizedItem,
   itemIndex: number,
   total: number,
   datasetName: string,
   tracer: Tracer,
 ) {
-  const itemInput: ItemInput = item.input || {};
-  const itemExpected = item.expectedOutput || {};
-  const referenceBugs: Issue[] = itemExpected.referenceBugs || [];
-  const referenceExpected: Issue[] = itemExpected.referenceExpected || [];
-
-  // Validate untrusted fields at the boundary before they reach internal functions.
-  const rawCaseId = itemInput.caseId || item.id;
-  const caseId = isPathTraversalSafe(rawCaseId)
-    ? rawCaseId
-    : rawCaseId.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-  const git = itemInput.git as Record<string, unknown> | undefined;
-  if (git?.repo_path && typeof git.repo_path === 'string') {
-    const safeRepoPath = resolveWithinCwd(QUALOPS_ROOT, git.repo_path);
-    if (!safeRepoPath) {
-      console.warn(`  WARN: item ${caseId} has repo_path that escapes QUALOPS_ROOT, clearing it`);
-      git.repo_path = null;
-    } else {
-      git.repo_path = safeRepoPath;
-    }
-  }
-  const traceName = `eval/${datasetName}/${caseId}`;
+  const itemInput: ItemInput = item.input;
+  const caseId = sanitizeCaseId(itemInput.caseId || item.id);
+  sanitizeRepoCwd(itemInput, caseId);
 
   let issues: unknown[] = [];
   let reviewError: string | null = null;
-  let durationMs = 0;
-  let traceId: string | undefined;
-  let genSpanId: string | undefined;
 
-  // rootSpan stays open until after scoring so we can attach goldenDetails
-  // Use ROOT_CONTEXT so concurrent eval items each start a fresh trace
-  await tracer.startActiveSpan(traceName, {}, ROOT_CONTEXT, async (rootSpan: Span) => {
+  // Use ROOT_CONTEXT so concurrent eval items each start a fresh trace.
+  // rootSpan stays open until after scoring so we can attach goldenDetails.
+  await tracer.startActiveSpan(`eval/${datasetName}/${caseId}`, {}, ROOT_CONTEXT, async (rootSpan: Span) => {
     try {
-      setTraceAttributes(rootSpan, {
-        sessionId: config.experimentName,
-        traceName,
-        model: config.model,
-        tags: ['eval', itemInput.source || 'unknown', config.mode],
-        metadata: {
-          dataset: datasetName,
-          experiment: config.experimentName,
-          model: config.model,
-          mode: config.mode,
-          provider: config.provider,
-          caseId,
-          source: itemInput.source,
-          filePath: itemInput.filePath,
-          language: itemInput.language,
-        },
-      });
-      setTraceIO(rootSpan, { input: itemInput });
-      traceId = rootSpan.spanContext().traceId;
+      attachTraceAttributes(rootSpan, itemInput, caseId, datasetName);
+      const traceId = rootSpan.spanContext().traceId;
 
-      const reviewResult = await runReviewSpan(
-        tracer,
-        rootSpan,
-        itemInput,
-        caseId,
-        itemIndex,
-        total,
-        datasetName,
-      );
+      const reviewResult = await runReviewSpan(tracer, rootSpan, itemInput, caseId, itemIndex, total, datasetName);
       issues = reviewResult.issues;
       reviewError = reviewResult.reviewError;
-      durationMs = reviewResult.durationMs;
-      genSpanId = reviewResult.genSpanId;
 
-      // Flush before linking trace to dataset run item
       await forceFlushTracing();
-
-      await linkDatasetRunItem(
-        langfuse,
-        item.id as string,
-        traceId,
-        durationMs,
-        datasetName,
-        caseId,
-      );
+      await linkDatasetRunItem(langfuse, item.langfuseItemId ?? item.id, traceId, reviewResult.durationMs, datasetName, caseId);
 
       if (!reviewError) {
-        const scoringResult = await scoreEvalItem({
-          langfuse,
-          traceId,
-          genSpanId,
-          caseId,
-          issues,
-          itemInput,
-          referenceBugs,
-          referenceExpected,
-          itemIndex,
-          total,
-          durationMs,
+        const goldenDetails = await scoreEvalItem({
+          langfuse, traceId, genSpanId: reviewResult.genSpanId, caseId,
+          issues, itemInput,
+          referenceBugs: item.referenceBugs,
+          referenceExpected: item.referenceExpected,
+          itemIndex, total, durationMs: reviewResult.durationMs,
         });
-        if (scoringResult.goldenDetails) {
-          setGoldenDetails(rootSpan, scoringResult.goldenDetails);
-        }
+        if (goldenDetails) setGoldenDetails(rootSpan, goldenDetails);
       }
-    } catch (error) {
-      recordSpanError(rootSpan, error);
-      throw error;
+    } catch (err) {
+      recordSpanError(rootSpan, err);
+      const error = err instanceof Error ? err : new Error(String(err));
+      const errorCode = classifyError(err);
+      console.error(`  [${itemIndex + 1}/${total}] UNCAUGHT ERROR [${errorCode}]: ${error.message}`);
+      runLog.add({ level: 'error', event: 'uncaught_error', errorCode, dataset: datasetName, caseId, message: error.message, stack: error.stack || null });
+      reviewError = error.message;
     } finally {
       rootSpan.end();
     }
@@ -246,6 +204,22 @@ async function _runEvalItem(
 
   await forceFlushTracing();
   return { caseId, issues, reviewError };
+}
+
+function sanitizeCaseId(raw: string): string {
+  return isPathTraversalSafe(raw) ? raw : raw.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function sanitizeRepoCwd(itemInput: ItemInput, caseId: string): void {
+  const git = itemInput.git as Record<string, unknown> | undefined;
+  if (!git?.repo_path || typeof git.repo_path !== 'string') return;
+  const safe = resolveWithinCwd(QUALOPS_ROOT, git.repo_path);
+  if (!safe) {
+    console.warn(`  WARN: item ${caseId} has repo_path that escapes QUALOPS_ROOT, clearing it`);
+    git.repo_path = null;
+  } else {
+    git.repo_path = safe;
+  }
 }
 
 async function runReviewSpan(
@@ -362,6 +336,47 @@ interface ScoreEvalItemOpts {
   durationMs: number;
 }
 
+async function computeScores(
+  issues: unknown[],
+  referenceBugs: Issue[],
+  referenceExpected: Issue[],
+  source: string,
+): Promise<{ scores: Score[]; goldenDetails: CrbGoldenCommentDetails[] | null }> {
+  const scores = await runAllScorers(issues as Issue[], {
+    referenceBugs,
+    referenceExpected,
+    source,
+    skipNames: config.skipJudge ? new Set(['judge']) : undefined,
+  });
+  const recallScore = scores.find((s) => s.name === 'crb_recall');
+  const goldenDetails = (recallScore?.metadata?.goldenDetails as CrbGoldenCommentDetails[] | undefined) ?? null;
+  return { scores, goldenDetails };
+}
+
+function publishScores(
+  langfuse: Langfuse,
+  traceId: string,
+  genSpanId: string | undefined,
+  caseId: string,
+  scores: Score[],
+  goldenDetails: CrbGoldenCommentDetails[] | null,
+): void {
+  for (const score of scores) {
+    langfuse.score({ traceId, observationId: genSpanId, name: score.name, value: score.value!, comment: score.comment, dataType: 'NUMERIC' });
+  }
+  if (!goldenDetails) return;
+  for (const gd of goldenDetails) {
+    langfuse.score({
+      traceId,
+      observationId: genSpanId,
+      name: `${caseId}:golden-${gd.goldenIndex}`,
+      value: gd.matched ? 1 : 0,
+      comment: `${gd.description}${gd.confidence ? ` (conf=${gd.confidence.toFixed(2)})` : ''}`,
+      dataType: 'NUMERIC',
+    });
+  }
+}
+
 async function scoreEvalItem({
   langfuse,
   traceId,
@@ -374,49 +389,13 @@ async function scoreEvalItem({
   itemIndex,
   total,
   durationMs,
-}: ScoreEvalItemOpts) {
-  const source = itemInput.source || 'unknown';
+}: ScoreEvalItemOpts): Promise<CrbGoldenCommentDetails[] | null> {
+  const { scores, goldenDetails } = await computeScores(issues, referenceBugs, referenceExpected, itemInput.source || 'unknown');
 
-  const scores = await runAllScorers(issues as Issue[], {
-    referenceBugs,
-    referenceExpected,
-    source,
-    skipNames: config.skipJudge ? new Set(['judge']) : undefined,
-  });
+  publishScores(langfuse, traceId, genSpanId, caseId, scores, goldenDetails);
 
-  for (const score of scores) {
-    langfuse.score({
-      traceId,
-      observationId: genSpanId,
-      name: score.name,
-      value: score.value!,
-      comment: score.comment,
-      dataType: 'NUMERIC',
-    });
-  }
-
-  const recallScore = scores.find((s: { name: string }) => s.name === 'crb_recall');
-  const goldenDetails = (recallScore?.metadata?.goldenDetails as CrbGoldenCommentDetails[] | undefined) || null;
-
-  if (goldenDetails) {
-    for (const gd of goldenDetails) {
-      langfuse.score({
-        traceId,
-        observationId: genSpanId,
-        name: `${caseId}:golden-${gd.goldenIndex}`,
-        value: gd.matched ? 1 : 0,
-        comment: `${gd.description}${gd.confidence ? ` (conf=${gd.confidence.toFixed(2)})` : ''}`,
-        dataType: 'NUMERIC',
-      });
-    }
-  }
-
-  const scoreMap = Object.fromEntries(
-    scores.map((s: Score) => [s.name, s.value]),
-  );
-  const summary = scores
-    .map((s: Score) => `${s.name}=${s.value!.toFixed(3)}`)
-    .join(' ');
+  const scoreMap = Object.fromEntries(scores.map((s: Score) => [s.name, s.value]));
+  const summary = scores.map((s: Score) => `${s.name}=${s.value!.toFixed(3)}`).join(' ');
   console.log(`  [${itemIndex + 1}/${total}] ${caseId} issues=${issues.length} ${summary}`);
 
   runLog.add({
@@ -431,12 +410,104 @@ async function scoreEvalItem({
     goldenDetails,
   });
 
-  return { goldenDetails };
+  return goldenDetails;
+}
+
+/** Extract CRB repo slug from a dataset name like 'qualops/crb-sentry' → 'sentry', or null. */
+function crbRepoSlugFromDatasetName(datasetName: string): string | null {
+  return Object.keys(CRB_REPOS).find((slug) => crbDatasetName(slug) === datasetName) ?? null;
+}
+
+/** Build a NormalizedItem from a local CRB slice. */
+function crbSliceToItem(slice: CrbSlice): NormalizedItem {
+  const { referenceExpected, referenceBugs } = buildCrbExpectedPair(slice);
+  return {
+    id: slice.id,
+    langfuseItemId: slice.id, // slice id is used as the Langfuse item id on upload
+    input: {
+      caseId: slice.id,
+      source: slice.source,
+      filePath: slice.prUrl,
+      language: slice.language,
+      diff: slice.diff,
+      git: {
+        repo_path: path.join(CRB_DATASETS_DIR, slice.id, 'repo'),
+        head_sha: '', // empty = use repo_path directly (no worktree)
+        base_sha: slice.baseSha,
+      },
+    },
+    referenceBugs: referenceBugs as Issue[],
+    referenceExpected: referenceExpected as Issue[],
+  };
+}
+
+async function runItems(
+  langfuse: Langfuse,
+  items: NormalizedItem[],
+  datasetName: string,
+  tracer: Tracer,
+) {
+  if (config.severityFilter) {
+    const severityFilter = config.severityFilter;
+    const before = items.length;
+    items = items.filter((item) =>
+      item.referenceExpected.some((e) =>
+        severityFilter.has(((e as { severity?: string }).severity ?? '').toLowerCase()),
+      ),
+    );
+    console.log(`Severity filter: ${[...severityFilter].join(',')} — ${items.length}/${before} items`);
+  }
+
+  if (config.limit < Infinity) {
+    items = items.slice(0, config.limit);
+  }
+
+  console.log(
+    `Found ${items.length} items. Running with concurrency=${config.concurrency}...\n`,
+  );
+
+  const results = { total: items.length, passed: 0, errors: 0 } as {
+    total: number;
+    passed: number;
+    errors: number;
+  };
+
+  const tasks = items.map(
+    (item, i) => () => runEvalItem(langfuse, item, i, items.length, datasetName, tracer),
+  );
+  const runResults = await runWithConcurrency(tasks, config.concurrency);
+
+  for (const r of runResults) {
+    if (r.status === 'rejected' || r.value.reviewError) {
+      results.errors++;
+    } else {
+      results.passed++;
+    }
+  }
+
+  return results;
 }
 
 async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Tracer) {
   console.log(`\n═══ Dataset: ${datasetName} ═══`);
 
+  // CRB datasets are served from local slices — no Langfuse fetch needed.
+  const crbSlug = crbRepoSlugFromDatasetName(datasetName);
+  if (crbSlug) {
+    if (!CRB_REPOS[crbSlug]) {
+      console.error(`Error: unknown CRB repo slug "${crbSlug}" in dataset "${datasetName}"`);
+      return { total: 0, errors: 1 };
+    }
+    const slices = loadCrbItems(crbSlug);
+    if (slices.length === 0) {
+      console.error(`Error: no slices found for ${crbSlug} under ${CRB_DATASETS_DIR}`);
+      return { total: 0, errors: 1 };
+    }
+    const items = slices.map(crbSliceToItem);
+    return runItems(langfuse, items, datasetName, tracer);
+  }
+
+  // Non-CRB datasets are fetched from Langfuse.
   try {
     await langfuse.api.datasetsGet(encodeURIComponent(datasetName));
   } catch (err) {
@@ -456,127 +527,78 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
     return { total: 0, errors: 1 };
   }
 
-  let allItems: ApiDatasetItem[] = [];
+  let allApiItems: ApiDatasetItem[] = [];
   let page = 1;
   while (true) {
     const resp = await langfuse.api.datasetItemsList({ datasetName, page, limit: 100 });
-    allItems.push(...(resp.data || []));
+    allApiItems.push(...(resp.data || []));
     if (!resp.meta?.totalPages || page >= resp.meta.totalPages) break;
     page++;
   }
 
-  if (config.severityFilter) {
-    const severityFilter = config.severityFilter;
-    const before = allItems.length;
-    allItems = allItems.filter((item) => {
-      const expected: Array<{ severity?: string }> = item.expectedOutput?.referenceExpected || [];
-      return expected.some((e) => severityFilter.has((e.severity || '').toLowerCase()));
-    });
-    console.log(
-      `Severity filter: ${[...severityFilter].join(',')} — ${allItems.length}/${before} items`,
-    );
-  }
-
-  if (config.limit < Infinity) {
-    allItems = allItems.slice(0, config.limit);
-  }
-
-  console.log(
-    `Found ${allItems.length} items. Running with concurrency=${config.concurrency}...\n`,
-  );
-
-  const results = { total: allItems.length, passed: 0, errors: 0 } as {
-    total: number;
-    passed: number;
-    errors: number;
-  };
-
-  const tasks = allItems.map(
-    (item, i) => () => runEvalItem(langfuse, item, i, allItems.length, datasetName, tracer),
-  );
-  const runResults = await runWithConcurrency(tasks, config.concurrency);
-
-  for (const r of runResults) {
-    if (r.status === 'rejected' || r.value.reviewError) {
-      results.errors++;
-    } else {
-      results.passed++;
-    }
-  }
-
-  return results;
+  const items = allApiItems.map(normalizeApiItem);
+  return runItems(langfuse, items, datasetName, tracer);
 }
 
-async function main(): Promise<void> {
-  const langfuseSecretKey = process.env.LANGFUSE_SECRET_KEY;
-  const langfusePublicKey = process.env.LANGFUSE_PUBLIC_KEY;
-  const langfuseHost = process.env.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
-
-  if (!langfuseSecretKey || !langfusePublicKey) {
+function createLangfuseClient(): { langfuse: Langfuse; host: string } {
+  const secretKey = process.env.LANGFUSE_SECRET_KEY;
+  const publicKey = process.env.LANGFUSE_PUBLIC_KEY;
+  const host = process.env.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
+  if (!secretKey || !publicKey) {
     console.error('Error: LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY must be set in .env');
     process.exit(1);
   }
+  const langfuse = new Langfuse({ secretKey, publicKey, baseUrl: host, flushAt: 20, flushInterval: 5000 });
+  return { langfuse, host };
+}
 
-  await setupTracing();
-  const tracer = getTracer();
-
-  // Keep Langfuse SDK for dataset management + scoring APIs only
-  const langfuse = new Langfuse({
-    secretKey: langfuseSecretKey,
-    publicKey: langfusePublicKey,
-    baseUrl: langfuseHost,
-    flushAt: 20,
-    flushInterval: 5000,
-  });
-
-  const datasets = resolveDatasets(cliArgs);
-
-  console.log(`Langfuse host: ${langfuseHost}`);
+function printRunConfig(datasets: string[], host: string): void {
+  console.log(`Langfuse host: ${host}`);
   console.log(`Preset: ${config.presetLabel} (${config.configPath})`);
   console.log(`Datasets: ${datasets.join(', ')}`);
   console.log(`Experiment: ${config.experimentName}`);
   console.log(`Model: ${config.model} | Mode: ${config.mode} | Provider: ${config.provider}`);
-  if (config.severityFilter)
-    console.log(`Severity filter: ${[...config.severityFilter].join(', ')}`);
+  if (config.severityFilter) console.log(`Severity filter: ${[...config.severityFilter].join(', ')}`);
   if (config.skipJudge) console.log('Judge scorer: disabled');
+}
+
+function printRunSummary(datasets: string[], totals: { total: number; errors: number }, logFile: string, host: string): void {
+  const logData = JSON.parse(fs.readFileSync(logFile, 'utf-8'));
+  const warnCount: number = logData.totals.warnings;
+  const breakdownStr = (map: Record<string, unknown>): string =>
+    Object.entries(map).map(([k, v]) => `${k}=${v}`).join(' ');
+
+  console.log('\n─── Results ───────────────────────────────────────');
+  console.log(`Datasets: ${datasets.length} | Total: ${totals.total} | Errors: ${totals.errors} | Warnings: ${warnCount}`);
+  console.log(`Experiment: ${config.experimentName}`);
+  console.log(`View at: ${host}`);
+  console.log(`Run log: ${logFile}`);
+  if (warnCount > 0) console.log(`Warnings: ${breakdownStr(logData.warningBreakdown)}`);
+  if (totals.errors > 0) console.log(`Errors: ${breakdownStr(logData.errorBreakdown)}`);
+  console.log('──────────────────────────────────────────────────');
+}
+
+async function main(): Promise<void> {
+  const { langfuse, host } = createLangfuseClient();
+  const datasets = resolveDatasets(cliArgs);
+
+  await setupTracing();
+  const tracer = getTracer();
+
+  printRunConfig(datasets, host);
 
   const totals = { total: 0, errors: 0 };
-
   for (const ds of datasets) {
     const r = await runDataset(langfuse, ds, tracer);
     totals.total += r.total;
     totals.errors += r.errors;
   }
 
-  // Shutdown both OTel and Langfuse SDK
   await shutdownTracing();
   await langfuse.shutdownAsync();
 
   const logFile = runLog.write();
-
-  const logData = JSON.parse(fs.readFileSync(logFile, 'utf-8'));
-  const warnCount = logData.totals.warnings;
-
-  console.log('\n─── Results ───────────────────────────────────────');
-  console.log(
-    `Datasets: ${datasets.length} | Total: ${totals.total} | Errors: ${totals.errors} | Warnings: ${warnCount}`,
-  );
-  console.log(`Experiment: ${config.experimentName}`);
-  console.log(`View at: ${langfuseHost}`);
-  console.log(`Run log: ${logFile}`);
-  if (warnCount > 0) {
-    const codes = Object.entries(logData.warningBreakdown)
-      .map(([k, v]) => `${k}=${v}`)
-      .join(' ');
-    console.log(`Warnings: ${codes}`);
-  }
-  if (totals.errors > 0) {
-    const codes = Object.entries(logData.errorBreakdown)
-      .map(([k, v]) => `${k}=${v}`)
-      .join(' ');
-    console.log(`Errors: ${codes}`);
-  }
-  console.log('──────────────────────────────────────────────────');
+  printRunSummary(datasets, totals, logFile, host);
 }
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports

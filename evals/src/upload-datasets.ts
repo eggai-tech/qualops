@@ -1,24 +1,21 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 'use strict';
 
 /**
  * Upload QualOps eval datasets to Langfuse.
  *
  * Usage:
- *   node upload-datasets.js --source=all            # Upload all datasets (qualops + crb)
- *   node upload-datasets.js --source=qualops       # Upload qualops only
- *   node upload-datasets.js --source=crb            # Upload all CRB per-repo datasets
- *   node upload-datasets.js --source=crb --repo=sentry
- *   node upload-datasets.js --limit=10
- *
- * Fetch CRB data first:
- *   npm run eval:fetch:crb
+ *   npx tsx upload-datasets.ts --source=all            # Upload all datasets (qualops + crb)
+ *   npx tsx upload-datasets.ts --source=qualops        # Upload qualops only
+ *   npx tsx upload-datasets.ts --source=crb            # Upload all CRB per-repo datasets
+ *   npx tsx upload-datasets.ts --source=crb --repo=sentry
+ *   npx tsx upload-datasets.ts --limit=10
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
-
-const QUALOPS_ROOT = path.join(__dirname, '../..');
+import { CRB_DATASETS_DIR, QUALOPS_DATASETS_DIR, QUALOPS_ROOT, loadCrbItems, buildCrbExpectedPair, crbDatasetName } from './config';
+import type { CrbSlice } from './config';
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -42,10 +39,7 @@ const source = args.source || 'all';
 const repo = args.repo || 'all';
 const limit = args.limit ? parseInt(args.limit, 10) : Infinity;
 
-const QUALOPS_DATASETS_DIR = path.join(__dirname, '../datasets');
-const CRB_DATASETS_DIR = path.join(__dirname, '../datasets/crb');
-
-import { CRB_REPOS } from './crb-repos';
+import { CRB_REPOS } from './config';
 
 interface RawExpected {
   line?: number | null;
@@ -163,48 +157,6 @@ export function buildQualOpsItem(data: RawDataItem, index: number): QualOpsItem 
   };
 }
 
-export function buildCrbItem(data: RawDataItem, index: number, repoName: string): CrbItem {
-  const referenceExpected = (data.expected || []).map((e) => ({
-    line: e.line,
-    lineEnd: e.lineEnd,
-    type: e.type || 'bug',
-    severity: e.severity || 'medium',
-    description: e.description || '',
-  }));
-
-  const referenceBugs = referenceExpected.map((e) => ({
-    relevantFile: data.pr_url,
-    relevantLinesStart: e.line,
-    relevantLinesEnd: e.lineEnd,
-    type: e.type,
-    severity: e.severity,
-    description: e.description,
-  }));
-
-  return {
-    id: data.id || `crb-${repoName}-${index + 1}`,
-    input: {
-      caseId: data.id || `crb-${repoName}-${index + 1}`,
-      source: 'crb',
-      filePath: data.pr_url || 'unknown',
-      language: data.language || CRB_REPOS[repoName] || 'unknown',
-      fullContent: '',
-      diff: data.diff || '',
-      prTitle: data.pr_title,
-      prUrl: data.pr_url,
-      sourceRepo: data.source_repo,
-      git: data.git || null,
-    },
-    expectedOutput: { referenceBugs, referenceExpected },
-    metadata: {
-      source: 'crb',
-      repo: repoName,
-      prUrl: data.pr_url,
-      prTitle: data.pr_title,
-      language: data.language || CRB_REPOS[repoName],
-    },
-  };
-}
 
 async function ensureDataset(langfuse: Langfuse, name: string, description: string): Promise<void> {
   try {
@@ -259,25 +211,57 @@ async function uploadQualOps(langfuse: Langfuse): Promise<void> {
   await uploadBatch(langfuse, datasetName, items);
 }
 
+export function crbSliceToCrbItem(slice: CrbSlice, repoSlug: string): CrbItem {
+  const { referenceExpected, referenceBugs } = buildCrbExpectedPair(slice);
+  const repoDir = path.join(CRB_DATASETS_DIR, slice.id, 'repo');
+  return {
+    id: slice.id,
+    input: {
+      caseId: slice.id,
+      source: 'crb',
+      filePath: slice.prUrl,
+      language: slice.language || CRB_REPOS[repoSlug] || 'unknown',
+      fullContent: '',
+      diff: slice.diff,
+      prTitle: slice.prTitle,
+      prUrl: slice.prUrl,
+      sourceRepo: slice.sourceRepo,
+      git: {
+        repo_path: repoDir,
+        head_sha: '',
+        base_sha: slice.baseSha,
+      },
+    },
+    expectedOutput: { referenceBugs, referenceExpected },
+    metadata: {
+      source: 'crb',
+      repo: repoSlug,
+      prUrl: slice.prUrl,
+      prTitle: slice.prTitle,
+      language: slice.language || CRB_REPOS[repoSlug],
+    },
+  };
+}
+
 async function uploadCrb(langfuse: Langfuse): Promise<void> {
-  const repos =
-    repo === 'all'
-      ? Object.keys(CRB_REPOS)
-      : CRB_REPOS[repo]
-        ? [repo]
-        : (() => { console.error(`Unknown repo: ${repo}. Options: ${Object.keys(CRB_REPOS).join(', ')}, all`); process.exit(1); })();
-
+  const repos = resolveCrbRepos(repo);
   for (const r of repos) {
-    const filePath = path.join(CRB_DATASETS_DIR, `${r}.jsonl`);
-    const lines = readJsonlLines(filePath, limit);
-    const items = lines.map((l, i) => buildCrbItem(JSON.parse(l) as RawDataItem, i, r));
-
-    const datasetName = `qualops/crb-${r}`;
+    let slices = loadCrbItems(r);
+    if (limit < Infinity) slices = slices.slice(0, limit);
+    const items = slices.map((s) => crbSliceToCrbItem(s, r));
+    const datasetName = crbDatasetName(r);
     console.log(`\nUploading crb/${r} → ${datasetName}`);
     await ensureDataset(langfuse, datasetName, `Code Review Bench: ${r} (${CRB_REPOS[r]})`);
     console.log(`  Found ${items.length} items`);
     await uploadBatch(langfuse, datasetName, items);
   }
+}
+
+function resolveCrbRepos(repoArg: string): string[] {
+  if (repoArg === 'all') return Object.keys(CRB_REPOS);
+  if (CRB_REPOS[repoArg]) return [repoArg];
+  console.error(`Unknown repo: ${repoArg}. Options: ${Object.keys(CRB_REPOS).join(', ')}, all`);
+  process.exit(1);
 }
 
 async function main(): Promise<void> {
