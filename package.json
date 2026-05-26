@@ -1,6 +1,6 @@
 {
   "name": "@eggai/qualops",
-  "version": "0.2.3-beta.1",
+  "version": "0.2.3-beta.2",
   "description": "AI-powered code quality analysis with GitHub Actions integration - automated PR reviews, checks, and annotations",
   "keywords": [
     "code-quality",
