@@ -166,8 +166,7 @@ jobs:
             --body-file /tmp/promotion-body.md \
             --base main \
             --head "release/v$STABLE_VERSION" \
-            --label release \
-            --label promotion
+            --label release
 
       # Only delete the branch if THIS run pushed it. The sentinel is set in
       # the "Commit and push" step. Without this gate, a failure before the
