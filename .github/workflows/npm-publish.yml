@@ -128,15 +128,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create and push tag
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           TAG="v$VERSION"
-          git fetch origin "+refs/tags/$TAG:refs/tags/$TAG" 2>/dev/null
+          git fetch origin "+refs/tags/$TAG:refs/tags/$TAG" 2>/dev/null || true
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists, skipping."
             exit 0
