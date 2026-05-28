@@ -139,6 +139,7 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           TAG="v$VERSION"
+          git fetch origin "+refs/tags/$TAG:refs/tags/$TAG" 2>/dev/null
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists, skipping."
           else
