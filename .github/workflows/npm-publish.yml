@@ -4,6 +4,11 @@ on:
   pull_request:
     types: [closed]
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.2.3 or 0.2.3-beta.1)'
+        required: true
 
 concurrency:
   group: release-${{ github.repository }}
@@ -12,8 +17,9 @@ concurrency:
 jobs:
   prepare:
     if: >
-      github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.head.ref, 'release/v')
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/v'))
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
@@ -30,14 +36,20 @@ jobs:
         id: version
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          VERSION=${HEAD_REF#release/v}
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="$DISPATCH_VERSION"
+          else
+            VERSION=${HEAD_REF#release/v}
+          fi
           # Validate the same allow-list as create-release-pr.yml. A hand-
           # created release branch with an unrecognised prerelease label
           # (e.g., `release/v0.3.0-preview.1`) would otherwise be classified
           # as stable and clobber npm's `latest` dist-tag.
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-(rc|alpha|beta)\.[0-9]+)?$'; then
-            echo "::error::Branch '$HEAD_REF' implies version '$VERSION', which is not a permitted format. Allowed: X.Y.Z, X.Y.Z-rc.N, X.Y.Z-alpha.N, X.Y.Z-beta.N."
+            echo "::error::Version '$VERSION' is not a permitted format. Allowed: X.Y.Z, X.Y.Z-rc.N, X.Y.Z-alpha.N, X.Y.Z-beta.N."
             exit 1
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
@@ -54,7 +66,7 @@ jobs:
         run: |
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
           if [ "$VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "::error::Version mismatch: branch=$VERSION, package.json=$PACKAGE_VERSION"
+            echo "::error::Version mismatch: input=$VERSION, package.json=$PACKAGE_VERSION"
             exit 1
           fi
 
@@ -85,7 +97,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
-          node-version: 22.x
+          node-version: 24.x
           cache: npm
 
       - name: Install dependencies
@@ -122,15 +134,17 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           TAG="v$VERSION"
+          git fetch origin "+refs/tags/$TAG:refs/tags/$TAG" 2>/dev/null
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists, skipping."
             exit 0
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+            echo "Created and pushed tag: $TAG"
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "Release $TAG"
-          git push origin "$TAG"
-          echo "Created and pushed tag: $TAG"
 
   publish-npm:
     needs: [prepare, build-and-test, create-tag]
@@ -159,8 +173,10 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
-          node-version: 22.x
+          node-version: 24.x
           registry-url: https://registry.npmjs.org
+        env:
+          NODE_AUTH_TOKEN: ""
 
       - name: Install dependencies
         if: steps.check.outputs.exists == 'false'
