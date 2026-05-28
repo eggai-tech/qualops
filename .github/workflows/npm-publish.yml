@@ -9,10 +9,6 @@ on:
       version:
         description: 'Version to publish (e.g. 0.2.3 or 0.2.3-beta.1)'
         required: true
-      dry_run:
-        description: 'Dry run — build and pack but skip npm publish, tag, and release'
-        type: boolean
-        default: true
 
 concurrency:
   group: release-${{ github.repository }}
@@ -145,13 +141,13 @@ jobs:
           TAG="v$VERSION"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists, skipping."
-            exit 0
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+            echo "Created and pushed tag: $TAG"
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "Release $TAG"
-          git push origin "$TAG"
-          echo "Created and pushed tag: $TAG"
 
   publish-npm:
     needs: [prepare, build-and-test, create-tag]
