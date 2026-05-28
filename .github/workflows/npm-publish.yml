@@ -142,6 +142,7 @@ jobs:
           git fetch origin "+refs/tags/$TAG:refs/tags/$TAG" 2>/dev/null
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists, skipping."
+            exit 0
           else
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
