@@ -25,7 +25,6 @@ jobs:
       version: ${{ steps.version.outputs.VERSION }}
       prerelease: ${{ steps.version.outputs.PRERELEASE }}
       changelog: ${{ steps.changelog.outputs.CONTENT }}
-      dry_run: ${{ steps.version.outputs.DRY_RUN }}
 
     steps:
       - name: Checkout repository
@@ -38,15 +37,12 @@ jobs:
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           DISPATCH_VERSION: ${{ inputs.version }}
-          DISPATCH_DRY_RUN: ${{ inputs.dry_run }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             VERSION="$DISPATCH_VERSION"
-            echo "DRY_RUN=$DISPATCH_DRY_RUN" >> $GITHUB_OUTPUT
           else
             VERSION=${HEAD_REF#release/v}
-            echo "DRY_RUN=false" >> $GITHUB_OUTPUT
           fi
           # Validate the same allow-list as create-release-pr.yml. A hand-
           # created release branch with an unrecognised prerelease label
@@ -62,7 +58,7 @@ jobs:
           else
             echo "PRERELEASE=false" >> $GITHUB_OUTPUT
           fi
-          echo "Version: $VERSION (dry_run=${DISPATCH_DRY_RUN:-false})"
+          echo "Version: $VERSION"
 
       - name: Validate version matches package.json
         env:
@@ -125,7 +121,6 @@ jobs:
 
   create-tag:
     needs: [prepare, build-and-test]
-    if: needs.prepare.outputs.dry_run != 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
