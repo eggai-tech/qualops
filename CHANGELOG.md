@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-05-28
+
 ### Changed
 - CRB evals are now self-contained slice directories (`evals/datasets/crb/<id>/slice.json` + `repo/`) — no external repo cloning required. Replaced `fetch-crb-dataset.ts` with `check-crb-staleness.ts` which validates local slices against upstream CRB PR URLs.
 - Neutralize language-specific wording in built-in prompts where the underlying tooling is genuinely language-agnostic, so review output is no longer TypeScript-flavored when qualops is pointed at a non-TS repo.
