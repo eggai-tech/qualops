@@ -2,7 +2,7 @@ export default {
   displayName: 'qualops-smoke',
   preset: './jest.preset.js',
   testEnvironment: 'node',
-  setupFilesAfterEnv: ['<rootDir>/tests/smoke/setup.ts'],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup/smoke.setup.ts'],
   roots: ['<rootDir>/tests/smoke'],
   globals: {},
   testMatch: ['<rootDir>/tests/smoke/**/*.spec.ts'],
