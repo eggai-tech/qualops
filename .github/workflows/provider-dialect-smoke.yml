@@ -50,10 +50,12 @@ jobs:
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          PROVIDERS_INPUT: ${{ inputs.providers }}
+          MODEL_INPUT: ${{ inputs.model }}
         run: |
           ARGS=()
-          if [ -n "${{ inputs.providers }}" ]; then ARGS+=(--providers=${{ inputs.providers }}); fi
-          if [ -n "${{ inputs.model }}" ]; then ARGS+=(--model=${{ inputs.model }}); fi
+          if [ -n "$PROVIDERS_INPUT" ]; then ARGS+=(--providers="$PROVIDERS_INPUT"); fi
+          if [ -n "$MODEL_INPUT" ]; then ARGS+=(--model="$MODEL_INPUT"); fi
           npm run test:smoke -- "${ARGS[@]}"
 
       - name: Upload run log
