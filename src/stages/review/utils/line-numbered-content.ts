@@ -1,3 +1,26 @@
+import type { FileInfo } from '../../../shared/types/config';
+
+/**
+ * Build the MR diff-context block that is inserted above file content.
+ * Returns an empty string when no diff information is available.
+ */
+export function buildDiffContext(file: FileInfo): string {
+  if (!file.diff) return '';
+
+  const addedLines = Array.from(file.diff.additions).sort((a, b) => a - b);
+  const deletedLines = Array.from(file.diff.deletions).sort((a, b) => a - b);
+  if (addedLines.length === 0 && deletedLines.length === 0) return '';
+
+  return `
+**THIS IS A MERGE REQUEST REVIEW**
+Changes in this MR:
+- Lines added: ${addedLines.length > 0 ? addedLines.join(', ') : 'none'}
+- Lines deleted: ${deletedLines.length > 0 ? deletedLines.join(', ') : 'none'}
+
+IMPORTANT: Focus your review ONLY on the changed lines above. The rest of the file is shown for context.
+Do NOT report issues in unchanged code unless they are directly related to the changes in this MR.`;
+}
+
 export function addLineNumbers(content: string): string {
   const lines = content.split('\n');
   return lines

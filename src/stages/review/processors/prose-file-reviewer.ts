@@ -9,7 +9,7 @@ import {
 import type { FileInfo } from '../../../shared/types/config';
 import type { ProseReview } from '../../../shared/types/prose-review';
 import { getGlobalRateLimiter } from '../utils/global-rate-limiter';
-import { addLineNumbers } from '../utils/line-numbered-content';
+import { addLineNumbers, buildDiffContext } from '../utils/line-numbered-content';
 
 const PROSE_FORMAT_INSTRUCTION = `
 ---
@@ -77,7 +77,7 @@ export class ProseFileReviewer {
   }
 
   private buildUserMessage(file: FileInfo): string {
-    const diffContext = this.buildDiffContext(file);
+    const diffContext = buildDiffContext(file);
 
     return `Please review the following file:
 
@@ -87,22 +87,5 @@ ${diffContext}
 \`\`\`
 ${addLineNumbers(file.content)}
 \`\`\``;
-  }
-
-  private buildDiffContext(file: FileInfo): string {
-    if (!file.diff) return '';
-
-    const addedLines = Array.from(file.diff.additions).sort((a, b) => a - b);
-    const deletedLines = Array.from(file.diff.deletions).sort((a, b) => a - b);
-    if (addedLines.length === 0 && deletedLines.length === 0) return '';
-
-    return `
-**THIS IS A MERGE REQUEST REVIEW**
-Changes in this MR:
-- Lines added: ${addedLines.length > 0 ? addedLines.join(', ') : 'none'}
-- Lines deleted: ${deletedLines.length > 0 ? deletedLines.join(', ') : 'none'}
-
-IMPORTANT: Focus your review ONLY on the changed lines above. The rest of the file is shown for context.
-Do NOT report issues in unchanged code unless they are directly related to the changes in this MR.`;
   }
 }
