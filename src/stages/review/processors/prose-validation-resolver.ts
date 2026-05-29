@@ -1,5 +1,5 @@
 import type { AIProvider } from '../../../ai/providers/provider';
-import type { ProseReview } from '../../../shared/types/prose-review';
+import { PROSE_NO_ISSUES_SENTINEL, type ProseReview } from '../../../shared/types/prose-review';
 import { logger } from '../../../shared/utils/logger';
 import { getGlobalRateLimiter } from '../utils/global-rate-limiter';
 
@@ -25,7 +25,7 @@ export class ProseValidationResolver {
     const fileLabel = review.file ?? '(whole PR)';
     const prompt = `Here is a code review response for ${fileLabel}. Remove any false positives.
 Rewrite only the valid issues, keeping your prose style.
-If no issues remain, reply: No issues found.
+If no issues remain, reply: ${PROSE_NO_ISSUES_SENTINEL}
 
 ${review.content}`;
 

@@ -1,4 +1,8 @@
-'use strict';
+/**
+ * Sentinel reply the model is instructed to use when no issues are found.
+ * Used by validation, deduplication, and report generation to filter empty entries.
+ */
+export const PROSE_NO_ISSUES_SENTINEL = 'No issues found.';
 
 /**
  * One model call response in the unstructured (prose) pipeline.

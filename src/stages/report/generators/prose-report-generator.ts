@@ -1,8 +1,7 @@
-import { writeFileSync } from 'node:fs';
-import { mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import type { ProseReview } from '../../../shared/types/prose-review';
+import { PROSE_NO_ISSUES_SENTINEL, type ProseReview } from '../../../shared/types/prose-review';
 import { logger } from '../../../shared/utils/logger';
 
 export function generateProseReport(
@@ -21,7 +20,8 @@ export function generateProseReport(
   ];
 
   const nonEmpty = reviews.filter(
-    (r) => r.content.trim() && r.content.trim().toLowerCase() !== 'no issues found.',
+    (r) =>
+      r.content.trim() && r.content.trim().toLowerCase() !== PROSE_NO_ISSUES_SENTINEL.toLowerCase(),
   );
 
   if (nonEmpty.length === 0) {

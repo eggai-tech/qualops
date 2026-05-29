@@ -1,5 +1,5 @@
 import type { AIProvider } from '../../../ai/providers/provider';
-import type { ProseReview } from '../../../shared/types/prose-review';
+import { PROSE_NO_ISSUES_SENTINEL, type ProseReview } from '../../../shared/types/prose-review';
 import { logger } from '../../../shared/utils/logger';
 import { getGlobalRateLimiter } from '../utils/global-rate-limiter';
 
@@ -12,7 +12,9 @@ export class ProseDeduplicationResolver {
 
   async deduplicate(reviews: ProseReview[]): Promise<ProseReview[]> {
     const nonEmpty = reviews.filter(
-      (r) => r.content.trim() && r.content.trim().toLowerCase() !== 'no issues found.',
+      (r) =>
+        r.content.trim() &&
+        r.content.trim().toLowerCase() !== PROSE_NO_ISSUES_SENTINEL.toLowerCase(),
     );
 
     if (nonEmpty.length <= 1) return nonEmpty;
