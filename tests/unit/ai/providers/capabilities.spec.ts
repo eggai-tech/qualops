@@ -41,9 +41,7 @@ describe('detectCapabilities', () => {
     });
 
     it('routes unknown GitHub models to unstructured (not in catalog)', () => {
-      expect(detectCapabilities('github', 'phi-3-medium').structuredDialect).toBe(
-        'unstructured',
-      );
+      expect(detectCapabilities('github', 'phi-3-medium').structuredDialect).toBe('unstructured');
       expect(detectCapabilities('github', 'meta-llama/llama-3-70b').structuredDialect).toBe(
         'unstructured',
       );

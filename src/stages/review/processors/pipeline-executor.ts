@@ -21,17 +21,17 @@ import {
 } from '../../../observability';
 import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
 import type { ReviewIssue } from '../../../shared/types';
-import type { ProseReview } from '../../../shared/types/prose-review';
 import type { FileInfo, PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config';
+import type { ProseReview } from '../../../shared/types/prose-review';
 import { processConcurrently } from '../../../shared/utils/concurrency';
 import { logger } from '../../../shared/utils/logger';
-import { generateProseReport } from '../../report/generators/prose-report-generator';
 import { AgenticExecutor } from '../agentic';
 import { ConfigLoader } from '../loaders/config-loader';
 import { DocDiscovery } from '../loaders/doc-discovery';
 import { FilterMatcher } from '../loaders/filter-matcher';
 import { PromptLoader } from '../loaders/prompt-loader';
 import { TemplateEngine } from '../loaders/template-engine';
+import { generateProseReport } from '../prose-report-generator';
 
 export class PipelineExecutor {
   private config: ReviewConfig;
@@ -145,7 +145,9 @@ export class PipelineExecutor {
       return [];
     }
 
-    logger.info(`[Pipeline] ${filteredFiles.length} files match filters for prose pass "${pass.name}"`);
+    logger.info(
+      `[Pipeline] ${filteredFiles.length} files match filters for prose pass "${pass.name}"`,
+    );
 
     if (pass.docs) {
       return this.executeProseDocBasedPass(pass, filteredFiles);
@@ -153,7 +155,10 @@ export class PipelineExecutor {
     return this.executeProsePromptOnlyPass(pass, filteredFiles);
   }
 
-  private async executeProseDocBasedPass(pass: ReviewPass, files: FileInfo[]): Promise<ProseReview[]> {
+  private async executeProseDocBasedPass(
+    pass: ReviewPass,
+    files: FileInfo[],
+  ): Promise<ProseReview[]> {
     const docPaths = await DocDiscovery.discover(pass.docs as string);
     const { content: promptTemplate } = await PromptLoader.load(pass.prompt);
     const allReviews: ProseReview[] = [];
@@ -174,7 +179,10 @@ export class PipelineExecutor {
     return allReviews;
   }
 
-  private async executeProsePromptOnlyPass(pass: ReviewPass, files: FileInfo[]): Promise<ProseReview[]> {
+  private async executeProsePromptOnlyPass(
+    pass: ReviewPass,
+    files: FileInfo[],
+  ): Promise<ProseReview[]> {
     const { content: promptTemplate } = await PromptLoader.load(pass.prompt);
     const renderedPrompt = TemplateEngine.render(promptTemplate, {
       MIN_CONFIDENCE: this.config.validation?.minConfidence ?? 7,
@@ -192,7 +200,9 @@ export class PipelineExecutor {
     const reviewer = new ProseFileReviewer(this.aiProvider, prompt, pass.name);
 
     const results = await processConcurrently(files, maxConcurrent, async (file, index) => {
-      logger.info(`[${index + 1}/${files.length}] Prose-reviewing ${file.path} with "${pass.name}"`);
+      logger.info(
+        `[${index + 1}/${files.length}] Prose-reviewing ${file.path} with "${pass.name}"`,
+      );
       const review = await reviewer.reviewFile(file);
       return review;
     });

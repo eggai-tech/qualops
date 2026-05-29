@@ -4,10 +4,10 @@ import modelCatalog from './model-capabilities.json';
 
 export type StructuredOutputDialect =
   | 'openai-json-schema-strict'
-  | 'openai-json-object'          // kept for compat, no longer newly assigned
+  | 'openai-json-object' // kept for compat, no longer newly assigned
   | 'anthropic-output-config'
   | 'anthropic-tool-use'
-  | 'unstructured';               // prose pipeline — model does not support json_schema
+  | 'unstructured'; // prose pipeline — model does not support json_schema
 
 export interface ProviderCapabilities {
   structuredDialect: StructuredOutputDialect;

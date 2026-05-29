@@ -1,8 +1,8 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { PROSE_NO_ISSUES_SENTINEL, type ProseReview } from '../../../shared/types/prose-review';
-import { logger } from '../../../shared/utils/logger';
+import { PROSE_NO_ISSUES_SENTINEL, type ProseReview } from '../../shared/types/prose-review';
+import { logger } from '../../shared/utils/logger';
 
 export function generateProseReport(
   reviews: ProseReview[],
