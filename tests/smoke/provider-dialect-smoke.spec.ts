@@ -134,22 +134,21 @@ async function setupPrompts(): Promise<{ systemPrompt: string; cleanup: () => Pr
     'You are deduplicating code review findings for a single file. ' +
     'Return the JSON array of indices to KEEP after removing duplicates.\n';
 
-  const validationExisted = existsSync(validationPath);
-  const dedupExisted = existsSync(dedupPath);
-  if (!validationExisted) await writeFile(validationPath, validationPrompt);
-  if (!dedupExisted) await writeFile(dedupPath, dedupPrompt);
+  await writeFile(validationPath, validationPrompt);
+  await writeFile(dedupPath, dedupPrompt);
 
   const bundledSystem = path.join(PROJECT_ROOT, 'src', 'config', 'prompts', 'review', 'quality.md');
   const systemPrompt = existsSync(bundledSystem)
     ? await readFile(bundledSystem, 'utf-8')
     : 'You are a code reviewer. Return findings as a JSON array per the provided schema.';
 
-  const cleanup = async () => {
-    if (!validationExisted) await rm(validationPath, { force: true });
-    if (!dedupExisted) await rm(dedupPath, { force: true });
+  return {
+    systemPrompt,
+    cleanup: async () => {
+      await rm(validationPath, { force: true });
+      await rm(dedupPath, { force: true });
+    },
   };
-
-  return { systemPrompt, cleanup };
 }
 
 function buildPipelineJob(): PipelineJob {
@@ -233,8 +232,8 @@ beforeAll(async () => {
   slice = await loadSlice();
   file = { path: slice.filePath, content: slice.content };
   const setup = await setupPrompts();
-  systemPrompt = setup.systemPrompt;
   cleanupPrompts = setup.cleanup;
+  systemPrompt = setup.systemPrompt;
 });
 
 afterAll(async () => {
