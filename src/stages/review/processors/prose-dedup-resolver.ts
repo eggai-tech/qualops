@@ -15,7 +15,7 @@ export class ProseDeduplicationResolver {
       (r) => r.content.trim() && r.content.trim().toLowerCase() !== 'no issues found.',
     );
 
-    if (nonEmpty.length <= 1) return reviews;
+    if (nonEmpty.length <= 1) return nonEmpty;
 
     logger.info(`[ProseDedup] Deduplicating ${nonEmpty.length} prose reviews`);
 
@@ -64,9 +64,7 @@ ${sections}`;
       const content = newline === -1 ? '' : part.slice(newline + 1).trim();
 
       // Match heading back to an original entry to preserve passName
-      const original = originals.find(
-        (r) => (r.file ?? '(whole PR)') === heading,
-      );
+      const original = originals.find((r) => (r.file ?? '(whole PR)') === heading);
 
       results.push({
         file: original?.file ?? (heading === '(whole PR)' ? null : heading),
@@ -75,6 +73,8 @@ ${sections}`;
       });
     }
 
-    return results.length > 0 ? results : [{ file: null, passName: originals[0]?.passName ?? 'review', content: text }];
+    return results.length > 0
+      ? results
+      : [{ file: null, passName: originals[0]?.passName ?? 'review', content: text }];
   }
 }
