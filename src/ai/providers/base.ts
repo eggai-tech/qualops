@@ -61,6 +61,10 @@ export abstract class BaseAIProvider implements AIProvider {
   abstract initialize(): Promise<void>;
   abstract isAvailable(): boolean;
 
+  isUnstructured(): boolean {
+    return this.capabilities.structuredDialect === 'unstructured';
+  }
+
   complete<S extends z.ZodType>(
     options: AICompletionOptionsWithSchema<S>,
   ): Promise<AIResponse<z.infer<S>>>;

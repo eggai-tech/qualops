@@ -50,6 +50,7 @@ export interface AIProvider {
   ): Promise<string>;
 
   isAvailable(): boolean;
+  isUnstructured(): boolean;
   getModelName(): string;
   getMaxTokens(): number;
   getTemperature(): number;

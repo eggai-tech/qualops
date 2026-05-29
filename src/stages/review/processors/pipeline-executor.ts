@@ -6,6 +6,9 @@ import type { Tracer } from '@opentelemetry/api';
 
 import { DeduplicationResolver } from './dedup-resolver';
 import { FileReviewer } from './file-reviewer';
+import { ProseDeduplicationResolver } from './prose-dedup-resolver';
+import { ProseFileReviewer } from './prose-file-reviewer';
+import { ProseValidationResolver } from './prose-validation-resolver';
 import { ValidationResolver } from './validation-resolver';
 import type { AIProvider } from '../../../ai/providers/provider';
 import { ConfigService } from '../../../config/config';
@@ -18,9 +21,11 @@ import {
 } from '../../../observability';
 import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
 import type { ReviewIssue } from '../../../shared/types';
+import type { ProseReview } from '../../../shared/types/prose-review';
 import type { FileInfo, PipelineJob, ReviewConfig, ReviewPass } from '../../../shared/types/config';
 import { processConcurrently } from '../../../shared/utils/concurrency';
 import { logger } from '../../../shared/utils/logger';
+import { generateProseReport } from '../../report/generators/prose-report-generator';
 import { AgenticExecutor } from '../agentic';
 import { ConfigLoader } from '../loaders/config-loader';
 import { DocDiscovery } from '../loaders/doc-discovery';
@@ -32,6 +37,8 @@ export class PipelineExecutor {
   private config: ReviewConfig;
   private validationResolver: ValidationResolver;
   private dedupResolver: DeduplicationResolver;
+  private proseValidationResolver: ProseValidationResolver;
+  private proseDeduplicationResolver: ProseDeduplicationResolver;
   private aiProvider: AIProvider;
   private model: string;
   private preValidationDump: Record<string, ReviewIssue[]> = {};
@@ -40,12 +47,18 @@ export class PipelineExecutor {
     this.config = ConfigLoader.getInstance().load();
     this.validationResolver = new ValidationResolver(this.config, aiProvider);
     this.dedupResolver = new DeduplicationResolver(this.config, aiProvider);
+    this.proseValidationResolver = new ProseValidationResolver(aiProvider);
+    this.proseDeduplicationResolver = new ProseDeduplicationResolver(aiProvider);
     this.aiProvider = aiProvider;
     this.model = ConfigService.getInstance().getResolvedStageConfig('review').model;
   }
 
   async execute(files: FileInfo[]): Promise<ReviewIssue[]> {
     logger.info(`[Pipeline] Starting review of ${files.length} files`);
+
+    if (this.aiProvider.isUnstructured()) {
+      return this.executeProse(files);
+    }
 
     const allIssues: ReviewIssue[] = [];
     const enabledJobs = ConfigLoader.getInstance().getEnabledJobs();
@@ -77,6 +90,119 @@ export class PipelineExecutor {
 
     return allIssues;
   }
+
+  // ---------------------------------------------------------------------------
+  // Prose (unstructured) pipeline
+  // ---------------------------------------------------------------------------
+
+  private async executeProse(files: FileInfo[]): Promise<ReviewIssue[]> {
+    logger.info(`[Pipeline] Using unstructured (prose) pipeline`);
+
+    const allReviews: ProseReview[] = [];
+    const enabledJobs = ConfigLoader.getInstance().getEnabledJobs();
+
+    for (const { job, passes } of enabledJobs) {
+      logger.info(`[Pipeline] Executing prose job: ${job.name}`);
+      const jobReviews = await this.executeProseJob(job, passes, files);
+      allReviews.push(...jobReviews);
+    }
+
+    // Validate
+    const validated = await this.proseValidationResolver.validate(allReviews);
+
+    // Deduplicate across all files
+    const deduped = await this.proseDeduplicationResolver.deduplicate(validated);
+
+    // Write prose report
+    const reportPath = getCurrentSessionPaths().proseReport();
+    generateProseReport(deduped, this.model, reportPath);
+
+    // Return empty structured issues — the prose report is the output
+    return [];
+  }
+
+  private async executeProseJob(
+    job: PipelineJob,
+    passes: ReviewPass[],
+    files: FileInfo[],
+  ): Promise<ProseReview[]> {
+    const reviews: ProseReview[] = [];
+
+    for (const pass of passes) {
+      logger.info(`[Pipeline] Executing prose pass: ${pass.name}`);
+      const passReviews = await this.executeProsePass(pass, files);
+      reviews.push(...passReviews);
+    }
+
+    return reviews;
+  }
+
+  private async executeProsePass(pass: ReviewPass, files: FileInfo[]): Promise<ProseReview[]> {
+    const filteredFiles = files.filter((file) => FilterMatcher.shouldReview(file, pass));
+
+    if (filteredFiles.length === 0) {
+      logger.info(`[Pipeline] No files match filters for prose pass "${pass.name}"`);
+      return [];
+    }
+
+    logger.info(`[Pipeline] ${filteredFiles.length} files match filters for prose pass "${pass.name}"`);
+
+    if (pass.docs) {
+      return this.executeProseDocBasedPass(pass, filteredFiles);
+    }
+    return this.executeProsePromptOnlyPass(pass, filteredFiles);
+  }
+
+  private async executeProseDocBasedPass(pass: ReviewPass, files: FileInfo[]): Promise<ProseReview[]> {
+    const docPaths = await DocDiscovery.discover(pass.docs as string);
+    const { content: promptTemplate } = await PromptLoader.load(pass.prompt);
+    const allReviews: ProseReview[] = [];
+
+    for (const [index, docPath] of docPaths.entries()) {
+      logger.info(`[Pipeline] Processing doc split ${index + 1}/${docPaths.length}: ${docPath}`);
+
+      const docContent = await readFile(docPath, 'utf-8');
+      const renderedPrompt = TemplateEngine.render(promptTemplate, {
+        DOCUMENTATION: docContent,
+        MIN_CONFIDENCE: this.config.validation?.minConfidence ?? 7,
+        REVIEW_MIN_CONFIDENCE: this.config.minConfidence ?? 4,
+      });
+      const reviews = await this.proseReviewWithPrompt(renderedPrompt, files, pass);
+      allReviews.push(...reviews);
+    }
+
+    return allReviews;
+  }
+
+  private async executeProsePromptOnlyPass(pass: ReviewPass, files: FileInfo[]): Promise<ProseReview[]> {
+    const { content: promptTemplate } = await PromptLoader.load(pass.prompt);
+    const renderedPrompt = TemplateEngine.render(promptTemplate, {
+      MIN_CONFIDENCE: this.config.validation?.minConfidence ?? 7,
+      REVIEW_MIN_CONFIDENCE: this.config.minConfidence ?? 4,
+    });
+    return this.proseReviewWithPrompt(renderedPrompt, files, pass);
+  }
+
+  private async proseReviewWithPrompt(
+    prompt: string,
+    files: FileInfo[],
+    pass: ReviewPass,
+  ): Promise<ProseReview[]> {
+    const maxConcurrent = this.config.maxConcurrentFiles || 10;
+    const reviewer = new ProseFileReviewer(this.aiProvider, prompt, pass.name);
+
+    const results = await processConcurrently(files, maxConcurrent, async (file, index) => {
+      logger.info(`[${index + 1}/${files.length}] Prose-reviewing ${file.path} with "${pass.name}"`);
+      const review = await reviewer.reviewFile(file);
+      return review;
+    });
+
+    return results;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Structured pipeline (unchanged)
+  // ---------------------------------------------------------------------------
 
   private async executeAgenticJob(job: PipelineJob, files: FileInfo[]): Promise<ReviewIssue[]> {
     const tracer = getTracer();

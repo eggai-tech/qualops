@@ -73,6 +73,7 @@
     "eval:run:crb:discourse": "npx tsx evals/src/run-eval.ts --dataset=qualops/crb-discourse --mode=agentic",
     "eval:run:crb:keycloak": "npx tsx evals/src/run-eval.ts --dataset=qualops/crb-keycloak --mode=agentic",
     "eval:crb:check-staleness": "npx tsx --tsconfig evals/tsconfig.json evals/scripts/check-crb-staleness.ts",
+    "maintenance:update-model-capabilities": "npx tsx scripts/update-model-capabilities.ts",
     "eval:upload:all": "npx tsx evals/src/upload-datasets.ts --source=all",
     "eval:upload:qualops": "npx tsx evals/src/upload-datasets.ts --source=qualops",
     "eval:upload:crb:all": "npx tsx evals/src/upload-datasets.ts --source=crb",

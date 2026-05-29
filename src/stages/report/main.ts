@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+
 import { ConfigService } from '../../config/config';
 import { getCurrentSessionPaths } from '../../shared/runtime/session-context';
 import type { ReportMetadata, ReviewMetadata } from '../../shared/types';
@@ -26,6 +28,33 @@ export async function generateReport(): Promise<ReportMetadata> {
   if (existingReport) {
     logger.info('Report stage already completed - using existing results');
     return existingReport;
+  }
+
+  // If a prose report exists (unstructured pipeline), return it directly without
+  // attempting to build the structured HTML/JSON report from ReviewIssue[].
+  const proseReportPath = getCurrentSessionPaths().proseReport();
+  if (existsSync(proseReportPath)) {
+    logger.info('[Report] Prose report found — skipping structured report generation');
+    const markdown = readFileSync(proseReportPath, 'utf-8');
+    const proseReport: ReportMetadata = {
+      timestamp: new Date().toISOString(),
+      summary: {
+        filesAnalyzed: 0,
+        totalIssues: 0,
+        critical: 0,
+        high: 0,
+        medium: 0,
+        low: 0,
+        fixSuggestions: 0,
+        qualityStatus: 'PASSED',
+      },
+      sections: [],
+      executionTime: 0,
+      stageResults: { analyze: false, review: true, fix: false },
+      markdownReport: markdown,
+    };
+    await writeMetadataFile(getCurrentSessionPaths().overallReport(), proseReport);
+    return proseReport;
   }
 
   const startTime = Date.now();
