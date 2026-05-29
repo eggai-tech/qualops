@@ -182,6 +182,24 @@ Reference in `.qualopsrc.json`:
 }
 ```
 
+## Testing
+
+### Unit tests
+
+```bash
+npm test
+```
+
+### Provider-dialect smoke tests
+
+Real-API tests that exercise the 4 AI caller stages (`file-reviewer`, `validation-resolver`, `dedup-resolver`, `root-cause-extract`) against each supported provider. Validates that the structured-output dialect path returns a zod-validated response without throwing. Providers without credentials are skipped automatically.
+
+```bash
+npm run test:smoke
+```
+
+See [`tests/smoke/README.md`](./tests/smoke/README.md) for details on env vars and CI setup.
+
 ## License
 
 MIT
