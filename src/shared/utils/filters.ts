@@ -1,14 +1,9 @@
-const SKIP_PATTERNS = [
-  /\.d\.ts$/,
-  /\.spec\.ts$/,
-  /\.test\.ts$/,
-  /\.config\.[jt]s$/,
-  /\.mock\.ts$/,
-  /tools\/qualops\//,
-] as const;
-export function shouldProcessFile(filePath: string): boolean {
-  return !SKIP_PATTERNS.some((pattern) => pattern.test(filePath));
+import { minimatch } from 'minimatch';
+
+export function shouldProcessFile(filePath: string, skipPatterns: string[] = []): boolean {
+  return !skipPatterns.some((pattern) => minimatch(filePath, pattern, { dot: true }));
 }
+
 export function createBatches<T>(items: T[], batchSize: number): T[][] {
   const batches: T[][] = [];
 

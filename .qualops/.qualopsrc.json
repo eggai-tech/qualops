@@ -315,6 +315,10 @@
     "*.bundle.js",
     "examples/**",
     "docs/**",
-    "evals/datasets/**"
+    "evals/datasets/**",
+    "**/*.d.ts",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.mock.ts"
   ]
 }

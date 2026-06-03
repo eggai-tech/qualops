@@ -57,7 +57,7 @@ export async function createToolSet(cwd: string, toolConfig: ToolConfig): Promis
       schema: z.object({
         filePath: z.string().describe('Path to the file (relative to cwd or absolute)'),
       }),
-      execute: async ({ filePath }) => readFile(cwd, filePath as string),
+      execute: async ({ filePath }) => readFile(cwd, filePath as string, toolConfig.skipPatterns),
     },
 
     {
@@ -82,6 +82,7 @@ export async function createToolSet(cwd: string, toolConfig: ToolConfig): Promis
           pattern as string,
           (glob as string | null) ?? undefined,
           (ignoreCase as boolean | null) ?? undefined,
+          toolConfig.skipPatterns,
         ),
     },
 
@@ -91,7 +92,7 @@ export async function createToolSet(cwd: string, toolConfig: ToolConfig): Promis
       schema: z.object({
         pattern: z.string().describe('Glob pattern to match files'),
       }),
-      execute: async ({ pattern }) => globFiles(cwd, pattern as string),
+      execute: async ({ pattern }) => globFiles(cwd, pattern as string, toolConfig.skipPatterns),
     },
 
     {

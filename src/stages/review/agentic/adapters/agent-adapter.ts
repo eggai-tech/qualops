@@ -3,7 +3,7 @@ import type { ResolvedAgentDefinition } from '../subagents/definitions';
 
 export interface ToolConfig {
   bash: BashConfig;
-  // Future tools add their config here, namespaced by tool name.
+  skipPatterns?: string[];
 }
 
 export interface AgentAdapterParams {

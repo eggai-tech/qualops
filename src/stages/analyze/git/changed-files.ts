@@ -1,4 +1,5 @@
 import { executeGitCommand } from './git-utils';
+import { ConfigService } from '../../../config/config';
 import { shouldProcessFile } from '../../../shared/utils/filters';
 import { logger } from '../../../shared/utils/logger';
 
@@ -102,13 +103,13 @@ export async function getChangedFiles(base = 'main', head = 'HEAD'): Promise<str
       return [];
     }
 
+    const skipPatterns = ConfigService.getInstance().get('skipPatterns') ?? [];
     const files = allChangedFiles
       .split('\n')
       .map((f) => f.trim())
-      .filter((f) => f.endsWith('.ts') && !f.includes('node_modules'))
-      .filter((f) => shouldProcessFile(f));
+      .filter((f) => f && shouldProcessFile(f, skipPatterns));
 
-    logger.git(`Found ${files.length} changed TypeScript files`);
+    logger.git(`Found ${files.length} changed files`);
     return files;
   } catch (error) {
     logger.error(

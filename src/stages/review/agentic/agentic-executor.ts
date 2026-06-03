@@ -108,6 +108,7 @@ export class AgenticExecutor {
             ...this.config.bash,
             workspaceRoot: this.config.bash?.workspaceRoot ?? this.cwd,
           },
+          skipPatterns: ConfigService.getInstance().get('skipPatterns') ?? [],
         },
         onToolCall: (turn, name, input) => {
           turnIndex = turn;

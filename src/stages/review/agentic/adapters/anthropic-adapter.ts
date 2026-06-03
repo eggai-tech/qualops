@@ -6,17 +6,12 @@ import { logger } from '../../../../shared/utils/logger';
 
 type QueryOptions = Parameters<typeof query>[0]['options'];
 
-// These are covered by Claude's built-in tools (Read, Grep, Glob) and do not need MCP duplicates.
-const BUILTIN_COVERED_TOOLS = new Set(['read_file', 'grep_files', 'glob_files']);
-
 function toMcpServer(toolSet: ToolSet): ReturnType<typeof createSdkMcpServer> {
-  const sdkTools = toolSet.tools
-    .filter((def) => !BUILTIN_COVERED_TOOLS.has(def.name))
-    .map((def) =>
-      tool(def.name, def.description, def.schema.shape, async (args) => ({
-        content: [{ type: 'text', text: await def.execute(args as Record<string, unknown>) }],
-      })),
-    );
+  const sdkTools = toolSet.tools.map((def) =>
+    tool(def.name, def.description, def.schema.shape, async (args) => ({
+      content: [{ type: 'text', text: await def.execute(args as Record<string, unknown>) }],
+    })),
+  );
   return createSdkMcpServer({
     name: 'qualops-agentic-tools',
     version: '1.0.0',
@@ -34,14 +29,14 @@ function buildQueryOptions(
   return {
     systemPrompt,
     ...(executablePath && { pathToClaudeCodeExecutable: executablePath }),
-    // Explicitly enumerate the safe built-in tools. This prevents the SDK's
-    // built-in Bash tool from being available — all shell access must go
-    // through our MCP bash tool so policy enforcement is guaranteed.
-    tools: ['Read', 'Grep', 'Glob'],
+    // Restrict to MCP tools only — no SDK built-ins. This ensures skipPatterns
+    // enforcement in handlers.ts applies uniformly (SDK built-ins bypass handlers).
+    // Shell access still goes through our MCP bash tool for policy enforcement.
+    tools: [],
     allowedTools: [
-      'Read',
-      'Grep',
-      'Glob',
+      'mcp__qualops-agentic-tools__read_file',
+      'mcp__qualops-agentic-tools__grep_files',
+      'mcp__qualops-agentic-tools__glob_files',
       'mcp__qualops-agentic-tools__bash',
       'mcp__qualops-agentic-tools__find_usages',
       'mcp__qualops-agentic-tools__git_diff_analysis',

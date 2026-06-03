@@ -154,7 +154,7 @@ describe('OpenAIAdapter — tools', () => {
     h.readFile.mockReturnValue('file contents');
     const execute = await getToolExecute('read_file');
     const result = await execute({ filePath: 'src/foo.ts' });
-    expect(h.readFile).toHaveBeenCalledWith(CWD, 'src/foo.ts');
+    expect(h.readFile).toHaveBeenCalledWith(CWD, 'src/foo.ts', undefined);
     expect(result).toBe('file contents');
   });
 
@@ -162,15 +162,15 @@ describe('OpenAIAdapter — tools', () => {
     h.grepFiles.mockReturnValue('match');
     const execute = await getToolExecute('grep_files');
     const result = await execute({ pattern: 'foo', glob: '*.ts', ignoreCase: true });
-    expect(h.grepFiles).toHaveBeenCalledWith(CWD, 'foo', '*.ts', true);
+    expect(h.grepFiles).toHaveBeenCalledWith(CWD, 'foo', '*.ts', true, undefined);
     expect(result).toBe('match');
   });
 
   it('glob_files tool calls globFiles handler', async () => {
-    h.globFiles.mockReturnValue('/project/repo/src/foo.ts');
+    h.globFiles.mockResolvedValue('/project/repo/src/foo.ts');
     const execute = await getToolExecute('glob_files');
     const result = await execute({ pattern: '**/*.ts' });
-    expect(h.globFiles).toHaveBeenCalledWith(CWD, '**/*.ts');
+    expect(h.globFiles).toHaveBeenCalledWith(CWD, '**/*.ts', undefined);
     expect(result).toBe('/project/repo/src/foo.ts');
   });
 

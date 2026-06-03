@@ -659,9 +659,8 @@ export const qualopsConfigSchema = z
         'Logger behavior for console output (level, colors, timestamps, prefix). This is read from a root .qualopsrc.json file.',
     }),
     skipPatterns: nonEmptyStringArray.optional().meta({
-      deprecated: true,
-      description: 'Legacy compatibility field. Values from config files are currently ignored.',
-      default: ['node_modules/**', '.git/**', 'dist/**', 'build/**', 'coverage/**'],
+      description:
+        'Glob patterns for files to exclude from all analysis. Applied before any file reaches the review pipeline.',
     }),
     includePatterns: nonEmptyStringArray.optional().meta({
       deprecated: true,

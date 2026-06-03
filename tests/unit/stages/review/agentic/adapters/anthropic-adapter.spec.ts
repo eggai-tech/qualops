@@ -142,9 +142,9 @@ describe('AnthropicAdapter', () => {
     expect(callOptions.allowedTools).toContain('mcp__qualops-agentic-tools__bash');
     expect(callOptions.allowedTools).not.toContain('Bash');
     expect(callOptions.canUseTool).toBeUndefined();
-    // Only safe read-only built-ins are enabled. SDK Bash must NOT be present
-    // so the agent cannot bypass our policy engine by calling it directly.
-    expect(callOptions.tools).toEqual(['Read', 'Grep', 'Glob']);
+    // No SDK built-ins — all file access goes through MCP tools so skipPatterns
+    // enforcement in handlers.ts applies uniformly. SDK Bash must NOT be present.
+    expect(callOptions.tools).toEqual([]);
     expect((callOptions.tools as string[]).includes('Bash')).toBe(false);
   });
 

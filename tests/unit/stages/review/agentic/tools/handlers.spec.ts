@@ -1,8 +1,13 @@
 jest.mock('node:child_process', () => ({ spawnSync: jest.fn() }));
 jest.mock('node:fs', () => ({ existsSync: jest.fn(), readFileSync: jest.fn() }));
+jest.mock('glob', () => ({ glob: jest.fn() }));
+jest.mock('minimatch', () => ({ minimatch: jest.fn() }));
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+
+const mockGlob = jest.requireMock<{ glob: jest.Mock }>('glob').glob;
+const mockMinimatch = jest.requireMock<{ minimatch: jest.Mock }>('minimatch').minimatch;
 
 import {
   analyzeExports,
@@ -44,6 +49,8 @@ function spawnError(message: string) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // minimatch returns false by default so existing tests are not affected
+  mockMinimatch.mockReturnValue(false);
 });
 
 // ─── findUsages ───────────────────────────────────────────────────────────────
@@ -323,6 +330,12 @@ describe('readFile', () => {
     expect(result).toBe('File not found: src/missing.ts');
   });
 
+  it('returns "File excluded" when file matches a skipPattern', () => {
+    mockMinimatch.mockReturnValue(true);
+    const result = readFile(CWD, 'src/foo.spec.ts', ['**/*.spec.ts']);
+    expect(result).toBe('File excluded: matches skip pattern.');
+  });
+
   it('returns error message when readFileSync throws', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockImplementation(() => {
@@ -374,18 +387,28 @@ describe('grepFiles', () => {
 // ─── globFiles ────────────────────────────────────────────────────────────────
 
 describe('globFiles', () => {
-  it('returns matched file paths', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('/project/repo/src/foo.ts\n') as any);
-    expect(globFiles(CWD, '**/*.ts')).toBe('/project/repo/src/foo.ts');
+  it('returns matched file paths', async () => {
+    mockGlob.mockResolvedValue(['src/foo.ts', 'src/bar.ts'] as any);
+    expect(await globFiles(CWD, '**/*.ts')).toBe('src/foo.ts\nsrc/bar.ts');
   });
 
-  it('returns "No files found" on empty output', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('\n') as any);
-    expect(globFiles(CWD, '**/*.xyz')).toBe('No files found');
+  it('returns "No files found" on empty output', async () => {
+    mockGlob.mockResolvedValue([] as any);
+    expect(await globFiles(CWD, '**/*.xyz')).toBe('No files found');
   });
 
-  it('returns error string on failure', () => {
-    mockSpawnSync.mockReturnValue(spawnFail('find error') as any);
-    expect(globFiles(CWD, '**/*.ts')).toBe('Error: find error');
+  it('returns error string on failure', async () => {
+    mockGlob.mockRejectedValue(new Error('glob error'));
+    expect(await globFiles(CWD, '**/*.ts')).toBe('Error: glob error');
+  });
+
+  it('passes skipPatterns as ignore option', async () => {
+    mockGlob.mockResolvedValue(['src/app.ts'] as any);
+    await globFiles(CWD, '**/*.ts', ['node_modules/**', 'dist/**']);
+    expect(mockGlob).toHaveBeenCalledWith('**/*.ts', {
+      cwd: CWD,
+      dot: true,
+      ignore: ['node_modules/**', 'dist/**'],
+    });
   });
 });

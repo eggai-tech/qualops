@@ -1,6 +1,9 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
+import { glob } from 'glob';
+import { minimatch } from 'minimatch';
+
 import { resolveWithinCwd, isSafeGitRef } from '../../../../shared/utils/security';
 import type { DependencyTrace, ExportComparison } from '../types';
 
@@ -165,10 +168,14 @@ export function listChangedFiles(
 
 // ─── Filesystem tools (for OpenAI adapter — Anthropic SDK provides these built-in) ──
 
-export function readFile(cwd: string, filePath: string): string {
+export function readFile(cwd: string, filePath: string, skipPatterns?: string[]): string {
   const resolved = resolveWithinCwd(cwd, filePath);
   if (!resolved) {
     return `Error: Path outside project directory: ${filePath}`;
+  }
+
+  if (skipPatterns?.some((p) => minimatch(filePath, p, { dot: true }))) {
+    return `File excluded: matches skip pattern.`;
   }
 
   if (!existsSync(resolved)) {
@@ -185,12 +192,16 @@ export function readFile(cwd: string, filePath: string): string {
 export function grepFiles(
   cwd: string,
   pattern: string,
-  glob?: string,
+  globPattern?: string,
   ignoreCase?: boolean,
+  skipPatterns?: string[],
 ): string {
   const args = ['-n'];
   if (ignoreCase) args.push('-i');
-  if (glob) args.push('--glob', glob);
+  if (globPattern) args.push('--glob', globPattern);
+  for (const skip of skipPatterns ?? []) {
+    args.push('--glob', `!${skip}`);
+  }
   args.push(pattern, cwd);
 
   try {
@@ -202,14 +213,14 @@ export function grepFiles(
   }
 }
 
-export function globFiles(cwd: string, pattern: string): string {
+export async function globFiles(
+  cwd: string,
+  pattern: string,
+  skipPatterns?: string[],
+): Promise<string> {
   try {
-    const result = runSafe(
-      'find',
-      [cwd, '-path', pattern, '-not', '-path', '*/node_modules/*'],
-      cwd,
-    );
-    return result.trim() || 'No files found';
+    const matches = await glob(pattern, { cwd, dot: true, ignore: skipPatterns });
+    return matches.length > 0 ? matches.join('\n') : 'No files found';
   } catch (error) {
     return `Error: ${(error as Error).message}`;
   }
