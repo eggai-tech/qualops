@@ -27,7 +27,11 @@ export interface ToolSet {
   dispose: () => Promise<void>;
 }
 
-export async function createToolSet(cwd: string, toolConfig: ToolConfig): Promise<ToolSet> {
+export async function createToolSet(
+  cwd: string,
+  toolConfig: ToolConfig,
+  skipPatterns?: string[],
+): Promise<ToolSet> {
   let dispose: () => Promise<void> = async () => {};
   const tools: ToolDefinition[] = [];
 
@@ -57,7 +61,7 @@ export async function createToolSet(cwd: string, toolConfig: ToolConfig): Promis
       schema: z.object({
         filePath: z.string().describe('Path to the file (relative to cwd or absolute)'),
       }),
-      execute: async ({ filePath }) => readFile(cwd, filePath as string, toolConfig.skipPatterns),
+      execute: async ({ filePath }) => readFile(cwd, filePath as string, skipPatterns),
     },
 
     {
@@ -82,7 +86,7 @@ export async function createToolSet(cwd: string, toolConfig: ToolConfig): Promis
           pattern as string,
           (glob as string | null) ?? undefined,
           (ignoreCase as boolean | null) ?? undefined,
-          toolConfig.skipPatterns,
+          skipPatterns,
         ),
     },
 
@@ -92,7 +96,7 @@ export async function createToolSet(cwd: string, toolConfig: ToolConfig): Promis
       schema: z.object({
         pattern: z.string().describe('Glob pattern to match files'),
       }),
-      execute: async ({ pattern }) => globFiles(cwd, pattern as string, toolConfig.skipPatterns),
+      execute: async ({ pattern }) => globFiles(cwd, pattern as string, skipPatterns),
     },
 
     {

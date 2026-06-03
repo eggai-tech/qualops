@@ -230,6 +230,6 @@ describe('AnthropicAdapter', () => {
     const adapter = new AnthropicAdapter();
     const toolConfig = { bash: { workspaceRoot: '/workspace/pr' } };
     await adapter.run(makeParams({ toolConfig }));
-    expect(mockCreateToolSet).toHaveBeenCalledWith(expect.any(String), toolConfig);
+    expect(mockCreateToolSet).toHaveBeenCalledWith(expect.any(String), toolConfig, undefined);
   });
 });

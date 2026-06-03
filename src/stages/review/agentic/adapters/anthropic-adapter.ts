@@ -138,7 +138,7 @@ function handleResultMessage(
 
 export class AnthropicAdapter implements AgentAdapter {
   async run(params: AgentAdapterParams): Promise<AgentAdapterResult> {
-    const toolSet = await createToolSet(params.cwd, params.toolConfig);
+    const toolSet = await createToolSet(params.cwd, params.toolConfig, params.skipPatterns);
 
     try {
       const toolServer = toMcpServer(toolSet);

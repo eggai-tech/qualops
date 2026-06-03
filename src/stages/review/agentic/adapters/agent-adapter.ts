@@ -3,7 +3,7 @@ import type { ResolvedAgentDefinition } from '../subagents/definitions';
 
 export interface ToolConfig {
   bash: BashConfig;
-  skipPatterns?: string[];
+  // Future tools add their config here, namespaced by tool name.
 }
 
 export interface AgentAdapterParams {
@@ -14,6 +14,7 @@ export interface AgentAdapterParams {
   cwd: string;
   maxTurns: number;
   maxBudgetUsd?: number;
+  skipPatterns?: string[];
   toolConfig: ToolConfig;
   onToolCall?: (turn: number, name: string, input: unknown) => void;
 }
