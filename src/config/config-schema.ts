@@ -660,7 +660,9 @@ export const qualopsConfigSchema = z
     }),
     skipPatterns: nonEmptyStringArray.optional().meta({
       description:
-        'Glob patterns for files to exclude from all analysis. Applied before any file reaches the review pipeline.',
+        'Glob patterns for files to exclude from all analysis. Applied before any file reaches the review pipeline. ' +
+        'Defaults: node_modules/**, .git/**.',
+      default: ['node_modules/**', '.git/**'],
     }),
     includePatterns: nonEmptyStringArray.optional().meta({
       deprecated: true,

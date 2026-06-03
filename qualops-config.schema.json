@@ -49,8 +49,12 @@
       "$ref": "#/$defs/loggerConfig"
     },
     "skipPatterns": {
-      "description": "Glob patterns for files to exclude from all analysis. Applied before any file reaches the review pipeline.",
-      "$ref": "#/$defs/nonEmptyStringArray"
+      "description": "Glob patterns for files to exclude from all analysis. Applied before any file reaches the review pipeline. Defaults: node_modules/**, .git/**.",
+      "$ref": "#/$defs/nonEmptyStringArray",
+      "default": [
+        "node_modules/**",
+        ".git/**"
+      ]
     },
     "includePatterns": {
       "description": "Legacy compatibility field. Values from config files are currently ignored.",
