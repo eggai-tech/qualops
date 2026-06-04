@@ -1,8 +1,17 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { relative, resolve } from 'node:path';
+
+import { glob } from 'glob';
+import { minimatch } from 'minimatch';
 
 import { resolveWithinCwd, isSafeGitRef } from '../../../../shared/utils/security';
-import type { DependencyTrace, ExportComparison } from '../types';
+import type { DependencyTrace } from '../types';
+
+function isSkipped(resolvedPath: string, cwd: string, skipPatterns: string[]): boolean {
+  const rel = relative(resolve(cwd), resolvedPath) || '.';
+  return skipPatterns.some((p) => minimatch(rel, p, { dot: true }));
+}
 
 // ─── Safe command execution ────────────────────────────────────────────────────
 
@@ -27,7 +36,13 @@ function runSafe(cmd: string, args: string[], cwd: string, maxBuffer = 10 * 1024
 
 // ─── Custom tools ─────────────────────────────────────────────────────────────
 
-export function findUsages(cwd: string, symbol: string, scope?: string, fileType?: string): string {
+export function findUsages(
+  cwd: string,
+  symbol: string,
+  scope?: string,
+  fileType?: string,
+  skipPatterns?: string[],
+): string {
   let searchPath = cwd;
   if (scope) {
     const resolved = resolveWithinCwd(cwd, scope);
@@ -35,10 +50,14 @@ export function findUsages(cwd: string, symbol: string, scope?: string, fileType
     searchPath = resolved;
   }
   const typeArgs = fileType ? ['--type', fileType] : ['--type', 'ts', '--type', 'tsx'];
+  const skipArgs: string[] = [];
+  for (const skip of skipPatterns ?? []) {
+    skipArgs.push('--glob', `!${skip}`);
+  }
 
   try {
     return (
-      runSafe('rg', ['-n', '--word-regexp', symbol, searchPath, ...typeArgs], cwd) ||
+      runSafe('rg', ['-n', '--word-regexp', symbol, searchPath, ...typeArgs, ...skipArgs], cwd) ||
       'No usages found'
     );
   } catch (error) {
@@ -48,9 +67,13 @@ export function findUsages(cwd: string, symbol: string, scope?: string, fileType
   }
 }
 
-export function traceImports(cwd: string, filePath: string): string {
+export function traceImports(cwd: string, filePath: string, skipPatterns?: string[]): string {
   const fullPath = resolveWithinCwd(cwd, filePath);
   if (!fullPath) return `Error: Path outside project directory: ${filePath}`;
+
+  if (skipPatterns && isSkipped(fullPath, cwd, skipPatterns)) {
+    return `File excluded: matches skip pattern.`;
+  }
 
   if (!existsSync(fullPath)) {
     return `File not found: ${filePath}`;
@@ -71,10 +94,19 @@ export function gitDiffAnalysis(
   head?: string,
   file?: string,
   stat?: boolean,
+  skipPatterns?: string[],
 ): string {
   if (!isSafeGitRef(base)) return `Error: invalid git ref: ${base}`;
   const headRef = head || 'HEAD';
   if (!isSafeGitRef(headRef)) return `Error: invalid git ref: ${headRef}`;
+
+  if (file) {
+    const resolved = resolveWithinCwd(cwd, file);
+    if (!resolved) return `Error: Path outside project directory: ${file}`;
+    if (skipPatterns && isSkipped(resolved, cwd, skipPatterns)) {
+      return `File excluded: matches skip pattern.`;
+    }
+  }
 
   const args = ['diff'];
   if (stat) args.push('--stat');
@@ -83,61 +115,6 @@ export function gitDiffAnalysis(
 
   try {
     return runSafe('git', args, cwd) || 'No differences found';
-  } catch (error) {
-    return `Error: ${(error as Error).message}`;
-  }
-}
-
-export function analyzeExports(cwd: string, filePath: string, compareWithRef?: string): string {
-  const fullPath = resolveWithinCwd(cwd, filePath);
-  if (!fullPath) return `Error: Path outside project directory: ${filePath}`;
-
-  if (!existsSync(fullPath)) {
-    return `File not found: ${filePath}`;
-  }
-
-  const currentContent = readFileSync(fullPath, 'utf-8');
-  const currentExports = extractExports(currentContent);
-
-  let comparison: ExportComparison | null = null;
-
-  if (compareWithRef) {
-    if (!isSafeGitRef(compareWithRef)) return `Error: invalid git ref: ${compareWithRef}`;
-    // Use '--' separator then 'ref:path' as a single argument — no shell expansion risk
-    try {
-      const oldContent = runSafe('git', ['show', `${compareWithRef}:${filePath}`], cwd);
-      const oldExports = extractExports(oldContent);
-      comparison = compareExportSets(oldExports, currentExports);
-    } catch {
-      comparison = { added: currentExports, removed: [], modified: [] };
-    }
-  }
-
-  return JSON.stringify({ filePath, exports: currentExports, comparison }, null, 2);
-}
-
-export function findInterfaceChanges(
-  cwd: string,
-  base: string,
-  head?: string,
-  interfaceName?: string,
-): string {
-  if (!isSafeGitRef(base)) return `Error: invalid git ref: ${base}`;
-  const headRef = head || 'HEAD';
-  if (!isSafeGitRef(headRef)) return `Error: invalid git ref: ${headRef}`;
-
-  // Escape interfaceName so it is safe to embed in a regex (avoids ReDoS)
-  const safeName = interfaceName ? interfaceName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '\\w+';
-  const grepPattern = `(interface|type)\\s+${safeName}`;
-
-  try {
-    return (
-      runSafe(
-        'git',
-        ['diff', `${base}...${headRef}`, '--unified=5', `-G${grepPattern}`, '--', '*.ts', '*.tsx'],
-        cwd,
-      ) || 'No interface changes found'
-    );
   } catch (error) {
     return `Error: ${(error as Error).message}`;
   }
@@ -165,10 +142,14 @@ export function listChangedFiles(
 
 // ─── Filesystem tools (for OpenAI adapter — Anthropic SDK provides these built-in) ──
 
-export function readFile(cwd: string, filePath: string): string {
+export function readFile(cwd: string, filePath: string, skipPatterns?: string[]): string {
   const resolved = resolveWithinCwd(cwd, filePath);
   if (!resolved) {
     return `Error: Path outside project directory: ${filePath}`;
+  }
+
+  if (skipPatterns && isSkipped(resolved, cwd, skipPatterns)) {
+    return `File excluded: matches skip pattern.`;
   }
 
   if (!existsSync(resolved)) {
@@ -185,12 +166,16 @@ export function readFile(cwd: string, filePath: string): string {
 export function grepFiles(
   cwd: string,
   pattern: string,
-  glob?: string,
+  globPattern?: string,
   ignoreCase?: boolean,
+  skipPatterns?: string[],
 ): string {
   const args = ['-n'];
   if (ignoreCase) args.push('-i');
-  if (glob) args.push('--glob', glob);
+  if (globPattern) args.push('--glob', globPattern);
+  for (const skip of skipPatterns ?? []) {
+    args.push('--glob', `!${skip}`);
+  }
   args.push(pattern, cwd);
 
   try {
@@ -202,14 +187,14 @@ export function grepFiles(
   }
 }
 
-export function globFiles(cwd: string, pattern: string): string {
+export async function globFiles(
+  cwd: string,
+  pattern: string,
+  skipPatterns?: string[],
+): Promise<string> {
   try {
-    const result = runSafe(
-      'find',
-      [cwd, '-path', pattern, '-not', '-path', '*/node_modules/*'],
-      cwd,
-    );
-    return result.trim() || 'No files found';
+    const matches = await glob(pattern, { cwd, dot: true, ignore: skipPatterns });
+    return matches.length > 0 ? matches.join('\n') : 'No files found';
   } catch (error) {
     return `Error: ${(error as Error).message}`;
   }
@@ -277,15 +262,4 @@ function findImportingFiles(targetPath: string, cwd: string): string[] {
   } catch {
     return [];
   }
-}
-
-function compareExportSets(oldExports: string[], newExports: string[]): ExportComparison {
-  const oldSet = new Set(oldExports);
-  const newSet = new Set(newExports);
-
-  return {
-    added: newExports.filter((e) => !oldSet.has(e)),
-    removed: oldExports.filter((e) => !newSet.has(e)),
-    modified: [],
-  };
 }

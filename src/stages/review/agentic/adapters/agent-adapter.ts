@@ -14,6 +14,7 @@ export interface AgentAdapterParams {
   cwd: string;
   maxTurns: number;
   maxBudgetUsd?: number;
+  skipPatterns?: string[];
   toolConfig: ToolConfig;
   onToolCall?: (turn: number, name: string, input: unknown) => void;
 }

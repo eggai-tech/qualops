@@ -33,12 +33,6 @@ export interface BreakingChangeResult {
   severity: 'critical' | 'high' | 'medium';
 }
 
-export interface ExportComparison {
-  added: string[];
-  removed: string[];
-  modified: string[];
-}
-
 export interface ToolResult {
   success: boolean;
   data?: unknown;

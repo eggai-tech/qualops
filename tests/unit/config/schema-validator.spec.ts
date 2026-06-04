@@ -629,13 +629,11 @@ describe('collectConfigWarnings', () => {
     it('detects deprecated top-level fields', () => {
       const config = {
         ...minimalValidConfig,
-        skipPatterns: ['node_modules/**'],
         verbose: true,
         debug: false,
       };
       const result = collectConfigWarnings(config);
       const paths = result.deprecations.map((d) => d.path);
-      expect(paths).toContain('skipPatterns');
       expect(paths).toContain('verbose');
       expect(paths).toContain('debug');
     });
@@ -840,7 +838,6 @@ describe('collectConfigWarnings', () => {
       expect(warnings.deprecations.length).toBeGreaterThan(0);
       // Spot-check a few expected deprecations
       const paths = warnings.deprecations.map((d) => d.path);
-      expect(paths).toContain('skipPatterns');
       expect(paths).toContain('fix.enabled');
       expect(paths).toContain('performance.throttling.enabled');
     });

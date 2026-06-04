@@ -8,8 +8,6 @@ jest.mock('@/stages/review/agentic/tools/handlers', () => ({
   findUsages: jest.fn(),
   traceImports: jest.fn(),
   gitDiffAnalysis: jest.fn(),
-  analyzeExports: jest.fn(),
-  findInterfaceChanges: jest.fn(),
   listChangedFiles: jest.fn(),
 }));
 jest.mock('@/shared/utils/logger');

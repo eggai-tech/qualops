@@ -315,6 +315,7 @@
     "*.bundle.js",
     "examples/**",
     "docs/**",
-    "evals/datasets/**"
+    "evals/datasets/**",
+    "**/*.d.ts"
   ]
 }

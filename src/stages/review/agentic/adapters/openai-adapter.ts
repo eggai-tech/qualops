@@ -7,13 +7,22 @@ import { createToolSet, type ToolSet } from '../tools';
 
 export class OpenAIAdapter implements AgentAdapter {
   async run(params: AgentAdapterParams): Promise<AgentAdapterResult> {
-    const { systemPrompt, userPrompt, agents, model, cwd, maxTurns, onToolCall, toolConfig } =
-      params;
+    const {
+      systemPrompt,
+      userPrompt,
+      agents,
+      model,
+      cwd,
+      maxTurns,
+      onToolCall,
+      toolConfig,
+      skipPatterns,
+    } = params;
 
     await configureOpenAIClient();
     getGlobalTraceProvider().setDisabled(true);
 
-    const toolSet = await createToolSet(cwd, toolConfig);
+    const toolSet = await createToolSet(cwd, toolConfig, skipPatterns);
 
     try {
       const tools = buildOpenAITools(toolSet, onToolCall);

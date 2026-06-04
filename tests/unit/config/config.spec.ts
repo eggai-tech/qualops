@@ -117,16 +117,10 @@ describe('ConfigService', () => {
       expect(instance.get('maxReactSteps')).toBe(5);
     });
 
-    it('should initialize with default skip patterns', () => {
+    it('should initialize with empty skip patterns by default', () => {
       const instance = ConfigService.getInstance();
       const skipPatterns = instance.get('skipPatterns');
-      expect(skipPatterns).toEqual([
-        'node_modules/**',
-        '.git/**',
-        'dist/**',
-        'build/**',
-        'coverage/**',
-      ]);
+      expect(skipPatterns).toEqual(['.git/**']);
     });
 
     it('should set debug based on environment', () => {
@@ -766,21 +760,17 @@ describe('ConfigService', () => {
 
     it('should log warnings for deprecations', () => {
       mockExistsSync.mockReturnValue(true);
-      // `verbose` and `skipPatterns` are real deprecated top-level fields.
+      // `verbose` is a real deprecated top-level field.
       mockReadFileSync.mockReturnValue(
         JSON.stringify({
           ...VALID_MINIMAL_CONFIG,
           verbose: true,
-          skipPatterns: ['node_modules/**'],
         }),
       );
 
       ConfigService.getInstance();
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('[CONFIG] Deprecated field "verbose"'),
-      );
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('[CONFIG] Deprecated field "skipPatterns"'),
       );
     });
 

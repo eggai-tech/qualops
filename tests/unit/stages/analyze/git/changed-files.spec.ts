@@ -1,8 +1,10 @@
+import { ConfigService } from '@/config/config';
 import { shouldProcessFile } from '@/shared/utils/filters';
 import { logger } from '@/shared/utils/logger';
 import { getChangedFiles } from '@/stages/analyze/git/changed-files';
 import { executeGitCommand } from '@/stages/analyze/git/git-utils';
 
+jest.mock('@/config/config');
 jest.mock('@/shared/utils/logger');
 jest.mock('@/stages/analyze/git/git-utils');
 jest.mock('@/shared/utils/filters');
@@ -10,15 +12,19 @@ jest.mock('@/shared/utils/filters');
 const mockExecuteGitCommand = executeGitCommand as jest.MockedFunction<typeof executeGitCommand>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockShouldProcessFile = shouldProcessFile as jest.MockedFunction<typeof shouldProcessFile>;
+const mockConfigService = ConfigService as jest.Mocked<typeof ConfigService>;
 
 describe('changed-files', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockShouldProcessFile.mockReturnValue(true);
+    mockConfigService.getInstance = jest.fn().mockReturnValue({
+      get: jest.fn().mockReturnValue([]),
+    });
   });
 
   describe('getChangedFiles', () => {
-    it('should return changed TypeScript files', async () => {
+    it('should return changed files', async () => {
       mockExecuteGitCommand
         .mockReturnValueOnce('src/app.ts\nsrc/utils.ts')
         .mockReturnValueOnce('')
@@ -51,7 +57,7 @@ describe('changed-files', () => {
         '--exclude-standard',
       ]);
       expect(result).toEqual(['src/app.ts', 'src/utils.ts']);
-      expect(mockLogger.git).toHaveBeenCalledWith('Found 2 changed TypeScript files');
+      expect(mockLogger.git).toHaveBeenCalledWith('Found 2 changed files');
     });
 
     it('should use default base when not provided', async () => {
@@ -106,7 +112,7 @@ describe('changed-files', () => {
       expect(result).toEqual(['src/app.ts', 'src/utils.ts', 'src/new.ts']);
     });
 
-    it('should filter out non-TypeScript files', async () => {
+    it('should include non-TypeScript files', async () => {
       mockExecuteGitCommand
         .mockReturnValueOnce('src/app.ts\nsrc/styles.css\nsrc/readme.md\nsrc/utils.ts')
         .mockReturnValueOnce('')
@@ -115,10 +121,16 @@ describe('changed-files', () => {
 
       const result = await getChangedFiles('main');
 
-      expect(result).toEqual(['src/app.ts', 'src/utils.ts']);
+      expect(result).toEqual(['src/app.ts', 'src/styles.css', 'src/readme.md', 'src/utils.ts']);
     });
 
-    it('should filter out node_modules files', async () => {
+    it('should filter out node_modules files when configured in skipPatterns', async () => {
+      mockConfigService.getInstance = jest.fn().mockReturnValue({
+        get: jest.fn().mockReturnValue(['node_modules/**']),
+      });
+      mockShouldProcessFile.mockImplementation(
+        (file, _patterns) => !file.startsWith('node_modules'),
+      );
       mockExecuteGitCommand
         .mockReturnValueOnce('src/app.ts\nnode_modules/package/index.ts\nnode_modules/lib/util.ts')
         .mockReturnValueOnce('')
@@ -143,10 +155,10 @@ describe('changed-files', () => {
 
       const result = await getChangedFiles('main');
 
-      expect(mockShouldProcessFile).toHaveBeenCalledWith('src/app.ts');
-      expect(mockShouldProcessFile).toHaveBeenCalledWith('src/test.spec.ts');
-      expect(mockShouldProcessFile).toHaveBeenCalledWith('src/types.d.ts');
-      expect(mockShouldProcessFile).toHaveBeenCalledWith('src/utils.ts');
+      expect(mockShouldProcessFile).toHaveBeenCalledWith('src/app.ts', []);
+      expect(mockShouldProcessFile).toHaveBeenCalledWith('src/test.spec.ts', []);
+      expect(mockShouldProcessFile).toHaveBeenCalledWith('src/types.d.ts', []);
+      expect(mockShouldProcessFile).toHaveBeenCalledWith('src/utils.ts', []);
       expect(result).toEqual(['src/app.ts', 'src/utils.ts']);
     });
 
@@ -219,9 +231,13 @@ describe('changed-files', () => {
       expect(result).toEqual([]);
     });
 
-    it('should return empty array when all files filtered out', async () => {
+    it('should return empty array when all files are in node_modules (with skipPatterns)', async () => {
+      mockConfigService.getInstance = jest.fn().mockReturnValue({
+        get: jest.fn().mockReturnValue(['node_modules/**']),
+      });
+      mockShouldProcessFile.mockReturnValue(false);
       mockExecuteGitCommand
-        .mockReturnValueOnce('src/styles.css\nsrc/readme.md')
+        .mockReturnValueOnce('node_modules/lib/index.js\nnode_modules/pkg/utils.ts')
         .mockReturnValueOnce('')
         .mockReturnValueOnce('')
         .mockReturnValueOnce('');
@@ -229,7 +245,7 @@ describe('changed-files', () => {
       const result = await getChangedFiles('main');
 
       expect(result).toEqual([]);
-      expect(mockLogger.git).toHaveBeenCalledWith('Found 0 changed TypeScript files');
+      expect(mockLogger.git).toHaveBeenCalledWith('Found 0 changed files');
     });
 
     it('should trim whitespace from file paths', async () => {
@@ -283,7 +299,7 @@ describe('changed-files', () => {
 
       const result = await getChangedFiles('main');
 
-      expect(result).toEqual([]);
+      expect(result).toEqual(['Component.tsx', 'App.tsx']);
     });
 
     it('should return empty array on executeGitCommand error', async () => {
@@ -331,7 +347,17 @@ describe('changed-files', () => {
 
       const result = await getChangedFiles('main');
 
-      expect(result).toEqual(['src/app.ts', 'src/utils.ts', 'src/service.ts', 'src/new.ts']);
+      expect(result).toEqual([
+        'src/app.ts',
+        'src/style.css',
+        'src/readme.md',
+        'src/utils.ts',
+        'src/image.png',
+        'src/service.ts',
+        'src/config.json',
+        'src/new.ts',
+        'src/package.json',
+      ]);
     });
 
     it('should preserve file order', async () => {
@@ -356,7 +382,7 @@ describe('changed-files', () => {
       const result = await getChangedFiles('main');
 
       expect(result).toEqual(['src/app.ts']);
-      expect(mockLogger.git).toHaveBeenCalledWith('Found 1 changed TypeScript files');
+      expect(mockLogger.git).toHaveBeenCalledWith('Found 1 changed files');
     });
 
     it('should handle commit SHA as base', async () => {
@@ -384,7 +410,7 @@ describe('changed-files', () => {
       const result = await getChangedFiles('main');
 
       expect(result).toHaveLength(100);
-      expect(mockLogger.git).toHaveBeenCalledWith('Found 100 changed TypeScript files');
+      expect(mockLogger.git).toHaveBeenCalledWith('Found 100 changed files');
     });
 
     it('should filter each file through shouldProcessFile', async () => {
@@ -404,7 +430,13 @@ describe('changed-files', () => {
       expect(result).toEqual(['file1.ts', 'file3.ts']);
     });
 
-    it('should handle files in node_modules subdirectories', async () => {
+    it('should handle files in node_modules subdirectories with skipPatterns', async () => {
+      mockConfigService.getInstance = jest.fn().mockReturnValue({
+        get: jest.fn().mockReturnValue(['node_modules/**']),
+      });
+      mockShouldProcessFile.mockImplementation(
+        (file, _patterns) => !file.startsWith('node_modules'),
+      );
       mockExecuteGitCommand
         .mockReturnValueOnce(
           'src/app.ts\nnode_modules/@types/node/index.ts\nnode_modules/lib/deep/path/file.ts',

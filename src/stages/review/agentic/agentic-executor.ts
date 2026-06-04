@@ -103,6 +103,7 @@ export class AgenticExecutor {
         cwd: this.cwd,
         maxTurns: this.config.maxTurns || 100,
         maxBudgetUsd: this.config.maxBudgetUsd,
+        skipPatterns: ConfigService.getInstance().get('skipPatterns') ?? [],
         toolConfig: {
           bash: {
             ...this.config.bash,

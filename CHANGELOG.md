@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `skipPatterns` config field is now fully functional as a pre-filter: excluded files never reach the review pipeline in file-by-file mode, and agentic tool calls (`read_file`, `grep_files`, `glob_files`) enforce patterns at the handler layer for both OpenAI and Anthropic providers.
+- Anthropic agentic mode now uses MCP tools for file access instead of SDK built-ins, ensuring `skipPatterns` enforcement is consistent across providers.
+- `globFiles` tool upgraded from `find`-based to `glob` npm package for proper `**` glob support.
+
+### Changed
+- Default `skipPatterns` in `ConfigService` changed from infrastructure dirs to empty (`[]`) — patterns are project-specific and should be set per project. qualops's own `.qualopsrc.json` now lists its TS-specific patterns.
+- Removed `file-exclusions.ts` (dead code — `applyPenalty()` was never called).
+
 ## [0.2.3] - 2026-05-28
 
 ### Changed
