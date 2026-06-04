@@ -10,9 +10,12 @@ import type { DependencyTrace } from '../types';
 
 function isSkipped(resolvedPath: string, cwd: string, skipPatterns: string[]): boolean {
   const cwdResolved = resolve(cwd);
-  const rel = resolvedPath.startsWith(cwdResolved + '/')
-    ? resolvedPath.slice(cwdResolved.length + 1)
-    : resolvedPath;
+  const prefix = cwdResolved.endsWith('/') ? cwdResolved : cwdResolved + '/';
+  const rel = resolvedPath.startsWith(prefix)
+    ? resolvedPath.slice(prefix.length)
+    : resolvedPath === cwdResolved
+      ? '.'
+      : resolvedPath;
   return skipPatterns.some((p) => minimatch(rel, p, { dot: true }));
 }
 
@@ -97,10 +100,19 @@ export function gitDiffAnalysis(
   head?: string,
   file?: string,
   stat?: boolean,
+  skipPatterns?: string[],
 ): string {
   if (!isSafeGitRef(base)) return `Error: invalid git ref: ${base}`;
   const headRef = head || 'HEAD';
   if (!isSafeGitRef(headRef)) return `Error: invalid git ref: ${headRef}`;
+
+  if (file) {
+    const resolved = resolveWithinCwd(cwd, file);
+    if (!resolved) return `Error: Path outside project directory: ${file}`;
+    if (skipPatterns && isSkipped(resolved, cwd, skipPatterns)) {
+      return `File excluded: matches skip pattern.`;
+    }
+  }
 
   const args = ['diff'];
   if (stat) args.push('--stat');

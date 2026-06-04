@@ -194,7 +194,14 @@ describe('OpenAIAdapter — tools', () => {
     h.gitDiffAnalysis.mockReturnValue('diff output');
     const execute = await getToolExecute('git_diff_analysis');
     const result = await execute({ base: 'main' });
-    expect(h.gitDiffAnalysis).toHaveBeenCalledWith(CWD, 'main', undefined, undefined, undefined);
+    expect(h.gitDiffAnalysis).toHaveBeenCalledWith(
+      CWD,
+      'main',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    );
     expect(result).toBe('diff output');
   });
 

@@ -143,6 +143,7 @@ export async function createToolSet(
           head as string | undefined,
           file as string | undefined,
           stat as boolean | undefined,
+          skipPatterns,
         ),
     },
 

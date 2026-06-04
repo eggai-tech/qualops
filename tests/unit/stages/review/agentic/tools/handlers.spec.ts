@@ -188,6 +188,27 @@ describe('gitDiffAnalysis', () => {
       expect.anything(),
     );
   });
+
+  it('returns "File excluded" when file matches a skipPattern', () => {
+    const result = gitDiffAnalysis(CWD, 'main', undefined, 'src/foo.spec.ts', undefined, [
+      '**/*.spec.ts',
+    ]);
+    expect(result).toBe('File excluded: matches skip pattern.');
+    expect(mockSpawnSync).not.toHaveBeenCalled();
+  });
+
+  it('blocks skipPattern bypass via path traversal in file param', () => {
+    const result = gitDiffAnalysis(
+      CWD,
+      'main',
+      undefined,
+      'src/../node_modules/secret.js',
+      undefined,
+      ['node_modules/**'],
+    );
+    expect(result).toBe('File excluded: matches skip pattern.');
+    expect(mockSpawnSync).not.toHaveBeenCalled();
+  });
 });
 
 // ─── listChangedFiles ─────────────────────────────────────────────────────────
@@ -264,6 +285,14 @@ describe('readFile', () => {
   it('blocks skipPattern bypass via ./ prefix (./node_modules/secret.js)', () => {
     const result = readFile(CWD, './node_modules/secret.js', ['node_modules/**']);
     expect(result).toBe('File excluded: matches skip pattern.');
+  });
+
+  it('does not exclude cwd itself (resolvedPath === cwd edge case)', () => {
+    // Passing the cwd as the file path resolves to exactly cwd — isSkipped should
+    // return '.' as the relative path and not match a file-targeting pattern.
+    mockExistsSync.mockReturnValue(false);
+    const result = readFile(CWD, CWD, ['**/*.ts']);
+    expect(result).not.toBe('File excluded: matches skip pattern.');
   });
 
   it('returns error message when readFileSync throws', () => {
