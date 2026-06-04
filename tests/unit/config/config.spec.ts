@@ -117,10 +117,10 @@ describe('ConfigService', () => {
       expect(instance.get('maxReactSteps')).toBe(5);
     });
 
-    it('should initialize with baseline skip patterns by default', () => {
+    it('should initialize with empty skip patterns by default', () => {
       const instance = ConfigService.getInstance();
       const skipPatterns = instance.get('skipPatterns');
-      expect(skipPatterns).toEqual(['node_modules/**', '.git/**']);
+      expect(skipPatterns).toEqual([]);
     });
 
     it('should set debug based on environment', () => {

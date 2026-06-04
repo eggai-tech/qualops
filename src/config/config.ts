@@ -103,7 +103,7 @@ export class ConfigService {
     maxFileSizeKB: 500,
     maxTokensPerFile: 1000000,
     maxReactSteps: 5,
-    skipPatterns: ['node_modules/**', '.git/**'],
+    skipPatterns: [],
     ai: ConfigService.resolveDefaultAI(),
     review: {
       pipeline: [
