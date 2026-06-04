@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-06-04
+
 ### Added
 - `skipPatterns` config field is now fully functional as a pre-filter: excluded files never reach the review pipeline in file-by-file mode, and agentic tool calls (`read_file`, `grep_files`, `glob_files`) enforce patterns at the handler layer for both OpenAI and Anthropic providers.
 - Anthropic agentic mode now uses MCP tools for file access instead of SDK built-ins, ensuring `skipPatterns` enforcement is consistent across providers.
