@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 
 import { glob } from 'glob';
 import { minimatch } from 'minimatch';
@@ -9,13 +9,7 @@ import { resolveWithinCwd, isSafeGitRef } from '../../../../shared/utils/securit
 import type { DependencyTrace } from '../types';
 
 function isSkipped(resolvedPath: string, cwd: string, skipPatterns: string[]): boolean {
-  const cwdResolved = resolve(cwd);
-  const prefix = cwdResolved.endsWith('/') ? cwdResolved : cwdResolved + '/';
-  const rel = resolvedPath.startsWith(prefix)
-    ? resolvedPath.slice(prefix.length)
-    : resolvedPath === cwdResolved
-      ? '.'
-      : resolvedPath;
+  const rel = relative(resolve(cwd), resolvedPath) || '.';
   return skipPatterns.some((p) => minimatch(rel, p, { dot: true }));
 }
 
