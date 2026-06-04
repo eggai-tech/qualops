@@ -11,18 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `skipPatterns` config field is now fully functional as a pre-filter: excluded files never reach the review pipeline in file-by-file mode, and agentic tool calls (`read_file`, `grep_files`, `glob_files`) enforce patterns at the handler layer for both OpenAI and Anthropic providers.
 - Anthropic agentic mode now uses MCP tools for file access instead of SDK built-ins, ensuring `skipPatterns` enforcement is consistent across providers.
 - `globFiles` tool upgraded from `find`-based to `glob` npm package for proper `**` glob support.
-
-### Changed
 - Default `skipPatterns` in `ConfigService` changed from infrastructure dirs to empty (`[]`) — patterns are project-specific and should be set per project. qualops's own `.qualopsrc.json` now lists its TS-specific patterns.
 - Removed `file-exclusions.ts` (dead code — `applyPenalty()` was never called).
+- Provider-dialect smoke spec: `npm run test:smoke` runs the 4 AI caller stages migrated in PR #145 (`file-reviewer`, `validation-resolver`, `dedup-resolver`, `root-cause-extract`) against each real provider (`anthropic`, `openai`, `bedrock`, `github`) using a slice fixture as input. Validates that the structured-output dialect path returns a zod-validated response without throwing. Implemented as a Jest spec under `tests/smoke/` with its own `jest.smoke.config.ts` — not picked up by default `npm test` (whose `roots` are limited to `tests/unit/`). Provider config comes from `ConfigService` + the existing `PROVIDER_DEFAULTS` table, not a duplicated table. Providers with missing credentials are `describe.skip()`-ed; providers with malformed credentials fail loudly via the provider class's own `validateApiKey()`. Input is a slice fixture under `evals/datasets/inbox/smoke-sql-injection/`, loosely following TDR 0002. Nightly + manual CI workflow at `.github/workflows/provider-dialect-smoke.yml`. Automates the unchecked manual smoke item from PR #145's test plan; distinct from the deferred per-stage golden-evals item which validates output quality.
 
 ## [0.2.3] - 2026-05-28
 
 ### Changed
 - CRB evals are now self-contained slice directories (`evals/datasets/crb/<id>/slice.json` + `repo/`) — no external repo cloning required. Replaced `fetch-crb-dataset.ts` with `check-crb-staleness.ts` which validates local slices against upstream CRB PR URLs.
 - Neutralize language-specific wording in built-in prompts where the underlying tooling is genuinely language-agnostic, so review output is no longer TypeScript-flavored when qualops is pointed at a non-TS repo.
-
-### Changed
 - Bump `@anthropic-ai/claude-agent-sdk` from 0.2.139 to 0.3.144.
 - Bump `@anthropic-ai/claude-agent-sdk-linux-x64` from 0.2.139 to 0.3.144.
 - Bump `@opentelemetry/sdk-node` from 0.217.0 to 0.218.0.
@@ -40,6 +37,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New `BaseAIProvider` consolidating shared token accounting + cost computation while preserving exact per-provider semantics (OpenAI `prompt_tokens` incl. cached, Anthropic/Bedrock `input_tokens` excl. cached; Bedrock log policy unchanged).
 - New `ProviderCapabilities` descriptor that routes `(provider, model)` to the right structured-output dialect, replacing model-name string sniffing.
 - Reusable zod schemas in `src/ai/shared/schemas/` for review issues, validation results, dedup indices, search/replace fixes, and root-cause classifications.
+- Agentic mode now supports OpenAI and Azure OpenAI providers via `@openai/agents`. Set `provider: "openai"` in your stage config to use the OpenAI adapter; set `OPENAI_BASE_URL` to an Azure endpoint and the correct Azure client is used automatically.
+- You can now specify a model and provider together in stage config using `model: { provider: "openai", name: "gpt-4o" }` instead of relying on a separate top-level `provider` field.
+- OpenTelemetry observability instrumentation across the full review pipeline (file-by-file, agentic, and eval runs), with auto-detection for Langfuse and generic OTLP backends. All span attributes are sanitized to prevent credential leakage.
+- Agentic jobs now support a `prompt` field for file-based prompt instructions, combined with the existing inline `systemPrompt`
+- GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
+- Zod-based runtime validation for `.qualopsrc.json` with deprecation warnings for legacy fields
+- JSON Schema generated from Zod schemas (`npm run generate:schema`) replacing hand-maintained schema
+- Eval `--severity` filter to run only CRB cases with matching golden comment severity
+- Report on eval flakiness for Code Review Benchmark `npm run eval:recall-report` with filtering options `-- --severity=critical`
+- `init-claude` now scaffolds a validated default config, quality prompt, and supports `--provider` flag
+- New `Promote to Stable` workflow (`workflow_dispatch`) for promoting a beta release to a clean stable version
+- New `update-beta-ref` and `update-stable-ref` jobs in the npm publish workflow that force-move the `beta` / `stable` lightweight git tags after each release
+- `docs/tdr/` folder for Technical Design Records, with TDR 0001 documenting the release process
+- New `Releases` page on the docs site explaining the two-tier model to consumers
 
 ### Changed
 - `AIProvider.complete` is now overloaded: `complete<S extends z.ZodType>(opts & { schema: S })` returns `AIResponse<z.infer<S>>` (schema-typed); plain `complete(opts)` still returns `AIResponse<string>`.
@@ -52,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release failure issues now include the failing stages and release kind (beta vs stable)
 - Normalize `uses: eggai-tech/qualops@v1` examples across the README, docs, and example workflows to `@stable`
 - Refactor agentic tools: `tools/index.ts` is now a provider-agnostic registry (`createToolSet`); Anthropic and OpenAI SDK wiring stays inside their respective adapters
+- AI provider types/factory now include `github` and use stricter provider typing
+- Environment config and test setup now include `GITHUB_API_KEY`
+- Update documentation to reference the new JSON Schema and provide configuration examples
+- Added eval suite
 
 ### Removed
 - Deleted `JsonParser` class and the duplicated private `fixMalformedJson` (last production callers migrated).
@@ -69,28 +84,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release-branch cleanup-on-failure now only runs when this workflow run actually pushed the branch (sentinel via `$GITHUB_ENV`), so a pre-existing `release/v*` branch is never deleted by a failed run
 - Release version validation now allows only the prerelease labels the publish workflow recognises (`rc`, `alpha`, `beta`); unrecognised labels like `0.3.0-preview.1` are rejected up-front instead of silently publishing to `latest`
 - `Promote to Stable` workflow now asserts that `stable_version` equals `beta_version`'s base (e.g., `0.4.0-beta.1` can only promote to `0.4.0`)
-
-### Added
-- Agentic mode now supports OpenAI and Azure OpenAI providers via `@openai/agents`. Set `provider: "openai"` in your stage config to use the OpenAI adapter; set `OPENAI_BASE_URL` to an Azure endpoint and the correct Azure client is used automatically.
-- You can now specify a model and provider together in stage config using `model: { provider: "openai", name: "gpt-4o" }` instead of relying on a separate top-level `provider` field.
-- OpenTelemetry observability instrumentation across the full review pipeline (file-by-file, agentic, and eval runs), with auto-detection for Langfuse and generic OTLP backends. All span attributes are sanitized to prevent credential leakage.
-- Agentic jobs now support a `prompt` field for file-based prompt instructions, combined with the existing inline `systemPrompt`
-- GitHub Models AI provider (`provider: "github"`) via `https://models.github.ai/inference`
-- Zod-based runtime validation for `.qualopsrc.json` with deprecation warnings for legacy fields
-- JSON Schema generated from Zod schemas (`npm run generate:schema`) replacing hand-maintained schema
-- Eval `--severity` filter to run only CRB cases with matching golden comment severity
-- Report on eval flakiness for Code Review Benchmark `npm run eval:recall-report` with filtering options `-- --severity=critical`
-- `init-claude` now scaffolds a validated default config, quality prompt, and supports `--provider` flag
-- New `Promote to Stable` workflow (`workflow_dispatch`) for promoting a beta release to a clean stable version
-- New `update-beta-ref` and `update-stable-ref` jobs in the npm publish workflow that force-move the `beta` / `stable` lightweight git tags after each release
-- `docs/tdr/` folder for Technical Design Records, with TDR 0001 documenting the release process
-- New `Releases` page on the docs site explaining the two-tier model to consumers
-
-### Changed
-- AI provider types/factory now include `github` and use stricter provider typing
-- Environment config and test setup now include `GITHUB_API_KEY`
-- Update documentation to reference the new JSON Schema and provide configuration examples
-- Added eval suite
 
 ## [0.2.1] - 2026-03-14
 

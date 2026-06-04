@@ -38,6 +38,9 @@ evals/logs/
 evals/datasets/crb/benchmark_data.json
 evals/datasets/crb/repos/
 
+# Provider-dialect smoke harness scratch dir (per-run temp .qualopsrc.*.json files)
+tests/smoke/.tmp/
+
 # Logs
 *.log
 npm-debug.log*
