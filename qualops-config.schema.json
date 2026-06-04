@@ -51,7 +51,9 @@
     "skipPatterns": {
       "description": "Glob patterns for files to exclude from all analysis. Applied before any file reaches the review pipeline.",
       "$ref": "#/$defs/nonEmptyStringArray",
-      "default": []
+      "default": [
+        ".git/**"
+      ]
     },
     "includePatterns": {
       "description": "Legacy compatibility field. Values from config files are currently ignored.",

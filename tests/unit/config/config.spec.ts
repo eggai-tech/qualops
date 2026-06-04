@@ -120,7 +120,7 @@ describe('ConfigService', () => {
     it('should initialize with empty skip patterns by default', () => {
       const instance = ConfigService.getInstance();
       const skipPatterns = instance.get('skipPatterns');
-      expect(skipPatterns).toEqual([]);
+      expect(skipPatterns).toEqual(['.git/**']);
     });
 
     it('should set debug based on environment', () => {

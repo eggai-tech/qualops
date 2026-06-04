@@ -661,7 +661,7 @@ export const qualopsConfigSchema = z
     skipPatterns: nonEmptyStringArray.optional().meta({
       description:
         'Glob patterns for files to exclude from all analysis. Applied before any file reaches the review pipeline.',
-      default: [],
+      default: ['.git/**'],
     }),
     includePatterns: nonEmptyStringArray.optional().meta({
       deprecated: true,
