@@ -10,8 +10,6 @@ const mockGlob = jest.requireMock<{ glob: jest.Mock }>('glob').glob;
 const mockMinimatch = jest.requireMock<{ minimatch: jest.Mock }>('minimatch').minimatch;
 
 import {
-  analyzeExports,
-  findInterfaceChanges,
   findUsages,
   gitDiffAnalysis,
   globFiles,
@@ -102,6 +100,16 @@ describe('findUsages', () => {
       expect.anything(),
     );
   });
+
+  it('appends --glob exclusions for each skipPattern', () => {
+    mockSpawnSync.mockReturnValue(spawnOk('') as any);
+    findUsages(CWD, 'myFn', undefined, undefined, ['node_modules/**', 'dist/**']);
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'rg',
+      expect.arrayContaining(['--glob', '!node_modules/**', '--glob', '!dist/**']),
+      expect.anything(),
+    );
+  });
 });
 
 // ─── traceImports ─────────────────────────────────────────────────────────────
@@ -130,6 +138,13 @@ describe('traceImports', () => {
     const result = JSON.parse(traceImports(CWD, 'src/mod.ts'));
     expect(result.imports).toContain('./foo');
     expect(result.exports).toContain('bar');
+  });
+
+  it('returns "File excluded" when file matches a skipPattern', () => {
+    mockMinimatch.mockReturnValue(true);
+    const result = traceImports(CWD, 'src/foo.spec.ts', ['**/*.spec.ts']);
+    expect(result).toBe('File excluded: matches skip pattern.');
+    expect(mockExistsSync).not.toHaveBeenCalled();
   });
 });
 
@@ -169,101 +184,6 @@ describe('gitDiffAnalysis', () => {
     expect(mockSpawnSync).toHaveBeenCalledWith(
       'git',
       expect.arrayContaining(['--stat']),
-      expect.anything(),
-    );
-  });
-});
-
-// ─── analyzeExports ───────────────────────────────────────────────────────────
-
-describe('analyzeExports', () => {
-  it('rejects path traversal outside cwd', () => {
-    const result = analyzeExports(CWD, '../../etc/passwd');
-    expect(result).toMatch(/outside project directory/);
-    expect(mockExistsSync).not.toHaveBeenCalled();
-  });
-
-  it('rejects compareWithRef starting with -', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('export const foo = 1;' as any);
-    const result = analyzeExports(CWD, 'src/mod.ts', '--evil');
-    expect(result).toMatch(/invalid git ref/);
-    expect(mockSpawnSync).not.toHaveBeenCalled();
-  });
-
-  it('returns "File not found" when file does not exist', () => {
-    mockExistsSync.mockReturnValue(false);
-    expect(analyzeExports(CWD, 'src/missing.ts')).toBe('File not found: src/missing.ts');
-  });
-
-  it('returns exports JSON for existing file', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('export const foo = 1;\nexport default class Bar {}' as any);
-    const result = JSON.parse(analyzeExports(CWD, 'src/mod.ts'));
-    expect(result.exports).toContain('foo');
-    expect(result.exports).toContain('default');
-    expect(result.comparison).toBeNull();
-  });
-
-  it('includes comparison when compareWithRef is provided', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('export const foo = 1;' as any);
-    mockSpawnSync.mockReturnValue(spawnOk('export const oldFn = () => {};') as any);
-    const result = JSON.parse(analyzeExports(CWD, 'src/mod.ts', 'main'));
-    expect(result.comparison).toBeTruthy();
-    expect(result.comparison.added).toContain('foo');
-    expect(result.comparison.removed).toContain('oldFn');
-  });
-
-  it('uses added=currentExports when git show fails', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('export const foo = 1;' as any);
-    mockSpawnSync.mockReturnValue(spawnFail('git error') as any);
-    const result = JSON.parse(analyzeExports(CWD, 'src/mod.ts', 'main'));
-    expect(result.comparison.added).toContain('foo');
-    expect(result.comparison.removed).toEqual([]);
-  });
-});
-
-// ─── findInterfaceChanges ─────────────────────────────────────────────────────
-
-describe('findInterfaceChanges', () => {
-  it('rejects base ref starting with -', () => {
-    const result = findInterfaceChanges(CWD, '--evil');
-    expect(result).toMatch(/invalid git ref/);
-    expect(mockSpawnSync).not.toHaveBeenCalled();
-  });
-
-  it('escapes special regex chars in interfaceName to prevent ReDoS', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('') as any);
-    findInterfaceChanges(CWD, 'main', undefined, 'Foo(Bar)+');
-    const call = mockSpawnSync.mock.calls[0];
-    const gArg = (call[1] as string[]).find((a) => a.startsWith('-G'));
-    // Special chars should be escaped, not passed raw
-    expect(gArg).toContain('Foo\\(Bar\\)\\+');
-  });
-
-  it('returns diff output', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('interface Foo {}') as any);
-    expect(findInterfaceChanges(CWD, 'main')).toBe('interface Foo {}');
-  });
-
-  it('returns "No interface changes found" on empty output', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('') as any);
-    expect(findInterfaceChanges(CWD, 'main')).toBe('No interface changes found');
-  });
-
-  it('returns error string on failure', () => {
-    mockSpawnSync.mockReturnValue(spawnFail('git error') as any);
-    expect(findInterfaceChanges(CWD, 'main')).toBe('Error: git error');
-  });
-
-  it('scopes to specific interface when interfaceName is provided', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('interface Foo {}') as any);
-    findInterfaceChanges(CWD, 'main', undefined, 'Foo');
-    expect(mockSpawnSync).toHaveBeenCalledWith(
-      'git',
-      expect.arrayContaining([expect.stringContaining('Foo')]),
       expect.anything(),
     );
   });

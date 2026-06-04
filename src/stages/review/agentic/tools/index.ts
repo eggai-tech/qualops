@@ -8,8 +8,6 @@ import {
   findUsages,
   traceImports,
   gitDiffAnalysis,
-  analyzeExports,
-  findInterfaceChanges,
   listChangedFiles,
 } from './handlers';
 import { logger } from '../../../../shared/utils/logger';
@@ -102,7 +100,7 @@ export async function createToolSet(
     {
       name: 'find_usages',
       description:
-        'Find all usages of a symbol (function, class, variable, type) across the codebase using ripgrep',
+        'Find all usages of a symbol (function, class, variable, type) across the codebase using ripgrep. Defaults to TypeScript/TSX files; pass fileType to search other languages (e.g. py, go, rs).',
       schema: z.object({
         symbol: z.string().describe('The symbol name to search for (exact word match)'),
         scope: z.string().optional().describe('Limit search to this directory path'),
@@ -114,17 +112,18 @@ export async function createToolSet(
           symbol as string,
           scope as string | undefined,
           fileType as string | undefined,
+          skipPatterns,
         ),
     },
 
     {
       name: 'trace_imports',
       description:
-        'Trace import/export dependencies for a TypeScript file. Returns what the file imports and which files import it.',
+        'Trace import/export dependencies for a TypeScript/JavaScript file. Returns what the file imports and which files import it.',
       schema: z.object({
         filePath: z.string().describe('Path to the file to analyze (relative to cwd)'),
       }),
-      execute: async ({ filePath }) => traceImports(cwd, filePath as string),
+      execute: async ({ filePath }) => traceImports(cwd, filePath as string, skipPatterns),
     },
 
     {
@@ -144,38 +143,6 @@ export async function createToolSet(
           head as string | undefined,
           file as string | undefined,
           stat as boolean | undefined,
-        ),
-    },
-
-    {
-      name: 'analyze_exports',
-      description:
-        'Analyze public exports from a TypeScript file and optionally compare with a previous version to detect breaking changes.',
-      schema: z.object({
-        filePath: z.string().describe('Path to the file to analyze'),
-        compareWithRef: z
-          .string()
-          .optional()
-          .describe('Git ref to compare with (e.g., main, HEAD~1)'),
-      }),
-      execute: async ({ filePath, compareWithRef }) =>
-        analyzeExports(cwd, filePath as string, compareWithRef as string | undefined),
-    },
-
-    {
-      name: 'find_interface_changes',
-      description: 'Find changes to TypeScript interfaces or types between two git refs',
-      schema: z.object({
-        base: z.string().describe('Base git ref'),
-        head: z.string().optional().describe('Head git ref (defaults to HEAD)'),
-        interfaceName: z.string().optional().describe('Specific interface to check'),
-      }),
-      execute: async ({ base, head, interfaceName }) =>
-        findInterfaceChanges(
-          cwd,
-          base as string,
-          head as string | undefined,
-          interfaceName as string | undefined,
         ),
     },
 

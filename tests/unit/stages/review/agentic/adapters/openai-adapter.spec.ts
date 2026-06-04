@@ -178,7 +178,7 @@ describe('OpenAIAdapter — tools', () => {
     h.findUsages.mockReturnValue('usages');
     const execute = await getToolExecute('find_usages');
     const result = await execute({ symbol: 'myFn' });
-    expect(h.findUsages).toHaveBeenCalledWith(CWD, 'myFn', undefined, undefined);
+    expect(h.findUsages).toHaveBeenCalledWith(CWD, 'myFn', undefined, undefined, undefined);
     expect(result).toBe('usages');
   });
 
@@ -186,7 +186,7 @@ describe('OpenAIAdapter — tools', () => {
     h.traceImports.mockReturnValue('{}');
     const execute = await getToolExecute('trace_imports');
     const result = await execute({ filePath: 'src/foo.ts' });
-    expect(h.traceImports).toHaveBeenCalledWith(CWD, 'src/foo.ts');
+    expect(h.traceImports).toHaveBeenCalledWith(CWD, 'src/foo.ts', undefined);
     expect(result).toBe('{}');
   });
 
@@ -196,22 +196,6 @@ describe('OpenAIAdapter — tools', () => {
     const result = await execute({ base: 'main' });
     expect(h.gitDiffAnalysis).toHaveBeenCalledWith(CWD, 'main', undefined, undefined, undefined);
     expect(result).toBe('diff output');
-  });
-
-  it('analyze_exports tool calls analyzeExports handler', async () => {
-    h.analyzeExports.mockReturnValue('{}');
-    const execute = await getToolExecute('analyze_exports');
-    const result = await execute({ filePath: 'src/foo.ts' });
-    expect(h.analyzeExports).toHaveBeenCalledWith(CWD, 'src/foo.ts', undefined);
-    expect(result).toBe('{}');
-  });
-
-  it('find_interface_changes tool calls findInterfaceChanges handler', async () => {
-    h.findInterfaceChanges.mockReturnValue('changes');
-    const execute = await getToolExecute('find_interface_changes');
-    const result = await execute({ base: 'main' });
-    expect(h.findInterfaceChanges).toHaveBeenCalledWith(CWD, 'main', undefined, undefined);
-    expect(result).toBe('changes');
   });
 
   it('list_changed_files tool calls listChangedFiles handler', async () => {
