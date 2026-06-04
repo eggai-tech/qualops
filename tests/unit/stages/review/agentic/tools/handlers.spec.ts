@@ -6,6 +6,10 @@ jest.mock('minimatch', () => ({ minimatch: jest.fn() }));
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
+import type { minimatch as MinimatchFn } from 'minimatch';
+
+const realMinimatch = jest.requireActual<{ minimatch: typeof MinimatchFn }>('minimatch').minimatch;
+
 const mockGlob = jest.requireMock<{ glob: jest.Mock }>('glob').glob;
 const mockMinimatch = jest.requireMock<{ minimatch: jest.Mock }>('minimatch').minimatch;
 
@@ -141,8 +145,15 @@ describe('traceImports', () => {
   });
 
   it('returns "File excluded" when file matches a skipPattern', () => {
-    mockMinimatch.mockReturnValue(true);
+    mockMinimatch.mockImplementation(realMinimatch);
     const result = traceImports(CWD, 'src/foo.spec.ts', ['**/*.spec.ts']);
+    expect(result).toBe('File excluded: matches skip pattern.');
+    expect(mockExistsSync).not.toHaveBeenCalled();
+  });
+
+  it('blocks skipPattern bypass via path traversal (src/../node_modules/secret.js)', () => {
+    mockMinimatch.mockImplementation(realMinimatch);
+    const result = traceImports(CWD, 'src/../node_modules/secret.js', ['node_modules/**']);
     expect(result).toBe('File excluded: matches skip pattern.');
     expect(mockExistsSync).not.toHaveBeenCalled();
   });
@@ -251,8 +262,20 @@ describe('readFile', () => {
   });
 
   it('returns "File excluded" when file matches a skipPattern', () => {
-    mockMinimatch.mockReturnValue(true);
+    mockMinimatch.mockImplementation(realMinimatch);
     const result = readFile(CWD, 'src/foo.spec.ts', ['**/*.spec.ts']);
+    expect(result).toBe('File excluded: matches skip pattern.');
+  });
+
+  it('blocks skipPattern bypass via ./ prefix (src/../node_modules/secret.js)', () => {
+    mockMinimatch.mockImplementation(realMinimatch);
+    const result = readFile(CWD, 'src/../node_modules/secret.js', ['node_modules/**']);
+    expect(result).toBe('File excluded: matches skip pattern.');
+  });
+
+  it('blocks skipPattern bypass via ./ prefix (./node_modules/secret.js)', () => {
+    mockMinimatch.mockImplementation(realMinimatch);
+    const result = readFile(CWD, './node_modules/secret.js', ['node_modules/**']);
     expect(result).toBe('File excluded: matches skip pattern.');
   });
 

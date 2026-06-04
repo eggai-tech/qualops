@@ -1,11 +1,20 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { glob } from 'glob';
 import { minimatch } from 'minimatch';
 
 import { resolveWithinCwd, isSafeGitRef } from '../../../../shared/utils/security';
 import type { DependencyTrace } from '../types';
+
+function isSkipped(resolvedPath: string, cwd: string, skipPatterns: string[]): boolean {
+  const cwdResolved = resolve(cwd);
+  const rel = resolvedPath.startsWith(cwdResolved + '/')
+    ? resolvedPath.slice(cwdResolved.length + 1)
+    : resolvedPath;
+  return skipPatterns.some((p) => minimatch(rel, p, { dot: true }));
+}
 
 // ─── Safe command execution ────────────────────────────────────────────────────
 
@@ -65,7 +74,7 @@ export function traceImports(cwd: string, filePath: string, skipPatterns?: strin
   const fullPath = resolveWithinCwd(cwd, filePath);
   if (!fullPath) return `Error: Path outside project directory: ${filePath}`;
 
-  if (skipPatterns?.some((p) => minimatch(filePath, p, { dot: true }))) {
+  if (skipPatterns && isSkipped(fullPath, cwd, skipPatterns)) {
     return `File excluded: matches skip pattern.`;
   }
 
@@ -133,7 +142,7 @@ export function readFile(cwd: string, filePath: string, skipPatterns?: string[])
     return `Error: Path outside project directory: ${filePath}`;
   }
 
-  if (skipPatterns?.some((p) => minimatch(filePath, p, { dot: true }))) {
+  if (skipPatterns && isSkipped(resolved, cwd, skipPatterns)) {
     return `File excluded: matches skip pattern.`;
   }
 
