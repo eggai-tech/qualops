@@ -28,10 +28,11 @@ describe('detectCapabilities', () => {
   });
 
   describe('github provider', () => {
-    it('routes gpt-4o to strict (in catalog)', () => {
-      expect(detectCapabilities('github', 'gpt-4o').structuredDialect).toBe(
-        'openai-json-schema-strict',
-      );
+    it('routes gpt-4o to strict, supports temperature, max_tokens', () => {
+      const caps = detectCapabilities('github', 'gpt-4o');
+      expect(caps.structuredDialect).toBe('openai-json-schema-strict');
+      expect(caps.supportsTemperature).toBe(true);
+      expect(caps.maxTokensField).toBe('max_tokens');
     });
 
     it('routes gpt-4o-mini to strict (in catalog with supportsResponseSchema=true)', () => {
@@ -46,6 +47,20 @@ describe('detectCapabilities', () => {
         'unstructured',
       );
     });
+
+    it.each([
+      ['o1', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+      ['o3', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+      ['gpt-5', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+    ])(
+      'routes reasoning model %s: no temperature, max_completion_tokens',
+      (model, dialect, supportsTemperature, maxTokensField) => {
+        const caps = detectCapabilities('github', model);
+        expect(caps.structuredDialect).toBe(dialect);
+        expect(caps.supportsTemperature).toBe(supportsTemperature);
+        expect(caps.maxTokensField).toBe(maxTokensField);
+      },
+    );
   });
 
   describe('anthropic provider', () => {

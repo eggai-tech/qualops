@@ -49,9 +49,9 @@ function lookupCatalog(model: string): CatalogEntry | null {
 export function detectCapabilities(provider: AIProviderName, model: string): ProviderCapabilities {
   switch (provider) {
     case 'openai':
-      return detectOpenAICapabilities(model, false);
+      return detectOpenAICapabilities(model);
     case 'github':
-      return detectOpenAICapabilities(model, true);
+      return detectOpenAICapabilities(model);
     case 'anthropic':
       return detectAnthropicCapabilities(model);
     case 'bedrock':
@@ -63,11 +63,11 @@ export function detectCapabilities(provider: AIProviderName, model: string): Pro
   }
 }
 
-function detectOpenAICapabilities(model: string, isGitHub: boolean): ProviderCapabilities {
+function detectOpenAICapabilities(model: string): ProviderCapabilities {
   // o-series and gpt-5 reasoning models reject `temperature` and require
   // `max_completion_tokens`. This is a separate concern from structured output
   // support — they still support json_schema.
-  const isReasoning = !isGitHub && (/^o[1-9](?:-|$)/.test(model) || /^gpt-5/.test(model));
+  const isReasoning = /^o[1-9](?:-|$)/.test(model) || /^gpt-5/.test(model);
 
   const entry = lookupCatalog(model);
   // Reasoning models detected by regex but absent from the catalog (e.g. o1-preview,
