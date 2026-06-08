@@ -48,7 +48,7 @@ export abstract class BaseAIProvider implements AIProvider {
 
   constructor(stageConfig: ResolvedStageConfig, defaultMaxTokens: number) {
     this.stageConfig = stageConfig;
-    this.maxTokens = defaultMaxTokens;
+    this.maxTokens = stageConfig.maxTokens ?? defaultMaxTokens;
   }
 
   protected get capabilities(): ProviderCapabilities {
