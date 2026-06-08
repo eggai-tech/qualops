@@ -13,14 +13,17 @@ export class OpenAIProvider extends OpenAICompatibleProvider {
       throw new Error(`OPENAI_BASE_URL must be a valid http/https URL, got: ${rawBaseURL}`);
     }
 
+    const isCustomEndpoint = !!rawBaseURL;
+
     super(stageConfig, {
       name: 'openai',
       friendlyName: 'OpenAI',
       apiKey,
       baseURL: rawBaseURL,
+      skipKeyFormatValidation: isCustomEndpoint,
     });
 
-    this.isCustomEndpoint = !!rawBaseURL;
+    this.isCustomEndpoint = isCustomEndpoint;
   }
 
   protected validateApiKey(): void {
@@ -28,7 +31,7 @@ export class OpenAIProvider extends OpenAICompatibleProvider {
       throw new Error('OPENAI_API_KEY environment variable is required for openai provider');
     }
 
-    if (!this.isCustomEndpoint && !this.apiKey.startsWith('sk-')) {
+    if (!this.skipKeyFormatValidation && !this.apiKey.startsWith('sk-')) {
       throw new Error('Invalid OpenAI API key format');
     }
   }
