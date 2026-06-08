@@ -24,11 +24,13 @@ interface OpenAICompatibleProviderConfig {
   friendlyName: 'GitHub Models' | 'OpenAI' | (string & {});
   apiKey?: string;
   baseURL?: string;
+  skipKeyFormatValidation?: boolean;
 }
 
 export abstract class OpenAICompatibleProvider extends BaseAIProvider {
   readonly name: OpenAICompatibleProviderConfig['name'];
   protected readonly apiKey: string;
+  protected readonly skipKeyFormatValidation: boolean;
   private readonly friendlyName: OpenAICompatibleProviderConfig['friendlyName'];
   private readonly baseURL: string | undefined;
   private client: OpenAI | null = null;
@@ -40,6 +42,7 @@ export abstract class OpenAICompatibleProvider extends BaseAIProvider {
     this.friendlyName = providerConfig.friendlyName;
     this.apiKey = providerConfig.apiKey ?? '';
     this.baseURL = providerConfig.baseURL;
+    this.skipKeyFormatValidation = providerConfig.skipKeyFormatValidation ?? false;
 
     this.validateApiKey();
     this.validateConfiguration();

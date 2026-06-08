@@ -77,4 +77,14 @@ describe('OpenAIProvider', () => {
     );
     expect(() => new OpenAIProvider(validStageConfig)).not.toThrow();
   });
+
+  it('should accept a non-sk- key when OPENAI_BASE_URL is set (Azure OpenAI)', () => {
+    mockEnvConfig.get.mockImplementation(
+      envGet(
+        'azure-api-key-abc123',
+        'https://my-resource.openai.azure.com/openai/deployments/gpt-4o',
+      ),
+    );
+    expect(() => new OpenAIProvider(validStageConfig)).not.toThrow();
+  });
 });
