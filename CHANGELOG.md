@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-06-08
+
 ### Fixed
 - Azure OpenAI keys (non-`sk-` format) no longer fail validation when `OPENAI_BASE_URL` is set. The `sk-` prefix check is now correctly skipped for custom endpoints.
 
