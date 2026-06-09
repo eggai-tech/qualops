@@ -104,42 +104,59 @@ Async-first multi-agent meta framework using agent-to-agent message passing over
 
 ---
 
+### Option E — Extract to `@eggai/harness` (new eggai-tech repo)
+
+Create a standalone npm package under the `eggai-tech` GitHub organisation covering the same
+scope as the hand-rolled implementation: agentic loop, context manager, tool dispatch. QualOps
+would become a consumer of that package rather than owning the code directly.
+
+**Pros:**
+- Reusable across other eggai-tech projects and by the community
+- Forces a clean, well-documented public API boundary between harness concerns and
+  QualOps-specific concerns (code review prompts, tool definitions, skip patterns)
+- Community contributions improve the harness without QualOps being the sole maintainer
+- Validates the design against other use cases, surfacing hidden QualOps-specific assumptions
+
+**Cons:**
+- Requires creating and maintaining a new open-source repo: CI, releases, semver, changelog,
+  documentation, issue triage
+- QualOps acquires a runtime dependency on a package the same team owns — version drift is
+  self-inflicted but still real (breaking changes require coordinated releases)
+- The harness design needs to stabilise first; extracting too early locks in an API that may
+  still need to change as QualOps workloads reveal new requirements
+- Until a second eggai-tech project needs the same harness, the overhead of a separate repo
+  is not justified by reuse benefit
+
+---
+
 ### Comparison
 
-| Criterion                  | A — Hand-rolled   | B — Vercel AI SDK  | C — puristajs      | D — EggAI         |
-|----------------------------|-------------------|--------------------|--------------------|-------------------|
-| TypeScript-native          | ✅                | ✅                 | ✅                 | ⚠️ unclear        |
-| Built-in agentic loop      | ✅                | ✅                 | ✅                 | ❌                |
-| OpenAI wire format         | ✅                | ✅                 | ✅                 | ✅ via LiteLLM    |
-| Context window management  | ✅ built-in       | ❌ caller-owned    | ❓ undocumented    | ❌                |
-| Error-as-tool-result       | ✅                | ⚠️ streaming only  | ❓                 | ❌                |
-| GitHub stars               | —                 | 24,700             | 1                  | 47                |
-| Zero added dependencies    | ✅                | ❌                 | ❌                 | ❌                |
+| Criterion                  | A — Hand-rolled   | B — Vercel AI SDK  | C — puristajs      | D — EggAI          | E — @eggai/harness  |
+|----------------------------|-------------------|--------------------|--------------------|--------------------|---------------------|
+| TypeScript-native          | ✅                | ✅                 | ✅                 | ⚠️ unclear         | ✅                  |
+| Built-in agentic loop      | ✅                | ✅                 | ✅                 | ❌                 | ✅ (planned)        |
+| OpenAI wire format         | ✅                | ✅                 | ✅                 | ✅ via LiteLLM     | ✅ (planned)        |
+| Context window management  | ✅ built-in       | ❌ caller-owned    | ❓ undocumented    | ❌                 | ✅ (planned)        |
+| Error-as-tool-result       | ✅                | ⚠️ streaming only  | ❓                 | ❌                 | ✅ (planned)        |
+| GitHub stars               | —                 | 24,700             | 1                  | 47                 | — (new)             |
+| Zero added dependencies    | ✅                | ❌                 | ❌                 | ❌                 | ❌                  |
+| Reusable outside QualOps   | ❌                | ✅                 | ✅                 | ✅                 | ✅                  |
 
-## Proposed decision: Option A — hand-rolled harness
+## Proposed decision: Option A — build inside QualOps
 
-The only credible external alternative is the Vercel AI SDK (Option B). It has strong community
-health but lacks the one feature that makes this harness non-trivial: proactive context window
-management with summarisation. Adopting it would require adding a second dependency for token
-counting and re-implementing the context manager anyway — more moving parts, not fewer.
+Option A is the recommended starting point. Build the harness inside QualOps, let the design
+stabilise against real code review workloads, then revisit once there is evidence that the
+approach should change.
 
-puristajs/harness (Option C) is the closest architectural match, but at 1 GitHub star and less
-than five weeks old it carries unacceptable maintenance risk for a production tool. A dependency
-on a single-maintainer library this early in its lifecycle is hard to justify.
-
-eggai-tech/EggAI (Option D) is architecturally mismatched. Its distributed Kafka model is the
-wrong abstraction for an embedded synchronous loop.
-
-The hand-rolled approach keeps QualOps self-contained, avoids version drift in a critical path,
-and allows the context manager to be tuned specifically for code review workloads where tool
-output can be unusually large.
-
-**This decision should be revisited if:**
-- The Vercel AI SDK adds built-in context window management with summarisation support.
-- A harness library with >1k stars, multiple contributors, and built-in context management
-  reaches maturity.
-- QualOps needs multi-agent orchestration (e.g. a planner agent delegating to specialist
-  agents) that the current flat single-agent loop cannot serve.
+**Revisit when:**
+- A second eggai-tech project needs an agentic loop — Option E (`@eggai/harness`) becomes
+  viable and the reuse benefit justifies a separate repo
+- The Vercel AI SDK (Option B) adds built-in summarisation-based context management —
+  the main gap that currently rules it out
+- A community harness library with >1k stars and multi-contributor context management
+  reaches maturity — revisit the external dependency options
+- QualOps needs multi-agent orchestration (e.g. a planner delegating to specialist agents)
+  that the current flat loop cannot serve — revisit graph-based options or Option E
 
 ## Architecture
 
