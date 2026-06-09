@@ -102,7 +102,7 @@
     "zod": "^4.3.6"
   },
   "optionalDependencies": {
-    "@anthropic-ai/claude-agent-sdk-linux-arm64": "0.3.162",
+    "@anthropic-ai/claude-agent-sdk-linux-arm64": "0.3.169",
     "@anthropic-ai/claude-agent-sdk-linux-x64": "0.3.169"
   },
   "devDependencies": {
