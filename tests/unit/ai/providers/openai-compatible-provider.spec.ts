@@ -521,6 +521,11 @@ describe('OpenAICompatibleProvider', () => {
       expect(provider.getMaxTokens()).toBe(8000);
     });
 
+    it('should use stageConfig.maxTokens when set', () => {
+      provider = new TestProvider({ ...validStageConfig, maxTokens: 4096 });
+      expect(provider.getMaxTokens()).toBe(4096);
+    });
+
     it('should return configured temperature', () => {
       provider = new TestProvider({ ...validStageConfig, temperature: 0.5 });
       expect(provider.getTemperature()).toBe(0.5);

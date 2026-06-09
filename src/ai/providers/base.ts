@@ -48,7 +48,7 @@ export abstract class BaseAIProvider implements AIProvider {
 
   constructor(stageConfig: ResolvedStageConfig, defaultMaxTokens: number) {
     this.stageConfig = stageConfig;
-    this.maxTokens = defaultMaxTokens;
+    this.maxTokens = stageConfig.maxTokens ?? defaultMaxTokens;
   }
 
   protected get capabilities(): ProviderCapabilities {
@@ -60,6 +60,10 @@ export abstract class BaseAIProvider implements AIProvider {
 
   abstract initialize(): Promise<void>;
   abstract isAvailable(): boolean;
+
+  isUnstructured(): boolean {
+    return this.capabilities.structuredDialect === 'unstructured';
+  }
 
   complete<S extends z.ZodType>(
     options: AICompletionOptionsWithSchema<S>,

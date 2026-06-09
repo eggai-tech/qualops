@@ -68,6 +68,7 @@ describe('generateReport', () => {
     diffReport: jest.fn().mockReturnValue('/session/diff.html'),
     judgeDecision: jest.fn().mockReturnValue('/session/judge.json'),
     htmlReport: jest.fn().mockReturnValue('/session/report.html'),
+    proseReport: jest.fn().mockReturnValue('/session/prose-report.md'),
   };
 
   const mockCollectedData = {
