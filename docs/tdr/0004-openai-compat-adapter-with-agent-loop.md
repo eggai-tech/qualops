@@ -85,78 +85,152 @@ writing).
 
 ---
 
-### Option D — eggai-tech/EggAI
+### Option D — configurable-agent (eggai-tech in-house harness)
 
-Async-first multi-agent meta framework using agent-to-agent message passing over Kafka channels.
+A standalone TypeScript service (Node 22, ESM) built and maintained by the eggai-tech team,
+already in production use for other agents in the organisation. It runs an agentic for-loop
+(`runAgent()`) built on the **Vercel AI SDK (`ai` v5)** with:
+- Streaming each step via `streamText()`
+- `ToolSet` injection via `RunAgentOptions.tools` — QualOps passes its own tools without MCP
+- Structured `AgentEvent` callbacks (`tool_call`, `tool_result`, `content_delta`, `final`, `error`)
+- Context compaction (LLM-based summarisation at 100k tokens) and tool output summarisation (>4k tokens)
+- OpenAI-compatible endpoints via `@ai-sdk/openai-compatible` (provider: `ollama` or `openai-compatible`, configurable `baseUrl`)
 
-**Community:** 47 GitHub stars · last commit Mar 2026.
-
-**Pros:**
-- Multi-language (Python, JS, Go, etc.) via shared Kafka transport.
-- Vendor-agnostic via LiteLLM integration.
-
-**Cons:**
-- **Architectural mismatch.** Distributed Kafka message-passing model vs. an embedded
-  synchronous CLI loop. Not designed as a single-agent conversation harness.
-- No built-in conversation loop for tool calling.
-- No context window management.
-- Kafka client dependency is heavyweight for a CLI that does synchronous code review.
-
----
-
-### Option E — Extract to `@eggai/harness` (new eggai-tech repo)
-
-Create a standalone npm package under the `eggai-tech` GitHub organisation covering the same
-scope as the hand-rolled implementation: agentic loop, context manager, tool dispatch. QualOps
-would become a consumer of that package rather than owning the code directly.
+**Current state:** `runAgent()` exists and is tested, but is not yet exposed as a public library
+entry point. A one-time extraction is needed before QualOps can depend on it.
 
 **Pros:**
-- Reusable across other eggai-tech projects and by the community
-- Forces a clean, well-documented public API boundary between harness concerns and
-  QualOps-specific concerns (code review prompts, tool definitions, skip patterns)
-- Community contributions improve the harness without QualOps being the sole maintainer
-- Validates the design against other use cases, surfacing hidden QualOps-specific assumptions
+- Loop, context compaction, and tool output summarisation already built and tested in production
+- Vercel AI SDK foundation — OpenAI-compatible endpoints supported natively
+- `ToolSet` injection path already exists — no MCP server required
+- `AgentEvent` emitter pattern is clean and observable
+- Maintained by the same organisation — no external dependency risk, aligned direction
+- Removes ~300 lines of hand-rolled loop from QualOps
 
 **Cons:**
-- Requires creating and maintaining a new open-source repo: CI, releases, semver, changelog,
-  documentation, issue triage
-- QualOps acquires a runtime dependency on a package the same team owns — version drift is
-  self-inflicted but still real (breaking changes require coordinated releases)
-- The harness design needs to stabilise first; extracting too early locks in an API that may
-  still need to change as QualOps workloads reveal new requirements
-- Until a second eggai-tech project needs the same harness, the overhead of a separate repo
-  is not justified by reuse benefit
+- `runAgent()` is not yet a public library API — requires a one-time library entry point extraction in the configurable-agent repo
+- QualOps tools (Zod schema + execute function) must be adapted to Vercel AI SDK `ToolSet` shape
+- `AgentConfig` is currently YAML/file-driven — QualOps must construct it programmatically
+- Streaming-first design: QualOps must accumulate `content_delta` events until `final` to get output string
+- Replaces our tested context manager with configurable-agent's compaction (different threshold: 100k tokens vs 60% proactive — needs validation)
+- `provider` enum covers `anthropic | openai | google | ollama` — `openai-compatible` may need to be added or `ollama` repurposed as the generic path
 
 ---
 
 ### Comparison
 
-| Criterion                  | A — Hand-rolled   | B — Vercel AI SDK  | C — puristajs      | D — EggAI          | E — @eggai/harness  |
-|----------------------------|-------------------|--------------------|--------------------|--------------------|---------------------|
-| TypeScript-native          | ✅                | ✅                 | ✅                 | ⚠️ unclear         | ✅                  |
-| Built-in agentic loop      | ✅                | ✅                 | ✅                 | ❌                 | ✅ (planned)        |
-| OpenAI wire format         | ✅                | ✅                 | ✅                 | ✅ via LiteLLM     | ✅ (planned)        |
-| Context window management  | ✅ built-in       | ❌ caller-owned    | ❓ undocumented    | ❌                 | ✅ (planned)        |
-| Error-as-tool-result       | ✅                | ⚠️ streaming only  | ❓                 | ❌                 | ✅ (planned)        |
-| GitHub stars               | —                 | 24,700             | 1                  | 47                 | — (new)             |
-| Zero added dependencies    | ✅                | ❌                 | ❌                 | ❌                 | ❌                  |
-| Reusable outside QualOps   | ❌                | ✅                 | ✅                 | ✅                 | ✅                  |
+| Criterion                  | A — Hand-rolled   | B — Vercel AI SDK  | C — puristajs      | D — configurable-agent |
+|----------------------------|-------------------|--------------------|--------------------|-----------------------|
+| TypeScript-native          | ✅                | ✅                 | ✅                 | ✅                    |
+| Built-in agentic loop      | ✅                | ✅                 | ✅                 | ✅                    |
+| OpenAI wire format         | ✅                | ✅                 | ✅                 | ✅ via Vercel AI SDK  |
+| Context window management  | ✅ built-in       | ❌ caller-owned    | ❓ undocumented    | ✅ built-in           |
+| Error-as-tool-result       | ✅                | ⚠️ streaming only  | ❓                 | ✅ via AgentEvent     |
+| GitHub stars               | —                 | 24,700             | 1                  | — (internal)          |
+| Zero added dependencies    | ✅                | ❌                 | ❌                 | ❌                    |
+| Reusable outside QualOps   | ❌                | ✅                 | ✅                 | ✅ (by design)        |
+| Same-org ownership         | ✅                | ❌                 | ❌                 | ✅                    |
 
-## Proposed decision: Option A — build inside QualOps
+## Decision: Option D — configurable-agent
 
-Option A is the recommended starting point. Build the harness inside QualOps, let the design
-stabilise against real code review workloads, then revisit once there is evidence that the
-approach should change.
+Option D is the recommended approach. The configurable-agent harness is built by the same
+eggai-tech team, already production-tested, and removes the maintenance burden of a hand-rolled
+loop from QualOps. The `tools` injection path (`RunAgentOptions.tools`) means QualOps does not
+need to run MCP servers — it constructs its own `ToolSet` at call time. The Vercel AI SDK
+already handles OpenAI-compatible endpoints, satisfying the core requirement.
 
-**Revisit when:**
-- A second eggai-tech project needs an agentic loop — Option E (`@eggai/harness`) becomes
-  viable and the reuse benefit justifies a separate repo
-- The Vercel AI SDK (Option B) adds built-in summarisation-based context management —
-  the main gap that currently rules it out
-- A community harness library with >1k stars and multi-contributor context management
-  reaches maturity — revisit the external dependency options
-- QualOps needs multi-agent orchestration (e.g. a planner delegating to specialist agents)
-  that the current flat loop cannot serve — revisit graph-based options or Option E
+Beyond QualOps, standardising on configurable-agent's `AgentEvent` API creates shared
+infrastructure for the wider eggai-tech agent portfolio: the structured event stream is the
+natural integration point for external observability tools (Langfuse), and a config-driven
+`AgentConfig` supports low-code deployment patterns that reduce the audit surface clients
+must review before approving production use. These benefits compound as more agents in the
+organisation adopt the same harness.
+
+## Technical tasks
+
+### Phase 1 — Prerequisite refactors
+
+These changes should be made before any integration work begins. They make both repositories
+cleaner independently of each other and remove the need for workarounds in the adapter.
+
+#### configurable-agent
+
+**1. Add `openai-compatible` as a named provider**
+
+`model.ts` currently handles OpenAI-compatible endpoints only via the `ollama` case, which calls
+`createOpenAICompatible({ name: 'ollama', baseURL })` without passing an API key. This silently
+breaks any authenticated endpoint (Mistral, Groq, DeepSeek, etc.).
+
+Add `openai-compatible` to the `ModelProvider` enum, add `apiKey?: string` to the `model` object
+in `AgentConfigSchema`, and add a corresponding case in `buildModel`:
+
+```typescript
+case 'openai-compatible': {
+  const baseURL = cfg.baseUrl ?? process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1';
+  const apiKey  = cfg.apiKey  ?? process.env.OPENAI_API_KEY  ?? '';
+  const compat  = createOpenAICompatible({ name: 'openai-compatible', baseURL, apiKey });
+  return compat(cfg.name);
+}
+```
+
+**Why not reuse `ollama`?** Injecting a Mistral API key via `OLLAMA_BASE_URL` / `OLLAMA_API_KEY`
+is misleading and fragile. A named provider is clearer and avoids confusion in logs and telemetry.
+
+---
+
+**2. Expose `runAgent` and types as a library entry point**
+
+`runAgent`, `AgentConfig`, `AgentEmitter`, `AgentEvent`, and `RunAgentOptions` are defined and
+tested but not reachable from outside the package. Add a library entry point:
+
+```json
+// package.json
+"exports": {
+  ".": "./dist/index.js",
+  "./lib": "./dist/lib/index.js"
+}
+```
+
+```typescript
+// lib/index.ts
+export { runAgent, prepareMessages } from './agent/loop.js';
+export type { RunAgentOptions }      from './agent/loop.js';
+export type { AgentConfig }          from './config/schema.js';
+export type { AgentEmitter, AgentEvent, ToolResult } from './agent/events.js';
+```
+
+#### QualOps
+
+**4. Remove `OpenAICompatAdapter` and `context-manager.ts`**
+
+The hand-rolled agentic adapter (`src/stages/review/agentic/adapters/openai-compat-adapter.ts`)
+and context manager (`src/stages/review/agentic/adapters/context-manager.ts`) are replaced by
+the configurable-agent integration. Removing them before writing the new adapter avoids confusion
+about which loop is active and eliminates dead code in the test suite.
+
+---
+
+### Phase 2 — Integration
+
+Once the Phase 1 refactors are merged in both repos:
+
+1. **Add dependency** on configurable-agent (local path dep initially, then published to npm).
+
+2. **New adapter** `ConfigurableAgentAdapter` implementing `AgentAdapter`:
+   - Constructs `AgentConfig` programmatically from `AgentAdapterParams`
+     (systemPrompt, model, maxTurns → maxSteps, maxOutputTokens, baseUrl, apiKey)
+   - Converts QualOps `ToolDefinition[]` to Vercel AI SDK `ToolSet` format
+   - Calls `runAgent(config, [userMessage], emitter, undefined, { tools })`
+   - Accumulates `content_delta` events into an output string; maps `error` event codes to
+     `errorSubtype` values; extracts token usage from the `final` event
+
+3. **Register adapter** — wire `ConfigurableAgentAdapter` in
+   `src/stages/review/agentic/adapters/index.ts` for both `anthropic` and `openai-compatible`
+   providers (replacing `AnthropicAdapter`, `OpenAIAdapter`, and `OpenAICompatibleAdapter`).
+
+No existing code changes — purely additive.
+
+---
 
 ## Architecture
 
@@ -166,55 +240,58 @@ approach should change.
          │  run(params)
          ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  OpenAICompatAdapter                                            │
+│  ConfigurableAgentAdapter (QualOps)                                 │
+│                                                                 │
+│  · Constructs AgentConfig from AgentAdapterParams               │
+│  · Converts ToolDefinition[] → Vercel AI SDK ToolSet            │
+│  · Accumulates AgentEvent stream into AgentAdapterResult        │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │  runAgent(config, messages, emit, options)
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  configurable-agent: runAgent()                                 │
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Session state: ChatMessage[]                            │   │
+│  │  Message history: CoreMessage[]                          │   │
 │  │  [ system ] [ user ] [ assistant ] [ tool ] [ ... ]      │   │
 │  └───────────────────────┬──────────────────────────────────┘   │
 │                          │                                      │
-│          ┌───── turn loop (1..maxTurns) ──────────────┐         │
+│          ┌───── step loop (1..maxSteps) ──────────────┐         │
 │          │                                            │         │
 │          │  ┌─────────────────────────┐               │         │
-│          │  │  ContextManager         │               │         │
-│          │  │  maybeSummarize()       │               │         │
-│          │  │  · estimate tokens      │               │         │
-│          │  │  · if > 60% window:     │               │         │
-│          │  │    summarise oldest     │               │         │
-│          │  │    exchange → [summary] │               │         │
-│          │  │    fallback: truncate   │               │         │
+│          │  │  Context Compaction     │               │         │
+│          │  │  · trigger at 100k tok  │               │         │
+│          │  │  · LLM-based summary    │               │         │
+│          │  │  · tool output >4k tok  │               │         │
+│          │  │    summarised inline    │               │         │
 │          │  └────────────┬────────────┘               │         │
-│          │               │ compressed history         │         │
+│          │               │ compacted history          │         │
 │          │               ▼                            │         │
 │          │  ┌─────────────────────────┐               │         │
-│          │  │  fetchWithRetry()       │               │         │
-│          │  │  POST /chat/completions │◄──────────────┼────────►│ LLM endpoint
-│          │  │  · 429/5xx: backoff×3   │               │         │
-│          │  │  · 401: immediate fail  │               │         │
+│          │  │  streamText()           │               │         │
+│          │  │  (Vercel AI SDK)        │◄──────────────┼────────►│ LLM endpoint
+│          │  │  · @ai-sdk/openai-      │               │         │
+│          │  │    compatible           │               │         │
 │          │  └────────────┬────────────┘               │         │
-│          │               │ ChatCompletionResponse     │         │
+│          │               │ StreamTextResult           │         │
 │          │               ▼                            │         │
-│          │       finish_reason?                       │         │
-│          │       ├─ stop ──────────────────► return output      │
-│          │       ├─ length ────────────────► error_max_tokens   │
-│          │       ├─ content_filter ────────► error_content_filter
-│          │       └─ tool_calls                        │         │
+│          │       stopReason?                          │         │
+│          │       ├─ stop ──── emit final ──────────── ┼── ✓     │
+│          │       ├─ length ── emit error(code) ─────── ┼── ✗    │
+│          │       └─ tool-calls                        │         │
 │          │               │                            │         │
 │          │               ▼                            │         │
 │          │  ┌─────────────────────────┐               │         │
 │          │  │  Tool Dispatch          │               │         │
 │          │  │  (sequential)           │               │         │
-│          │  │  · resolve by name      │               │         │
-│          │  │  · parse JSON args      │               │         │
-│          │  │  · execute handler      │               │         │
-│          │  │  · append tool result   │               │         │
+│          │  │  · execute ToolSet fn   │               │         │
+│          │  │  · emit tool_call       │               │         │
+│          │  │  · emit tool_result     │               │         │
 │          │  └─────────────────────────┘               │         │
 │          │                                            │         │
 │          └────────────────────────────────────────────┘         │
 │                          │                                      │
-│               maxTurns exceeded → error_max_turns               │
-│                                                                 │
-│  finally: toolSet.dispose()                                     │
+│               maxSteps exceeded → emit error(max_steps)         │
 └─────────────────────────────────────────────────────────────────┘
          │
          │  AgentAdapterResult { output, inputTokens, outputTokens, errorSubtype? }
@@ -222,94 +299,63 @@ approach should change.
   Caller (AgenticExecutor)
 ```
 
-The harness is composed of three layers:
+The integration is composed of two layers:
 
-### Adapter
+### QualOps Adapter
 
-The adapter (`OpenAICompatAdapter`) is the entry point and owns the session lifecycle. It
-implements an **imperative while loop** — the same pattern used by the OpenAI Agents SDK and
-smolagents. The alternative (a declarative graph such as LangGraph's `StateGraph`) is more
-expressive for multi-agent topologies but adds conceptual overhead that is unnecessary for
-flat single-agent reasoning.
+The QualOps adapter (`ConfigurableAgentAdapter`) bridges `AgentAdapterParams` and
+`configurable-agent`'s `runAgent()`. It is responsible for:
 
-The adapter receives a system prompt, a user prompt, a set of tool definitions, and configuration
-— model name, endpoint URL, API key, and a turn budget. It builds an initial message history and
-enters the loop.
+1. **Config construction** — building an `AgentConfig` programmatically from `AgentAdapterParams`
+   (model name, endpoint URL, API key, maxSteps, maxOutputTokens) rather than loading a YAML file.
 
-On each turn it sends the current history to the endpoint and waits for a reply. If the model
-signals it is done (`finish_reason: stop`) the loop exits and the assistant's final text is
-returned. If the model requests tool calls, the adapter dispatches each one, appends the results,
-and continues to the next turn.
+2. **Tool conversion** — mapping QualOps `ToolDefinition[]` (Zod schema + execute function) to
+   Vercel AI SDK `ToolSet` format (`{ description, parameters: z.ZodType, execute }`). This is
+   the same shape QualOps tools already have; the conversion is mechanical.
 
-The adapter handles HTTP-level errors with exponential backoff for rate limiting (429) and server
-errors (5xx), and maps each terminal condition to a stable `errorSubtype` string that callers can
-match without parsing error messages. This gives callers a machine-readable signal for every
-failure mode.
+3. **Event accumulation** — subscribing to `AgentEmitter` callbacks and:
+   - Concatenating `content_delta` events into an output string
+   - Mapping `error` event codes to `errorSubtype` values that callers can match
+   - Extracting token usage from the `final` event to populate `AgentAdapterResult`
 
-Tool errors — unknown tool names, malformed arguments, execution failures — are handled using the
-**error-as-tool-result pattern**: the error is formatted as a `tool` role message and appended to
-history, letting the model observe what went wrong and recover in the next turn. This is the same
-pattern used by the OpenAI Agents SDK's `ToolErrorFormatter`. The alternative (throwing the
-error to the caller) would abort the session for what are often recoverable conditions.
+The adapter is stateless between `run()` calls. All session state lives inside `runAgent()`.
 
-The adapter is stateless between `run()` calls; all session state lives in the message history.
-Subagent orchestration is not supported — the model reasons flat using the provided tools.
+### configurable-agent Loop
 
-### Context Manager
+`runAgent()` implements an **imperative for-loop** over `streamText()` steps — the same pattern
+used by the OpenAI Agents SDK and smolagents. The alternative (a declarative graph such as
+LangGraph's `StateGraph`) is more expressive for multi-agent topologies but adds conceptual
+overhead that is unnecessary for flat single-agent reasoning.
 
-The context manager (`maybeSummarize`) is called at the start of each turn, before the request
-is sent. It estimates the token count of the current history and compares it against the known
-context limit for the model.
+**Context compaction** triggers at 100k tokens (reactive, after receiving a response). When
+the threshold is exceeded, older messages are summarised by an LLM call and replaced with a
+`[COMPACTED CONTEXT]` system message; the 6 most recent messages are always kept verbatim.
+Both thresholds are hardcoded in `ConfigurableAgentAdapter` and are not currently surfaced
+as `.qualopsrc.json` configuration.
 
-**Why 60%, not 80%?** Letta/MemGPT triggers compression at 80% because it works *reactively*:
-the response has already been received and is in hand. This harness compresses *proactively*,
-before sending the next request. The remaining 40% of the window must budget for two things: the
-summarisation call response and the model's next substantive reply. 60% is the correct trigger
-for a proactive strategy; 80% would risk running out of context mid-summarisation.
+**Tool output truncation** fires before compaction: any tool result exceeding 4k tokens is
+trimmed to head 500 + tail 500 characters inline, keeping history manageable before the
+compaction threshold is ever reached.
 
-When compression is needed, the context manager applies **tool exchange atomicity**: the assistant
-message containing tool calls and all of its corresponding tool results are treated as an
-indivisible unit. They are summarised or dropped together, never split. (smolagents enforces the
-same principle via its `ActionStep` abstraction; Letta has a `group_id` field but enforces it
-weakly.) Splitting a tool call from its result would leave the model with an inconsistent view of
-what happened.
+**Tool exchange atomicity** is maintained: the Vercel AI SDK treats each step's tool calls and
+results as a unit. Tool output summarisation (>4k tokens per result) reduces history bloat before
+it reaches the compaction threshold.
 
-The **preservation contract** is explicit: the system message at index 0 and the original user
-task at index 1 are architecturally protected and are never compressed or dropped, regardless of
-context pressure. This mirrors Letta's pinned `in_context_messages[0]` and smolagents'
-immutable `SystemPromptStep`.
-
-Token counting uses an approximation (`estimateTokens` on `JSON.stringify(history)`) rather than
-exact per-token counting (e.g. tiktoken). This is a deliberate performance trade-off. The
-consequence of a false positive is an extra summarisation call; the consequence of a false
-negative would be a context overflow. The approximation errs toward early compression.
-
-If the summary call fails, the context manager falls back to hard truncation: dropping the oldest
-tool exchange entirely. System and user messages are always preserved.
-
-### Tool Dispatch
-
-Tool definitions are Zod schemas. Before the first request, the adapter converts each schema to
-JSON Schema (draft-7 target) using the existing `schemaToJsonSchema` utility. Draft-7 is chosen
-over draft-2020-12 because some vendor endpoints have narrow JSON Schema parsers that reject the
-newer `$schema` markers.
-
-Tool calls are dispatched **sequentially**. This is not an arbitrary constraint — LangGraph,
-the OpenAI Agents SDK, and smolagents all default to sequential execution for the same reason:
-stateful tools cannot be safely interleaved. The bash session tool maintains shell state between
-calls (working directory, environment variables, running processes). Parallel dispatch would
-produce non-deterministic results. LangGraph's `Send` API enables parallel execution, but only
-for tools that are stateless and idempotent — a prerequisite that does not hold here.
+**Tool dispatch is sequential**. This is not an arbitrary constraint — LangGraph, the OpenAI
+Agents SDK, and smolagents all default to sequential execution for the same reason: stateful tools
+cannot be safely interleaved. The bash session tool maintains shell state between calls (working
+directory, environment variables, running processes). Parallel dispatch would produce
+non-deterministic results.
 
 ## Configuration
 
-The `openai-compat` provider is configured inside the standard `ai.reviewStage` block:
+The `openai-compatible` provider is configured inside the standard `ai.reviewStage` block:
 
 ```json
 {
   "ai": {
     "reviewStage": {
-      "provider": "openai-compat",
+      "provider": "openai-compatible",
       "model": "mistral-small-latest",
       "baseURL": "https://api.mistral.ai/v1",
       "apiKeyEnvVar": "MISTRAL_API_KEY",
@@ -336,8 +382,9 @@ litellm capability catalog. No manual configuration is required.
 
 - **Budget enforcement.** `maxBudgetUsd` is accepted and passed through but not enforced.
 
-- **Streaming.** Responses are collected in full before processing. Streaming would require
-  assembling partial `tool_calls` deltas before dispatch and is a non-trivial addition.
+- **Streaming to the caller.** `runAgent()` streams internally (Vercel AI SDK `streamText`),
+  but QualOps collects the full output via `AgentEvent` accumulation before returning
+  `AgentAdapterResult`. Surfacing incremental output to the CLI is not yet implemented.
 
 - **Parallel tool execution.** Tool calls are always sequential. LangGraph's `Send` API is the
   industry model for parallel dispatch, but it requires all tools to be stateless and idempotent.
@@ -349,3 +396,8 @@ litellm capability catalog. No manual configuration is required.
   returns an HTTP 400. The harness surfaces this as an unhandled error. Proactive compression
   reduces the probability but does not eliminate it; a per-tool result size limit would be the
   correct fix.
+
+- **On-behalf-of (OBO) auth flows.** The harness passes a static API key per session.
+  Delegated identity flows — where the agent acts on behalf of an authenticated end-user and
+  token acquisition is tied to that user's session — are not yet supported by configurable-agent
+  and are out of scope for V1.
