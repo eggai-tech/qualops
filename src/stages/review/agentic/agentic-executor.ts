@@ -110,8 +110,8 @@ export class AgenticExecutor {
             workspaceRoot: this.config.bash?.workspaceRoot ?? this.cwd,
           },
         },
-        baseUrl: stageConfig.baseUrl as string | undefined,
-        apiKey: stageConfig.apiKey as string | undefined,
+        baseUrl: stageConfig.baseUrl,
+        apiKey: stageConfig.apiKey,
         onToolCall: (turn, name, input) => {
           turnIndex = turn;
           allToolCalls.push({ turn, name, input });

@@ -333,14 +333,23 @@ export class ConfigService {
   getResolvedStageConfig(stage: string): ResolvedStageConfig {
     const raw = this.getAIStageConfig(stage);
     const { provider, model } = this.resolveModel({ stage: raw });
-    const baseUrl = raw.baseUrl ?? process.env.OPENAI_BASE_URL;
-    const apiKey = raw.apiKey ?? process.env.OPENAI_API_KEY;
+    const credentials = this.resolveCredentials(provider, raw);
+    return { ...raw, provider, model, ...credentials };
+  }
+
+  private resolveCredentials(
+    provider: AIProviderName,
+    raw: AIStageConfig,
+  ): { baseUrl?: string; apiKey?: string } {
+    if (provider === 'openai-compatible') {
+      return {
+        baseUrl: raw.baseUrl ?? process.env.OPENAI_BASE_URL,
+        apiKey: raw.apiKey ?? process.env.OPENAI_API_KEY,
+      };
+    }
     return {
-      ...raw,
-      provider,
-      model,
-      ...(baseUrl !== undefined && { baseUrl }),
-      ...(apiKey !== undefined && { apiKey }),
+      ...(raw.baseUrl !== undefined && { baseUrl: raw.baseUrl }),
+      ...(raw.apiKey !== undefined && { apiKey: raw.apiKey }),
     };
   }
 

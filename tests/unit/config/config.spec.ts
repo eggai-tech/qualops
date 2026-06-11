@@ -562,6 +562,64 @@ describe('ConfigService', () => {
         'AI configuration for stage "review" not found in .qualopsrc.json',
       );
     });
+
+    it('uses config baseUrl/apiKey for openai-compatible provider', () => {
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'openai-compatible', name: 'my-model' } as any,
+          inputPerMillion: 1,
+          outputPerMillion: 2,
+          baseUrl: 'https://my.api/v1',
+          apiKey: 'sk-config',
+        },
+      });
+      const result = instance.getResolvedStageConfig('review');
+      expect(result.baseUrl).toBe('https://my.api/v1');
+      expect(result.apiKey).toBe('sk-config');
+    });
+
+    it('falls back to OPENAI_BASE_URL/OPENAI_API_KEY env vars for openai-compatible', () => {
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'openai-compatible', name: 'my-model' } as any,
+          inputPerMillion: 1,
+          outputPerMillion: 2,
+        },
+      });
+      const origBase = process.env.OPENAI_BASE_URL;
+      const origKey = process.env.OPENAI_API_KEY;
+      process.env.OPENAI_BASE_URL = 'https://env.api/v1';
+      process.env.OPENAI_API_KEY = 'sk-env';
+      try {
+        const result = instance.getResolvedStageConfig('review');
+        expect(result.baseUrl).toBe('https://env.api/v1');
+        expect(result.apiKey).toBe('sk-env');
+      } finally {
+        process.env.OPENAI_BASE_URL = origBase;
+        process.env.OPENAI_API_KEY = origKey;
+      }
+    });
+
+    it('does not apply OPENAI env vars for non-openai-compatible providers', () => {
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'anthropic', name: 'claude-sonnet-4-6' } as any,
+          inputPerMillion: 3,
+          outputPerMillion: 15,
+        },
+      });
+      const origBase = process.env.OPENAI_BASE_URL;
+      process.env.OPENAI_BASE_URL = 'https://should-not-appear/v1';
+      try {
+        const result = instance.getResolvedStageConfig('review');
+        expect(result.baseUrl).toBeUndefined();
+      } finally {
+        process.env.OPENAI_BASE_URL = origBase;
+      }
+    });
   });
 
   describe('resolveAgentModel', () => {
