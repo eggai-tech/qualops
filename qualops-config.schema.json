@@ -190,6 +190,15 @@
           "description": "Optional model output token cap.",
           "type": "integer",
           "minimum": 1
+        },
+        "baseUrl": {
+          "description": "Base URL for openai-compatible providers. Defaults to OPENAI_BASE_URL env var.",
+          "type": "string",
+          "format": "uri"
+        },
+        "apiKey": {
+          "description": "API key for openai-compatible providers. Defaults to OPENAI_API_KEY env var.",
+          "type": "string"
         }
       },
       "passthrough": true

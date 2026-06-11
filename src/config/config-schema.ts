@@ -73,6 +73,12 @@ const aiStageConfigSchema = z
       .optional()
       .meta({ description: 'Sampling temperature used by compatible providers.' }),
     maxTokens: z.int().min(1).optional().meta({ description: 'Optional model output token cap.' }),
+    baseUrl: z.string().url().optional().meta({
+      description: 'Base URL for openai-compatible providers. Defaults to OPENAI_BASE_URL env var.',
+    }),
+    apiKey: z.string().optional().meta({
+      description: 'API key for openai-compatible providers. Defaults to OPENAI_API_KEY env var.',
+    }),
   })
   .passthrough()
   .meta({

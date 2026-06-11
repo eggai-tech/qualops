@@ -333,7 +333,15 @@ export class ConfigService {
   getResolvedStageConfig(stage: string): ResolvedStageConfig {
     const raw = this.getAIStageConfig(stage);
     const { provider, model } = this.resolveModel({ stage: raw });
-    return { ...raw, provider, model };
+    const baseUrl = raw.baseUrl ?? process.env.OPENAI_BASE_URL;
+    const apiKey = raw.apiKey ?? process.env.OPENAI_API_KEY;
+    return {
+      ...raw,
+      provider,
+      model,
+      ...(baseUrl !== undefined && { baseUrl }),
+      ...(apiKey !== undefined && { apiKey }),
+    };
   }
 
   /**

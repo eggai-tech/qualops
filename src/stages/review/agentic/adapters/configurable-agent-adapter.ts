@@ -13,18 +13,11 @@ function toJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<string, unknow
   return rest;
 }
 
-function resolveProvider(model: string): AgentConfig['model']['provider'] {
-  if (model.startsWith('claude')) return 'anthropic';
-  if (model.startsWith('gpt') || model.startsWith('o1') || model.startsWith('o3')) return 'openai';
-  return 'openai-compatible';
-}
-
 function buildAgentConfig(params: AgentAdapterParams) {
-  const provider = params.baseUrl ? 'openai-compatible' : resolveProvider(params.model);
   return {
     systemPrompt: params.systemPrompt,
     model: {
-      provider,
+      provider: 'openai-compatible' as const,
       name: params.model,
       ...(params.baseUrl && { baseUrl: params.baseUrl }),
       ...(params.apiKey !== undefined && { apiKey: params.apiKey }),
