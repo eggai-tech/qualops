@@ -201,7 +201,8 @@
         "anthropic",
         "openai",
         "bedrock",
-        "github"
+        "github",
+        "openai-compatible"
       ]
     },
     "nonEmptyString": {

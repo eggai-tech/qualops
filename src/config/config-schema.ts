@@ -14,7 +14,7 @@ const severityList = z.array(severity).min(1).meta({
   uniqueItems: true,
 });
 export const aiProvider = z
-  .enum(['anthropic', 'openai', 'bedrock', 'github'])
+  .enum(['anthropic', 'openai', 'bedrock', 'github', 'openai-compatible'])
   .meta({ defName: 'aiProvider', description: 'Supported AI provider names.' });
 const confidenceScore = z.int().min(1).max(10).meta({
   defName: 'confidenceScore',

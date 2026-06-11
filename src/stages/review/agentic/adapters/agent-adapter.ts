@@ -17,6 +17,8 @@ export interface AgentAdapterParams {
   skipPatterns?: string[];
   toolConfig: ToolConfig;
   onToolCall?: (turn: number, name: string, input: unknown) => void;
+  baseUrl?: string;
+  apiKey?: string;
 }
 
 export interface AgentAdapterResult {
