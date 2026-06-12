@@ -13,9 +13,29 @@ function toJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<string, unknow
   return rest;
 }
 
-function buildAgentConfig(params: AgentAdapterParams) {
+function buildSystemPrompt(params: AgentAdapterParams, toolNames: string[]): string {
+  const parts = [params.systemPrompt];
+
+  const agentEntries = Object.entries(params.agents ?? {});
+  if (agentEntries.length > 0) {
+    parts.push('## Review perspectives\n');
+    for (const [name, def] of agentEntries) {
+      parts.push(`### ${name}\n${def.prompt}`);
+    }
+  }
+
+  if (toolNames.length > 0) {
+    parts.push(
+      `## Available tools\nYou have access to the following tools to investigate the codebase: ${toolNames.join(', ')}. Use them to trace cross-file issues, verify patterns, and confirm findings before reporting.`,
+    );
+  }
+
+  return parts.filter(Boolean).join('\n\n');
+}
+
+function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
   return {
-    systemPrompt: params.systemPrompt,
+    systemPrompt: buildSystemPrompt(params, toolNames),
     model: {
       provider: 'openai-compatible' as const,
       name: params.model,
@@ -34,8 +54,11 @@ function buildAgentConfig(params: AgentAdapterParams) {
 
 export class ConfigurableAgentAdapter implements AgentAdapter {
   async run(params: AgentAdapterParams): Promise<AgentAdapterResult> {
-    const config = buildAgentConfig(params);
     const qualopsTools = await createToolSet(params.cwd, params.toolConfig, params.skipPatterns);
+    const config = buildAgentConfig(
+      params,
+      qualopsTools.tools.map((t) => t.name),
+    );
 
     const tools: Record<
       string,
