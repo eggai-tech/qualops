@@ -76,6 +76,16 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
       };
     }
 
+    // Maps configurable-agent error codes to qualops error subtypes.
+    // Codes not in this map are treated as unrecoverable and will throw.
+    const ERROR_SUBTYPE_MAP: Record<string, string> = {
+      tool_call_on_final_step: 'error_max_turns',
+      stream_error: 'error_provider_unavailable',
+      rate_limit_tokens: 'error_rate_limit_tokens',
+      max_tokens_reached: 'error_max_tokens',
+      structured_output_failed: 'error_content_filter',
+    };
+
     try {
       let output = '';
       let inputTokens: number | undefined;
@@ -101,39 +111,21 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
                 `[Agentic/ConfigurableAgent] Finished. steps=${event.steps}, stopReason=${event.stopReason}`,
               );
               break;
-            case 'error':
+            case 'error': {
               logger.warn(
                 `[Agentic/ConfigurableAgent] Error: code=${event.code} — ${event.message}`,
               );
-              switch (event.code) {
-                case 'tool_call_on_final_step':
-                  errorSubtype = 'error_max_turns';
-                  break;
-                case 'stream_error':
-                  errorSubtype = 'error_provider_unavailable';
-                  if (event.partialContent) {
-                    logger.warn(
-                      `[Agentic/ConfigurableAgent] Recovering partial response (${event.partialContent.length} chars)`,
-                    );
-                    output = event.partialContent;
-                  }
-                  break;
-                case 'rate_limit_tokens':
-                  errorSubtype = 'error_rate_limit_tokens';
-                  if (event.partialContent) {
-                    logger.warn(
-                      `[Agentic/ConfigurableAgent] Recovering partial response before rate limit (${event.partialContent.length} chars)`,
-                    );
-                    output = event.partialContent;
-                  }
-                  break;
-                case 'structured_output_failed':
-                  errorSubtype = 'error_content_filter';
-                  break;
-                default:
-                  throw new Error(`Agent failed: ${event.message}`);
+              const subtype = ERROR_SUBTYPE_MAP[event.code];
+              if (!subtype) throw new Error(`Agent failed: ${event.message}`);
+              errorSubtype = subtype;
+              if (event.partialContent) {
+                logger.warn(
+                  `[Agentic/ConfigurableAgent] Recovering partial response (${event.partialContent.length} chars)`,
+                );
+                output = event.partialContent;
               }
               break;
+            }
             default:
               break;
           }

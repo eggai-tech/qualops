@@ -128,10 +128,14 @@ export class AgenticExecutor {
         output: result.errorSubtype ? { error: result.errorSubtype } : result.output,
       });
 
-      if (result.errorSubtype === 'error_rate_limit_tokens') {
+      // Hard failures: errors where the response cannot be trusted even partially.
+      // Add new unrecoverable error subtypes here.
+      const HARD_FAILURES = new Set(['error_rate_limit_tokens', 'error_max_tokens']);
+
+      if (result.errorSubtype && HARD_FAILURES.has(result.errorSubtype)) {
         throw new Error(
-          `[Agentic] Job "${this.job.name}" failed: input tokens consumed the entire TPM budget leaving no room for output. ` +
-            `Reduce the number of files reviewed per job or upgrade your rate limit tier.`,
+          `[Agentic] Job "${this.job.name}" failed: ${result.errorSubtype}. ` +
+            `Reduce the number of files reviewed per job or check your model configuration.`,
         );
       }
 
@@ -146,8 +150,7 @@ export class AgenticExecutor {
         const parsed = parseIssuesFromResult(result.output, files, this.job.name, this.cwd);
         if (parsed.length === 0 && result.output.trim().length > 0) {
           logger.warn(
-            `[Agentic] Job "${this.job.name}" returned output but no parseable issues — response may be truncated (${result.output.length} chars). ` +
-              `This is often caused by token rate limits leaving insufficient tokens for the response.`,
+            `[Agentic] Job "${this.job.name}" returned output but no parseable issues — response may be truncated (${result.output.length} chars).`,
           );
         }
         issues.push(...parsed);
