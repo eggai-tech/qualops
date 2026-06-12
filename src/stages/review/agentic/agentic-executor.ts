@@ -181,40 +181,6 @@ export class AgenticExecutor {
       parts.push(content);
     }
 
-    const customPrompt = parts.join('\n\n');
-
-    return `You are a code reviewer. File contents and diffs are provided below.
-
-${customPrompt}
-
-## Process
-
-1. Analyze the provided code/diffs
-2. Use Grep/Glob ONLY if checking external dependencies
-3. Output JSON findings
-
-## Output Format
-
-\`\`\`json
-[
-  {
-    "type": "security|bug|performance|maintainability",
-    "severity": "critical|high|medium|low",
-    "description": "What the issue is",
-    "location": "src/file.ts:42",
-    "reasoning": "Why this is a problem",
-    "suggestion": "How to fix it",
-    "confidence": 8
-  }
-]
-\`\`\`
-
-If no issues found, output: \`\`\`json\n[]\n\`\`\`
-
-## Rules
-
-- confidence >= 7
-- Focus on changed code
-- Max 10 tool calls`;
+    return parts.join('\n\n');
   }
 }

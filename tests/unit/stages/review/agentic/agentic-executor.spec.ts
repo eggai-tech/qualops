@@ -127,9 +127,9 @@ describe('AgenticExecutor — systemPrompt / prompt composition', () => {
     mockCreateAgentAdapter.mockReset();
   });
 
-  it('uses default prompt when neither systemPrompt nor prompt is set', async () => {
+  it('passes empty system prompt when neither systemPrompt nor prompt is set', async () => {
     await runExecutor(makeJob());
-    expect(capturedParams?.systemPrompt).toContain('You are a code reviewer');
+    expect(capturedParams?.systemPrompt).toBe('');
   });
 
   it('injects inline systemPrompt into the system message', async () => {
