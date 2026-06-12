@@ -45,17 +45,11 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
         execute: (args: Record<string, unknown>) => Promise<string>;
       }
     > = {};
-    let turnIndex = 0;
     for (const def of qualopsTools.tools) {
       tools[def.name] = {
         description: def.description,
         inputSchema: jsonSchema(toJsonSchema(def.schema)),
-        execute: async (args: Record<string, unknown>) => {
-          turnIndex++;
-          logger.info(`[Agentic/ConfigurableAgent] Tool call: ${def.name}`);
-          params.onToolCall?.(turnIndex, def.name, args);
-          return def.execute(args);
-        },
+        execute: (args: Record<string, unknown>) => def.execute(args),
       };
     }
 
@@ -64,12 +58,18 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
       let inputTokens: number | undefined;
       let outputTokens: number | undefined;
       let errorSubtype: string | undefined;
+      let turnIndex = 0;
 
       await runAgent(
         config,
         [{ role: 'user', content: params.userPrompt }],
         async (event: AgentEvent) => {
           switch (event.type) {
+            case 'tool_call':
+              turnIndex++;
+              logger.info(`[Agentic/ConfigurableAgent] Tool call: ${event.name}`);
+              params.onToolCall?.(turnIndex, event.name, event.args);
+              break;
             case 'final':
               output = event.content;
               inputTokens = event.usage?.inputTokens;
