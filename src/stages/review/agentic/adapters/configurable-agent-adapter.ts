@@ -26,7 +26,7 @@ function buildSystemPrompt(params: AgentAdapterParams, toolNames: string[]): str
 
   if (toolNames.length > 0) {
     parts.push(
-      `## Available tools\nYou have access to the following tools to investigate the codebase: ${toolNames.join(', ')}. Use them to trace cross-file issues, verify patterns, and confirm findings before reporting.`,
+      `## Available tools\nThe following tools are available. Use their EXACT names when calling them — do not use aliases like Read, Grep, or Glob:\n${toolNames.map((n) => `- ${n}`).join('\n')}\n\nUse these tools to trace cross-file issues, verify patterns, and confirm findings before reporting.`,
     );
   }
 
