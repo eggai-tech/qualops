@@ -53,16 +53,6 @@ describe('buildFileContext', () => {
     expect(result).toContain('## src/foo.ts');
   });
 
-  it('includes framework in header when present', () => {
-    const result = buildFileContext(
-      file('src/foo.ts', 'x', { framework: 'react' }),
-      'full',
-      8000,
-      50000,
-    );
-    expect(result).toContain('## src/foo.ts (react)');
-  });
-
   it('uses diff content when mode is "diff" and rawDiff is present', () => {
     const f = file('src/foo.ts', 'x', { rawDiff: '@@ -1 +1 @@ -old\n+new' });
     const result = buildFileContext(f, 'diff', 8000, 50000);

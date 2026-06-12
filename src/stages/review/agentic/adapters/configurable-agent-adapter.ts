@@ -76,6 +76,12 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
       };
     }
 
+    // --- DEBUG ---
+    process.stderr.write('\n=== [DEBUG] SYSTEM PROMPT ===\n' + config.systemPrompt + '\n');
+    process.stderr.write('\n=== [DEBUG] USER PROMPT ===\n' + params.userPrompt + '\n');
+    process.stderr.write('=== [DEBUG] END PROMPTS ===\n\n');
+    // --- END DEBUG ---
+
     try {
       let output = '';
       let inputTokens: number | undefined;
@@ -102,15 +108,35 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
               );
               break;
             case 'error':
-              logger.error(
-                `[Agentic/ConfigurableAgent] Error: code=${event.code} ${event.message}`,
+              logger.warn(
+                `[Agentic/ConfigurableAgent] Error: code=${event.code} — ${event.message}`,
               );
+              if (event.details) {
+                process.stderr.write(
+                  `\n=== [DEBUG] ERROR DETAILS ===\n${JSON.stringify(event, null, 2)}\n=== [DEBUG] END ERROR ===\n\n`,
+                );
+              }
               switch (event.code) {
                 case 'tool_call_on_final_step':
                   errorSubtype = 'error_max_turns';
                   break;
                 case 'stream_error':
                   errorSubtype = 'error_provider_unavailable';
+                  if (event.partialContent) {
+                    logger.warn(
+                      `[Agentic/ConfigurableAgent] Recovering partial response (${event.partialContent.length} chars)`,
+                    );
+                    output = event.partialContent;
+                  }
+                  break;
+                case 'rate_limit_tokens':
+                  errorSubtype = 'error_rate_limit_tokens';
+                  if (event.partialContent) {
+                    logger.warn(
+                      `[Agentic/ConfigurableAgent] Recovering partial response before rate limit (${event.partialContent.length} chars)`,
+                    );
+                    output = event.partialContent;
+                  }
                   break;
                 case 'structured_output_failed':
                   errorSubtype = 'error_content_filter';

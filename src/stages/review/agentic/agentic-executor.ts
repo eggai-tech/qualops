@@ -128,13 +128,32 @@ export class AgenticExecutor {
         output: result.errorSubtype ? { error: result.errorSubtype } : result.output,
       });
 
-      if (result.output) {
-        logger.info(
-          `[Agentic] Success result (first 500 chars): ${result.output.substring(0, 500)}`,
+      if (result.errorSubtype === 'error_rate_limit_tokens') {
+        throw new Error(
+          `[Agentic] Job "${this.job.name}" failed: input tokens consumed the entire TPM budget leaving no room for output. ` +
+            `Reduce the number of files reviewed per job or upgrade your rate limit tier.`,
         );
+      }
+
+      if (result.errorSubtype) {
+        logger.warn(
+          `[Agentic] Job "${this.job.name}" completed with error: ${result.errorSubtype}`,
+        );
+      }
+
+      if (result.output) {
+        logger.info(`[Agentic] Result (first 500 chars): ${result.output.substring(0, 500)}`);
         const parsed = parseIssuesFromResult(result.output, files, this.job.name, this.cwd);
+        if (parsed.length === 0 && result.output.trim().length > 0) {
+          logger.warn(
+            `[Agentic] Job "${this.job.name}" returned output but no parseable issues — response may be truncated (${result.output.length} chars). ` +
+              `This is often caused by token rate limits leaving insufficient tokens for the response.`,
+          );
+        }
         issues.push(...parsed);
         logger.info(`[Agentic] Parsed ${parsed.length} issues from result`);
+      } else if (result.errorSubtype) {
+        logger.warn(`[Agentic] Job "${this.job.name}" returned no output — review incomplete`);
       }
     } catch (error) {
       logger.error(
