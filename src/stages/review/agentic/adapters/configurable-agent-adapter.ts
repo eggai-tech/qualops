@@ -1,4 +1,4 @@
-import { runAgent, jsonSchema } from '@eggai/configurable-agent/lib';
+import { runAgent, jsonSchema, createOpenAICompatible } from '@eggai/configurable-agent/lib';
 import type { AgentConfig, AgentEvent } from '@eggai/configurable-agent/lib';
 import { z } from 'zod';
 
@@ -40,7 +40,6 @@ function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
       provider: 'openai-compatible' as const,
       name: params.model,
       ...(params.baseUrl && { baseUrl: params.baseUrl }),
-      ...(params.apiKey !== undefined && { apiKey: params.apiKey }),
     },
     agent: { maxSteps: params.maxTurns },
     mcpTools: [],
@@ -52,8 +51,15 @@ function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
   } satisfies AgentConfig;
 }
 
+function buildModel(params: AgentAdapterParams) {
+  const baseURL = params.baseUrl ?? process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1';
+  const apiKey = params.apiKey ?? process.env.OPENAI_API_KEY ?? '';
+  return createOpenAICompatible({ name: 'openai-compatible', baseURL, apiKey })(params.model);
+}
+
 export class ConfigurableAgentAdapter implements AgentAdapter {
   async run(params: AgentAdapterParams): Promise<AgentAdapterResult> {
+    const model = buildModel(params);
     const qualopsTools = await createToolSet(params.cwd, params.toolConfig, params.skipPatterns);
     const config = buildAgentConfig(
       params,
@@ -131,7 +137,7 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
           }
         },
         undefined,
-        { tools: tools as never },
+        { tools: tools as never, model },
       );
 
       return { output, inputTokens, outputTokens, errorSubtype };
