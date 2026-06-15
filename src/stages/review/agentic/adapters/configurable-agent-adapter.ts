@@ -111,8 +111,8 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
               break;
             case 'final':
               output = event.content;
-              inputTokens = event.usage?.inputTokens;
-              outputTokens = event.usage?.outputTokens;
+              inputTokens = event.usage.inputTokens;
+              outputTokens = event.usage.outputTokens;
               logger.info(
                 `[Agentic/ConfigurableAgent] Finished. steps=${event.steps}, stopReason=${event.stopReason}`,
               );
