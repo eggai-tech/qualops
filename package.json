@@ -103,7 +103,7 @@
   },
   "optionalDependencies": {
     "@anthropic-ai/claude-agent-sdk-linux-arm64": "0.3.169",
-    "@anthropic-ai/claude-agent-sdk-linux-x64": "0.3.169"
+    "@anthropic-ai/claude-agent-sdk-linux-x64": "0.3.178"
   },
   "devDependencies": {
     "@types/diff": "^7.0.2",
