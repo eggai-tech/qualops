@@ -7,7 +7,7 @@ export class OpenAIProvider extends OpenAICompatibleProvider {
 
   constructor(stageConfig: ResolvedStageConfig) {
     const apiKey = envConfig.get('openaiApiKey') || '';
-    const rawBaseURL = envConfig.get('openaiApiBase');
+    const rawBaseURL = stageConfig.baseUrl ?? envConfig.get('openaiBaseUrl');
 
     if (rawBaseURL && !/^https?:\/\//i.test(rawBaseURL)) {
       throw new Error(`OPENAI_BASE_URL must be a valid http/https URL, got: ${rawBaseURL}`);
@@ -27,6 +27,9 @@ export class OpenAIProvider extends OpenAICompatibleProvider {
   }
 
   protected validateApiKey(): void {
+    // openai-compatible providers (e.g., Ollama) may not require an API key
+    if (this.stageConfig.provider === 'openai-compatible') return;
+
     if (!this.apiKey) {
       throw new Error('OPENAI_API_KEY environment variable is required for openai provider');
     }

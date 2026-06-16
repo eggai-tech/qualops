@@ -345,10 +345,11 @@ export class ConfigService {
     raw: AIStageConfig,
   ): { baseUrl?: string; apiKey?: string } {
     if (provider === 'openai-compatible') {
-      return {
-        baseUrl: raw.baseUrl ?? process.env.OPENAI_BASE_URL,
-        apiKey: raw.apiKey ?? process.env.OPENAI_API_KEY,
-      };
+      const baseUrl = raw.baseUrl ?? envConfig.get('openaiBaseUrl');
+      if (baseUrl && !/^https?:\/\//i.test(baseUrl)) {
+        throw new Error(`baseUrl must be an http or https URL, got: ${baseUrl}`);
+      }
+      return { baseUrl };
     }
     return {
       ...(raw.baseUrl !== undefined && { baseUrl: raw.baseUrl }),

@@ -579,7 +579,7 @@ describe('ConfigService', () => {
       );
     });
 
-    it('uses config baseUrl/apiKey for openai-compatible provider', () => {
+    it('uses config baseUrl for openai-compatible provider (apiKey always from env)', () => {
       const instance = ConfigService.getInstance();
       instance.set('ai', {
         reviewStage: {
@@ -587,15 +587,18 @@ describe('ConfigService', () => {
           inputPerMillion: 1,
           outputPerMillion: 2,
           baseUrl: 'https://my.api/v1',
-          apiKey: 'sk-config',
         },
       });
       const result = instance.getResolvedStageConfig('review');
       expect(result.baseUrl).toBe('https://my.api/v1');
-      expect(result.apiKey).toBe('sk-config');
+      expect(result.apiKey).toBeUndefined();
     });
 
-    it('falls back to OPENAI_BASE_URL/OPENAI_API_KEY env vars for openai-compatible', () => {
+    it('falls back to OPENAI_BASE_URL env var for openai-compatible baseUrl', () => {
+      mockEnvConfig.get = jest.fn((key: any) => {
+        if (key === 'openaiBaseUrl') return 'https://env.api/v1';
+        return undefined;
+      });
       const instance = ConfigService.getInstance();
       instance.set('ai', {
         reviewStage: {
@@ -604,18 +607,41 @@ describe('ConfigService', () => {
           outputPerMillion: 2,
         },
       });
-      const origBase = process.env.OPENAI_BASE_URL;
-      const origKey = process.env.OPENAI_API_KEY;
-      process.env.OPENAI_BASE_URL = 'https://env.api/v1';
-      process.env.OPENAI_API_KEY = 'sk-env';
-      try {
-        const result = instance.getResolvedStageConfig('review');
-        expect(result.baseUrl).toBe('https://env.api/v1');
-        expect(result.apiKey).toBe('sk-env');
-      } finally {
-        process.env.OPENAI_BASE_URL = origBase;
-        process.env.OPENAI_API_KEY = origKey;
-      }
+      const result = instance.getResolvedStageConfig('review');
+      expect(result.baseUrl).toBe('https://env.api/v1');
+    });
+
+    it('throws when baseUrl is not http/https for openai-compatible', () => {
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'openai-compatible', name: 'my-model' } as any,
+          inputPerMillion: 1,
+          outputPerMillion: 2,
+          baseUrl: 'file:///etc/passwd',
+        },
+      });
+      expect(() => instance.getResolvedStageConfig('review')).toThrow(
+        'baseUrl must be an http or https URL',
+      );
+    });
+
+    it('throws when OPENAI_BASE_URL env var is not http/https for openai-compatible', () => {
+      mockEnvConfig.get = jest.fn((key: any) => {
+        if (key === 'openaiBaseUrl') return 'ftp://evil.example.com';
+        return undefined;
+      });
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'openai-compatible', name: 'my-model' } as any,
+          inputPerMillion: 1,
+          outputPerMillion: 2,
+        },
+      });
+      expect(() => instance.getResolvedStageConfig('review')).toThrow(
+        'baseUrl must be an http or https URL',
+      );
     });
 
     it('does not apply OPENAI env vars for non-openai-compatible providers', () => {
