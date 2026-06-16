@@ -12,6 +12,7 @@ import type {
 } from '../shared/types';
 import type { AgenticConfig } from '../shared/types/config';
 import { logger } from '../shared/utils/logger';
+import { assertHttpUrl } from '../shared/utils/security';
 
 export const FILE_NAMES = {
   ANALYSIS: 'analysis.json',
@@ -346,9 +347,7 @@ export class ConfigService {
   ): { baseUrl?: string; apiKey?: string } {
     if (provider === 'openai-compatible') {
       const baseUrl = raw.baseUrl ?? envConfig.get('openaiBaseUrl');
-      if (baseUrl && !/^https?:\/\//i.test(baseUrl)) {
-        throw new Error(`baseUrl must be an http or https URL, got: ${baseUrl}`);
-      }
+      if (baseUrl) assertHttpUrl(baseUrl);
       return { baseUrl };
     }
     return {

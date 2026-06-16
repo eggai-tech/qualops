@@ -1,6 +1,7 @@
 import { OpenAICompatibleProvider } from './openai-compatible-provider';
 import { envConfig } from '../../config/env';
 import type { ResolvedStageConfig } from '../../shared/types';
+import { assertHttpUrl } from '../../shared/utils/security';
 
 export class OpenAIProvider extends OpenAICompatibleProvider {
   private readonly isCustomEndpoint: boolean;
@@ -9,9 +10,7 @@ export class OpenAIProvider extends OpenAICompatibleProvider {
     const apiKey = envConfig.get('openaiApiKey') || '';
     const rawBaseURL = stageConfig.baseUrl ?? envConfig.get('openaiBaseUrl');
 
-    if (rawBaseURL && !/^https?:\/\//i.test(rawBaseURL)) {
-      throw new Error(`OPENAI_BASE_URL must be a valid http/https URL, got: ${rawBaseURL}`);
-    }
+    if (rawBaseURL) assertHttpUrl(rawBaseURL, 'OPENAI_BASE_URL');
 
     const isCustomEndpoint = !!rawBaseURL;
 

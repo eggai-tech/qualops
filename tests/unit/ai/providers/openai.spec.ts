@@ -67,7 +67,7 @@ describe('OpenAIProvider', () => {
   it('should throw for invalid OPENAI_BASE_URL', () => {
     mockEnvConfig.get.mockImplementation(envGet('sk-test', 'not-a-url'));
     expect(() => new OpenAIProvider(validStageConfig)).toThrow(
-      'OPENAI_BASE_URL must be a valid http/https URL',
+      'OPENAI_BASE_URL must be an http or https URL',
     );
   });
 
@@ -98,7 +98,7 @@ describe('OpenAIProvider', () => {
     mockEnvConfig.get.mockImplementation(envGet('sk-test'));
     const stageConfigWithBase = { ...validStageConfig, baseUrl: 'file:///etc/passwd' };
     expect(() => new OpenAIProvider(stageConfigWithBase)).toThrow(
-      'OPENAI_BASE_URL must be a valid http/https URL',
+      'OPENAI_BASE_URL must be an http or https URL',
     );
   });
 
