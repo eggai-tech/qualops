@@ -67,10 +67,17 @@ runs:
         if [ -n "${{ inputs.base-ref }}" ]; then
           ARGS="$ARGS --base=${{ inputs.base-ref }}"
         elif [ -n "${{ github.base_ref }}" ]; then
-          ARGS="$ARGS --base=${{ github.base_ref }}"
+          BASE=$(git merge-base HEAD "origin/${{ github.base_ref }}")
+          ARGS="$ARGS --base=$BASE"
         fi
 
-        if [ -n "${{ github.sha }}" ]; then
+        # On pull_request events use the PR branch head SHA, not github.sha which
+        # points at the auto-generated merge commit (refs/pull/N/merge). A three-dot
+        # diff against a merge commit only shows conflict-resolution changes (0 files
+        # for clean merges), so the full PR diff is lost.
+        if [ -n "${{ github.event.pull_request.head.sha }}" ]; then
+          ARGS="$ARGS --head=${{ github.event.pull_request.head.sha }}"
+        elif [ -n "${{ github.sha }}" ]; then
           ARGS="$ARGS --head=${{ github.sha }}"
         fi
 
@@ -90,7 +97,10 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
-        cd "$GITHUB_WORKSPACE"
+        # github-integration looks for ./reports/sessions/ relative to cwd.
+        # QualOps writes reports to $GITHUB_WORKSPACE/.qualops/reports/sessions/,
+        # so run from the .qualops directory so the path resolves correctly.
+        cd "$GITHUB_WORKSPACE/.qualops"
         node "${{ github.action_path }}/dist/cli.js" github-integration
 
     - name: Upload QualOps Reports
