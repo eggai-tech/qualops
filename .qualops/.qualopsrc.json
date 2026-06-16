@@ -316,6 +316,7 @@
     "examples/**",
     "docs/**",
     "evals/datasets/**",
-    "**/*.d.ts"
+    "**/*.d.ts",
+    "package-lock.json"
   ]
 }
