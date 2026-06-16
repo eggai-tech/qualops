@@ -53,7 +53,6 @@ export type AIStageConfig = {
   temperature?: number;
   maxTokens?: number;
   baseUrl?: string;
-  apiKey?: string;
   [key: string]: unknown;
 };
 
@@ -65,7 +64,6 @@ export type ResolvedStageConfig = {
   temperature?: number;
   maxTokens?: number;
   baseUrl?: string;
-  apiKey?: string;
   [key: string]: unknown;
 };
 

@@ -515,7 +515,7 @@ describe('ConfigService', () => {
       expect(result.model).toBe('anthropic.claude-3-sonnet');
     });
 
-    it('uses config baseUrl for openai-compatible provider (apiKey always from env)', () => {
+    it('uses config baseUrl for openai-compatible provider', () => {
       const instance = ConfigService.getInstance();
       instance.set('ai', {
         reviewStage: {
@@ -527,7 +527,6 @@ describe('ConfigService', () => {
       });
       const result = instance.getResolvedStageConfig('review');
       expect(result.baseUrl).toBe('https://my.api/v1');
-      expect(result.apiKey).toBeUndefined();
     });
 
     it('falls back to OPENAI_BASE_URL env var for openai-compatible baseUrl', () => {

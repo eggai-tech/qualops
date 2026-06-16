@@ -53,7 +53,7 @@ function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
 
 function buildModel(params: AgentAdapterParams) {
   const baseURL = params.baseUrl ?? process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1';
-  const apiKey = params.apiKey ?? process.env.OPENAI_API_KEY ?? '';
+  const apiKey = process.env.OPENAI_API_KEY ?? '';
   return createOpenAICompatible({ name: 'openai-compatible', baseURL, apiKey })(params.model);
 }
 

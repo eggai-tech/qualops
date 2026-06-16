@@ -111,7 +111,6 @@ export class AgenticExecutor {
           },
         },
         baseUrl: stageConfig.baseUrl,
-        apiKey: stageConfig.apiKey,
         onToolCall: (turn, name, input) => {
           turnIndex = turn;
           allToolCalls.push({ turn, name, input });

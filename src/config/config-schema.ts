@@ -76,9 +76,6 @@ const aiStageConfigSchema = z
     baseUrl: z.string().url().optional().meta({
       description: 'Base URL for openai-compatible providers. Defaults to OPENAI_BASE_URL env var.',
     }),
-    apiKey: z.string().optional().meta({
-      description: 'API key for openai-compatible providers. Defaults to OPENAI_API_KEY env var.',
-    }),
   })
   .passthrough()
   .meta({

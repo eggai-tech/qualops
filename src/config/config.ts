@@ -352,7 +352,6 @@ export class ConfigService {
     }
     return {
       ...(raw.baseUrl !== undefined && { baseUrl: raw.baseUrl }),
-      ...(raw.apiKey !== undefined && { apiKey: raw.apiKey }),
     };
   }
 
