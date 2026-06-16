@@ -191,6 +191,9 @@ export class ConfigService {
     if (this.rawConfig.report) {
       config.report = this.rawConfig.report as Config['report'];
     }
+    if (this.rawConfig.skipPatterns) {
+      config.skipPatterns = this.rawConfig.skipPatterns as string[];
+    }
 
     const env = envConfig.getAll();
 

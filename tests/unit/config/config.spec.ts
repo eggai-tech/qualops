@@ -213,6 +213,22 @@ describe('ConfigService', () => {
       expect(instance.get('cacheEnabled')).toBe(false);
     });
 
+    it('should load skipPatterns from config file', () => {
+      const rcConfig = {
+        ...VALID_MINIMAL_CONFIG,
+        skipPatterns: ['node_modules/**', 'package-lock.json', '**/*.d.ts'],
+      };
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify(rcConfig));
+
+      const instance = ConfigService.getInstance();
+      expect(instance.get('skipPatterns')).toEqual([
+        'node_modules/**',
+        'package-lock.json',
+        '**/*.d.ts',
+      ]);
+    });
+
     it('should enable verbose from environment', () => {
       mockEnvConfig.get = jest.fn((key: any) => {
         if (key === 'verbose') return true;
