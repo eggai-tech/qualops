@@ -59,15 +59,25 @@ runs:
       env:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        # User-supplied inputs passed as env vars to avoid shell injection via inline interpolation
+        INPUT_CONFIG_PATH: ${{ inputs.config-path }}
+        INPUT_BASE_REF: ${{ inputs.base-ref }}
+        INPUT_FILES: ${{ inputs.files }}
+        INPUT_STAGES: ${{ inputs.stages }}
+        # GitHub context values (not user-controlled) kept as interpolations
+        GITHUB_BASE_REF: ${{ github.base_ref }}
+        GITHUB_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        GITHUB_SHA: ${{ github.sha }}
+        GITHUB_ACTION_PATH: ${{ github.action_path }}
       run: |
         cd "$GITHUB_WORKSPACE"
 
-        ARGS="--config=${{ inputs.config-path }}"
+        ARGS="--config=${INPUT_CONFIG_PATH}"
 
-        if [ -n "${{ inputs.base-ref }}" ]; then
-          ARGS="$ARGS --base=${{ inputs.base-ref }}"
-        elif [ -n "${{ github.base_ref }}" ]; then
-          BASE=$(git merge-base HEAD "origin/${{ github.base_ref }}")
+        if [ -n "${INPUT_BASE_REF}" ]; then
+          ARGS="$ARGS --base=${INPUT_BASE_REF}"
+        elif [ -n "${GITHUB_BASE_REF}" ]; then
+          BASE=$(git merge-base HEAD "origin/${GITHUB_BASE_REF}")
           ARGS="$ARGS --base=$BASE"
         fi
 
@@ -75,21 +85,21 @@ runs:
         # points at the auto-generated merge commit (refs/pull/N/merge). A three-dot
         # diff against a merge commit only shows conflict-resolution changes (0 files
         # for clean merges), so the full PR diff is lost.
-        if [ -n "${{ github.event.pull_request.head.sha }}" ]; then
-          ARGS="$ARGS --head=${{ github.event.pull_request.head.sha }}"
-        elif [ -n "${{ github.sha }}" ]; then
-          ARGS="$ARGS --head=${{ github.sha }}"
+        if [ -n "${GITHUB_PR_HEAD_SHA}" ]; then
+          ARGS="$ARGS --head=${GITHUB_PR_HEAD_SHA}"
+        elif [ -n "${GITHUB_SHA}" ]; then
+          ARGS="$ARGS --head=${GITHUB_SHA}"
         fi
 
-        if [ -n "${{ inputs.files }}" ]; then
-          ARGS="$ARGS --files=${{ inputs.files }}"
+        if [ -n "${INPUT_FILES}" ]; then
+          ARGS="$ARGS --files=${INPUT_FILES}"
         fi
 
-        if [ -n "${{ inputs.stages }}" ]; then
-          ARGS="$ARGS --stages=${{ inputs.stages }}"
+        if [ -n "${INPUT_STAGES}" ]; then
+          ARGS="$ARGS --stages=${INPUT_STAGES}"
         fi
 
-        node "${{ github.action_path }}/dist/cli.js" $ARGS
+        node "${GITHUB_ACTION_PATH}/dist/cli.js" $ARGS
 
     - name: Post GitHub Integration
       if: always()

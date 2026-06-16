@@ -3,6 +3,7 @@ import type { AgentConfig, AgentEvent } from '@eggai/configurable-agent/lib';
 import { z } from 'zod';
 
 import type { AgentAdapter, AgentAdapterParams, AgentAdapterResult } from './agent-adapter';
+import { envConfig } from '../../../../config/env';
 import { logger } from '../../../../shared/utils/logger';
 import { createToolSet } from '../tools';
 
@@ -52,8 +53,8 @@ function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
 }
 
 function buildModel(params: AgentAdapterParams) {
-  const baseURL = params.baseUrl ?? process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1';
-  const apiKey = process.env.OPENAI_API_KEY ?? '';
+  const baseURL = params.baseUrl ?? envConfig.get('openaiBaseUrl') ?? 'https://api.openai.com/v1';
+  const apiKey = envConfig.get('openaiApiKey') ?? '';
   return createOpenAICompatible({ name: 'openai-compatible', baseURL, apiKey })(params.model);
 }
 
