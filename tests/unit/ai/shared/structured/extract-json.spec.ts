@@ -40,6 +40,18 @@ describe('extractJsonText', () => {
   it('returns null when no JSON-like content found', () => {
     expect(extractJsonText('just plain text')).toBeNull();
   });
+
+  it('extracts JSON from an unclosed fenced block (truncated response)', () => {
+    const out = extractJsonText('Here is the result:\n```json\n[{"a":1},{"b":2}');
+    expect(out?.source).toBe('fenced');
+    expect(out?.text).toBe('[{"a":1},{"b":2}');
+  });
+
+  it('extracts JSON from unclosed bare ``` block', () => {
+    const out = extractJsonText('Result:\n```\n{"key":"value"');
+    expect(out?.source).toBe('fenced');
+    expect(out?.text).toBe('{"key":"value"');
+  });
 });
 
 describe('escapeUnescapedControlChars', () => {

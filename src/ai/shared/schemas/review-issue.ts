@@ -10,7 +10,7 @@ export const ReviewIssueItemSchema = z
       .describe(
         'Impact severity. critical=exploitable/data-loss; high=functional bug; medium=quality; low=style',
       ),
-    description: z.string().describe('One-sentence summary of the problem'),
+    description: z.string().min(1).describe('One-sentence summary of the problem'),
     location: z
       .string()
       .describe(
@@ -27,7 +27,12 @@ export const ReviewIssueItemSchema = z
         'Short code snippet illustrating the issue. Use \\n for newlines inside the JSON string.',
       ),
     suggestion: z.string().default('').describe('Concrete fix the author should apply'),
-    confidence: z.number().describe('Self-rated confidence from 1 (speculative) to 10 (certain)'),
+    confidence: z
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .describe('Self-rated confidence from 1 (speculative) to 10 (certain)'),
     impact: z.string().optional().describe('Impact if exploited (security issues only)'),
     cwe: z.string().optional().describe('CWE identifier (e.g. "CWE-79") if applicable'),
     threat_model: z

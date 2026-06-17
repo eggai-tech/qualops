@@ -15,6 +15,10 @@ export function extractJsonText(response: string): ExtractedJson | null {
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   if (fenced?.[1]) return { text: fenced[1].trim(), source: 'fenced' };
 
+  // Unclosed code fence (truncated response): extract everything after the opening ```json/```
+  const unclosedFence = trimmed.match(/```(?:json)?\s*([\s\S]+)/i);
+  if (unclosedFence?.[1]) return { text: unclosedFence[1].trim(), source: 'fenced' };
+
   if (looksLikeJson(trimmed)) return { text: trimmed, source: 'raw' };
 
   const arrayMatch = trimmed.match(/(\[[\s\S]*\])/);

@@ -158,7 +158,9 @@ export function recoverPartialJsonArray(text: string): unknown[] {
       depth--;
       if (depth === 0 && start !== -1) {
         try {
-          results.push(JSON.parse(text.slice(start, i + 1)));
+          const chunk = text.slice(start, i + 1);
+          const fixed = escapeUnescapedControlChars(chunk.replace(/,(\s*[}\]])/g, '$1'));
+          results.push(JSON.parse(fixed));
         } catch {
           // skip malformed object
         }
