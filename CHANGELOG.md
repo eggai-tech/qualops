@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Agentic adapters now use SDK-native structured output (same `detectCapabilities()` path as the file-by-file pipeline) instead of heuristic JSON text parsing. `AnthropicAdapter` passes `outputFormat: {type: "json_schema"}`, `OpenAIAdapter` uses `outputType`, and `ConfigurableAgentAdapter` uses `output: {structured: true}` — all gated on `isUnstructured()`. The text fallback path is kept for unstructured models and now restores the pre-QUALOPS-18 trailing-comma fix. Runs that return non-empty non-JSON output now throw instead of silently producing zero findings.
+- `--diff-filter` parameter in `listChangedFiles` agentic tool now validated against the allowed git diff-filter character set (`[ACDMRTUXB*]`), consistent with how `base`/`head` refs are validated via `isSafeGitRef`.
+
 ## [0.2.6] - 2026-06-17
 
 ### Added

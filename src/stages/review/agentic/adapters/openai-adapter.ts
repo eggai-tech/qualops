@@ -1,9 +1,14 @@
 import { Agent, getGlobalTraceProvider, run, setDefaultOpenAIClient, tool } from '@openai/agents';
+import { z } from 'zod';
 
 import type { AgentAdapter, AgentAdapterParams, AgentAdapterResult } from './agent-adapter';
+import { isUnstructured } from '../../../../ai/providers/capabilities';
+import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
 import { envConfig } from '../../../../config/env';
 import { logger } from '../../../../shared/utils/logger';
 import { createToolSet, type ToolSet } from '../tools';
+
+const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
 
 export class OpenAIAdapter implements AgentAdapter {
   async run(params: AgentAdapterParams): Promise<AgentAdapterResult> {
@@ -37,17 +42,39 @@ export class OpenAIAdapter implements AgentAdapter {
         });
       });
 
+      const useStructured = !isUnstructured(params.structuredDialect);
+
       const orchestrator = new Agent({
         name: 'qualops-reviewer',
         model,
         instructions: systemPrompt,
         tools,
         handoffs,
+        ...(useStructured && { outputType: ReviewOutputSchema }),
       });
 
-      logger.info(`[Agentic/OpenAI] Starting run with model=${model}, maxTurns=${maxTurns}`);
+      logger.info(
+        `[Agentic/OpenAI] Starting run with model=${model}, maxTurns=${maxTurns}, structured=${useStructured}`,
+      );
 
       const result = await run(orchestrator, userPrompt, { maxTurns });
+
+      const usage = result.state.usage;
+
+      logger.info(
+        `[Agentic/OpenAI] Run complete. inputTokens=${usage.inputTokens}, outputTokens=${usage.outputTokens}`,
+      );
+
+      if (useStructured) {
+        const structured = result.finalOutput as z.infer<typeof ReviewOutputSchema> | null;
+        logger.info('[Agentic/OpenAI] Received structured output from SDK');
+        return {
+          output: '',
+          structuredOutput: structured?.issues,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+        };
+      }
 
       const output =
         typeof result.finalOutput === 'string'
@@ -55,12 +82,6 @@ export class OpenAIAdapter implements AgentAdapter {
           : result.finalOutput != null
             ? JSON.stringify(result.finalOutput)
             : '';
-
-      const usage = result.state.usage;
-
-      logger.info(
-        `[Agentic/OpenAI] Run complete. inputTokens=${usage.inputTokens}, outputTokens=${usage.outputTokens}`,
-      );
 
       return {
         output,

@@ -129,6 +129,7 @@ export function listChangedFiles(
   if (!isSafeGitRef(base)) return `Error: invalid git ref: ${base}`;
   const headRef = head || 'HEAD';
   if (!isSafeGitRef(headRef)) return `Error: invalid git ref: ${headRef}`;
+  if (filter && !/^[ACDMRTUXB*]+$/i.test(filter)) return `Error: invalid diff filter: ${filter}`;
   const args = ['diff', '--name-status'];
   if (filter) args.push(`--diff-filter=${filter}`);
   args.push(`${base}...${headRef}`);

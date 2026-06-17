@@ -8,9 +8,14 @@ import type {
   AgentAdapterResult,
   AgentErrorSubtype,
 } from './agent-adapter';
+import { isUnstructured } from '../../../../ai/providers/capabilities';
+import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
+import { schemaToJsonSchema } from '../../../../ai/shared/structured';
 import { envConfig } from '../../../../config/env';
 import { logger } from '../../../../shared/utils/logger';
 import { createToolSet } from '../tools';
+
+const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewIssuesSchema);
 
 function toJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<string, unknown> {
   // z.toJSONSchema emits Draft 2020-12 with a $schema key that confuses some providers.
@@ -40,6 +45,7 @@ function buildSystemPrompt(params: AgentAdapterParams, toolNames: string[]): str
 }
 
 function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
+  const useStructured = !isUnstructured(params.structuredDialect);
   return {
     systemPrompt: buildSystemPrompt(params, toolNames),
     model: {
@@ -49,7 +55,9 @@ function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
     },
     agent: { maxSteps: params.maxTurns },
     mcpTools: [],
-    output: { structured: false },
+    output: useStructured
+      ? { structured: true as const, schema: REVIEW_ISSUES_JSON_SCHEMA }
+      : { structured: false as const },
     safety: {
       compaction: { triggerTokens: 100_000, keepRecentMessages: 6 },
       toolOutput: { triggerTokens: 4_000, headChars: 500, tailChars: 500 },
@@ -109,6 +117,7 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
 
     try {
       let output = '';
+      let structuredOutput: unknown = undefined;
       let inputTokens: number | undefined;
       let outputTokens: number | undefined;
       let errorSubtype: AgentErrorSubtype | undefined;
@@ -124,14 +133,21 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
               logger.info(`[Agentic/ConfigurableAgent] Tool call: ${event.name}`);
               params.onToolCall?.(turnIndex, event.name, event.args);
               break;
-            case 'final':
-              output = event.content;
+            case 'final': {
+              const finalEvent = event as typeof event & { structured?: unknown };
+              if (finalEvent.structured !== undefined) {
+                logger.info('[Agentic/ConfigurableAgent] Received structured output from SDK');
+                structuredOutput = finalEvent.structured;
+              } else {
+                output = event.content;
+              }
               inputTokens = event.usage.inputTokens;
               outputTokens = event.usage.outputTokens;
               logger.info(
                 `[Agentic/ConfigurableAgent] Finished. steps=${event.steps}, stopReason=${event.stopReason}`,
               );
               break;
+            }
             case 'error': {
               logger.warn(
                 `[Agentic/ConfigurableAgent] Error: code=${event.code} — ${event.message}`,
@@ -155,7 +171,7 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
         { tools: tools as never, model },
       );
 
-      return { output, inputTokens, outputTokens, errorSubtype };
+      return { output, structuredOutput, inputTokens, outputTokens, errorSubtype };
     } finally {
       await qualopsTools.dispose();
     }

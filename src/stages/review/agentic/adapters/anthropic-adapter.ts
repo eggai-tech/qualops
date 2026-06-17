@@ -1,5 +1,8 @@
 import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 
+import { isUnstructured } from '../../../../ai/providers/capabilities';
+import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
+import { schemaToJsonSchema } from '../../../../ai/shared/structured';
 import { createToolSet, type ToolSet } from '../tools';
 import type {
   AgentAdapter,
@@ -8,6 +11,8 @@ import type {
   AgentErrorSubtype,
 } from './agent-adapter';
 import { logger } from '../../../../shared/utils/logger';
+
+const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewIssuesSchema);
 
 type QueryOptions = Parameters<typeof query>[0]['options'];
 
@@ -54,6 +59,9 @@ function buildQueryOptions(
     ...(model && { model }),
     cwd,
     permissionMode: 'bypassPermissions',
+    ...(!isUnstructured(params.structuredDialect) && {
+      outputFormat: { type: 'json_schema' as const, schema: REVIEW_ISSUES_JSON_SCHEMA },
+    }),
   };
 }
 
@@ -133,6 +141,7 @@ function handleResultMessage(
   message: SDKMessage,
   state: {
     output: string;
+    structuredOutput?: unknown;
     inputTokens?: number;
     outputTokens?: number;
     errorSubtype?: AgentErrorSubtype;
@@ -141,15 +150,21 @@ function handleResultMessage(
   const msg = message as {
     subtype: string;
     result?: string;
+    structured_output?: unknown;
     usage?: { input_tokens?: number; output_tokens?: number };
   };
-  if (msg.subtype === 'success' && msg.result) {
-    logger.info(
-      `[Agentic/Anthropic] Success result (first 500 chars): ${msg.result.substring(0, 500)}`,
-    );
-    state.output = msg.result;
+  if (msg.subtype === 'success') {
     state.inputTokens = msg.usage?.input_tokens;
     state.outputTokens = msg.usage?.output_tokens;
+    if (msg.structured_output !== undefined) {
+      logger.info('[Agentic/Anthropic] Received structured output from SDK');
+      state.structuredOutput = msg.structured_output;
+    } else if (msg.result) {
+      logger.info(
+        `[Agentic/Anthropic] Success result (first 500 chars): ${msg.result.substring(0, 500)}`,
+      );
+      state.output = msg.result;
+    }
   } else if (msg.subtype !== 'success') {
     const mapped = ANTHROPIC_ERROR_SUBTYPE_MAP[msg.subtype] ?? 'error_unexpected';
     if (mapped === 'error_unexpected') {
@@ -173,6 +188,7 @@ export class AnthropicAdapter implements AgentAdapter {
 
       const state = {
         output: '',
+        structuredOutput: undefined as unknown,
         inputTokens: undefined as number | undefined,
         outputTokens: undefined as number | undefined,
         errorSubtype: undefined as AgentErrorSubtype | undefined,

@@ -53,7 +53,9 @@ export function parseIssuesFromResult(
     parsed = JSON.parse(extracted.text);
   } catch {
     try {
-      parsed = JSON.parse(escapeUnescapedControlChars(extracted.text));
+      parsed = JSON.parse(
+        escapeUnescapedControlChars(extracted.text.replace(/,(\s*[}\]])/g, '$1')),
+      );
     } catch (error) {
       logger.warn(`[Agentic] Failed to parse JSON: ${(error as Error).message}`);
       logger.warn(`[Agentic] JSON preview: ${extracted.text.slice(0, 300)}...`);

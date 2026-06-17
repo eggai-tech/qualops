@@ -102,6 +102,37 @@ describe('AgenticExecutor — execute()', () => {
     expect(result).toEqual([]);
   });
 
+  it('parses issues from structuredOutput when adapter returns it', async () => {
+    const issue = {
+      type: 'security',
+      severity: 'high',
+      description: 'SQL injection',
+      location: 'src/db.ts:10',
+      confidence: 9,
+    };
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: '', structuredOutput: [issue] })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    const result = await executor.execute([{ path: 'src/db.ts', content: 'query(input)' }]);
+    expect(result).toHaveLength(1);
+    expect(result[0].description).toBe('SQL injection');
+  });
+
+  it('invokes onToolCall when adapter calls it back', async () => {
+    const onToolCallCapture: { turn: number; name: string }[] = [];
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async (params) => {
+        params.onToolCall?.(1, 'read_file', { filePath: 'src/foo.ts' });
+        onToolCallCapture.push({ turn: 1, name: 'read_file' });
+        return { output: '[]' };
+      }),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
+    expect(onToolCallCapture[0]).toEqual({ turn: 1, name: 'read_file' });
+  });
+
   it('rethrows when adapter throws', async () => {
     mockCreateAgentAdapter.mockReturnValue({
       run: jest.fn(async () => {

@@ -44,6 +44,7 @@ function makeParams(overrides: Partial<AgentAdapterParams> = {}): AgentAdapterPa
     cwd: CWD,
     maxTurns: 10,
     toolConfig: { bash: {} },
+    structuredDialect: 'unstructured',
     ...overrides,
   };
 }
@@ -100,6 +101,19 @@ describe('OpenAIAdapter — run()', () => {
     } as any);
     const result = await new OpenAIAdapter().run(makeParams());
     expect(result.output).toBe('{"key":"val"}');
+  });
+
+  it('returns structuredOutput when structuredDialect is not unstructured', async () => {
+    const issues = [{ description: 'sql injection', confidence: 9 }];
+    mockRunFn.mockResolvedValue({
+      finalOutput: { issues },
+      state: { usage: { inputTokens: 10, outputTokens: 5 } },
+    } as any);
+    const result = await new OpenAIAdapter().run(
+      makeParams({ structuredDialect: 'openai-json-schema-strict' }),
+    );
+    expect(result.structuredOutput).toEqual(issues);
+    expect(result.output).toBe('');
   });
 
   it('passes maxTurns to run()', async () => {

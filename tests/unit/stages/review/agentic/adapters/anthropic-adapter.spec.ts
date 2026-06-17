@@ -29,6 +29,7 @@ function makeParams(overrides: Partial<AgentAdapterParams> = {}): AgentAdapterPa
     cwd: process.cwd(),
     maxTurns: 10,
     toolConfig: { bash: {} },
+    structuredDialect: 'unstructured',
     ...overrides,
   };
 }
@@ -138,6 +139,19 @@ describe('AnthropicAdapter', () => {
     const callOptions = (mockQuery.mock.calls[0][0] as { options: { maxBudgetUsd?: number } })
       .options;
     expect(callOptions.maxBudgetUsd).toBe(2.5);
+  });
+
+  it('returns structuredOutput when result contains structured_output', async () => {
+    const issues = [{ description: 'sql injection', confidence: 9 }];
+    mockQuery.mockReturnValue(
+      (async function* () {
+        yield { type: 'result', subtype: 'success', structured_output: issues };
+      })(),
+    );
+    const adapter = new AnthropicAdapter();
+    const result = await adapter.run(makeParams({ structuredDialect: 'anthropic-output-config' }));
+    expect(result.structuredOutput).toEqual(issues);
+    expect(result.output).toBe('');
   });
 
   it('rethrows when query async generator throws', async () => {

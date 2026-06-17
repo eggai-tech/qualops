@@ -4,12 +4,13 @@ import { createAgentAdapter } from './adapters';
 import type { AgentErrorSubtype } from './adapters/agent-adapter';
 import { AgentLoader } from './loaders/agent-loader';
 import { buildUserPrompt } from './prompt-builder';
-import { parseIssuesFromResult } from './result-parser';
+import { normalizeIssue, parseIssuesFromResult } from './result-parser';
 import {
   createSubagentDefinitions,
   type AgentDefinition,
   type ResolvedAgentDefinition,
 } from './subagents/definitions';
+import { detectCapabilities } from '../../../ai/providers/capabilities';
 import { ConfigService } from '../../../config/config';
 import {
   getTracer,
@@ -92,9 +93,12 @@ export class AgenticExecutor {
 
     try {
       const stageConfig = ConfigService.getInstance().getResolvedStageConfig('review');
+      const { structuredDialect } = detectCapabilities(stageConfig.provider, this.model);
       const adapter = createAgentAdapter(stageConfig.provider);
 
-      logger.info(`[Agentic] Using adapter for provider: ${stageConfig.provider}`);
+      logger.info(
+        `[Agentic] Using adapter for provider: ${stageConfig.provider}, structuredDialect: ${structuredDialect}`,
+      );
 
       const result = await adapter.run({
         systemPrompt,
@@ -112,6 +116,7 @@ export class AgenticExecutor {
           },
         },
         baseUrl: stageConfig.baseUrl,
+        structuredDialect,
         onToolCall: (turn, name, input) => {
           turnIndex = turn;
           allToolCalls.push({ turn, name, input });
@@ -148,12 +153,25 @@ export class AgenticExecutor {
         );
       }
 
-      if (result.output) {
+      if (result.structuredOutput !== undefined) {
+        const rawIssues = Array.isArray(result.structuredOutput) ? result.structuredOutput : [];
+        const parsed = (rawIssues as Record<string, unknown>[])
+          .filter((i) => ((i?.confidence as number) ?? 0) >= 7)
+          .map((i, idx) => normalizeIssue(i, idx, files, this.job.name, this.cwd));
+        issues.push(...parsed);
+        logger.info(`[Agentic] Parsed ${parsed.length} issues from structured output`);
+      } else if (result.output) {
         logger.info(`[Agentic] Result (first 500 chars): ${result.output.substring(0, 500)}`);
         const parsed = parseIssuesFromResult(result.output, files, this.job.name, this.cwd);
-        if (parsed.length === 0 && result.output.trim().length > 0) {
+        // Only throw when output is non-empty but contains no extractable JSON at all.
+        // An empty array [] is a valid model response (no issues found) — not an error.
+        const hasJsonContent = result.output.includes('[') || result.output.includes('{');
+        if (parsed.length === 0 && result.output.trim().length > 0 && !hasJsonContent) {
           logger.warn(
-            `[Agentic] Job "${this.job.name}" returned output but no parseable issues — response may be truncated (${result.output.length} chars).`,
+            `[Agentic] No parseable issues from text output. Raw output preview:\n${result.output.substring(0, 2000)}`,
+          );
+          throw new Error(
+            `[Agentic] Job "${this.job.name}" returned non-empty output but no parseable JSON issues (${result.output.length} chars).`,
           );
         }
         issues.push(...parsed);
