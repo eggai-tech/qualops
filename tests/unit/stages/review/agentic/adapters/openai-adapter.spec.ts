@@ -219,11 +219,15 @@ describe('OpenAIAdapter — tools', () => {
     expect(onToolCall).toHaveBeenCalledWith(1, 'read_file', { filePath: 'src/foo.ts' });
   });
 
-  it('continues without bash tool when startBashSession throws', async () => {
+  it('continues and returns structuredOutput when startBashSession throws', async () => {
+    const issues = [{ description: 'issue', confidence: 8 }];
     mockStartBashSession.mockRejectedValueOnce(new Error('spawn failed'));
-    mockRunFn.mockResolvedValue(makeRunResult() as never);
+    mockRunFn.mockResolvedValue({
+      finalOutput: { issues },
+      state: { usage: { inputTokens: 0, outputTokens: 0 } },
+    } as never);
     const result = await new OpenAIAdapter().run(makeParams());
-    expect(result.output).toBe('');
+    expect(result.structuredOutput).toEqual(issues);
   });
 
   it('calls dispose in finally even when run throws', async () => {

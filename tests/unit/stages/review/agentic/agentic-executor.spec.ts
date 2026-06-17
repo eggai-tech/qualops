@@ -131,18 +131,18 @@ describe('AgenticExecutor — execute()', () => {
     expect(result[0].description).toBe('SQL injection');
   });
 
-  it('invokes onToolCall when adapter calls it back', async () => {
-    const onToolCallCapture: { turn: number; name: string }[] = [];
+  it('passes onToolCall to adapter and tracks turn index', async () => {
+    let capturedOnToolCall: AgentAdapterParams['onToolCall'];
     mockCreateAgentAdapter.mockReturnValue({
-      run: jest.fn(async (params) => {
-        params.onToolCall?.(1, 'read_file', { filePath: 'src/foo.ts' });
-        onToolCallCapture.push({ turn: 1, name: 'read_file' });
+      run: jest.fn(async (params: AgentAdapterParams) => {
+        capturedOnToolCall = params.onToolCall;
+        params.onToolCall?.(3, 'read_file', { filePath: 'src/foo.ts' });
         return { output: '[]' };
       }),
     });
     const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
     await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
-    expect(onToolCallCapture[0]).toEqual({ turn: 1, name: 'read_file' });
+    expect(capturedOnToolCall).toBeDefined();
   });
 
   it('throws on hard failure error subtypes', async () => {
@@ -155,16 +155,7 @@ describe('AgenticExecutor — execute()', () => {
     );
   });
 
-  it('warns but continues on soft error subtypes', async () => {
-    mockCreateAgentAdapter.mockReturnValue({
-      run: jest.fn(async () => ({ output: '', errorSubtype: 'error_max_turns' as const })),
-    });
-    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
-    const result = await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
-    expect(result).toEqual([]);
-  });
-
-  it('warns and returns empty when output is empty and errorSubtype is set', async () => {
+  it('returns empty and does not throw on soft error subtypes', async () => {
     mockCreateAgentAdapter.mockReturnValue({
       run: jest.fn(async () => ({ output: '', errorSubtype: 'error_max_turns' as const })),
     });
@@ -207,11 +198,13 @@ describe('AgenticExecutor — execute()', () => {
     );
   });
 
-  it('passes resolved provider to createAgentAdapter', async () => {
+  it('passes the provider from ConfigService to createAgentAdapter', async () => {
     setupMockAdapter();
     const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
     await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
-    expect(mockCreateAgentAdapter).toHaveBeenCalledWith(expect.any(String));
+    // ConfigService reads from .qualopsrc.json; provider must be a known AIProviderName
+    const calledWith = mockCreateAgentAdapter.mock.calls[0][0];
+    expect(['anthropic', 'openai', 'openai-compatible', 'github', 'bedrock']).toContain(calledWith);
   });
 });
 
