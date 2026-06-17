@@ -20,12 +20,20 @@ export interface AgentAdapterParams {
   baseUrl?: string;
 }
 
+export type AgentErrorSubtype =
+  | 'error_max_turns'
+  | 'error_provider_unavailable'
+  | 'error_rate_limit_tokens'
+  | 'error_max_tokens'
+  | 'error_content_filter'
+  | 'error_unexpected';
+
 export interface AgentAdapterResult {
   output: string;
   inputTokens?: number;
   outputTokens?: number;
-  /** Set when the agent run did not complete successfully (e.g. 'error_max_turns'). */
-  errorSubtype?: string;
+  /** Set when the agent run did not complete successfully. */
+  errorSubtype?: AgentErrorSubtype;
 }
 
 export interface AgentAdapter {

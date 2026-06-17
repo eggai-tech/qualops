@@ -2,7 +2,12 @@ import { runAgent, jsonSchema, createOpenAICompatible } from '@eggai/configurabl
 import type { AgentConfig, AgentEvent } from '@eggai/configurable-agent/lib';
 import { z } from 'zod';
 
-import type { AgentAdapter, AgentAdapterParams, AgentAdapterResult } from './agent-adapter';
+import type {
+  AgentAdapter,
+  AgentAdapterParams,
+  AgentAdapterResult,
+  AgentErrorSubtype,
+} from './agent-adapter';
 import { envConfig } from '../../../../config/env';
 import { logger } from '../../../../shared/utils/logger';
 import { createToolSet } from '../tools';
@@ -85,7 +90,16 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
 
     // Maps configurable-agent error codes to qualops error subtypes.
     // Codes not in this map are treated as unrecoverable and will throw.
-    const ERROR_SUBTYPE_MAP: Record<string, string> = {
+    const ERROR_SUBTYPE_MAP: Partial<
+      Record<
+        | 'tool_call_on_final_step'
+        | 'stream_error'
+        | 'rate_limit_tokens'
+        | 'max_tokens_reached'
+        | 'structured_output_failed',
+        AgentErrorSubtype
+      >
+    > = {
       tool_call_on_final_step: 'error_max_turns',
       stream_error: 'error_provider_unavailable',
       rate_limit_tokens: 'error_rate_limit_tokens',
@@ -97,7 +111,7 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
       let output = '';
       let inputTokens: number | undefined;
       let outputTokens: number | undefined;
-      let errorSubtype: string | undefined;
+      let errorSubtype: AgentErrorSubtype | undefined;
       let turnIndex = 0;
 
       await runAgent(

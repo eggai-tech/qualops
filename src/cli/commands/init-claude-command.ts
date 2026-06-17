@@ -4,7 +4,7 @@ import { join } from 'path';
 import { PROVIDER_DEFAULTS } from '../../config/config';
 import { logger } from '../../shared/utils/logger';
 
-export type Provider = 'anthropic' | 'openai' | 'bedrock';
+export type Provider = keyof typeof PROVIDER_DEFAULTS;
 
 const DEFAULT_QUALITY_PROMPT = `# Code Quality Review
 

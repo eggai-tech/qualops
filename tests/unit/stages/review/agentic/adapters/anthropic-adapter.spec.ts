@@ -79,6 +79,36 @@ describe('AnthropicAdapter', () => {
     expect(result.errorSubtype).toBe('error_max_turns');
   });
 
+  it.each([
+    ['error_max_turns', 'error_max_turns'],
+    ['error_during_execution', 'error_provider_unavailable'],
+    ['error_max_budget_usd', 'error_rate_limit_tokens'],
+    ['error_max_structured_output_retries', 'error_content_filter'],
+  ] as const)(
+    'maps SDK subtype "%s" to qualops subtype "%s"',
+    async (sdkSubtype, expectedSubtype) => {
+      mockQuery.mockReturnValue(
+        (async function* () {
+          yield { type: 'result', subtype: sdkSubtype };
+        })(),
+      );
+      const adapter = new AnthropicAdapter();
+      const result = await adapter.run(makeParams());
+      expect(result.errorSubtype).toBe(expectedSubtype);
+    },
+  );
+
+  it('maps unknown SDK result subtype to error_unexpected', async () => {
+    mockQuery.mockReturnValue(
+      (async function* () {
+        yield { type: 'result', subtype: 'error_billing_hard_limit' };
+      })(),
+    );
+    const adapter = new AnthropicAdapter();
+    const result = await adapter.run(makeParams());
+    expect(result.errorSubtype).toBe('error_unexpected');
+  });
+
   it('invokes onToolCall for each tool_use block', async () => {
     mockQuery.mockReturnValue(
       (async function* () {

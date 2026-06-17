@@ -1,6 +1,7 @@
 import { context } from '@opentelemetry/api';
 
 import { createAgentAdapter } from './adapters';
+import type { AgentErrorSubtype } from './adapters/agent-adapter';
 import { AgentLoader } from './loaders/agent-loader';
 import { buildUserPrompt } from './prompt-builder';
 import { parseIssuesFromResult } from './result-parser';
@@ -129,7 +130,10 @@ export class AgenticExecutor {
 
       // Hard failures: errors where the response cannot be trusted even partially.
       // Add new unrecoverable error subtypes here.
-      const HARD_FAILURES = new Set(['error_rate_limit_tokens', 'error_max_tokens']);
+      const HARD_FAILURES = new Set<AgentErrorSubtype>([
+        'error_rate_limit_tokens',
+        'error_max_tokens',
+      ]);
 
       if (result.errorSubtype && HARD_FAILURES.has(result.errorSubtype)) {
         throw new Error(

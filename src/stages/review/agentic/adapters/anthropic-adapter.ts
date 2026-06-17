@@ -1,7 +1,12 @@
 import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 
 import { createToolSet, type ToolSet } from '../tools';
-import type { AgentAdapter, AgentAdapterParams, AgentAdapterResult } from './agent-adapter';
+import type {
+  AgentAdapter,
+  AgentAdapterParams,
+  AgentAdapterResult,
+  AgentErrorSubtype,
+} from './agent-adapter';
 import { logger } from '../../../../shared/utils/logger';
 
 type QueryOptions = Parameters<typeof query>[0]['options'];
@@ -114,9 +119,24 @@ function handleUserMessage(message: SDKMessage): void {
   }
 }
 
+// Maps Anthropic SDK result subtypes to qualops error subtypes.
+// SDK error subtypes: error_during_execution | error_max_turns | error_max_budget_usd | error_max_structured_output_retries
+// Unknown subtypes fall back to 'error_unexpected'.
+const ANTHROPIC_ERROR_SUBTYPE_MAP: Partial<Record<string, AgentErrorSubtype>> = {
+  error_max_turns: 'error_max_turns',
+  error_during_execution: 'error_provider_unavailable',
+  error_max_budget_usd: 'error_rate_limit_tokens',
+  error_max_structured_output_retries: 'error_content_filter',
+};
+
 function handleResultMessage(
   message: SDKMessage,
-  state: { output: string; inputTokens?: number; outputTokens?: number; errorSubtype?: string },
+  state: {
+    output: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    errorSubtype?: AgentErrorSubtype;
+  },
 ): void {
   const msg = message as {
     subtype: string;
@@ -131,8 +151,12 @@ function handleResultMessage(
     state.inputTokens = msg.usage?.input_tokens;
     state.outputTokens = msg.usage?.output_tokens;
   } else if (msg.subtype !== 'success') {
-    state.errorSubtype = msg.subtype;
-    logger.error(`[Agentic/Anthropic] Agent error: ${msg.subtype}`);
+    const mapped = ANTHROPIC_ERROR_SUBTYPE_MAP[msg.subtype] ?? 'error_unexpected';
+    if (mapped === 'error_unexpected') {
+      logger.warn(`[Agentic/Anthropic] Unrecognized result subtype: ${msg.subtype}`);
+    }
+    state.errorSubtype = mapped;
+    logger.error(`[Agentic/Anthropic] Agent error: ${msg.subtype} → ${mapped}`);
   }
 }
 
@@ -151,7 +175,7 @@ export class AnthropicAdapter implements AgentAdapter {
         output: '',
         inputTokens: undefined as number | undefined,
         outputTokens: undefined as number | undefined,
-        errorSubtype: undefined as string | undefined,
+        errorSubtype: undefined as AgentErrorSubtype | undefined,
       };
       let turnIndex = 0;
 
