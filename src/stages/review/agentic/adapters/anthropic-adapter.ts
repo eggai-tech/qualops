@@ -15,8 +15,10 @@ import { logger } from '../../../../shared/utils/logger';
 // SDK requires a root object schema — wrap the array in { issues: [...] }.
 // stripUnsupportedConstraints removes minimum/maximum/minLength etc. which are
 // not supported by Anthropic's structured output constrained decoding.
+// The $schema field (draft-2020-12 URI) must be omitted — the CLI rejects
+// structured output when it is present and falls back to plain text.
 const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
-const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewOutputSchema, {
+const { $schema: _dropped, ...REVIEW_ISSUES_JSON_SCHEMA } = schemaToJsonSchema(ReviewOutputSchema, {
   stripUnsupportedConstraints: true,
 });
 
