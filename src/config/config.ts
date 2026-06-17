@@ -12,6 +12,7 @@ import type {
 } from '../shared/types';
 import type { AgenticConfig } from '../shared/types/config';
 import { logger } from '../shared/utils/logger';
+import { assertHttpUrl } from '../shared/utils/security';
 
 export const FILE_NAMES = {
   ANALYSIS: 'analysis.json',
@@ -191,6 +192,9 @@ export class ConfigService {
     if (this.rawConfig.report) {
       config.report = this.rawConfig.report as Config['report'];
     }
+    if (this.rawConfig.skipPatterns) {
+      config.skipPatterns = this.rawConfig.skipPatterns as string[];
+    }
 
     const env = envConfig.getAll();
 
@@ -333,18 +337,34 @@ export class ConfigService {
   getResolvedStageConfig(stage: string): ResolvedStageConfig {
     const raw = this.getAIStageConfig(stage);
     const { provider, model } = this.resolveModel({ stage: raw });
-    return { ...raw, provider, model };
+    const credentials = this.resolveCredentials(provider, raw);
+    return { ...raw, provider, model, ...credentials };
+  }
+
+  private resolveCredentials(
+    provider: AIProviderName,
+    raw: AIStageConfig,
+  ): { baseUrl?: string; apiKey?: string } {
+    if (provider === 'openai-compatible') {
+      const baseUrl = raw.baseUrl ?? envConfig.get('openaiBaseUrl');
+      if (baseUrl) assertHttpUrl(baseUrl);
+      return { baseUrl };
+    }
+    return {
+      ...(raw.baseUrl !== undefined && { baseUrl: raw.baseUrl }),
+    };
   }
 
   /**
    * Maps a resolved provider name to the agent adapter type to use.
    * Returns `undefined` for providers that do not yet support agentic mode.
    */
-  resolveAgentAdapterType(provider: AIProviderName): 'anthropic' | 'openai' | undefined {
-    const mapping: Partial<Record<AIProviderName, 'anthropic' | 'openai'>> = {
+  resolveAgentAdapterType(provider: AIProviderName): AIProviderName | undefined {
+    const mapping: Partial<Record<AIProviderName, AIProviderName>> = {
       anthropic: 'anthropic',
       openai: 'openai',
       github: 'openai', // GitHub Models uses an OpenAI-compatible API
+      'openai-compatible': 'openai-compatible',
     };
     return mapping[provider];
   }

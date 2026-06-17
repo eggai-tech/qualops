@@ -4,6 +4,7 @@ import { Command, Option } from 'commander';
 
 import { executeAllStages } from './cli/commands/all-command';
 import { generateIndexCommand } from './cli/commands/generate-index-command';
+import type { Provider } from './cli/commands/init-claude-command';
 import { initClaudeCommand } from './cli/commands/init-claude-command';
 import { validateCommand } from './cli/commands/validate-command';
 import { withErrorHandling } from './cli/utils/error-handler';
@@ -70,9 +71,7 @@ program
       .choices(['anthropic', 'openai', 'bedrock'])
       .default('anthropic'),
   )
-  .action((options: { provider: 'anthropic' | 'openai' | 'bedrock' }) =>
-    initClaudeCommand(options),
-  );
+  .action((options: { provider: Provider }) => initClaudeCommand(options));
 
 program
   .command('github-integration')

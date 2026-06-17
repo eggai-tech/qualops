@@ -52,6 +52,7 @@ export type AIStageConfig = {
   outputPerMillion: number;
   temperature?: number;
   maxTokens?: number;
+  baseUrl?: string;
   [key: string]: unknown;
 };
 
@@ -62,6 +63,7 @@ export type ResolvedStageConfig = {
   outputPerMillion: number;
   temperature?: number;
   maxTokens?: number;
+  baseUrl?: string;
   [key: string]: unknown;
 };
 

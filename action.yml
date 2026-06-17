@@ -59,39 +59,61 @@ runs:
       env:
         ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        # User-supplied inputs passed as env vars to avoid shell injection via inline interpolation
+        INPUT_CONFIG_PATH: ${{ inputs.config-path }}
+        INPUT_BASE_REF: ${{ inputs.base-ref }}
+        INPUT_FILES: ${{ inputs.files }}
+        INPUT_STAGES: ${{ inputs.stages }}
+        # GitHub context values (not user-controlled) kept as interpolations
+        GITHUB_BASE_REF: ${{ github.base_ref }}
+        GITHUB_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        GITHUB_SHA: ${{ github.sha }}
+        GITHUB_ACTION_PATH: ${{ github.action_path }}
       run: |
         cd "$GITHUB_WORKSPACE"
 
-        ARGS="--config=${{ inputs.config-path }}"
+        # Build args as an array to avoid word splitting and globbing on $ARGS
+        ARGS=("--config=${INPUT_CONFIG_PATH}")
 
-        if [ -n "${{ inputs.base-ref }}" ]; then
-          ARGS="$ARGS --base=${{ inputs.base-ref }}"
-        elif [ -n "${{ github.base_ref }}" ]; then
-          ARGS="$ARGS --base=${{ github.base_ref }}"
+        if [ -n "${INPUT_BASE_REF}" ]; then
+          ARGS+=("--base=${INPUT_BASE_REF}")
+        elif [ -n "${GITHUB_BASE_REF}" ]; then
+          BASE=$(git merge-base HEAD "origin/${GITHUB_BASE_REF}")
+          ARGS+=("--base=${BASE}")
         fi
 
-        if [ -n "${{ github.sha }}" ]; then
-          ARGS="$ARGS --head=${{ github.sha }}"
+        # On pull_request events use the PR branch head SHA, not github.sha which
+        # points at the auto-generated merge commit (refs/pull/N/merge). A three-dot
+        # diff against a merge commit only shows conflict-resolution changes (0 files
+        # for clean merges), so the full PR diff is lost.
+        if [ -n "${GITHUB_PR_HEAD_SHA}" ]; then
+          ARGS+=("--head=${GITHUB_PR_HEAD_SHA}")
+        elif [ -n "${GITHUB_SHA}" ]; then
+          ARGS+=("--head=${GITHUB_SHA}")
         fi
 
-        if [ -n "${{ inputs.files }}" ]; then
-          ARGS="$ARGS --files=${{ inputs.files }}"
+        if [ -n "${INPUT_FILES}" ]; then
+          ARGS+=("--files=${INPUT_FILES}")
         fi
 
-        if [ -n "${{ inputs.stages }}" ]; then
-          ARGS="$ARGS --stages=${{ inputs.stages }}"
+        if [ -n "${INPUT_STAGES}" ]; then
+          ARGS+=("--stages=${INPUT_STAGES}")
         fi
 
-        node "${{ github.action_path }}/dist/cli.js" $ARGS
+        node "${GITHUB_ACTION_PATH}/dist/cli.js" "${ARGS[@]}"
 
     - name: Post GitHub Integration
       if: always()
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_ACTION_PATH: ${{ github.action_path }}
       run: |
-        cd "$GITHUB_WORKSPACE"
-        node "${{ github.action_path }}/dist/cli.js" github-integration
+        # github-integration looks for ./reports/sessions/ relative to cwd.
+        # QualOps writes reports to $GITHUB_WORKSPACE/.qualops/reports/sessions/,
+        # so run from the .qualops directory so the path resolves correctly.
+        cd "$GITHUB_WORKSPACE/.qualops"
+        node "${GITHUB_ACTION_PATH}/dist/cli.js" github-integration
 
     - name: Upload QualOps Reports
       if: always()

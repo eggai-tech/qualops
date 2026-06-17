@@ -49,7 +49,7 @@ export function buildFileContext(
     content = formatFileContent(file.content, budget);
   }
 
-  const header = `## ${file.path}${file.framework ? ` (${file.framework})` : ''}`;
+  const header = `## ${file.path}`;
   return `${header}\n\n${content}`;
 }
 

@@ -56,6 +56,8 @@ export function detectCapabilities(provider: AIProviderName, model: string): Pro
       return detectAnthropicCapabilities(model);
     case 'bedrock':
       return detectBedrockCapabilities(model);
+    case 'openai-compatible':
+      return detectOpenAICapabilities(model);
     default: {
       const _exhaustive: never = provider;
       throw new Error(`Unknown provider: ${String(_exhaustive)}`);

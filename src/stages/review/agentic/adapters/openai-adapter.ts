@@ -75,7 +75,7 @@ export class OpenAIAdapter implements AgentAdapter {
 
 async function configureOpenAIClient(): Promise<void> {
   const apiKey = envConfig.get('openaiApiKey') || '';
-  const baseURL = envConfig.get('openaiApiBase');
+  const baseURL = envConfig.get('openaiBaseUrl');
 
   const { default: OpenAI, AzureOpenAI } = await import('openai');
 

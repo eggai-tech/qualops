@@ -14,7 +14,7 @@ const severityList = z.array(severity).min(1).meta({
   uniqueItems: true,
 });
 export const aiProvider = z
-  .enum(['anthropic', 'openai', 'bedrock', 'github'])
+  .enum(['anthropic', 'openai', 'bedrock', 'github', 'openai-compatible'])
   .meta({ defName: 'aiProvider', description: 'Supported AI provider names.' });
 const confidenceScore = z.int().min(1).max(10).meta({
   defName: 'confidenceScore',
@@ -73,6 +73,9 @@ const aiStageConfigSchema = z
       .optional()
       .meta({ description: 'Sampling temperature used by compatible providers.' }),
     maxTokens: z.int().min(1).optional().meta({ description: 'Optional model output token cap.' }),
+    baseUrl: z.string().url().optional().meta({
+      description: 'Base URL for openai-compatible providers. Defaults to OPENAI_BASE_URL env var.',
+    }),
   })
   .passthrough()
   .meta({

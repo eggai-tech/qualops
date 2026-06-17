@@ -43,6 +43,9 @@ export class AIFactory {
       case AIProviderType.GITHUB:
         provider = new GitHubModelsProvider(stageConfig);
         break;
+      case 'openai-compatible':
+        provider = new OpenAIProvider(stageConfig);
+        break;
       default: {
         const _exhaustiveCheck: never = stageConfig.provider;
         throw new Error(`Unknown AI provider: ${_exhaustiveCheck}`);
