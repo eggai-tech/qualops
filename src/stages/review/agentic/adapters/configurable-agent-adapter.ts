@@ -22,6 +22,21 @@ const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewOutputSchema, {
   stripUnsupportedConstraints: true,
 });
 
+/**
+ * Extract the issues array from a structured-output payload. Tolerant of shape drift:
+ * accepts the wrapper `{ issues: [...] }`, a bare array, or a single issue object
+ * (coerced to a one-element array), so an unexpected shape is not silently dropped.
+ */
+function unwrapStructuredIssues(structured: unknown): unknown {
+  if (Array.isArray(structured)) return structured;
+  if (structured && typeof structured === 'object') {
+    const wrapper = structured as { issues?: unknown };
+    if (Array.isArray(wrapper.issues)) return wrapper.issues;
+    if (!('issues' in wrapper)) return [structured];
+  }
+  return structured;
+}
+
 function toJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<string, unknown> {
   // z.toJSONSchema emits Draft 2020-12 with a $schema key that confuses some providers.
   // Strip it and emit a plain draft-07-compatible object instead.
@@ -70,7 +85,16 @@ function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
 function buildModel(params: AgentAdapterParams) {
   const baseURL = params.baseUrl ?? envConfig.get('openaiBaseUrl') ?? 'https://api.openai.com/v1';
   const apiKey = envConfig.get('openaiApiKey') ?? '';
-  return createOpenAICompatible({ name: 'openai-compatible', baseURL, apiKey })(params.model);
+  // supportsStructuredOutputs makes the AI SDK send a `json_schema` response_format
+  // (constrained decoding) instead of loose `json_object`, so the model is forced to
+  // return the wrapped { issues: [...] } shape. Without it the model free-forms its
+  // output and the structured result silently parses to zero issues.
+  return createOpenAICompatible({
+    name: 'openai-compatible',
+    baseURL,
+    apiKey,
+    supportsStructuredOutputs: true,
+  })(params.model);
 }
 
 export class ConfigurableAgentAdapter implements AgentAdapter {
@@ -138,8 +162,10 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
             case 'final': {
               const finalEvent = event as typeof event & { structured?: unknown };
               if (finalEvent.structured !== undefined) {
-                const wrapper = finalEvent.structured as { issues?: unknown };
-                const issues = wrapper.issues ?? finalEvent.structured;
+                // The schema is wrapped as { issues: [...] }, but be tolerant of shape
+                // drift (bare array, or a single object) so a stray response is not
+                // silently dropped to zero issues.
+                const issues = unwrapStructuredIssues(finalEvent.structured);
                 const preview = JSON.stringify(issues).substring(0, 500);
                 logger.info(
                   `[Agentic/ConfigurableAgent] Structured output (first 500 chars): ${preview}`,

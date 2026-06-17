@@ -1,11 +1,5 @@
-import { z } from 'zod';
-
 import type { AIMessage, AIProvider } from '../../../ai/providers/provider';
 import { ReviewIssuesSchema, type ReviewIssueItem } from '../../../ai/shared/schemas/review-issue';
-
-// Both Anthropic and OpenAI strict structured output reject a root array schema.
-// Wrap in an object and unwrap after parsing.
-const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
 import { StructuredOutputError } from '../../../ai/shared/structured';
 import {
   getTracer,
@@ -50,14 +44,12 @@ export class FileReviewer {
         try {
           const response = await this.aiProvider.complete({
             messages,
-            schema: ReviewOutputSchema,
+            schema: ReviewIssuesSchema,
             maxTokens: this.aiProvider.getMaxTokens(),
             temperature: this.aiProvider.getTemperature(),
           });
 
-          const parsedIssues = response.content.issues.map((item) =>
-            this.toReviewIssue(item, file.path),
-          );
+          const parsedIssues = response.content.map((item) => this.toReviewIssue(item, file.path));
 
           setTokenUsage(span, {
             model: this.aiProvider.getModelName(),
