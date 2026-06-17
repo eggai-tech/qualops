@@ -130,11 +130,12 @@ describe('AnthropicAdapter', () => {
     expect(callOptions.maxBudgetUsd).toBe(2.5);
   });
 
-  it('returns structuredOutput when result contains structured_output', async () => {
+  it('returns structuredOutput when result contains structured_output wrapper', async () => {
     const issues = [{ description: 'sql injection', confidence: 9 }];
     mockQuery.mockReturnValue(
       (async function* () {
-        yield { type: 'result', subtype: 'success', structured_output: issues };
+        // SDK returns the root object wrapper { issues: [...] } matching our schema
+        yield { type: 'result', subtype: 'success', structured_output: { issues } };
       })(),
     );
     const adapter = new AnthropicAdapter();

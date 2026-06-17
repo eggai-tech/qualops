@@ -14,7 +14,9 @@ import { envConfig } from '../../../../config/env';
 import { logger } from '../../../../shared/utils/logger';
 import { createToolSet } from '../tools';
 
-const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewIssuesSchema);
+// generateObject (Vercel AI SDK) requires a root object schema — wrap the array
+const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
+const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewOutputSchema);
 
 function toJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<string, unknown> {
   // z.toJSONSchema emits Draft 2020-12 with a $schema key that confuses some providers.
@@ -132,8 +134,13 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
             case 'final': {
               const finalEvent = event as typeof event & { structured?: unknown };
               if (finalEvent.structured !== undefined) {
-                logger.info('[Agentic/ConfigurableAgent] Received structured output from SDK');
-                structuredOutput = finalEvent.structured;
+                const wrapper = finalEvent.structured as { issues?: unknown };
+                const issues = wrapper.issues ?? finalEvent.structured;
+                const preview = JSON.stringify(issues).substring(0, 500);
+                logger.info(
+                  `[Agentic/ConfigurableAgent] Structured output (first 500 chars): ${preview}`,
+                );
+                structuredOutput = issues;
               } else {
                 output = event.content;
               }

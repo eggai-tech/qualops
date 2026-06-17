@@ -1,4 +1,5 @@
 import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
+import { z } from 'zod';
 
 import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
 import { schemaToJsonSchema } from '../../../../ai/shared/structured';
@@ -11,7 +12,9 @@ import type {
 } from './agent-adapter';
 import { logger } from '../../../../shared/utils/logger';
 
-const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewIssuesSchema);
+// SDK requires a root object schema — wrap the array in { issues: [...] }
+const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
+const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewOutputSchema);
 
 type QueryOptions = Parameters<typeof query>[0]['options'];
 
@@ -154,9 +157,11 @@ function handleResultMessage(
     state.inputTokens = msg.usage?.input_tokens;
     state.outputTokens = msg.usage?.output_tokens;
     if (msg.structured_output !== undefined) {
-      const preview = JSON.stringify(msg.structured_output).substring(0, 500);
+      const wrapper = msg.structured_output as { issues?: unknown };
+      const issues = wrapper.issues ?? msg.structured_output;
+      const preview = JSON.stringify(issues).substring(0, 500);
       logger.info(`[Agentic/Anthropic] Structured output (first 500 chars): ${preview}`);
-      state.structuredOutput = msg.structured_output;
+      state.structuredOutput = issues;
     } else if (msg.result) {
       logger.info(
         `[Agentic/Anthropic] Success result (first 500 chars): ${msg.result.substring(0, 500)}`,
