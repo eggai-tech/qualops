@@ -1,8 +1,12 @@
+import { z } from 'zod';
+
 import type { AIProvider } from '../../../ai/providers/provider';
 import {
   ValidationResultsSchema,
   type ValidationResultItem,
 } from '../../../ai/shared/schemas/validation-result';
+
+const ValidationOutputSchema = z.object({ validations: ValidationResultsSchema });
 import { StructuredOutputError } from '../../../ai/shared/structured';
 import type { ReviewIssue } from '../../../shared/types';
 import type {
@@ -114,11 +118,11 @@ export class ValidationResolver {
     try {
       const response = await this.aiProvider.complete({
         messages: [{ role: 'user', content: prompt }],
-        schema: ValidationResultsSchema,
+        schema: ValidationOutputSchema,
         maxTokens: 8000,
         temperature: 0,
       });
-      validations = response.content;
+      validations = response.content.validations;
     } catch (error) {
       if (error instanceof StructuredOutputError) {
         logger.warn(`[Validation] Structured output failed: ${error.message}`);

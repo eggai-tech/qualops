@@ -1,5 +1,9 @@
+import { z } from 'zod';
+
 import type { AIProvider } from '../../../ai/providers/provider';
 import { DedupIndicesSchema } from '../../../ai/shared/schemas/dedup-indices';
+
+const DedupOutputSchema = z.object({ indices: DedupIndicesSchema });
 import { StructuredOutputError } from '../../../ai/shared/structured';
 import type { ReviewIssue } from '../../../shared/types';
 import type {
@@ -111,11 +115,11 @@ export class DeduplicationResolver {
     try {
       const response = await this.aiProvider.complete({
         messages: [{ role: 'user', content: prompt }],
-        schema: DedupIndicesSchema,
+        schema: DedupOutputSchema,
         maxTokens: 4000,
         temperature: 0,
       });
-      const indices = new Set(response.content);
+      const indices = new Set(response.content.indices);
       return issues.filter((_, idx) => indices.has(idx));
     } catch (error) {
       if (error instanceof StructuredOutputError) {
