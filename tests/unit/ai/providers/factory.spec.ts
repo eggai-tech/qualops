@@ -285,13 +285,14 @@ describe('AIFactory', () => {
         AIProviderType.BEDROCK,
         AIProviderType.OPENAI,
         AIProviderType.GITHUB,
+        AIProviderType.OPENAI_COMPATIBLE,
       ]);
     });
 
     it('should return array with correct length', () => {
       const providers = AIFactory.getAvailableProviders();
 
-      expect(providers).toHaveLength(4);
+      expect(providers).toHaveLength(5);
     });
 
     it('should return array containing anthropic provider', () => {
