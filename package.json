@@ -116,7 +116,7 @@
     "eslint-plugin-import-x": "^4.16.2",
     "eslint-plugin-prettier": "^5.5.4",
     "jest": "^30.3.0",
-    "langfuse": "^3.38.6",
+    "@langfuse/client": "^5.4.1",
     "minimatch": "^10.0.1",
     "prettier": "^3.8.1",
     "ts-jest": "^29.4.9",

@@ -1,6 +1,6 @@
 'use strict';
 
-jest.mock('langfuse', () => ({ Langfuse: jest.fn() }));
+jest.mock('@langfuse/client', () => ({ LangfuseClient: jest.fn() }));
 
 import { buildQualOpsItem, crbSliceToCrbItem } from './upload-datasets';
 import { buildCrbExpectedPair } from './config';

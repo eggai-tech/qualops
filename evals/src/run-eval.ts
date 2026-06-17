@@ -28,8 +28,10 @@ import fs from 'fs';
 import dotenv from 'dotenv';
 import { ROOT_CONTEXT, SpanStatusCode } from '@opentelemetry/api';
 import type { Tracer, Span } from '@opentelemetry/api';
-import { Langfuse } from 'langfuse';
-import type { ApiDatasetItem } from 'langfuse';
+import { LangfuseClient } from '@langfuse/client';
+import type { FetchedDataset } from '@langfuse/client';
+
+type DatasetItem = FetchedDataset['items'][number];
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 import {
@@ -118,15 +120,15 @@ interface NormalizedItem {
   referenceExpected: Issue[];
 }
 
-function normalizeApiItem(item: ApiDatasetItem): NormalizedItem {
+function normalizeApiItem(item: DatasetItem): NormalizedItem {
   const itemInput: ItemInput = item.input || {};
-  const itemExpected = item.expectedOutput || {};
+  const itemExpected = (item.expectedOutput as Record<string, unknown>) || {};
   return {
     id: item.id as string,
     langfuseItemId: item.id as string,
     input: itemInput,
-    referenceBugs: itemExpected.referenceBugs || [],
-    referenceExpected: itemExpected.referenceExpected || [],
+    referenceBugs: (itemExpected.referenceBugs as Issue[]) || [],
+    referenceExpected: (itemExpected.referenceExpected as Issue[]) || [],
   };
 }
 
@@ -152,7 +154,7 @@ function attachTraceAttributes(rootSpan: Span, itemInput: ItemInput, caseId: str
 }
 
 async function runEvalItem(
-  langfuse: Langfuse,
+  langfuse: LangfuseClient,
   item: NormalizedItem,
   itemIndex: number,
   total: number,
@@ -294,7 +296,7 @@ async function runReviewSpan(
 }
 
 async function linkDatasetRunItem(
-  langfuse: Langfuse,
+  langfuse: LangfuseClient,
   datasetItemId: string,
   traceId: string,
   durationMs: number,
@@ -302,7 +304,7 @@ async function linkDatasetRunItem(
   caseId: string,
 ) {
   try {
-    await langfuse.api.datasetRunItemsCreate({
+    await langfuse.api.datasetRunItems.create({
       datasetItemId,
       traceId,
       runName: config.experimentName,
@@ -330,7 +332,7 @@ async function linkDatasetRunItem(
 }
 
 interface ScoreEvalItemOpts {
-  langfuse: Langfuse;
+  langfuse: LangfuseClient;
   traceId: string;
   genSpanId: string | undefined;
   caseId: string;
@@ -361,7 +363,7 @@ async function computeScores(
 }
 
 function publishScores(
-  langfuse: Langfuse,
+  langfuse: LangfuseClient,
   traceId: string,
   genSpanId: string | undefined,
   caseId: string,
@@ -369,11 +371,11 @@ function publishScores(
   goldenDetails: CrbGoldenCommentDetails[] | null,
 ): void {
   for (const score of scores) {
-    langfuse.score({ traceId, observationId: genSpanId, name: score.name, value: score.value!, comment: score.comment, dataType: 'NUMERIC' });
+    langfuse.score.create({ traceId, observationId: genSpanId, name: score.name, value: score.value!, comment: score.comment, dataType: 'NUMERIC' });
   }
   if (!goldenDetails) return;
   for (const gd of goldenDetails) {
-    langfuse.score({
+    langfuse.score.create({
       traceId,
       observationId: genSpanId,
       name: `${caseId}:golden-${gd.goldenIndex}`,
@@ -449,7 +451,7 @@ function crbSliceToItem(slice: CrbSlice): NormalizedItem {
 }
 
 async function runItems(
-  langfuse: Langfuse,
+  langfuse: LangfuseClient,
   items: NormalizedItem[],
   datasetName: string,
   tracer: Tracer,
@@ -495,7 +497,7 @@ async function runItems(
   return results;
 }
 
-async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Tracer) {
+async function runDataset(langfuse: LangfuseClient, datasetName: string, tracer: Tracer) {
   console.log(`\n═══ Dataset: ${datasetName} ═══`);
 
   // CRB datasets are served from local slices — no Langfuse fetch needed.
@@ -515,8 +517,9 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
   }
 
   // Non-CRB datasets are fetched from Langfuse.
+  let fetchedDataset: Awaited<ReturnType<typeof langfuse.dataset.get>>;
   try {
-    await langfuse.api.datasetsGet(encodeURIComponent(datasetName));
+    fetchedDataset = await langfuse.dataset.get(datasetName);
   } catch (err) {
     const error = err as Error;
     const errorCode = classifyError(error);
@@ -534,20 +537,11 @@ async function runDataset(langfuse: Langfuse, datasetName: string, tracer: Trace
     return { total: 0, errors: 1 };
   }
 
-  let allApiItems: ApiDatasetItem[] = [];
-  let page = 1;
-  while (true) {
-    const resp = await langfuse.api.datasetItemsList({ datasetName, page, limit: 100 });
-    allApiItems.push(...(resp.data || []));
-    if (!resp.meta?.totalPages || page >= resp.meta.totalPages) break;
-    page++;
-  }
-
-  const items = allApiItems.map(normalizeApiItem);
+  const items = fetchedDataset.items.map(normalizeApiItem);
   return runItems(langfuse, items, datasetName, tracer);
 }
 
-function createLangfuseClient(): { langfuse: Langfuse; host: string } {
+function createLangfuseClient(): { langfuse: LangfuseClient; host: string } {
   const secretKey = process.env.LANGFUSE_SECRET_KEY;
   const publicKey = process.env.LANGFUSE_PUBLIC_KEY;
   const host = process.env.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
@@ -555,7 +549,7 @@ function createLangfuseClient(): { langfuse: Langfuse; host: string } {
     console.error('Error: LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY must be set in .env');
     process.exit(1);
   }
-  const langfuse = new Langfuse({ secretKey, publicKey, baseUrl: host, flushAt: 20, flushInterval: 5000 });
+  const langfuse = new LangfuseClient({ secretKey, publicKey, baseUrl: host });
   return { langfuse, host };
 }
 
@@ -602,7 +596,7 @@ async function main(): Promise<void> {
   }
 
   await shutdownTracing();
-  await langfuse.shutdownAsync();
+  await langfuse.shutdown();
 
   const logFile = runLog.write();
   printRunSummary(datasets, totals, logFile, host);
