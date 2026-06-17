@@ -10,7 +10,6 @@ import {
   type AgentDefinition,
   type ResolvedAgentDefinition,
 } from './subagents/definitions';
-import { detectCapabilities, isUnstructured } from '../../../ai/providers/capabilities';
 import { ConfigService } from '../../../config/config';
 import {
   getTracer,
@@ -93,18 +92,6 @@ export class AgenticExecutor {
 
     try {
       const stageConfig = ConfigService.getInstance().getResolvedStageConfig('review');
-      const { structuredDialect } = detectCapabilities(stageConfig.provider, this.model);
-
-      // Agentic mode requires structured output — unstructured models must use the prose
-      // pipeline. pipeline-executor.ts enforces this at line 59, so this should never fire.
-      if (isUnstructured(structuredDialect)) {
-        throw new Error(
-          `[Agentic] Job "${this.job.name}" cannot run in agentic mode with an unstructured model ` +
-            `(provider=${stageConfig.provider}, model=${this.model}). ` +
-            `Configure a model that supports JSON schema output.`,
-        );
-      }
-
       const adapter = createAgentAdapter(stageConfig.provider);
 
       logger.info(`[Agentic] Using adapter for provider: ${stageConfig.provider}`);

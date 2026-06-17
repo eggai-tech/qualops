@@ -154,7 +154,8 @@ function handleResultMessage(
     state.inputTokens = msg.usage?.input_tokens;
     state.outputTokens = msg.usage?.output_tokens;
     if (msg.structured_output !== undefined) {
-      logger.info('[Agentic/Anthropic] Received structured output from SDK');
+      const preview = JSON.stringify(msg.structured_output).substring(0, 500);
+      logger.info(`[Agentic/Anthropic] Structured output (first 500 chars): ${preview}`);
       state.structuredOutput = msg.structured_output;
     } else if (msg.result) {
       logger.info(
