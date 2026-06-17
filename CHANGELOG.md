@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-06-17
+
 ### Added
 - `baseUrl` field added to `aiStageConfig` schema for `openai-compatible` providers, with `OPENAI_BASE_URL` / `OPENAI_API_KEY` env-var fallbacks resolved in `getResolvedStageConfig`.
 - `openai-compatible` provider support for agentic review mode via `@eggai/configurable-agent` (Vercel AI SDK v5 agent loop). Any provider with a custom `baseUrl` can now run the full agentic security audit without SDK-specific adapters.
