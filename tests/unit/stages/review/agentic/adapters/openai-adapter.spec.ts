@@ -44,14 +44,13 @@ function makeParams(overrides: Partial<AgentAdapterParams> = {}): AgentAdapterPa
     cwd: CWD,
     maxTurns: 10,
     toolConfig: { bash: {} },
-    structuredDialect: 'unstructured',
     ...overrides,
   };
 }
 
-function makeRunResult(finalOutput: string, inputTokens = 0, outputTokens = 0) {
+function makeRunResult(inputTokens = 0, outputTokens = 0) {
   return {
-    finalOutput,
+    finalOutput: { issues: [] },
     state: { usage: { inputTokens, outputTokens } },
   };
 }
@@ -72,64 +71,48 @@ describe('OpenAIAdapter — run()', () => {
     MockAgentCtor.mockImplementation(() => ({}) as InstanceType<typeof MockAgent>);
   });
 
-  it('returns output from run() finalOutput', async () => {
-    mockRunFn.mockResolvedValue(makeRunResult('["issue1"]') as any);
+  it('returns structuredOutput from run() finalOutput.issues', async () => {
+    const issues = [{ description: 'issue1', confidence: 9 }];
+    mockRunFn.mockResolvedValue({
+      finalOutput: { issues },
+      state: { usage: { inputTokens: 0, outputTokens: 0 } },
+    } as any);
     const result = await new OpenAIAdapter().run(makeParams());
-    expect(result.output).toBe('["issue1"]');
+    expect(result.structuredOutput).toEqual(issues);
+    expect(result.output).toBe('');
   });
 
   it('extracts token counts from state.usage', async () => {
-    mockRunFn.mockResolvedValue(makeRunResult('[]', 120, 60) as any);
+    mockRunFn.mockResolvedValue(makeRunResult(120, 60) as any);
     const result = await new OpenAIAdapter().run(makeParams());
     expect(result.inputTokens).toBe(120);
     expect(result.outputTokens).toBe(60);
   });
 
-  it('returns empty string when finalOutput is null', async () => {
+  it('returns undefined structuredOutput when finalOutput is null', async () => {
     mockRunFn.mockResolvedValue({
       finalOutput: null,
       state: { usage: { inputTokens: 0, outputTokens: 0 } },
     } as any);
     const result = await new OpenAIAdapter().run(makeParams());
-    expect(result.output).toBe('');
-  });
-
-  it('serialises non-string finalOutput to JSON', async () => {
-    mockRunFn.mockResolvedValue({
-      finalOutput: { key: 'val' },
-      state: { usage: { inputTokens: 0, outputTokens: 0 } },
-    } as any);
-    const result = await new OpenAIAdapter().run(makeParams());
-    expect(result.output).toBe('{"key":"val"}');
-  });
-
-  it('returns structuredOutput when structuredDialect is not unstructured', async () => {
-    const issues = [{ description: 'sql injection', confidence: 9 }];
-    mockRunFn.mockResolvedValue({
-      finalOutput: { issues },
-      state: { usage: { inputTokens: 10, outputTokens: 5 } },
-    } as any);
-    const result = await new OpenAIAdapter().run(
-      makeParams({ structuredDialect: 'openai-json-schema-strict' }),
-    );
-    expect(result.structuredOutput).toEqual(issues);
+    expect(result.structuredOutput).toBeUndefined();
     expect(result.output).toBe('');
   });
 
   it('passes maxTurns to run()', async () => {
-    mockRunFn.mockResolvedValue(makeRunResult('[]') as any);
+    mockRunFn.mockResolvedValue(makeRunResult() as any);
     await new OpenAIAdapter().run(makeParams({ maxTurns: 42 }));
     expect((mockRunFn.mock.calls[0][2] as { maxTurns: number }).maxTurns).toBe(42);
   });
 
   it('creates one orchestrator when agents is empty', async () => {
-    mockRunFn.mockResolvedValue(makeRunResult('[]') as any);
+    mockRunFn.mockResolvedValue(makeRunResult() as any);
     await new OpenAIAdapter().run(makeParams());
     expect(MockAgentCtor).toHaveBeenCalledTimes(1);
   });
 
   it('creates orchestrator + handoff agent for each entry in agents', async () => {
-    mockRunFn.mockResolvedValue(makeRunResult('[]') as any);
+    mockRunFn.mockResolvedValue(makeRunResult() as any);
     await new OpenAIAdapter().run(
       makeParams({
         agents: {
@@ -154,7 +137,7 @@ describe('OpenAIAdapter — tools', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     MockAgentCtor.mockImplementation((opts: any) => opts as InstanceType<typeof MockAgent>);
-    mockRunFn.mockResolvedValue(makeRunResult('[]') as any);
+    mockRunFn.mockResolvedValue(makeRunResult() as any);
   });
 
   async function getToolExecute(name: string) {
@@ -238,9 +221,9 @@ describe('OpenAIAdapter — tools', () => {
 
   it('continues without bash tool when startBashSession throws', async () => {
     mockStartBashSession.mockRejectedValueOnce(new Error('spawn failed'));
-    mockRunFn.mockResolvedValue(makeRunResult('[]') as never);
+    mockRunFn.mockResolvedValue(makeRunResult() as never);
     const result = await new OpenAIAdapter().run(makeParams());
-    expect(result.output).toBe('[]');
+    expect(result.output).toBe('');
   });
 
   it('calls dispose in finally even when run throws', async () => {

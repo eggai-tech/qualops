@@ -8,7 +8,12 @@ jest.mock('@/stages/review/agentic/adapters', () => ({
   createAgentAdapter: jest.fn(),
 }));
 jest.mock('@/shared/utils/logger');
+jest.mock('@/ai/providers/capabilities', () => ({
+  ...jest.requireActual('@/ai/providers/capabilities'),
+  detectCapabilities: jest.fn(() => ({ structuredDialect: 'anthropic-output-config' })),
+}));
 
+import { detectCapabilities } from '@/ai/providers/capabilities';
 import type { PipelineJob } from '@/shared/types/config';
 import { createAgentAdapter } from '@/stages/review/agentic/adapters';
 import type {
@@ -16,6 +21,8 @@ import type {
   AgentAdapterParams,
 } from '@/stages/review/agentic/adapters/agent-adapter';
 import { AgenticExecutor } from '@/stages/review/agentic/agentic-executor';
+
+const mockDetectCapabilities = detectCapabilities as jest.MockedFunction<typeof detectCapabilities>;
 
 const mockCreateAgentAdapter = createAgentAdapter as jest.MockedFunction<typeof createAgentAdapter>;
 
@@ -69,6 +76,11 @@ async function runExecutor(job: PipelineJob): Promise<void> {
 describe('AgenticExecutor — execute()', () => {
   beforeEach(() => {
     mockCreateAgentAdapter.mockReset();
+    mockDetectCapabilities.mockReturnValue({
+      structuredDialect: 'anthropic-output-config',
+      supportsTemperature: true,
+      maxTokensField: 'max_tokens',
+    });
   });
 
   it('returns empty array immediately when no files provided', async () => {
@@ -133,6 +145,56 @@ describe('AgenticExecutor — execute()', () => {
     expect(onToolCallCapture[0]).toEqual({ turn: 1, name: 'read_file' });
   });
 
+  it('throws on hard failure error subtypes', async () => {
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: '', errorSubtype: 'error_rate_limit_tokens' as const })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    await expect(executor.execute([{ path: 'src/foo.ts', content: 'x' }])).rejects.toThrow(
+      'error_rate_limit_tokens',
+    );
+  });
+
+  it('warns but continues on soft error subtypes', async () => {
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: '', errorSubtype: 'error_max_turns' as const })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    const result = await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
+    expect(result).toEqual([]);
+  });
+
+  it('warns and returns empty when output is empty and errorSubtype is set', async () => {
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: '', errorSubtype: 'error_max_turns' as const })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    const result = await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
+    expect(result).toEqual([]);
+  });
+
+  it('throws when non-empty text output contains no JSON', async () => {
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: 'No issues found in this code.' })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    await expect(executor.execute([{ path: 'src/foo.ts', content: 'x' }])).rejects.toThrow(
+      'no parseable JSON issues',
+    );
+  });
+
+  it('throws when detectCapabilities returns unstructured dialect', async () => {
+    mockDetectCapabilities.mockReturnValue({
+      structuredDialect: 'unstructured',
+      supportsTemperature: true,
+      maxTokensField: 'max_tokens',
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'llama-3');
+    await expect(executor.execute([{ path: 'src/foo.ts', content: 'x' }])).rejects.toThrow(
+      'cannot run in agentic mode with an unstructured model',
+    );
+  });
+
   it('rethrows when adapter throws', async () => {
     mockCreateAgentAdapter.mockReturnValue({
       run: jest.fn(async () => {
@@ -156,6 +218,11 @@ describe('AgenticExecutor — execute()', () => {
 describe('AgenticExecutor — systemPrompt / prompt composition', () => {
   beforeEach(() => {
     mockCreateAgentAdapter.mockReset();
+    mockDetectCapabilities.mockReturnValue({
+      structuredDialect: 'anthropic-output-config',
+      supportsTemperature: true,
+      maxTokensField: 'max_tokens',
+    });
   });
 
   it('passes empty system prompt when neither systemPrompt nor prompt is set', async () => {

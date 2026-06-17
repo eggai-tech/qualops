@@ -29,7 +29,6 @@ function makeParams(overrides: Partial<AgentAdapterParams> = {}): AgentAdapterPa
     cwd: process.cwd(),
     maxTurns: 10,
     toolConfig: { bash: {} },
-    structuredDialect: 'unstructured',
     ...overrides,
   };
 }
@@ -149,7 +148,7 @@ describe('AnthropicAdapter', () => {
       })(),
     );
     const adapter = new AnthropicAdapter();
-    const result = await adapter.run(makeParams({ structuredDialect: 'anthropic-output-config' }));
+    const result = await adapter.run(makeParams());
     expect(result.structuredOutput).toEqual(issues);
     expect(result.output).toBe('');
   });

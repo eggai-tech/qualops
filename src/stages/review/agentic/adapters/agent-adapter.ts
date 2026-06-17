@@ -1,4 +1,3 @@
-import type { StructuredOutputDialect } from '../../../../ai/providers/capabilities';
 import type { BashConfig } from '../../../../shared/types/config';
 import type { ResolvedAgentDefinition } from '../subagents/definitions';
 
@@ -19,8 +18,6 @@ export interface AgentAdapterParams {
   toolConfig: ToolConfig;
   onToolCall?: (turn: number, name: string, input: unknown) => void;
   baseUrl?: string;
-  /** Pre-resolved structured output dialect from detectCapabilities(). */
-  structuredDialect: StructuredOutputDialect;
 }
 
 export type AgentErrorSubtype =

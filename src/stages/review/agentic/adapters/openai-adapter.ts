@@ -2,7 +2,6 @@ import { Agent, getGlobalTraceProvider, run, setDefaultOpenAIClient, tool } from
 import { z } from 'zod';
 
 import type { AgentAdapter, AgentAdapterParams, AgentAdapterResult } from './agent-adapter';
-import { isUnstructured } from '../../../../ai/providers/capabilities';
 import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
 import { envConfig } from '../../../../config/env';
 import { logger } from '../../../../shared/utils/logger';
@@ -42,49 +41,30 @@ export class OpenAIAdapter implements AgentAdapter {
         });
       });
 
-      const useStructured = !isUnstructured(params.structuredDialect);
-
       const orchestrator = new Agent({
         name: 'qualops-reviewer',
         model,
         instructions: systemPrompt,
         tools,
         handoffs,
-        ...(useStructured && { outputType: ReviewOutputSchema }),
+        outputType: ReviewOutputSchema,
       });
 
-      logger.info(
-        `[Agentic/OpenAI] Starting run with model=${model}, maxTurns=${maxTurns}, structured=${useStructured}`,
-      );
+      logger.info(`[Agentic/OpenAI] Starting run with model=${model}, maxTurns=${maxTurns}`);
 
       const result = await run(orchestrator, userPrompt, { maxTurns });
 
       const usage = result.state.usage;
+      const structured = result.finalOutput as z.infer<typeof ReviewOutputSchema> | null;
 
       logger.info(
         `[Agentic/OpenAI] Run complete. inputTokens=${usage.inputTokens}, outputTokens=${usage.outputTokens}`,
       );
-
-      if (useStructured) {
-        const structured = result.finalOutput as z.infer<typeof ReviewOutputSchema> | null;
-        logger.info('[Agentic/OpenAI] Received structured output from SDK');
-        return {
-          output: '',
-          structuredOutput: structured?.issues,
-          inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens,
-        };
-      }
-
-      const output =
-        typeof result.finalOutput === 'string'
-          ? result.finalOutput
-          : result.finalOutput != null
-            ? JSON.stringify(result.finalOutput)
-            : '';
+      logger.info('[Agentic/OpenAI] Received structured output from SDK');
 
       return {
-        output,
+        output: '',
+        structuredOutput: structured?.issues,
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
       };

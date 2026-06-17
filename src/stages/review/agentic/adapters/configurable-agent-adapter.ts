@@ -8,7 +8,6 @@ import type {
   AgentAdapterResult,
   AgentErrorSubtype,
 } from './agent-adapter';
-import { isUnstructured } from '../../../../ai/providers/capabilities';
 import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
 import { schemaToJsonSchema } from '../../../../ai/shared/structured';
 import { envConfig } from '../../../../config/env';
@@ -45,7 +44,6 @@ function buildSystemPrompt(params: AgentAdapterParams, toolNames: string[]): str
 }
 
 function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
-  const useStructured = !isUnstructured(params.structuredDialect);
   return {
     systemPrompt: buildSystemPrompt(params, toolNames),
     model: {
@@ -55,9 +53,7 @@ function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
     },
     agent: { maxSteps: params.maxTurns },
     mcpTools: [],
-    output: useStructured
-      ? { structured: true as const, schema: REVIEW_ISSUES_JSON_SCHEMA }
-      : { structured: false as const },
+    output: { structured: true as const, schema: REVIEW_ISSUES_JSON_SCHEMA },
     safety: {
       compaction: { triggerTokens: 100_000, keepRecentMessages: 6 },
       toolOutput: { triggerTokens: 4_000, headChars: 500, tailChars: 500 },

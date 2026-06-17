@@ -1,6 +1,5 @@
 import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
 
-import { isUnstructured } from '../../../../ai/providers/capabilities';
 import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
 import { schemaToJsonSchema } from '../../../../ai/shared/structured';
 import { createToolSet, type ToolSet } from '../tools';
@@ -59,9 +58,7 @@ function buildQueryOptions(
     ...(model && { model }),
     cwd,
     permissionMode: 'bypassPermissions',
-    ...(!isUnstructured(params.structuredDialect) && {
-      outputFormat: { type: 'json_schema' as const, schema: REVIEW_ISSUES_JSON_SCHEMA },
-    }),
+    outputFormat: { type: 'json_schema' as const, schema: REVIEW_ISSUES_JSON_SCHEMA },
   };
 }
 
