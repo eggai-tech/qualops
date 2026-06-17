@@ -72,13 +72,14 @@ runs:
       run: |
         cd "$GITHUB_WORKSPACE"
 
-        ARGS="--config=${INPUT_CONFIG_PATH}"
+        # Build args as an array to avoid word splitting and globbing on $ARGS
+        ARGS=("--config=${INPUT_CONFIG_PATH}")
 
         if [ -n "${INPUT_BASE_REF}" ]; then
-          ARGS="$ARGS --base=${INPUT_BASE_REF}"
+          ARGS+=("--base=${INPUT_BASE_REF}")
         elif [ -n "${GITHUB_BASE_REF}" ]; then
           BASE=$(git merge-base HEAD "origin/${GITHUB_BASE_REF}")
-          ARGS="$ARGS --base=$BASE"
+          ARGS+=("--base=${BASE}")
         fi
 
         # On pull_request events use the PR branch head SHA, not github.sha which
@@ -86,32 +87,33 @@ runs:
         # diff against a merge commit only shows conflict-resolution changes (0 files
         # for clean merges), so the full PR diff is lost.
         if [ -n "${GITHUB_PR_HEAD_SHA}" ]; then
-          ARGS="$ARGS --head=${GITHUB_PR_HEAD_SHA}"
+          ARGS+=("--head=${GITHUB_PR_HEAD_SHA}")
         elif [ -n "${GITHUB_SHA}" ]; then
-          ARGS="$ARGS --head=${GITHUB_SHA}"
+          ARGS+=("--head=${GITHUB_SHA}")
         fi
 
         if [ -n "${INPUT_FILES}" ]; then
-          ARGS="$ARGS --files=${INPUT_FILES}"
+          ARGS+=("--files=${INPUT_FILES}")
         fi
 
         if [ -n "${INPUT_STAGES}" ]; then
-          ARGS="$ARGS --stages=${INPUT_STAGES}"
+          ARGS+=("--stages=${INPUT_STAGES}")
         fi
 
-        node "${GITHUB_ACTION_PATH}/dist/cli.js" $ARGS
+        node "${GITHUB_ACTION_PATH}/dist/cli.js" "${ARGS[@]}"
 
     - name: Post GitHub Integration
       if: always()
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
+        GITHUB_ACTION_PATH: ${{ github.action_path }}
       run: |
         # github-integration looks for ./reports/sessions/ relative to cwd.
         # QualOps writes reports to $GITHUB_WORKSPACE/.qualops/reports/sessions/,
         # so run from the .qualops directory so the path resolves correctly.
         cd "$GITHUB_WORKSPACE/.qualops"
-        node "${{ github.action_path }}/dist/cli.js" github-integration
+        node "${GITHUB_ACTION_PATH}/dist/cli.js" github-integration
 
     - name: Upload QualOps Reports
       if: always()
