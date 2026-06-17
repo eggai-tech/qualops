@@ -14,9 +14,13 @@ import { envConfig } from '../../../../config/env';
 import { logger } from '../../../../shared/utils/logger';
 import { createToolSet } from '../tools';
 
-// generateObject (Vercel AI SDK) requires a root object schema — wrap the array
+// generateObject (Vercel AI SDK) requires a root object schema — wrap the array.
+// stripUnsupportedConstraints removes minimum/maximum/minLength etc. which are
+// not supported by constrained-decoding structured output implementations.
 const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
-const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewOutputSchema);
+const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewOutputSchema, {
+  stripUnsupportedConstraints: true,
+});
 
 function toJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<string, unknown> {
   // z.toJSONSchema emits Draft 2020-12 with a $schema key that confuses some providers.

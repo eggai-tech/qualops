@@ -12,9 +12,13 @@ import type {
 } from './agent-adapter';
 import { logger } from '../../../../shared/utils/logger';
 
-// SDK requires a root object schema — wrap the array in { issues: [...] }
+// SDK requires a root object schema — wrap the array in { issues: [...] }.
+// stripUnsupportedConstraints removes minimum/maximum/minLength etc. which are
+// not supported by Anthropic's structured output constrained decoding.
 const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
-const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewOutputSchema);
+const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewOutputSchema, {
+  stripUnsupportedConstraints: true,
+});
 
 type QueryOptions = Parameters<typeof query>[0]['options'];
 

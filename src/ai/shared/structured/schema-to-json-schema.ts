@@ -9,14 +9,52 @@ export interface SchemaToJsonOptions {
    * Throws on incompatibility instead of silently mutating.
    */
   enforceStrictDialect?: boolean;
+  /**
+   * When true, strip numeric and string constraints (minimum, maximum, multipleOf,
+   * minLength, maxLength) that are not supported by Anthropic's structured output
+   * constrained decoding (output_config.format / --json-schema).
+   */
+  stripUnsupportedConstraints?: boolean;
+}
+
+// Constraint keys not supported by Anthropic's structured output constrained decoding.
+const UNSUPPORTED_CONSTRAINT_KEYS = new Set([
+  'minimum',
+  'maximum',
+  'exclusiveMinimum',
+  'exclusiveMaximum',
+  'multipleOf',
+  'minLength',
+  'maxLength',
+  'pattern',
+  'minItems',
+  'maxItems',
+]);
+
+function stripConstraints(node: unknown): unknown {
+  if (node === null || typeof node !== 'object') return node;
+  if (Array.isArray(node)) return node.map(stripConstraints);
+  const obj = node as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(obj)
+      .filter(([k]) => !UNSUPPORTED_CONSTRAINT_KEYS.has(k))
+      .map(([k, v]) => [k, stripConstraints(v)]),
+  );
 }
 
 export function schemaToJsonSchema<S extends z.ZodType>(
   schema: S,
   options: SchemaToJsonOptions = {},
 ): Record<string, unknown> {
-  const { target = 'draft-2020-12', enforceStrictDialect = false } = options;
-  const json = z.toJSONSchema(schema, { target }) as Record<string, unknown>;
+  const {
+    target = 'draft-2020-12',
+    enforceStrictDialect = false,
+    stripUnsupportedConstraints = false,
+  } = options;
+  let json = z.toJSONSchema(schema, { target }) as Record<string, unknown>;
+  if (stripUnsupportedConstraints) {
+    json = stripConstraints(json) as Record<string, unknown>;
+  }
   if (enforceStrictDialect) {
     validateStrictDialect(json, '$');
   }
