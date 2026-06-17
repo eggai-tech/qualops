@@ -306,7 +306,14 @@ async function linkDatasetRunItem(
       datasetItemId,
       traceId,
       runName: config.experimentName,
-      metadata: { durationMs },
+      runDescription: `${config.model} · ${config.mode} · ${config.presetLabel}`,
+      metadata: {
+        model: config.model,
+        mode: config.mode,
+        provider: config.provider,
+        preset: config.presetLabel,
+        configPath: config.configPath,
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
