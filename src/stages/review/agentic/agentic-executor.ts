@@ -10,6 +10,7 @@ import {
   type AgentDefinition,
   type ResolvedAgentDefinition,
 } from './subagents/definitions';
+import { extractJsonText } from '../../../ai/shared/structured';
 import { ConfigService } from '../../../config/config';
 import {
   getTracer,
@@ -163,9 +164,9 @@ export class AgenticExecutor {
       } else if (result.output) {
         logger.info(`[Agentic] Result (first 500 chars): ${result.output.substring(0, 500)}`);
         const parsed = parseIssuesFromResult(result.output, files, this.job.name, this.cwd);
-        // Only throw when output is non-empty but contains no extractable JSON at all.
-        // An empty array [] is a valid model response (no issues found) — not an error.
-        const hasJsonContent = result.output.includes('[') || result.output.includes('{');
+        // Only throw when the output contains no JSON-like structure at all.
+        // parsed.length === 0 is valid when the model returns [] (no issues found).
+        const hasJsonContent = extractJsonText(result.output) !== null;
         if (parsed.length === 0 && result.output.trim().length > 0 && !hasJsonContent) {
           logger.warn(
             `[Agentic] No parseable issues from text output. Raw output preview:\n${result.output.substring(0, 2000)}`,

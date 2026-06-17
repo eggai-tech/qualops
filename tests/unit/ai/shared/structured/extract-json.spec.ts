@@ -47,10 +47,10 @@ describe('extractJsonText', () => {
     expect(out?.text).toBe('[{"a":1},{"b":2}');
   });
 
-  it('extracts JSON from unclosed bare ``` block', () => {
+  it('does not extract from unclosed bare ``` block (could be any language)', () => {
+    // No extractable JSON — bare fence with incomplete object (no closing `}`) returns null
     const out = extractJsonText('Result:\n```\n{"key":"value"');
-    expect(out?.source).toBe('fenced');
-    expect(out?.text).toBe('{"key":"value"');
+    expect(out).toBeNull();
   });
 });
 

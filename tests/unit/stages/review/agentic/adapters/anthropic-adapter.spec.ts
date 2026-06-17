@@ -144,6 +144,17 @@ describe('AnthropicAdapter', () => {
     expect(result.output).toBe('');
   });
 
+  it('does not set structuredOutput when issues key is missing from structured_output', async () => {
+    mockQuery.mockReturnValue(
+      (async function* () {
+        yield { type: 'result', subtype: 'success', structured_output: { unexpected: 'shape' } };
+      })(),
+    );
+    const adapter = new AnthropicAdapter();
+    const result = await adapter.run(makeParams());
+    expect(result.structuredOutput).toBeUndefined();
+  });
+
   it('rethrows when query async generator throws', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
