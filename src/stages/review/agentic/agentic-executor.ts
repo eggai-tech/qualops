@@ -149,7 +149,12 @@ export class AgenticExecutor {
       }
 
       if (result.structuredOutput !== undefined) {
-        const rawIssues = Array.isArray(result.structuredOutput) ? result.structuredOutput : [];
+        if (!Array.isArray(result.structuredOutput)) {
+          throw new Error(
+            `[Agentic] Job "${this.job.name}" structured output is not an array. Got: ${JSON.stringify(result.structuredOutput).substring(0, 200)}`,
+          );
+        }
+        const rawIssues = result.structuredOutput;
         const parsed = (rawIssues as Record<string, unknown>[])
           .filter((i) => ((i?.confidence as number) ?? 0) >= 7)
           .map((i, idx) => normalizeIssue(i, idx, files, this.job.name, this.cwd));
