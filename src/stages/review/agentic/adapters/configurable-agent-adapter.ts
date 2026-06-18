@@ -18,7 +18,7 @@ import { createToolSet } from '../tools';
 // stripUnsupportedConstraints removes minimum/maximum/minLength etc. which are
 // not supported by constrained-decoding structured output implementations.
 const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
-const REVIEW_ISSUES_JSON_SCHEMA = schemaToJsonSchema(ReviewOutputSchema, {
+const { $schema: _dropped, ...REVIEW_ISSUES_JSON_SCHEMA } = schemaToJsonSchema(ReviewOutputSchema, {
   stripUnsupportedConstraints: true,
 });
 
@@ -38,8 +38,7 @@ function unwrapStructuredIssues(structured: unknown): unknown {
 }
 
 function toJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<string, unknown> {
-  // z.toJSONSchema emits Draft 2020-12 with a $schema key that confuses some providers.
-  // Strip it and emit a plain draft-07-compatible object instead.
+  // Used for tool input schemas. Strip $schema (draft-2020-12 URI) which confuses some providers.
   const { $schema: _dropped, ...rest } = z.toJSONSchema(schema) as Record<string, unknown>;
   return rest;
 }
