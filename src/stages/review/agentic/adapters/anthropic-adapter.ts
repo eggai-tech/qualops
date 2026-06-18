@@ -162,21 +162,22 @@ function handleResultMessage(
   if (msg.subtype === 'success') {
     state.inputTokens = msg.usage?.input_tokens;
     state.outputTokens = msg.usage?.output_tokens;
-    if (msg.structured_output !== undefined) {
-      const wrapper = msg.structured_output as { issues?: unknown };
-      if (!Array.isArray(wrapper.issues)) {
+    const issues = (msg.structured_output as { issues?: unknown } | undefined)?.issues;
+    if (Array.isArray(issues)) {
+      logger.info(
+        `[Agentic/Anthropic] Structured output (first 500 chars): ${JSON.stringify(issues).substring(0, 500)}`,
+      );
+      state.structuredOutput = issues;
+    } else if (msg.result) {
+      if (msg.structured_output !== undefined) {
         logger.warn(
-          `[Agentic/Anthropic] Unexpected structured_output shape — missing 'issues' array. Got: ${JSON.stringify(msg.structured_output).substring(0, 200)}`,
+          `[Agentic/Anthropic] Unexpected structured_output shape — falling back to text result. Got: ${JSON.stringify(msg.structured_output).substring(0, 200)}`,
         );
       } else {
-        const preview = JSON.stringify(wrapper.issues).substring(0, 500);
-        logger.info(`[Agentic/Anthropic] Structured output (first 500 chars): ${preview}`);
-        state.structuredOutput = wrapper.issues;
+        logger.info(
+          `[Agentic/Anthropic] Success result (first 500 chars): ${msg.result.substring(0, 500)}`,
+        );
       }
-    } else if (msg.result) {
-      logger.info(
-        `[Agentic/Anthropic] Success result (first 500 chars): ${msg.result.substring(0, 500)}`,
-      );
       state.output = msg.result;
     }
   } else if (msg.subtype !== 'success') {

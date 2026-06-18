@@ -144,15 +144,21 @@ describe('AnthropicAdapter', () => {
     expect(result.output).toBe('');
   });
 
-  it('does not set structuredOutput when issues key is missing from structured_output', async () => {
+  it('falls back to result text when structured_output has unexpected shape', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
-        yield { type: 'result', subtype: 'success', structured_output: { unexpected: 'shape' } };
+        yield {
+          type: 'result',
+          subtype: 'success',
+          structured_output: { unexpected: 'shape' },
+          result: '[{"description":"fallback issue"}]',
+        };
       })(),
     );
     const adapter = new AnthropicAdapter();
     const result = await adapter.run(makeParams());
     expect(result.structuredOutput).toBeUndefined();
+    expect(result.output).toBe('[{"description":"fallback issue"}]');
   });
 
   it('rethrows when query async generator throws', async () => {
