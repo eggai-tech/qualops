@@ -8,13 +8,37 @@ import type {
   AgentAdapterResult,
   AgentErrorSubtype,
 } from './agent-adapter';
+import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
+import { schemaToJsonSchema } from '../../../../ai/shared/structured';
 import { envConfig } from '../../../../config/env';
 import { logger } from '../../../../shared/utils/logger';
 import { createToolSet } from '../tools';
 
+// generateObject (Vercel AI SDK) requires a root object schema — wrap the array.
+// stripUnsupportedConstraints removes minimum/maximum/minLength etc. which are
+// not supported by constrained-decoding structured output implementations.
+const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
+const { $schema: _dropped, ...REVIEW_ISSUES_JSON_SCHEMA } = schemaToJsonSchema(ReviewOutputSchema, {
+  stripUnsupportedConstraints: true,
+});
+
+/**
+ * Extract the issues array from a structured-output payload. Tolerant of shape drift:
+ * accepts the wrapper `{ issues: [...] }`, a bare array, or a single issue object
+ * (coerced to a one-element array), so an unexpected shape is not silently dropped.
+ */
+function unwrapStructuredIssues(structured: unknown): unknown {
+  if (Array.isArray(structured)) return structured;
+  if (structured && typeof structured === 'object') {
+    const wrapper = structured as { issues?: unknown };
+    if (Array.isArray(wrapper.issues)) return wrapper.issues;
+    if (!('issues' in wrapper)) return [structured];
+  }
+  return structured;
+}
+
 function toJsonSchema(schema: z.ZodObject<z.ZodRawShape>): Record<string, unknown> {
-  // z.toJSONSchema emits Draft 2020-12 with a $schema key that confuses some providers.
-  // Strip it and emit a plain draft-07-compatible object instead.
+  // Used for tool input schemas. Strip $schema (draft-2020-12 URI) which confuses some providers.
   const { $schema: _dropped, ...rest } = z.toJSONSchema(schema) as Record<string, unknown>;
   return rest;
 }
@@ -49,7 +73,7 @@ function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
     },
     agent: { maxSteps: params.maxTurns },
     mcpTools: [],
-    output: { structured: false },
+    output: { structured: true as const, schema: REVIEW_ISSUES_JSON_SCHEMA },
     safety: {
       compaction: { triggerTokens: 100_000, keepRecentMessages: 6 },
       toolOutput: { triggerTokens: 4_000, headChars: 500, tailChars: 500 },
@@ -60,7 +84,16 @@ function buildAgentConfig(params: AgentAdapterParams, toolNames: string[]) {
 function buildModel(params: AgentAdapterParams) {
   const baseURL = params.baseUrl ?? envConfig.get('openaiBaseUrl') ?? 'https://api.openai.com/v1';
   const apiKey = envConfig.get('openaiApiKey') ?? '';
-  return createOpenAICompatible({ name: 'openai-compatible', baseURL, apiKey })(params.model);
+  // supportsStructuredOutputs makes the AI SDK send a `json_schema` response_format
+  // (constrained decoding) instead of loose `json_object`, so the model is forced to
+  // return the wrapped { issues: [...] } shape. Without it the model free-forms its
+  // output and the structured result silently parses to zero issues.
+  return createOpenAICompatible({
+    name: 'openai-compatible',
+    baseURL,
+    apiKey,
+    supportsStructuredOutputs: true,
+  })(params.model);
 }
 
 export class ConfigurableAgentAdapter implements AgentAdapter {
@@ -109,6 +142,7 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
 
     try {
       let output = '';
+      let structuredOutput: unknown = undefined;
       let inputTokens: number | undefined;
       let outputTokens: number | undefined;
       let errorSubtype: AgentErrorSubtype | undefined;
@@ -124,14 +158,28 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
               logger.info(`[Agentic/ConfigurableAgent] Tool call: ${event.name}`);
               params.onToolCall?.(turnIndex, event.name, event.args);
               break;
-            case 'final':
-              output = event.content;
+            case 'final': {
+              const finalEvent = event as typeof event & { structured?: unknown };
+              if (finalEvent.structured !== undefined) {
+                // The schema is wrapped as { issues: [...] }, but be tolerant of shape
+                // drift (bare array, or a single object) so a stray response is not
+                // silently dropped to zero issues.
+                const issues = unwrapStructuredIssues(finalEvent.structured);
+                const preview = JSON.stringify(issues).substring(0, 500);
+                logger.info(
+                  `[Agentic/ConfigurableAgent] Structured output (first 500 chars): ${preview}`,
+                );
+                structuredOutput = issues;
+              } else {
+                output = event.content;
+              }
               inputTokens = event.usage.inputTokens;
               outputTokens = event.usage.outputTokens;
               logger.info(
                 `[Agentic/ConfigurableAgent] Finished. steps=${event.steps}, stopReason=${event.stopReason}`,
               );
               break;
+            }
             case 'error': {
               logger.warn(
                 `[Agentic/ConfigurableAgent] Error: code=${event.code} — ${event.message}`,
@@ -155,7 +203,7 @@ export class ConfigurableAgentAdapter implements AgentAdapter {
         { tools: tools as never, model },
       );
 
-      return { output, inputTokens, outputTokens, errorSubtype };
+      return { output, structuredOutput, inputTokens, outputTokens, errorSubtype };
     } finally {
       await qualopsTools.dispose();
     }

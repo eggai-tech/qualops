@@ -1,5 +1,8 @@
 import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
+import { z } from 'zod';
 
+import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
+import { schemaToJsonSchema } from '../../../../ai/shared/structured';
 import { createToolSet, type ToolSet } from '../tools';
 import type {
   AgentAdapter,
@@ -8,6 +11,16 @@ import type {
   AgentErrorSubtype,
 } from './agent-adapter';
 import { logger } from '../../../../shared/utils/logger';
+
+// SDK requires a root object schema — wrap the array in { issues: [...] }.
+// stripUnsupportedConstraints removes minimum/maximum/minLength etc. which are
+// not supported by Anthropic's structured output constrained decoding.
+// The $schema field (draft-2020-12 URI) must be omitted — the CLI rejects
+// structured output when it is present and falls back to plain text.
+const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
+const { $schema: _dropped, ...REVIEW_ISSUES_JSON_SCHEMA } = schemaToJsonSchema(ReviewOutputSchema, {
+  stripUnsupportedConstraints: true,
+});
 
 type QueryOptions = Parameters<typeof query>[0]['options'];
 
@@ -54,6 +67,7 @@ function buildQueryOptions(
     ...(model && { model }),
     cwd,
     permissionMode: 'bypassPermissions',
+    outputFormat: { type: 'json_schema' as const, schema: REVIEW_ISSUES_JSON_SCHEMA },
   };
 }
 
@@ -133,6 +147,7 @@ function handleResultMessage(
   message: SDKMessage,
   state: {
     output: string;
+    structuredOutput?: unknown;
     inputTokens?: number;
     outputTokens?: number;
     errorSubtype?: AgentErrorSubtype;
@@ -141,15 +156,30 @@ function handleResultMessage(
   const msg = message as {
     subtype: string;
     result?: string;
+    structured_output?: unknown;
     usage?: { input_tokens?: number; output_tokens?: number };
   };
-  if (msg.subtype === 'success' && msg.result) {
-    logger.info(
-      `[Agentic/Anthropic] Success result (first 500 chars): ${msg.result.substring(0, 500)}`,
-    );
-    state.output = msg.result;
+  if (msg.subtype === 'success') {
     state.inputTokens = msg.usage?.input_tokens;
     state.outputTokens = msg.usage?.output_tokens;
+    const issues = (msg.structured_output as { issues?: unknown } | undefined)?.issues;
+    if (Array.isArray(issues)) {
+      logger.info(
+        `[Agentic/Anthropic] Structured output (first 500 chars): ${JSON.stringify(issues).substring(0, 500)}`,
+      );
+      state.structuredOutput = issues;
+    } else if (msg.result) {
+      if (msg.structured_output !== undefined) {
+        logger.warn(
+          `[Agentic/Anthropic] Unexpected structured_output shape — falling back to text result. Got: ${JSON.stringify(msg.structured_output).substring(0, 200)}`,
+        );
+      } else {
+        logger.info(
+          `[Agentic/Anthropic] Success result (first 500 chars): ${msg.result.substring(0, 500)}`,
+        );
+      }
+      state.output = msg.result;
+    }
   } else if (msg.subtype !== 'success') {
     const mapped = ANTHROPIC_ERROR_SUBTYPE_MAP[msg.subtype] ?? 'error_unexpected';
     if (mapped === 'error_unexpected') {
@@ -173,6 +203,7 @@ export class AnthropicAdapter implements AgentAdapter {
 
       const state = {
         output: '',
+        structuredOutput: undefined as unknown,
         inputTokens: undefined as number | undefined,
         outputTokens: undefined as number | undefined,
         errorSubtype: undefined as AgentErrorSubtype | undefined,

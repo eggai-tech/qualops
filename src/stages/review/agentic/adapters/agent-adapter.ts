@@ -26,10 +26,13 @@ export type AgentErrorSubtype =
   | 'error_rate_limit_tokens'
   | 'error_max_tokens'
   | 'error_content_filter'
+  | 'error_parse_failed'
   | 'error_unexpected';
 
 export interface AgentAdapterResult {
   output: string;
+  /** Pre-parsed issues array from SDK structured output. Bypasses text parsing when set. */
+  structuredOutput?: unknown;
   inputTokens?: number;
   outputTokens?: number;
   /** Set when the agent run did not complete successfully. */

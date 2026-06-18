@@ -6,6 +6,8 @@ import {
   resolveSchemaName,
   schemaToJsonSchema,
   StructuredOutputError,
+  unwrapArrayRootResult,
+  wrapArrayRootSchema,
 } from '@/ai/shared/structured';
 import { estimateTokens } from '@/ai/shared/token-utils';
 import { ConfigService } from '@/config/config';
@@ -124,6 +126,12 @@ export class AnthropicProvider extends BaseAIProvider {
     const { use1HourCache, system } = this.buildSystemBlocks(messages, systemPrompt);
     const schemaName = resolveSchemaName(options.schema, options.schemaName);
 
+    // Anthropic's structured-output dialects require an object at the schema root.
+    // Wrap array-rooted schemas into { items: [...] } and unwrap the parsed payload.
+    const { schema: requestSchema, wrapped } = wrapArrayRootSchema(options.schema);
+    const unwrap = (value: unknown): z.infer<S> =>
+      (wrapped ? unwrapArrayRootResult(value) : value) as z.infer<S>;
+
     if (this.capabilities.structuredDialect === 'anthropic-output-config') {
       try {
         const response = await client.messages.parse({
@@ -132,7 +140,7 @@ export class AnthropicProvider extends BaseAIProvider {
           temperature,
           system,
           messages: this.toAnthropicMessages(messages),
-          output_config: { format: zodOutputFormat(options.schema) },
+          output_config: { format: zodOutputFormat(requestSchema) },
         });
         const raw = this.extractText(response);
         if (response.parsed_output == null) {
@@ -140,7 +148,7 @@ export class AnthropicProvider extends BaseAIProvider {
         }
         this.recordResponseUsage(response, messages, raw, use1HourCache);
         return {
-          content: response.parsed_output as z.infer<S>,
+          content: unwrap(response.parsed_output),
           raw,
           usage: this.toTokenUsage(response.usage),
           model: response.model,
@@ -152,7 +160,7 @@ export class AnthropicProvider extends BaseAIProvider {
     }
 
     // tool_use fallback for Claude < 4.5
-    const toolSchema = schemaToJsonSchema(options.schema) as Record<string, unknown>;
+    const toolSchema = schemaToJsonSchema(requestSchema) as Record<string, unknown>;
     try {
       const response = await client.messages.create({
         model,
@@ -177,7 +185,7 @@ export class AnthropicProvider extends BaseAIProvider {
       if (!toolUseBlock) {
         throw new StructuredOutputError('Anthropic returned no tool_use block', raw);
       }
-      const parsed = options.schema.safeParse(toolUseBlock.input);
+      const parsed = requestSchema.safeParse(toolUseBlock.input);
       if (!parsed.success) {
         throw new StructuredOutputError(
           `Schema validation failed: ${parsed.error.message}`,
@@ -187,7 +195,7 @@ export class AnthropicProvider extends BaseAIProvider {
       }
       this.recordResponseUsage(response, messages, raw, use1HourCache);
       return {
-        content: parsed.data,
+        content: unwrap(parsed.data),
         raw,
         usage: this.toTokenUsage(response.usage),
         model: response.model,

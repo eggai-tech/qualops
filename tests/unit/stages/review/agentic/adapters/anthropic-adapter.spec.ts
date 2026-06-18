@@ -39,7 +39,7 @@ describe('AnthropicAdapter', () => {
     mockCreateToolSet.mockResolvedValue({ tools: [], dispose: jest.fn() });
   });
 
-  it('returns output from a successful result message', async () => {
+  it('falls back to text output when structured_output is absent from result', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
         yield { type: 'result', subtype: 'success', result: '["issue1"]' };
@@ -48,6 +48,7 @@ describe('AnthropicAdapter', () => {
     const adapter = new AnthropicAdapter();
     const result = await adapter.run(makeParams());
     expect(result.output).toBe('["issue1"]');
+    expect(result.structuredOutput).toBeUndefined();
   });
 
   it('extracts token counts from usage in result message', async () => {
@@ -67,25 +68,13 @@ describe('AnthropicAdapter', () => {
     expect(result.outputTokens).toBe(50);
   });
 
-  it('returns empty output and errorSubtype when result subtype is not success', async () => {
-    mockQuery.mockReturnValue(
-      (async function* () {
-        yield { type: 'result', subtype: 'error_max_turns' };
-      })(),
-    );
-    const adapter = new AnthropicAdapter();
-    const result = await adapter.run(makeParams());
-    expect(result.output).toBe('');
-    expect(result.errorSubtype).toBe('error_max_turns');
-  });
-
   it.each([
     ['error_max_turns', 'error_max_turns'],
     ['error_during_execution', 'error_provider_unavailable'],
     ['error_max_budget_usd', 'error_rate_limit_tokens'],
     ['error_max_structured_output_retries', 'error_content_filter'],
   ] as const)(
-    'maps SDK subtype "%s" to qualops subtype "%s"',
+    'maps SDK subtype "%s" to qualops subtype "%s" and returns empty output',
     async (sdkSubtype, expectedSubtype) => {
       mockQuery.mockReturnValue(
         (async function* () {
@@ -95,6 +84,7 @@ describe('AnthropicAdapter', () => {
       const adapter = new AnthropicAdapter();
       const result = await adapter.run(makeParams());
       expect(result.errorSubtype).toBe(expectedSubtype);
+      expect(result.output).toBe('');
     },
   );
 
@@ -140,6 +130,49 @@ describe('AnthropicAdapter', () => {
     expect(callOptions.maxBudgetUsd).toBe(2.5);
   });
 
+  it('returns structuredOutput when result contains structured_output wrapper', async () => {
+    const issues = [{ description: 'sql injection', confidence: 9 }];
+    mockQuery.mockReturnValue(
+      (async function* () {
+        // SDK returns the root object wrapper { issues: [...] } matching our schema
+        yield { type: 'result', subtype: 'success', structured_output: { issues } };
+      })(),
+    );
+    const adapter = new AnthropicAdapter();
+    const result = await adapter.run(makeParams());
+    expect(result.structuredOutput).toEqual(issues);
+    expect(result.output).toBe('');
+  });
+
+  it('falls back to result text when structured_output has unexpected shape', async () => {
+    mockQuery.mockReturnValue(
+      (async function* () {
+        yield {
+          type: 'result',
+          subtype: 'success',
+          structured_output: { unexpected: 'shape' },
+          result: '[{"description":"fallback issue"}]',
+        };
+      })(),
+    );
+    const adapter = new AnthropicAdapter();
+    const result = await adapter.run(makeParams());
+    expect(result.structuredOutput).toBeUndefined();
+    expect(result.output).toBe('[{"description":"fallback issue"}]');
+  });
+
+  it('returns empty output when structured_output is malformed and no result text', async () => {
+    mockQuery.mockReturnValue(
+      (async function* () {
+        yield { type: 'result', subtype: 'success', structured_output: { unexpected: 'shape' } };
+      })(),
+    );
+    const adapter = new AnthropicAdapter();
+    const result = await adapter.run(makeParams());
+    expect(result.structuredOutput).toBeUndefined();
+    expect(result.output).toBe('');
+  });
+
   it('rethrows when query async generator throws', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
@@ -178,7 +211,7 @@ describe('AnthropicAdapter', () => {
     expect((callOptions.tools as string[]).includes('Bash')).toBe(false);
   });
 
-  it('logs mcp bash tool_use and tool_result output', async () => {
+  it('invokes onToolCall for mcp bash tool_use blocks', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
         yield {
@@ -221,7 +254,7 @@ describe('AnthropicAdapter', () => {
     });
   });
 
-  it('logs assistant text blocks', async () => {
+  it('processes assistant text blocks without affecting output', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
         yield {

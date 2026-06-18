@@ -206,6 +206,14 @@ describe('parseIssuesFromResult', () => {
     expect(result).toHaveLength(1);
     expect(result[0].description).toBe('Issue 1');
   });
+
+  it('parses issues from prose + unclosed fenced code block (truncated model response)', () => {
+    const prose =
+      'I have enough information. Let me reason through each file carefully.\n\n```json\n[{"type":"bug","severity":"high","description":"Mismatch","location":"src/foo.ts:1","confidence":8},{"type":"security","severity":"critical","description":"Truncated';
+    const result = parseIssuesFromResult(prose, files, 'job', CWD);
+    expect(result).toHaveLength(1);
+    expect(result[0].description).toBe('Mismatch');
+  });
 });
 
 describe('recoverPartialJsonArray', () => {
@@ -226,5 +234,15 @@ describe('recoverPartialJsonArray', () => {
   it('handles nested objects correctly', () => {
     const input = '[{"a":{"nested":1}},{"b":2},{"c":"trunc';
     expect(recoverPartialJsonArray(input)).toEqual([{ a: { nested: 1 } }, { b: 2 }]);
+  });
+
+  it('recovers objects with trailing commas after fixing', () => {
+    const input = '[{"a":1,},{"b":2,}]';
+    expect(recoverPartialJsonArray(input)).toEqual([{ a: 1 }, { b: 2 }]);
+  });
+
+  it('recovers objects with raw newlines inside string values', () => {
+    const input = '[{"a":"line1\nline2","b":1}]';
+    expect(recoverPartialJsonArray(input)).toEqual([{ a: 'line1\nline2', b: 1 }]);
   });
 });

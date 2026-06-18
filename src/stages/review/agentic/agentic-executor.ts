@@ -4,12 +4,13 @@ import { createAgentAdapter } from './adapters';
 import type { AgentErrorSubtype } from './adapters/agent-adapter';
 import { AgentLoader } from './loaders/agent-loader';
 import { buildUserPrompt } from './prompt-builder';
-import { parseIssuesFromResult } from './result-parser';
+import { normalizeIssue, parseIssuesFromResult } from './result-parser';
 import {
   createSubagentDefinitions,
   type AgentDefinition,
   type ResolvedAgentDefinition,
 } from './subagents/definitions';
+import { extractJsonText } from '../../../ai/shared/structured';
 import { ConfigService } from '../../../config/config';
 import {
   getTracer,
@@ -148,12 +149,29 @@ export class AgenticExecutor {
         );
       }
 
-      if (result.output) {
+      if (result.structuredOutput !== undefined) {
+        if (!Array.isArray(result.structuredOutput)) {
+          throw new Error(
+            `[Agentic] Job "${this.job.name}" structured output is not an array. Got: ${JSON.stringify(result.structuredOutput).substring(0, 200)}`,
+          );
+        }
+        const parsed = (result.structuredOutput as Record<string, unknown>[])
+          .filter((i) => ((i?.confidence as number) ?? 0) >= 7)
+          .map((i, idx) => normalizeIssue(i, idx, files, this.job.name, this.cwd));
+        issues.push(...parsed);
+        logger.info(`[Agentic] Parsed ${parsed.length} issues from structured output`);
+      } else if (result.output) {
         logger.info(`[Agentic] Result (first 500 chars): ${result.output.substring(0, 500)}`);
         const parsed = parseIssuesFromResult(result.output, files, this.job.name, this.cwd);
-        if (parsed.length === 0 && result.output.trim().length > 0) {
+        // Only throw when the output contains no JSON-like structure at all.
+        // parsed.length === 0 is valid when the model returns [] (no issues found).
+        const hasJsonContent = extractJsonText(result.output) !== null;
+        if (parsed.length === 0 && result.output.trim().length > 0 && !hasJsonContent) {
           logger.warn(
-            `[Agentic] Job "${this.job.name}" returned output but no parseable issues — response may be truncated (${result.output.length} chars).`,
+            `[Agentic] No parseable issues from text output. Raw output preview:\n${result.output.substring(0, 2000)}`,
+          );
+          throw new Error(
+            `[Agentic] Job "${this.job.name}" returned non-empty output but no parseable JSON issues (${result.output.length} chars).`,
           );
         }
         issues.push(...parsed);

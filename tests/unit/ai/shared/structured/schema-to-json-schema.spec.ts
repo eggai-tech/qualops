@@ -34,6 +34,54 @@ describe('schemaToJsonSchema', () => {
     expect(out.description).toBe('a list');
   });
 
+  describe('stripUnsupportedConstraints', () => {
+    it('removes minimum, maximum, multipleOf from number fields', () => {
+      const out = schemaToJsonSchema(z.object({ n: z.number().int().min(1).max(10) }), {
+        stripUnsupportedConstraints: true,
+      }) as Record<string, Record<string, Record<string, unknown>>>;
+      const nProp = out.properties.n;
+      expect(nProp.minimum).toBeUndefined();
+      expect(nProp.maximum).toBeUndefined();
+      expect(nProp.multipleOf).toBeUndefined();
+      expect(nProp.type).toBe('integer');
+    });
+
+    it('removes minLength, maxLength from string fields', () => {
+      const out = schemaToJsonSchema(z.object({ s: z.string().min(1).max(100) }), {
+        stripUnsupportedConstraints: true,
+      }) as Record<string, Record<string, Record<string, unknown>>>;
+      const sProp = out.properties.s;
+      expect(sProp.minLength).toBeUndefined();
+      expect(sProp.maxLength).toBeUndefined();
+      expect(sProp.type).toBe('string');
+    });
+
+    it('preserves description and required fields', () => {
+      const out = schemaToJsonSchema(
+        z.object({ s: z.string().min(1).describe('non-empty string') }),
+        { stripUnsupportedConstraints: true },
+      ) as Record<string, Record<string, Record<string, unknown>>>;
+      expect(out.properties.s.description).toBe('non-empty string');
+      expect((out.required as string[]).includes('s')).toBe(true);
+    });
+
+    it('strips constraints at all nesting levels', () => {
+      const out = schemaToJsonSchema(
+        z.object({ items: z.array(z.object({ n: z.number().min(0) })) }),
+        { stripUnsupportedConstraints: true },
+      ) as Record<string, Record<string, Record<string, Record<string, Record<string, unknown>>>>>;
+      expect(out.properties.items.items.properties.n.minimum).toBeUndefined();
+    });
+
+    it('does not strip constraints when option is false (default)', () => {
+      const out = schemaToJsonSchema(z.object({ n: z.number().min(1) })) as Record<
+        string,
+        Record<string, Record<string, unknown>>
+      >;
+      expect(out.properties.n.minimum).toBe(1);
+    });
+  });
+
   describe('strict-dialect validation', () => {
     it('accepts a schema with all properties required and additionalProperties:false', () => {
       expect(() =>
