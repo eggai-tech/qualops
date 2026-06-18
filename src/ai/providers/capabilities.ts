@@ -9,10 +9,6 @@ export type StructuredOutputDialect =
   | 'anthropic-tool-use'
   | 'unstructured'; // prose pipeline — model does not support json_schema
 
-export function isUnstructured(dialect: StructuredOutputDialect): boolean {
-  return dialect === 'unstructured';
-}
-
 export interface ProviderCapabilities {
   structuredDialect: StructuredOutputDialect;
   supportsTemperature: boolean;

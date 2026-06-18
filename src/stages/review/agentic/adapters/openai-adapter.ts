@@ -60,7 +60,11 @@ export class OpenAIAdapter implements AgentAdapter {
       logger.info(
         `[Agentic/OpenAI] Run complete. inputTokens=${usage.inputTokens}, outputTokens=${usage.outputTokens}`,
       );
-      logger.info('[Agentic/OpenAI] Received structured output from SDK');
+      if (structured?.issues) {
+        logger.info(`[Agentic/OpenAI] Structured output (${structured.issues.length} issues)`);
+      } else {
+        logger.warn('[Agentic/OpenAI] finalOutput was null or missing issues — returning empty');
+      }
 
       return {
         output: '',
