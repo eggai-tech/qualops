@@ -24,7 +24,7 @@ try {
   // rely on shell env
 }
 
-import { Langfuse } from 'langfuse';
+import { LangfuseClient } from '@langfuse/client';
 
 const args = Object.fromEntries(
   process.argv
@@ -158,9 +158,9 @@ export function buildQualOpsItem(data: RawDataItem, index: number): QualOpsItem 
 }
 
 
-async function ensureDataset(langfuse: Langfuse, name: string, description: string): Promise<void> {
+async function ensureDataset(langfuse: LangfuseClient, name: string, description: string): Promise<void> {
   try {
-    await langfuse.api.datasetsCreate({ name, description, metadata: { uploadedAt: new Date().toISOString() } });
+    await langfuse.api.datasets.create({ name, description, metadata: { uploadedAt: new Date().toISOString() } });
     console.log(`  Created dataset: ${name}`);
   } catch (err) {
     const e = err as { status?: number };
@@ -172,12 +172,12 @@ async function ensureDataset(langfuse: Langfuse, name: string, description: stri
   }
 }
 
-async function uploadBatch(langfuse: Langfuse, datasetName: string, items: (QualOpsItem | CrbItem)[]): Promise<void> {
+async function uploadBatch(langfuse: LangfuseClient, datasetName: string, items: (QualOpsItem | CrbItem)[]): Promise<void> {
   let uploaded = 0;
   let failed = 0;
   for (const item of items) {
     try {
-      await langfuse.api.datasetItemsCreate({
+      await langfuse.api.datasetItems.create({
         datasetName,
         id: item.id,
         input: item.input,
@@ -196,7 +196,7 @@ async function uploadBatch(langfuse: Langfuse, datasetName: string, items: (Qual
   console.log(`\n  Done: ${uploaded} uploaded, ${failed} failed`);
 }
 
-async function uploadQualOps(langfuse: Langfuse): Promise<void> {
+async function uploadQualOps(langfuse: LangfuseClient): Promise<void> {
   const datasetName = 'qualops/qualops';
   console.log(`\nUploading qualops dataset → ${datasetName}`);
   await ensureDataset(langfuse, datasetName, 'QualOps native eval dataset');
@@ -243,7 +243,7 @@ export function crbSliceToCrbItem(slice: CrbSlice, repoSlug: string): CrbItem {
   };
 }
 
-async function uploadCrb(langfuse: Langfuse): Promise<void> {
+async function uploadCrb(langfuse: LangfuseClient): Promise<void> {
   const repos = resolveCrbRepos(repo);
   for (const r of repos) {
     let slices = loadCrbItems(r);
@@ -274,7 +274,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const langfuse = new Langfuse({
+  const langfuse = new LangfuseClient({
     secretKey: langfuseSecretKey,
     publicKey: langfusePublicKey,
     baseUrl: langfuseHost,
@@ -294,7 +294,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  await langfuse.shutdownAsync();
+  await langfuse.shutdown();
   console.log('\nDone. View datasets at: ' + langfuseHost);
 }
 

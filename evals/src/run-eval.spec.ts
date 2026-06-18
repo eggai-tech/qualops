@@ -1,6 +1,6 @@
 'use strict';
 
-jest.mock('langfuse', () => ({ Langfuse: jest.fn() }));
+jest.mock('@langfuse/client', () => ({ LangfuseClient: jest.fn() }));
 
 import { parseDiffLines } from './reviewer';
 import { resolveDatasets, resolvePreset, listPresets } from './config';
