@@ -89,14 +89,12 @@ describe('OpenAIAdapter — run()', () => {
     expect(result.outputTokens).toBe(60);
   });
 
-  it('returns undefined structuredOutput when finalOutput is null', async () => {
+  it('throws when finalOutput is null', async () => {
     mockRunFn.mockResolvedValue({
       finalOutput: null,
       state: { usage: { inputTokens: 0, outputTokens: 0 } },
     } as any);
-    const result = await new OpenAIAdapter().run(makeParams());
-    expect(result.structuredOutput).toBeUndefined();
-    expect(result.output).toBe('');
+    await expect(new OpenAIAdapter().run(makeParams())).rejects.toThrow('finalOutput is missing');
   });
 
   it('passes maxTurns to run()', async () => {
