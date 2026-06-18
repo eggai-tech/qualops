@@ -152,6 +152,16 @@ describe('AgenticExecutor — execute()', () => {
     expect(result).toEqual([]);
   });
 
+  it('throws when structuredOutput is not an array', async () => {
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: '', structuredOutput: { unexpected: 'object' } })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    await expect(executor.execute([{ path: 'src/foo.ts', content: 'x' }])).rejects.toThrow(
+      'structured output is not an array',
+    );
+  });
+
   it('throws when non-empty text output contains no JSON', async () => {
     mockCreateAgentAdapter.mockReturnValue({
       run: jest.fn(async () => ({ output: 'No issues found in this code.' })),
