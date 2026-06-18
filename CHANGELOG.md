@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.7] - 2026-06-18
+
 ### Changed
 - Upgraded eval Langfuse SDK from `langfuse@3.38.20` to `@langfuse/client@5.4.1`. Eval runs are now registered as Langfuse experiments via `datasetRunItems.create()` with a consistent `runName`, grouping all items from a single eval run under one experiment entry in the Langfuse UI.
 
