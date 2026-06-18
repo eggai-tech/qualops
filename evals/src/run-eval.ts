@@ -315,6 +315,7 @@ async function linkDatasetRunItem(
         provider: config.provider,
         preset: config.presetLabel,
         configPath: config.configPath,
+        durationMs,
       },
     });
   } catch (err) {
