@@ -10,14 +10,13 @@ import * as os from 'os';
 import * as path from 'path';
 
 function buildGitConfigContent(workspaceRoot: string): string {
-  // Validate before interpolating into the config file. A newline in the value
-  // would break out of the [safe] section and allow arbitrary config injection
-  // (e.g. overriding hooksPath). Only allow characters that are valid in an
-  // absolute filesystem path; throw so the caller sees a clear error rather than
-  // silently writing a malformed or compromised config file.
-  if (!/^[a-zA-Z0-9/_\-.]+$/.test(workspaceRoot)) {
+  // Guard against config injection: a newline or null byte in the value would
+  // break out of the [safe] section and allow overriding keys like hooksPath.
+  // All other characters (UTF-8, spaces, punctuation) are valid in a path and
+  // safe to interpolate into a git config value.
+  if (/[\n\r\0]/.test(workspaceRoot)) {
     throw new Error(
-      `[git-config-template] Invalid workspaceRoot — contains disallowed characters: ${JSON.stringify(workspaceRoot)}`,
+      `[git-config-template] Invalid workspaceRoot — contains newline or null byte: ${JSON.stringify(workspaceRoot)}`,
     );
   }
   const root = workspaceRoot.replace(/\/+$/, '') || '/workspace/pr';

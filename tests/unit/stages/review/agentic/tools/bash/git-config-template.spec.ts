@@ -63,7 +63,15 @@ describe('git-config-template', () => {
     );
   });
 
-  it('throws when workspaceRoot contains other shell metacharacters', () => {
-    expect(() => getGitConfigContent('/workspace/pr; rm -rf /')).toThrow('Invalid workspaceRoot');
+  it('throws when workspaceRoot contains a null byte', () => {
+    expect(() => getGitConfigContent('/workspace/pr\x00evil')).toThrow('Invalid workspaceRoot');
+  });
+
+  it('accepts paths with UTF-8 characters', () => {
+    expect(() => getGitConfigContent('/home/user/repos/projekt-ü')).not.toThrow();
+  });
+
+  it('accepts paths with spaces', () => {
+    expect(() => getGitConfigContent('/home/user/my repo')).not.toThrow();
   });
 });
