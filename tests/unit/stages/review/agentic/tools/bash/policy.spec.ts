@@ -497,6 +497,50 @@ describe('evaluatePolicy', () => {
   });
 
   // --------------------------------------------------------------------------
+  // workspaceRoot: CI (/workspace/pr) vs local (arbitrary path)
+  // --------------------------------------------------------------------------
+
+  describe('workspaceRoot variants — CI vs local', () => {
+    const LOCAL_ROOT = '/home/runner/work/my-repo/my-repo';
+
+    test('cat inside local workspaceRoot is allowed', () => {
+      expect(
+        evaluatePolicy(`cat ${LOCAL_ROOT}/src/auth.ts`, { workspaceRoot: LOCAL_ROOT }).deny,
+      ).toBe(false);
+    });
+
+    test('cat outside local workspaceRoot is denied', () => {
+      expect(
+        evaluatePolicy('cat /workspace/pr/src/auth.ts', { workspaceRoot: LOCAL_ROOT }).deny,
+      ).toBe(true);
+    });
+
+    test('cat inside CI /workspace/pr is allowed', () => {
+      expect(
+        evaluatePolicy('cat /workspace/pr/src/auth.ts', { workspaceRoot: '/workspace/pr' }).deny,
+      ).toBe(false);
+    });
+
+    test('cat outside CI root targeting local path is denied', () => {
+      expect(
+        evaluatePolicy(`cat ${LOCAL_ROOT}/src/auth.ts`, { workspaceRoot: '/workspace/pr' }).deny,
+      ).toBe(true);
+    });
+
+    test('cd to local workspaceRoot is allowed', () => {
+      expect(evaluatePolicy(`cd ${LOCAL_ROOT}`, { workspaceRoot: LOCAL_ROOT }).deny).toBe(false);
+    });
+
+    test('cd to /workspace/pr is denied when workspaceRoot is local path', () => {
+      expect(evaluatePolicy('cd /workspace/pr', { workspaceRoot: LOCAL_ROOT }).deny).toBe(true);
+    });
+
+    test('relative path traversal is denied regardless of workspaceRoot', () => {
+      expect(evaluatePolicy('cat ../../etc/passwd', { workspaceRoot: LOCAL_ROOT }).deny).toBe(true);
+    });
+  });
+
+  // --------------------------------------------------------------------------
   // §3.8 compatibility allows not yet covered
   // --------------------------------------------------------------------------
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `BASH_TOOL_DESCRIPTION` constant removed; callers use `buildBashToolDescription(root)` directly so the description always reflects the actual workspace root rather than a hardcoded `/workspace/pr`.
+
+### Fixed
+- Bash tool description in `createToolSet` now derives its workspace root from `toolConfig.bash.workspaceRoot ?? cwd`, matching the root the policy enforces. Previously the description always pointed at `/workspace/pr`, causing every command to be denied with `path-outside-workspace` in local environments.
+
+### Tests
+- Added CI-vs-local policy coverage: `workspaceRoot` variants assert that CI (`/workspace/pr`) and local (arbitrary path) roots are each enforced and don't cross-contaminate.
+- Added `QUALOPS_REVIEW_ID` validation tests: safe chars accepted, path traversal / metacharacters / absent value all fall back to a random UUID.
+
 ## [0.2.7] - 2026-06-18
 
 ### Changed
