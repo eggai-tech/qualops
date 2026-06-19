@@ -10,7 +10,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 function buildGitConfigContent(workspaceRoot: string): string {
-  const root = workspaceRoot.replace(/\/+$/, '') || '/workspace';
+  const root = workspaceRoot.replace(/\/+$/, '') || '/workspace/pr';
   // Always allow both the PR checkout and the base-branch checkout that CI
   // places alongside it (e.g. /workspace/pr + /workspace/base). In local
   // environments workspaceRoot is the actual checkout path and there is no

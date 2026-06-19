@@ -48,7 +48,7 @@ export interface DetectOptions {
  * Throws if no suitable driver can be found and unsandboxed mode is not allowed.
  */
 export function detectSandboxDriver(opts: DetectOptions = {}): SandboxDriver {
-  const { mode = 'auto', workspaceRoot = '/workspace', prHooksDir, httpProxy } = opts;
+  const { mode = 'auto', workspaceRoot = '/workspace/pr', prHooksDir, httpProxy } = opts;
 
   const explicitMode =
     mode !== 'auto' ? mode : (process.env['QUALOPS_SANDBOX_MODE'] as SandboxMode | undefined);

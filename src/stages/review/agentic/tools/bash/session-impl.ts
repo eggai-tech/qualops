@@ -197,7 +197,7 @@ export class BashShellSession {
     return result;
   }
 
-  async exec(command: string, workspaceRoot: string = '/workspace'): Promise<SessionExecResult> {
+  async exec(command: string, workspaceRoot: string = '/workspace/pr'): Promise<SessionExecResult> {
     if (!this.proc || this.closed) {
       throw new Error('[bash/session] Shell session has been disposed');
     }
