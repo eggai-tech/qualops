@@ -56,4 +56,14 @@ describe('git-config-template', () => {
   it('cleanupGitConfig is a no-op when called without a path', () => {
     expect(() => cleanupGitConfig()).not.toThrow();
   });
+
+  it('throws when workspaceRoot contains a newline (config injection attempt)', () => {
+    expect(() => getGitConfigContent('/workspace/pr\n[core]\n\thooksPath = /tmp/evil')).toThrow(
+      'Invalid workspaceRoot',
+    );
+  });
+
+  it('throws when workspaceRoot contains other shell metacharacters', () => {
+    expect(() => getGitConfigContent('/workspace/pr; rm -rf /')).toThrow('Invalid workspaceRoot');
+  });
 });

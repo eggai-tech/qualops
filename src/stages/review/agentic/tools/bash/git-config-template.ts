@@ -10,6 +10,16 @@ import * as os from 'os';
 import * as path from 'path';
 
 function buildGitConfigContent(workspaceRoot: string): string {
+  // Validate before interpolating into the config file. A newline in the value
+  // would break out of the [safe] section and allow arbitrary config injection
+  // (e.g. overriding hooksPath). Only allow characters that are valid in an
+  // absolute filesystem path; throw so the caller sees a clear error rather than
+  // silently writing a malformed or compromised config file.
+  if (!/^[a-zA-Z0-9/_\-.]+$/.test(workspaceRoot)) {
+    throw new Error(
+      `[git-config-template] Invalid workspaceRoot — contains disallowed characters: ${JSON.stringify(workspaceRoot)}`,
+    );
+  }
   const root = workspaceRoot.replace(/\/+$/, '') || '/workspace/pr';
   // Always allow both the PR checkout and the base-branch checkout that CI
   // places alongside it (e.g. /workspace/pr + /workspace/base). In local
