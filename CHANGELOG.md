@@ -14,11 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bash tool description in `createToolSet` now derives its workspace root from `toolConfig.bash.workspaceRoot ?? cwd`, matching the root the policy enforces. Previously the description always pointed at `/workspace/pr`, causing every command to be denied with `path-outside-workspace` in local environments.
 - `git-config-template` `safe.directory` is now derived from the actual `workspaceRoot` passed by the session. Previously it was hardcoded to `/workspace/pr` and `/workspace/base`, causing `git` commands to fail with a dubious ownership error in local environments.
 
-### Tests
-- Added CI-vs-local policy coverage: `workspaceRoot` variants assert that CI (`/workspace/pr`) and local (arbitrary path) roots are each enforced and don't cross-contaminate.
-- Added `QUALOPS_REVIEW_ID` validation tests: safe chars accepted, path traversal / metacharacters / absent value all fall back to a random UUID.
-- Added `detectSandboxDriver` unit tests covering CI env var detection, explicit mode overrides, local driver priority order, `workspaceRoot` propagation, and the `QUALOPS_ALLOW_UNSANDBOXED` fallback.
-- Added `git-config-template` tests for CI vs local `safe.directory` content.
 
 ## [0.2.7] - 2026-06-18
 
