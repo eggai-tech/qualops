@@ -114,7 +114,7 @@ export class BashShellSession {
   }
 
   private async spawn(): Promise<void> {
-    const gitConfigPath = getGitConfigPath();
+    const gitConfigPath = getGitConfigPath(this.cwd);
     const env = makeCleanEnv(gitConfigPath, {
       TERM: 'dumb',
       QUALOPS_WORKSPACE: this.cwd,
