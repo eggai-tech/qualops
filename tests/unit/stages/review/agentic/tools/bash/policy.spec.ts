@@ -1,10 +1,6 @@
 import { evaluatePolicy } from '../../../../../../../src/stages/review/agentic/tools/bash/policy';
 
 describe('evaluatePolicy', () => {
-  // --------------------------------------------------------------------------
-  // ALLOW cases (§3.8 compatibility table)
-  // --------------------------------------------------------------------------
-
   describe('allowed commands', () => {
     it('git log is allowed', () => {
       expect(evaluatePolicy('git log --oneline -10')).toEqual({ deny: false });
@@ -112,10 +108,6 @@ describe('evaluatePolicy', () => {
       expect(evaluatePolicy("bash -c 'echo hello'")).toEqual({ deny: false });
     });
   });
-
-  // --------------------------------------------------------------------------
-  // DENY cases (§3.5 hard-deny list)
-  // --------------------------------------------------------------------------
 
   describe('denied commands', () => {
     it('curl is denied', () => {
@@ -316,10 +308,6 @@ describe('evaluatePolicy', () => {
     });
   });
 
-  // --------------------------------------------------------------------------
-  // Extra config: extraDeniedBinaries
-  // --------------------------------------------------------------------------
-
   describe('extraDeniedBinaries config', () => {
     it('custom denied binary is blocked', () => {
       const result = evaluatePolicy('my-custom-tool --dump', {
@@ -335,10 +323,6 @@ describe('evaluatePolicy', () => {
       expect(result.deny).toBe(false);
     });
   });
-
-  // --------------------------------------------------------------------------
-  // §3.5 spec rules not yet covered
-  // --------------------------------------------------------------------------
 
   describe('additional spec §3.5 deny rules', () => {
     // Background / session escape
@@ -496,10 +480,6 @@ describe('evaluatePolicy', () => {
     });
   });
 
-  // --------------------------------------------------------------------------
-  // workspaceRoot: CI (/workspace/pr) vs local (arbitrary path)
-  // --------------------------------------------------------------------------
-
   describe('workspaceRoot variants — CI vs local', () => {
     const LOCAL_ROOT = '/home/runner/work/my-repo/my-repo';
 
@@ -539,10 +519,6 @@ describe('evaluatePolicy', () => {
       expect(evaluatePolicy('cat ../../etc/passwd', { workspaceRoot: LOCAL_ROOT }).deny).toBe(true);
     });
   });
-
-  // --------------------------------------------------------------------------
-  // §3.8 compatibility allows not yet covered
-  // --------------------------------------------------------------------------
 
   describe('additional spec §3.8 compatibility allows', () => {
     it('mysql -e SQL is allowed', () => {
@@ -602,10 +578,6 @@ describe('evaluatePolicy', () => {
     });
   });
 
-  // --------------------------------------------------------------------------
-  // Partial quoting denial
-  // --------------------------------------------------------------------------
-
   describe('partial quoting denial', () => {
     it('"cu"rl bypasses deny list without this fix — must be denied', () => {
       // unquoteArg only strips fully-wrapped quotes; "cu"rl stays as "cu"rl,
@@ -643,10 +615,6 @@ describe('evaluatePolicy', () => {
     });
   });
 
-  // --------------------------------------------------------------------------
-  // ANSI-C quoting denial
-  // --------------------------------------------------------------------------
-
   describe('ANSI-C quoting denial', () => {
     it('hex-encoded curl bypasses binary deny list without this fix — must be denied', () => {
       // $'\x63\x75\x72\x6c' is ANSI-C for 'curl'; bash would execute curl.
@@ -672,10 +640,6 @@ describe('evaluatePolicy', () => {
       expect(evaluatePolicy("echo $'hello world'").deny).toBe(true);
     });
   });
-
-  // --------------------------------------------------------------------------
-  // Command substitution denial
-  // --------------------------------------------------------------------------
 
   describe('command substitution denial', () => {
     it('echo with bare $() subshell is denied', () => {
@@ -708,10 +672,6 @@ describe('evaluatePolicy', () => {
       expect(evaluatePolicy('diff <(rg foo a) <(rg foo b)').deny).toBe(false);
     });
   });
-
-  // --------------------------------------------------------------------------
-  // Environment variable injection denial (checkEnvHijacking extensions)
-  // --------------------------------------------------------------------------
 
   describe('env-hijacking denial extensions', () => {
     it('BASH_ENV inline assignment is denied', () => {
