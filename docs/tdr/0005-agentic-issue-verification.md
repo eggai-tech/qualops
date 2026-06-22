@@ -30,17 +30,43 @@ three structural weaknesses:
 QualOps already has an agentic execution path — `AgenticExecutor`
 (`src/stages/review/agentic/agentic-executor.ts`) plus provider adapters
 (`src/stages/review/agentic/adapters/`) — that grants sandboxed bash/read/grep tools with workspace
-boundary enforcement and `maxTurns` / `maxBudgetUsd` / bash `maxCallsPerReview` caps. The question this TDR
-answers is how to bring real investigation to bear on false-positive removal.
+boundary enforcement and `maxTurns` / `maxBudgetUsd` / bash `maxCallsPerReview` caps.
 
-## Options Considered
+False-positive rate is not reducible at a single point. There are at least four distinct levers, each
+intervening at a different place in the pipeline:
 
-This TDR makes two nested decisions: **(1) where false-positive filtering should live**, and **(2) how a
-verdict on each finding is reached**.
+- **Generation-side** — capture more evidence at review time so fewer false positives are produced or so the
+  existing judge can reject them without investigating.
+- **Threshold** — where the confidence pre-filter (`>= 7`) is placed.
+- **Deterministic pre-checks** — cheap, LLM-free filters that remove pattern-shaped false positives before
+  any model is invoked.
+- **Verdict mechanism** — how each surviving finding is judged.
 
-### Decision 1 — Where does false-positive filtering live?
+This TDR evaluates the structural choices for the last lever (where filtering lives, and how a verdict is
+reached) and the deterministic-pre-check lever, and records the generation-side and threshold levers as
+adjacent, complementary work. It does not pre-commit to a single configuration.
 
-#### Option 1A — Enhance the existing validation step (chosen home)
+## Adjacent levers (outside the numbered axes)
+
+These two levers reduce false positives but are not verdict-stage design choices. They combine with any
+selection from the axes below rather than competing with them, and are recorded here so the document does not
+present the verdict stage as the only intervention point.
+
+**Source-side reduction.** Several enumerated false-positive shapes (`process.exit()` in a CLI,
+operator-controlled input) are knowable at review time given enough surrounding code. Capturing a richer
+`context` up front — more lines, the enclosing function signature, the call site — would let even the current
+batched judge reject them with evidence, at a fraction of the cost of investigation. This is upstream of every
+option below and complements all of them; it is not a numbered axis because it changes *what the review
+produces*, not *how a verdict is reached*.
+
+**Confidence calibration.** The pre-filter is a hard `issue.confidence >= 7`
+(`validation-resolver.ts:49-57`). False-positive rate is partly a threshold-placement problem: raising the
+bar drops more findings (trading recall for precision) without any model change. Calibration is orthogonal to
+the verdict mechanism and can be tuned independently of, and alongside, any option below.
+
+## Decision 1 — Where does false-positive filtering live?
+
+### Option 1A — Enhance the existing validation step
 
 Keep false-positive removal inside `ValidationResolver`, in the same pipeline position
 (`review → validate → dedup`), and change only the *mechanism* of the AI step. The output type stays
@@ -52,11 +78,13 @@ Keep false-positive removal inside `ValidationResolver`, in the same pipeline po
 - Medium- and low-severity findings remain covered (they all reach validation).
 
 **Cons:**
-- None material — it is the natural home.
+- Verification stays buried inside the review stage rather than being a first-class, independently
+  traceable/evaluable/toggleable step. This matters precisely because the mechanism is about to become the
+  most expensive part of the run, where independent observability and a kill switch are most useful.
 
 ---
 
-#### Option 1B — Remove validation; new standalone "verify" stage between review and fix
+### Option 1B — Remove validation; new standalone "verify" stage between review and fix
 
 Retire the batched validation step entirely and move false-positive removal into a new dedicated agentic
 verification stage that sits between `review` and `fix`.
@@ -69,16 +97,11 @@ verification stage that sits between `review` and `fix`.
 
 **Cons:**
 - New stage wiring: pipeline ordering, stage metadata, session paths, and config surface all have to be
-  added and maintained, where validation already provides all of that.
-- Moves false-positive removal *after* dedup and the rest of the review stage's post-processing, splitting
-  closely related logic across two stages for no functional gain at this scope.
-
-Rejected — the extra stage machinery buys nothing that 1A doesn't already provide; validation is the
-existing home for this exact responsibility.
+  added and maintained, where validation already provides that scaffolding today.
 
 ---
 
-#### Option 1C — Remove validation; fold verification into the fix stage
+### Option 1C — Remove validation; fold verification into the fix stage
 
 Retire the batched validation step and have the fix stage decide whether a finding is a false positive
 (before generating a fix) as the sole false-positive filter.
@@ -93,22 +116,26 @@ Retire the batched validation step and have the fix stage decide whether a findi
 - For any run that does not fix (report-only is a common mode), there would be **no** false-positive filter
   at all.
 
-Rejected — removing validation in favour of the fix stage leaves most findings unverified.
+---
 
-**Decision 1 → Option 1A.** Filtering stays in validation.
+## Decision 2 — How is a verdict reached?
+
+### Option 2A — Batched, no tools (status quo)
+
+One LLM call, all issues, pattern-only judgement. The current behaviour, and the baseline the other
+options are measured against.
+
+**Pros:**
+- Lowest cost and lowest latency — a single call.
+
+**Cons:**
+- No investigation: rejects only pattern-shaped false positives, not evidence-based ones.
+- Divided attention across N findings; reasoning gets shallower as N grows.
+- All-or-nothing parse failure (`:122-128`) — one malformed response drops every finding.
 
 ---
 
-### Decision 2 — How is a verdict reached?
-
-#### Option 2A — Batched, no tools (status quo)
-
-One LLM call, all issues, pattern-only judgement. Already shown above to miss evidence-based false
-positives. This is the baseline being replaced.
-
----
-
-#### Option 2B — Single agentic run, all issues, with tools
+### Option 2B — Single agentic run, all issues, with tools
 
 One agent receives the whole list plus bash/read/grep and returns all verdicts.
 
@@ -121,12 +148,20 @@ One agent receives the whole list plus bash/read/grep and returns all verdicts.
   splits focus across N issues.
 - Keeps the all-or-nothing parse failure.
 - Bolting tools onto a batch does not deliver focused investigation.
-
-Rejected — it does not address the root cause.
+- **Introduces a false-negative risk** absent from 2A: an investigating agent can *wrongly drop a real
+  finding* (e.g. mistaking a bypassable guard for a safe one). Tool use widens the failure surface in both
+  directions, not just toward better precision.
+- **Non-deterministic** — tool transcripts vary run-to-run, so verdicts can differ between runs of the same
+  PR, which destabilises regression evals.
+- **Depends on a correct checkout.** The agent's value is contingent on the repository being checked out at
+  the right commit in the sandbox; a stale or wrong checkout makes it investigate the wrong code and produce
+  confidently-wrong verdicts — strictly worse than no investigation.
+- **Expands the prompt-injection surface** — the agent reads PR-authored (potentially hostile) code with
+  bash/read access. For a tool that is partly a security reviewer, this is a real threat-model change.
 
 ---
 
-#### Option 2C — Per-issue agentic run, tightly bounded (chosen)
+### Option 2C — Per-issue agentic run, tightly bounded
 
 Each issue gets its own agentic run with bash/read/grep, bounded by a low `maxTurns`, a small
 `maxBudgetUsd`, and a small bash call cap so it performs a *focused, targeted* check rather than open-ended
@@ -137,72 +172,159 @@ verdict `{is_false_positive, confidence, severity, reasoning, evidence}`.
 **Pros:**
 - Maximum focus and depth per finding; the agent actually inspects the checked-out repository to confirm or
   refute the finding.
-- Failures are isolated to a single finding (and fail open — see Decision).
+- Failures can be isolated to a single finding rather than dropping the batch.
 - Clean per-finding evidence trail recorded on the kept issue.
 
 **Cons:**
-- N agentic runs cost more time and tokens than one batched call. Mitigated by tight per-issue bounds,
-  bounded concurrency, and a `maxIssues` guard that falls back to the batched call for pathologically large
-  lists.
+- N agentic runs cost more **tokens** than one batched call. Mitigated by tight per-issue bounds, bounded
+  concurrency, and a `maxIssues` guard that falls back to the batched call for pathologically large lists —
+  but see the silent-fallback caveat under *Configuration tradeoffs*.
+- Adds **latency** distinct from token cost: even with bounded concurrency, N runs lengthen the wall-clock
+  time before a PR comment appears, which is a product constraint for an inline review tool.
+- Carries the same **false-negative**, **non-determinism**, **checkout-dependency**, and
+  **prompt-injection** risks described under 2B, amplified by running N independent agents instead of one.
 
-**Decision 2 → Option 2C.**
+**Fail-open vs fail-closed.** Whether a verification timeout or error *keeps* (fail-open) or *drops*
+(fail-closed) the finding is the single most consequential precision/recall lever in this option, not an
+implementation detail. Fail-open protects recall (real findings survive agent failures) at the cost of
+letting some false positives through; fail-closed does the reverse. This choice must be made explicitly and
+applies equally to 2B.
 
 ---
 
-### Comparison
+### Option 2D — Tiered: batched triage, then per-issue escalation
 
-| Criterion                | 2A — Batched, no tools | 2B — Single run + tools | 2C — Per-issue + tools |
-|--------------------------|------------------------|-------------------------|------------------------|
-| Investigates the code    | ❌                     | ✅                      | ✅                     |
-| Focus per finding        | ❌ divided             | ❌ divided              | ✅ dedicated           |
-| Failure isolation        | ❌ batch-wide          | ❌ batch-wide           | ✅ per-finding         |
-| Evidence trail           | reasoning only         | shared transcript       | ✅ per-finding         |
-| Cost                     | ✅ lowest              | ⚠️ medium               | ⚠️ highest (bounded)   |
-| Reuses agentic infra     | n/a                    | ✅                      | ✅                     |
+Run the batched judge (2A) first as a cheap triage pass, then escalate only the *uncertain or borderline*
+findings — those near the confidence boundary, or where the batched judge's verdict is low-confidence — to a
+bounded per-issue agentic run (2C). Clear-cut findings keep the batched verdict; only the ambiguous tail pays
+for investigation.
+
+**Pros:**
+- Directly attacks the one weakness 2C cannot mitigate on its own — **cost** — by sending only the borderline
+  subset to the expensive path.
+- Cost/accuracy is tunable via the escalation threshold rather than fixed.
+- Preserves per-finding evidence and failure isolation for the escalated set.
+
+**Cons:**
+- More moving parts: a two-stage pipeline with its own threshold to tune and validate.
+- Two failure modes to reason about (batched parse failure *and* per-issue agent failure), each needing its
+  own fail-open/fail-closed policy.
+- A miscalibrated escalation threshold can route the wrong findings — sending easy ones to the agent or
+  keeping hard ones on the shallow path.
+
+---
+
+## Decision 3 — Deterministic pre-checks (orthogonal)
+
+An LLM-free filter layer that runs *before* any verdict mechanism. It is orthogonal to Decisions 1 and 2:
+it combines with any "where" and any "how" selection, and it reduces the population of findings reaching the
+verdict stage — cutting cost regardless of which mechanism is chosen.
+
+### Option 3A — None (status quo)
+
+No deterministic pre-check; every survivor of the confidence filter reaches the verdict mechanism.
+
+---
+
+### Option 3B — Git/diff-based checks
+
+Cheap, deterministic checks against the PR's own history. The clearest case: "a later commit in the same PR
+already fixed the flagged code" is answerable with `git log -L` / `git blame` against the finding's line
+range — no model needed. Findings whose target lines were superseded by a later commit are dropped
+deterministically.
+
+**Pros:**
+- Removes a whole class of false positives at near-zero cost and with no model variance.
+- Fully deterministic — stable across runs, eval-friendly.
+
+**Cons:**
+- Narrow: only catches false positives that are visible in version-control history, not semantic ones.
+- A precise line-range mapping is required; sloppy mapping risks dropping a still-relevant finding (a
+  false-negative risk of its own).
+
+---
+
+### Option 3C — Static heuristics
+
+Pattern-based rules for the most common pattern-shaped false positives — e.g. `process.exit()` in a known
+entry-point/CLI file, or simple reachability/guard heuristics — applied before the verdict stage.
+
+**Pros:**
+- Catches the highest-frequency pattern-shaped false positives without an LLM call.
+- Deterministic and inspectable; each rule is auditable.
+
+**Cons:**
+- Heuristics carry a **precision/recall risk**: an over-broad rule drops real findings (false negatives),
+  an over-narrow one earns nothing. Each rule needs its own validation on labelled data.
+- Rule maintenance is ongoing as the codebase and finding shapes evolve.
+
+---
+
+## Configuration tradeoffs
+
+The axes above are combinable; listing every product is not useful. Instead, a few representative end-to-end
+configurations, each labelled by what it optimises:
+
+- **Lowest cost / fastest — `1A + 3A + 2A`** (today) or **`1A + 3B + 2A`.** A single batched call, optionally
+  preceded by deterministic git checks. Cheapest and lowest-latency; weakest on evidence-based false
+  positives. Adding 3B removes the "already-fixed-in-PR" class for free without changing the cost profile of
+  the verdict step. *Favors: speed, $, determinism. Trades away: precision on evidence-based FPs.*
+
+- **Best precision — `1A + 3B/3C + 2C`.** Deterministic checks thin the population, then every survivor gets a
+  focused per-issue investigation. Strongest false-positive removal; most expensive in tokens and latency, and
+  most exposed to the false-negative / checkout / injection risks unless fail-open is chosen. *Favors:
+  precision. Trades away: $, latency, determinism.*
+
+- **Balanced cost/precision — `1A + 3B + 2D`.** Deterministic pre-checks, then batched triage, then per-issue
+  escalation only for the borderline tail. Most of 2C's precision at a fraction of its cost, at the price of a
+  threshold to tune. *Favors: cost/precision balance. Trades away: simplicity.*
+
+- **Recall-protective — any config with deterministic-only hard drops + fail-open verdicts.** Findings are
+  only *dropped* with certainty by deterministic checks (3B/3C); the LLM/agent verdict can lower confidence
+  but a verification failure keeps the finding. Minimises false negatives at the cost of admitting more false
+  positives. *Favors: recall. Trades away: precision.*
+
+**Open questions to resolve before choosing a configuration:**
+
+- **Baseline.** What is the current false-positive *and* false-negative rate on a labelled set? Without this,
+  no option can be shown to improve precision without regressing recall.
+- **Recall guard.** Any option that *drops* findings (2B/2C/2D, 3C) needs a measured recall guard — the FP
+  win must not come at an unmeasured recall cost.
+- **Latency budget.** What wall-clock ceiling is acceptable for an inline PR comment? This bounds how much of
+  the population 2C may touch.
+- **Checkout reliability.** How reliably is the repository checked out at the correct commit in the sandbox?
+  The value of every tool-using option (2B/2C/2D) is contingent on this.
+- **Fail-open vs fail-closed.** The default verification-failure policy must be chosen explicitly (see 2C).
+- **`maxIssues` fallback visibility.** If 2C/2D fall back to the batched call for large lists, that fallback
+  must be **logged and surfaced**, not silent — large PRs are the ones most likely to contain false positives,
+  so silently giving them the weaker filter is the opposite of what is intended.
+
+## Evaluation strategy
+
+The goal — *reduce false positives without regressing recall* — is measurable, and the existing harness already
+provides the instruments, so the strategy reuses them rather than building new ones. Two tiers:
+
+- **Aggregate (CRB).** The scorers in `evals/src/scorers/crb-pairwise.ts` already compute
+  `crb_precision = TP/(TP+FP)` (a direct false-positive measure) and `crb_recall = TP/(TP+FN)`. Run each
+  candidate with `npm run eval:run:crb:all` over the 50-PR CRB dataset in `pipeline` mode (so the verification
+  step is exercised) and compare against the `3A + 2A` baseline as Langfuse experiments. Pass condition:
+  **precision up, recall flat-or-up** — improving precision while dropping recall is a regression, not a win.
+- **Targeted (curated FP set).** CRB's golden comments aren't selected for the FP shapes this TDR targets, so
+  curate a small labelled set via `/new-eval-from-pr`, which already writes slices with `expected[]`,
+  `outOfScope[]`, and `falsePositives[]` to `evals/datasets/inbox/<slug>/`. Seed it with the enumerated shapes
+  (CLI `process.exit()`, operator-controlled input, guarded vulnerability, already-fixed-in-PR) plus real
+  production misses. Target: **every `falsePositives[]` entry dropped, every `expected[]` entry kept.** Asserting
+  on `falsePositives[]` is a small extension of the CRB scorer (captured today but not yet scored) and is part
+  of the chosen option's implementation work.
 
 ## Decision
 
-Replace the batched `validateWithAI()` AI step with **per-issue, tightly-bounded agentic verification**
-(Option 1A + Option 2C).
-
-For each issue that clears the confidence pre-filter, run one bounded agentic call with sandboxed
-bash/read/grep tools that investigates the finding in the checked-out repository and returns a structured
-verdict. Drop issues judged false-positive; keep the rest with possibly-revised confidence/severity plus the
-recorded evidence. Runs are concurrent and bounded. A failed or unparseable verdict **fails open** (the
-finding is kept) and is isolated to that single issue, so verification can never silently delete a real
-finding the way the batch can today.
-
-For pathologically large finding lists (above a configurable `maxIssues` threshold), verification falls back
-to the existing batched call rather than launching an unbounded number of agentic runs.
+_TBD._
 
 ## Consequences
 
-- **Contributors:** false-positive removal now reads the code instead of guessing from a snippet; reports
-  carry an `evidence` trail per kept finding. A new `verification` config block tunes concurrency and
-  per-issue caps.
-- **Consumers / operations:** review runs cost more time and tokens (N bounded agentic runs vs one call),
-  controlled by `concurrency`, `maxTurns`, `maxBudgetUsd`, `bashMaxCalls`, and the `maxIssues` fallback
-  guard. Verification requires the repository to be checked out at the reviewed commit (already a
-  prerequisite for agentic mode) so bash can inspect it.
-- **Reliability:** a malformed or failed verdict no longer drops the whole batch — only that one run, and it
-  fails open. The Anthropic adapter gains a configurable output schema; this is additive and the existing
-  review path is unchanged.
-- **Reversibility:** the batched path is retained as the `maxIssues`-exceeded fallback and can be restored
-  by configuration, so the decision is low-risk to roll back.
+_TBD._
 
 ## Implementation notes
 
-Key touch points (full step list lives with the implementation plan):
-
-- `src/stages/review/processors/validation-resolver.ts` — replace the `validateWithAI()` internals; keep
-  `validate()` and the confidence pre-filter unchanged.
-- `src/stages/review/processors/issue-verifier.ts` *(new)* — per-issue agentic verifier; reuses
-  `createAgentAdapter`, `PromptLoader.load`, and `ConfigService.getResolvedStageConfig('review')`.
-- `src/ai/shared/schemas/verification-verdict.ts` *(new)* — single-object verdict schema, reusing the field
-  descriptions from `ValidationResultItemSchema` (`src/ai/shared/schemas/validation-result.ts`).
-- `src/stages/review/agentic/adapters/agent-adapter.ts` and `anthropic-adapter.ts` — add an optional,
-  configurable structured-output schema so an agentic run can return a verdict instead of review issues
-  (the adapter currently hardcodes the review-issues schema).
-- `src/shared/types/index.ts` — optional `evidence` field on `ReviewIssue` for the report.
-- `src/config/config-schema.ts` and `qualops-config.schema.json` — a `verification` config block.
-- Concurrency reuses `processConcurrently` (`src/shared/utils/concurrency.ts`).
+_TBD._
