@@ -56,35 +56,44 @@ Keep false-positive removal inside `ValidationResolver`, in the same pipeline po
 
 ---
 
-#### Option 1B — New standalone "verify" stage between review and fix
+#### Option 1B — Remove validation; new standalone "verify" stage between review and fix
 
-Leave the batched validation intact and add a separate agentic verification stage on top of it.
+Retire the batched validation step entirely and move false-positive removal into a new dedicated agentic
+verification stage that sits between `review` and `fix`.
 
 **Pros:**
-- Clean separation of concerns; can be toggled independently of validation.
+- Clean separation of concerns — verification becomes a first-class, independently toggleable stage with its
+  own metadata and config, rather than a step buried inside review.
+- A natural home if verification later grows beyond false-positive removal (e.g. cross-finding correlation,
+  severity re-grading as a deliberate pass).
 
 **Cons:**
-- Two false-positive filters doing overlapping work, with ambiguous ownership.
-- More orchestration, stage metadata, and configuration surface.
-- The existing batched judge remains as redundant, now-dead-weight surface.
+- New stage wiring: pipeline ordering, stage metadata, session paths, and config surface all have to be
+  added and maintained, where validation already provides all of that.
+- Moves false-positive removal *after* dedup and the rest of the review stage's post-processing, splitting
+  closely related logic across two stages for no functional gain at this scope.
 
-Rejected — it duplicates a responsibility validation already holds.
+Rejected — the extra stage machinery buys nothing that 1A doesn't already provide; validation is the
+existing home for this exact responsibility.
 
 ---
 
-#### Option 1C — Fold verification into the fix stage
+#### Option 1C — Remove validation; fold verification into the fix stage
 
-Have the fix agent decide whether a finding is a false positive before generating a fix.
+Retire the batched validation step and have the fix stage decide whether a finding is a false positive
+(before generating a fix) as the sole false-positive filter.
 
 **Pros:**
-- The fix agent already inspects code with tools, so the capability is nearby.
+- The fix agent already inspects code with tools, so the investigation capability is nearby.
 
 **Cons:**
 - The fix stage only processes HIGH-severity, confidence ≥ 7, non-ESLint issues
-  (`src/stages/fix/index.ts:14-23`). Medium- and low-severity findings would never be verified.
-- For any run that does not fix (report-only), false positives would still reach the report.
+  (`src/stages/fix/index.ts:14-23`). With validation removed, medium- and low-severity findings would never
+  be verified and would reach the report unfiltered.
+- For any run that does not fix (report-only is a common mode), there would be **no** false-positive filter
+  at all.
 
-Rejected — wrong coverage.
+Rejected — removing validation in favour of the fix stage leaves most findings unverified.
 
 **Decision 1 → Option 1A.** Filtering stays in validation.
 
