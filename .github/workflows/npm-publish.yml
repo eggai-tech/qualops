@@ -150,7 +150,7 @@ jobs:
     needs: [prepare, build-and-test, create-tag]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
     environment:
       name: npm
@@ -168,6 +168,8 @@ jobs:
       - name: Checkout repository
         if: steps.check.outputs.exists == 'false'
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         if: steps.check.outputs.exists == 'false'
@@ -205,6 +207,64 @@ jobs:
           sleep 10
           npm view @eggai/qualops@$VERSION version
           echo "Successfully published @eggai/qualops@$VERSION"
+
+      - name: Move beta ref forward if stable is newer
+        if: steps.check.outputs.exists == 'false' && needs.prepare.outputs.prerelease == 'false'
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          # --- resolve current beta from git (single source of truth) ---
+          git fetch origin "+refs/tags/beta:refs/tags/beta" 2>/dev/null || true
+          OLD_BETA_SHA=$(git rev-parse --verify "refs/tags/beta^{}" 2>/dev/null \
+                         || git rev-parse --verify "refs/tags/beta" 2>/dev/null \
+                         || echo "")
+          # Derive beta's version from the vX.Y.Z tag on the beta commit.
+          # Release flow always tags vX.Y.Z alongside moving beta, so this holds.
+          if [ -n "$OLD_BETA_SHA" ]; then
+            BETA_VER=$(git tag --points-at "$OLD_BETA_SHA" \
+                       | grep -E '^v[0-9]' | sed 's/^v//' \
+                       | sort -V | tail -n1)
+          else
+            BETA_VER=""
+          fi
+          # --- version guard ---
+          if [ -z "$BETA_VER" ]; then
+            echo "No beta git tag found; moving beta to stable."
+          else
+            SHOULD_MOVE=$(BETA_VER="$BETA_VER" node -e '
+              function cmp(a, b) {
+                const pa = a.replace(/-.*/, "").split(".").map(Number);
+                const pb = b.replace(/-.*/, "").split(".").map(Number);
+                for (let i = 0; i < 3; i++) {
+                  if (pa[i] !== pb[i]) return pa[i] - pb[i];
+                }
+                const aHasPre = a.includes("-"), bHasPre = b.includes("-");
+                if (!aHasPre && bHasPre) return 1;
+                if (aHasPre && !bHasPre) return -1;
+                return a < b ? -1 : a > b ? 1 : 0;
+              }
+              process.stdout.write(cmp(process.env.VERSION, process.env.BETA_VER) >= 0 ? "yes" : "no");
+            ')
+            if [ "$SHOULD_MOVE" != "yes" ]; then
+              echo "Beta ($BETA_VER) is ahead of new stable ($VERSION); leaving beta unchanged."
+              exit 0
+            fi
+            echo "New stable ($VERSION) >= current beta ($BETA_VER); moving beta forward."
+          fi
+          # --- npm dist-tag ---
+          npm dist-tag add "@eggai/qualops@$VERSION" beta
+          echo "npm dist-tag beta → $VERSION"
+          # --- git tag ---
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TARGET_SHA=$(git rev-list -n 1 "v$VERSION")
+          git tag -f beta "$TARGET_SHA"
+          if [ -n "$OLD_BETA_SHA" ]; then
+            git push origin "refs/tags/beta" --force-with-lease="refs/tags/beta:$OLD_BETA_SHA"
+          else
+            git push origin "refs/tags/beta"
+          fi
+          echo "git tag beta → $TARGET_SHA (v$VERSION)"
 
   github-release:
     needs: [prepare, build-and-test, create-tag]
