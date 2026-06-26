@@ -1,6 +1,6 @@
 # TDR 0004 — OpenAI-Compatible Agentic Adapter
 
-**Status:** Proposed — 2026-06-09
+**Status:** Accepted — 2026-06-09
 
 ## Context
 

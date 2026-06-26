@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { BashInput, BASH_TOOL_DESCRIPTION, startBashSession } from './bash';
+import { BashInput, buildBashToolDescription, startBashSession } from './bash';
 import {
   readFile,
   grepFiles,
@@ -41,7 +41,12 @@ export async function createToolSet(
     dispose = bashDispose;
     tools.push({
       name: 'bash',
-      description: BASH_TOOL_DESCRIPTION,
+      // Derive the description from the SAME root the bash policy enforces
+      // (toolConfig.bash.workspaceRoot, falling back to cwd) so the paths the
+      // model is told to use match what the policy allows. A static description
+      // pointing at /workspace would cause every command to be denied with
+      // path-outside-workspace whenever the real root is a local/CI checkout.
+      description: buildBashToolDescription(toolConfig.bash?.workspaceRoot ?? cwd),
       schema: BashInput,
       execute: async (args) => {
         const output = await session.exec(args as z.infer<typeof BashInput>);

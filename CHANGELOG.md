@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- `BASH_TOOL_DESCRIPTION` constant removed; callers use `buildBashToolDescription(root)` directly so the description always reflects the actual workspace root rather than a hardcoded `/workspace/pr`.
+
+### Fixed
+- Bash tool description in `createToolSet` now derives its workspace root from `toolConfig.bash.workspaceRoot ?? cwd`, matching the root the policy enforces. Previously the description always pointed at `/workspace/pr`, causing every command to be denied with `path-outside-workspace` in local environments.
+- `git-config-template` `safe.directory` is now derived from the actual `workspaceRoot` passed by the session. Previously it was hardcoded to `/workspace/pr` and `/workspace/base`, causing `git` commands to fail with a dubious ownership error in local environments.
+- `GIT_CEILING_DIRECTORIES` in `env-scrub` is now set to the parent of `workspaceRoot` rather than the hardcoded `/workspace`, so git's directory-traversal protection is effective in local checkout environments.
+- `workspaceRoot` is now validated against a safe path charset before being interpolated into the git config file. A newline in the value would have allowed config injection (e.g. overriding `hooksPath`).
+
+
 ## [0.2.7] - 2026-06-18
 
 ### Changed

@@ -74,6 +74,21 @@ describe('scrubEnv', () => {
     expect(env['GIT_CONFIG_GLOBAL']).toBe('/tmp/test-gitconfig');
   });
 
+  test('GIT_CEILING_DIRECTORIES defaults to /workspace when workspaceRoot is absent', () => {
+    const { env } = scrubEnv({});
+    expect(env['GIT_CEILING_DIRECTORIES']).toBe('/workspace');
+  });
+
+  test('GIT_CEILING_DIRECTORIES is parent of workspaceRoot for CI layout', () => {
+    const { env } = scrubEnv({}, undefined, '/workspace/pr');
+    expect(env['GIT_CEILING_DIRECTORIES']).toBe('/workspace');
+  });
+
+  test('GIT_CEILING_DIRECTORIES is parent of workspaceRoot for local checkout', () => {
+    const { env } = scrubEnv({}, undefined, '/home/runner/work/my-repo/my-repo');
+    expect(env['GIT_CEILING_DIRECTORIES']).toBe('/home/runner/work/my-repo');
+  });
+
   test('sets QUALOPS_ENV_SCRUBBED=1', () => {
     const { env } = scrubEnv({});
     expect(env['QUALOPS_ENV_SCRUBBED']).toBe('1');

@@ -27,7 +27,7 @@ export class BestEffortLinuxDriver implements SandboxDriver {
   readonly name = 'besteffort.linux';
   private workspaceRoot: string;
 
-  constructor(workspaceRoot: string = '/workspace') {
+  constructor(workspaceRoot: string = '/workspace/pr') {
     this.workspaceRoot = workspaceRoot;
   }
 

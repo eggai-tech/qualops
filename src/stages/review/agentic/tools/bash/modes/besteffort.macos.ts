@@ -69,7 +69,7 @@ export class BestEffortMacOSDriver implements SandboxDriver {
   private workspaceRoot: string;
   private profilePath: string | null = null;
 
-  constructor(workspaceRoot: string = '/workspace') {
+  constructor(workspaceRoot: string = '/workspace/pr') {
     this.workspaceRoot = workspaceRoot;
   }
 
