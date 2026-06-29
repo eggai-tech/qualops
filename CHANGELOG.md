@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+- Add TDR 0005 v2 (intent-based agentic review) — reframes false-positive reduction as a review-architecture problem (plan/decompose by intent → execute → aggregate → critique) above the provider-agnostic `AgentAdapter`.
+
 ## [0.2.7] - 2026-06-18
 
 ### Changed
