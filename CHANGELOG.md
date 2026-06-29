@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `GIT_CEILING_DIRECTORIES` in `env-scrub` is now set to the parent of `workspaceRoot` rather than the hardcoded `/workspace`, so git's directory-traversal protection is effective in local checkout environments.
 - `workspaceRoot` is now validated against a safe path charset before being interpolated into the git config file. A newline in the value would have allowed config injection (e.g. overriding `hooksPath`).
 
+### Documentation
+- Add TDR 0005 v2 (intent-based agentic review) — reframes false-positive reduction as a review-architecture problem (plan/decompose by intent → execute → aggregate → critique) above the provider-agnostic `AgentAdapter`.
 
 ## [0.2.7] - 2026-06-18
 
