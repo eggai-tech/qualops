@@ -110,7 +110,7 @@
     "@types/diff": "^7.0.2",
     "@types/glob": "9.0.0",
     "@types/jest": "^30.0.0",
-    "@types/node": "^25.5.0",
+    "@types/node": "^26.0.1",
     "eslint": "^10.1.0",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import-x": "^4.16.2",
