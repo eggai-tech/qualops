@@ -1,6 +1,6 @@
 # TDR 0005 v2 — Intent-Based Agentic Review (Plan → Execute → Aggregate → Critique)
 
-**Status:** Proposed — 2026-06-22
+**Status:** Rejected (Opus 4.6) — 2026-07-02 (built and A/B-tested on Opus 4.6; recall and F1 *worse* than the flat baseline at ~4× cost — see *Evidence* and *Decision*). Smaller models untested. Originally Proposed 2026-06-22.
 
 **Relationship to v1.** [`0005-agentic-issue-verification.md`](./0005-agentic-issue-verification.md) frames
 false positives as a *filtering* problem — clean an existing finding stream. v2 frames them as a *review-
@@ -353,14 +353,86 @@ the prior is wrong on QualOps's actual false positives.
   production misses. Target: every `falsePositives[]` entry dropped, every `expected[]` entry kept. (Asserting
   on `falsePositives[]` is a small scorer extension and part of the implementation work.)
 
+## Evidence (2026-06 A/B run)
+
+Option 3 was built (`AgenticExecutorV2` behind `mode: 'agentic-v2'`) and run head-to-head against the flat
+`agentic` baseline on the CRB `crb-sentry` dataset via the config-driven eval harness (`--config` selecting
+two symmetric `.qualops/.qualopsrc-eval-agentic-v{1,2}.json` configs: same Opus model, security system prompt,
+budgets, and dedup; the only difference is the executor). The comparison that matters is the **full 10-case
+dataset run** of each arm (single-item smoke runs were also done but are too noisy to draw from — see below):
+
+| Metric (mean over 10 cases) | `agentic` (v1) | `agentic-v2` | Δ |
+|---|---|---|---|
+| crb_precision | 0.248 | 0.239 | −0.009 |
+| crb_recall | **0.412** | 0.348 | **−0.064** |
+| crb_f1 | **0.299** | 0.246 | **−0.053** |
+| wall-clock / item | ~145 s | ~600 s | **~4× slower** |
+
+v2 was **worse on recall and F1** than the flat baseline, at ~4× the cost. This is the opposite of the pass
+condition from *Validation* ("precision up, recall flat-or-up, ideally recall up"): recall dropped ~15%
+relative and F1 dropped ~18% relative, while cost quadrupled.
+
+**Scope of this result — model-specific, only Opus 4.6 tested.** Both arms ran `claude-opus-4-6`. The finding
+that intent-decomposition adds cost without upside may be *specific to a strong model*: the flat single pass
+already reasons well over the whole diff, so the decomposition has little attention-headroom to exploit. A
+**smaller/cheaper model** (e.g. Sonnet or Hauku tiers) is untested and could plausibly go either way — it might
+benefit more from the structured decomposition (the attention-budget hypothesis is strongest when a single
+pass is weakest), or it might fail at the planning/critique steps that v2 leans on. This is a real open
+question, not a settled one; the rejection below is scoped to the model tested.
+
+**On run-to-run noise.** Several single-item runs were also executed (not all well-logged); they are cited only
+to show variance, not as evidence. On the same one case, v2 f1 ranged 0.000 → 0.333 across runs and v1 ranged
+0.200 → 0.250 — swings that dwarf any between-arm signal at N=1. This is exactly why the 10-case aggregate is
+the basis for the decision, and why a robust conclusion would want N≥3 full-dataset runs (not affordable here
+at ~10 min/item for v2, which is itself part of the finding).
+
+Two observations reinforce the negative result:
+
+- The critique phase (Phase 4) *does* drop false positives with reasoning, but the net effect vs. the flat
+  path was neutral-to-negative on precision and actively lost recall — the extra generation/critique work did
+  not surface findings the cheaper baseline missed.
+- Operationally, a Phase-2 verification intent exhausted its turn budget and failed open, losing that intent
+  entirely — the added machinery introduces new failure surface without a corresponding quality upside.
+
 ## Decision
 
-_TBD._
+**Rejected.** Do not adopt Option 3 (intent-based `agentic-v2`) as the default or promoted path. On the full
+10-case dataset it was *worse* than the flat `agentic` baseline on recall (0.348 vs 0.412) and F1 (0.246 vs
+0.299) at ~4× the cost — the opposite of the pass condition. The
+`code-review`-skill prior (validation-centric, diff-scoped) stands: better *validation* of a cheaply-generated
+finding stream, not a *generation* redesign, is where the leverage is.
+
+The `AgenticExecutorV2` code remains in the tree behind the disabled-by-default `mode: 'agentic-v2'` flag as a
+recorded, runnable negative result — not deleted, not promoted. The rejection is scoped to **Opus 4.6**; the
+clearest reason to revisit is a **different (smaller/cheaper) model**, where decomposition might have more to
+exploit. If revisited, it must clear the same bar with N≥3 full-dataset runs and a per-item cost that makes the
+tradeoff worthwhile.
+
+The genuinely useful artifacts from this effort were **not** the v2 executor but the **evaluation tooling**
+built to test it: the config-driven eval entry point (`--config`, per-job executor routing), the
+`compare-experiments` precision/recall/cost diff, and the A/B harness. Those generalise to "compare any two
+QualOps configs (model per stage, budgets, prompts) on quality vs. cost" and are being extracted to a
+dedicated branch/feature independent of this TDR.
 
 ## Consequences
 
-_TBD._
+- **False-positive reduction reverts to the v1 framing.** The cheaper levers from
+  [`0005-agentic-issue-verification.md`](./0005-agentic-issue-verification.md) — deterministic pre-checks,
+  richer context capture, a tightened validation/critique on the existing stream — are the path forward, not
+  an architectural rewrite.
+- **Cost is a first-class constraint.** This experiment quantified that multi-phase agentic review multiplies
+  token/latency cost several-fold; any future FP work is measured on a quality-*and*-cost frontier, not
+  quality alone.
+- **Config A/B tooling is the lasting win.** The harness that produced this evidence is reusable for the real
+  ongoing question — per-stage model/config cost-quality tradeoffs — and outlives the rejected architecture.
+- **Untested: smaller models.** The result holds only for Opus 4.6. Whether intent-decomposition helps a
+  weaker model (more attention-limited, more to gain from structure) — or breaks on the planning/critique steps
+  — is open. The config-A/B harness above makes this a cheap follow-up: swap the model in each arm's config and
+  re-run. Worth doing before the `agentic-v2` code is ever deleted.
 
 ## Implementation notes
 
-_TBD._
+The rejected implementation (kept for reference) lives on the `feat-reduce-reported-false-positives-implementation`
+branch: `AgenticExecutorV2` (`src/stages/review/agentic/agentic-executor-v2.ts`), the per-phase schemas
+(`review-plan`, `issue-verdict`), the per-call adapter output schema (`AgentOutputSpec`), and the phase-output
+capture in the eval log. Selectable only via `mode: 'agentic-v2'`; off by default.
