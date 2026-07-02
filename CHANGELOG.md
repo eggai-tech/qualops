@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `workspaceRoot` is now validated against a safe path charset before being interpolated into the git config file. A newline in the value would have allowed config injection (e.g. overriding `hooksPath`).
 
 ### Documentation
-- Add TDR 0005 v2 (intent-based agentic review) — reframes false-positive reduction as a review-architecture problem (plan/decompose by intent → execute → aggregate → critique) above the provider-agnostic `AgentAdapter`.
+- Add TDR 0005 v2 (intent-based agentic review) — reframes false-positive reduction as a review-architecture problem (plan/decompose by intent → execute → aggregate → critique) above the provider-agnostic `AgentAdapter`. **Status: Rejected (on Opus 4.6).** Built and A/B-tested against the flat `agentic` baseline on CRB (10 cases): `agentic-v2` was *worse* on recall (0.348 vs 0.412) and F1 (0.246 vs 0.299) at ~4× the cost. The result is scoped to Opus 4.6 — smaller models are untested and could differ. TDR records the evidence, the reject decision, and consequences (FP work reverts to the cheaper v1 levers; cost is a first-class constraint; the config-A/B eval tooling built to test it is the lasting win).
 
 ## [0.2.7] - 2026-06-18
 
