@@ -25,6 +25,39 @@ export interface LogEntry {
   [key: string]: unknown;
 }
 
+/**
+ * An `item_complete` log entry — the per-case record readers (e.g.
+ * compare-experiments) consume. Narrows the fields `run-eval` writes for a
+ * completed item; still a `LogEntry` (open index signature) underneath.
+ */
+export interface ItemCompleteEntry extends LogEntry {
+  event: 'item_complete';
+  caseId?: string;
+  issueCount?: number;
+  durationMs?: number;
+  scores?: Record<string, number | null>;
+}
+
+/**
+ * The shape written to `evals/logs/<experimentName>-<ts>.json` by
+ * {@link createRunLog}. This is the single source of truth for the run-log file
+ * format; consumers import this type rather than redefining it.
+ */
+export interface RunLogFile {
+  experimentName: string;
+  preset: string;
+  configPath: string;
+  model: string;
+  mode: string;
+  provider: string;
+  startedAt: string;
+  finishedAt: string;
+  totals: { successes: number; errors: number; warnings: number };
+  errorBreakdown: Record<string, number>;
+  warningBreakdown: Record<string, number>;
+  entries: (LogEntry & { timestamp: string })[];
+}
+
 export interface RunLogConfig {
   experimentName: string;
   presetLabel: string;
@@ -84,7 +117,7 @@ export function createRunLog(config: RunLogConfig): RunLog {
         warningBreakdown[code] = (warningBreakdown[code] ?? 0) + 1;
       }
 
-      const summary = {
+      const summary: RunLogFile = {
         experimentName: config.experimentName,
         preset: config.presetLabel,
         configPath: config.configPath,

@@ -78,7 +78,7 @@
     "eval:upload:qualops": "npx tsx evals/src/upload-datasets.ts --source=qualops",
     "eval:upload:crb:all": "npx tsx evals/src/upload-datasets.ts --source=crb",
     "eval:recall-report": "npx tsx evals/src/recall-report.ts",
-    "eval:ab": "bash evals/run-ab.sh",
+    "eval:ab": "npx tsx --env-file=.env evals/src/run-ab.ts",
     "eval:ab:compare": "npx tsx evals/src/compare-experiments.ts",
     "test:smoke": "jest --config jest.smoke.config.ts",
     "generate:schema": "ts-node --transpile-only --project tsconfig.lib.json scripts/generate-config-schema.ts"
