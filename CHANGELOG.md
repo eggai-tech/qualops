@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A/B testing for QualOps config changes: run two config files against the same dataset and compare quality (precision/recall/F1) and cost/latency — for testing per-stage model choices, budgets, prompts, or pipeline modes. New `--config=<repo-relative-path>` eval flag runs against an arbitrary config file (validated: inside repo, `.json`, exists; precedence over `--preset`), so real ship configs are A/B-tested with no copy to drift. `evals/run-ab.sh [--full] <A.json> <B.json>` runs both arms and calls `evals/src/compare-experiments.ts`, which diffs two run-logs into a precision/recall/F1/cost table with a held-or-up vs. regressed verdict. npm aliases: `eval:ab`, `eval:ab:compare`. See `evals/AB_TESTING.md`.
+
 ### Changed
 - `BASH_TOOL_DESCRIPTION` constant removed; callers use `buildBashToolDescription(root)` directly so the description always reflects the actual workspace root rather than a hardcoded `/workspace/pr`.
 

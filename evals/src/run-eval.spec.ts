@@ -3,7 +3,7 @@
 jest.mock('@langfuse/client', () => ({ LangfuseClient: jest.fn() }));
 
 import { parseDiffLines } from './reviewer';
-import { resolveDatasets, resolvePreset, listPresets } from './config';
+import { resolveDatasets, resolvePreset, resolveConfigFile, listPresets } from './config';
 import { CRB_REPOS } from './config';
 import { classifyError, createRunLog } from './run-log';
 import fs from 'node:fs';
@@ -201,6 +201,32 @@ describe('resolvePreset', () => {
 
     expect(fast.review.validation.enabled).toBe(false);
     expect(thorough.review.validation.enabled).toBe(true);
+  });
+});
+
+describe('resolveConfigFile (--config)', () => {
+  it('returns null when no path given', () => {
+    expect(resolveConfigFile(null)).toBeNull();
+    expect(resolveConfigFile(undefined)).toBeNull();
+  });
+
+  it('resolves a repo-relative config path to an absolute file', () => {
+    const result = resolveConfigFile('.qualops/.qualopsrc.json');
+    expect(result).toMatch(/\.qualops\/\.qualopsrc\.json$/);
+    expect(fs.existsSync(result!)).toBe(true);
+  });
+
+  it('rejects a path outside the repo root', () => {
+    expect(() => resolveConfigFile('/etc/passwd')).toThrow(/outside the repo root/);
+    expect(() => resolveConfigFile('../../../etc/passwd')).toThrow(/outside the repo root/);
+  });
+
+  it('rejects a non-json path', () => {
+    expect(() => resolveConfigFile('README.md')).toThrow(/\.json/);
+  });
+
+  it('rejects a missing file', () => {
+    expect(() => resolveConfigFile('.qualops/does-not-exist.json')).toThrow(/not found/);
   });
 
   it('preset configs differ from default qualopsrc in expected ways', () => {
