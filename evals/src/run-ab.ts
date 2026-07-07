@@ -84,7 +84,12 @@ function main(): void {
   // Same flag names as run-eval; env vars kept as fallbacks for convenience.
   const dataset = singleFlag(argv, 'dataset') || process.env.DATASET || 'qualops/crb-sentry';
   const limit = singleFlag(argv, 'limit') ?? process.env.LIMIT; // undefined -> all items
-  const repeats = parseInt(singleFlag(argv, 'repeats') || process.env.REPEATS || '1', 10);
+  const repeatsRaw = singleFlag(argv, 'repeats') || process.env.REPEATS || '1';
+  const repeats = parseInt(repeatsRaw, 10);
+  if (!Number.isInteger(repeats) || repeats < 1) {
+    console.error(`ERROR: --repeats must be a positive integer (got: "${repeatsRaw}").`);
+    process.exit(2);
+  }
   const limitArg = limit ? [`--limit=${limit}`] : [];
   const labels = configs.map(labelOf);
 

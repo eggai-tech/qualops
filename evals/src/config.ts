@@ -3,6 +3,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { detectProvider } from '@/config/config';
+import { isPathTraversalSafe } from '@/shared/utils/security';
 
 export const QUALOPS_ROOT = path.join(__dirname, '../..');
 export const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
@@ -246,6 +247,15 @@ export function buildConfig(args: EvalArgs): EvalBuildConfig {
   const presetLabel = explicitConfig
     ? path.basename(explicitConfig, '.json').replace(/^\./, '')
     : presetName || 'default';
+  // The experiment name becomes the run-log filename (run-log.ts). Reject an
+  // explicit --experiment= containing path separators / traversal so it can't
+  // steer the write outside evals/logs/. (The write is also sanitized at the
+  // sink; this fails loud rather than silently mangling a user-chosen name.)
+  if (args.experiment && !isPathTraversalSafe(args.experiment)) {
+    throw new Error(
+      `--experiment must not contain path separators or ".." (got: "${args.experiment}")`,
+    );
+  }
   const experimentName = args.experiment || `${presetLabel}:${model}:${mode}:${new Date().toISOString().slice(0, 16)}`;
   const concurrency = args.concurrency ? parseInt(args.concurrency, 10) : 3;
   const configPath = presetFile ? path.relative(QUALOPS_ROOT, presetFile) : DEFAULT_QUALOPSRC;

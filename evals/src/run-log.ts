@@ -3,6 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { sanitizeFilename } from '@/shared/utils/security';
+
 import { LOGS_DIR } from './config';
 
 export type ErrorCode =
@@ -133,7 +135,11 @@ export function createRunLog(config: RunLogConfig): RunLog {
       };
 
       fs.mkdirSync(LOGS_DIR, { recursive: true });
-      const logFile = path.join(LOGS_DIR, `${config.experimentName}-${Date.now()}.json`);
+      // Sanitize the experiment name before using it as a filename: it can come
+      // from a raw --experiment= CLI arg. sanitizeFilename() strips path
+      // components and disallowed chars, so the write cannot escape LOGS_DIR.
+      const safeName = sanitizeFilename(config.experimentName) || 'eval';
+      const logFile = path.join(LOGS_DIR, `${safeName}-${Date.now()}.json`);
       fs.writeFileSync(logFile, JSON.stringify(summary, null, 2));
       return logFile;
     },
