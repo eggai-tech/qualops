@@ -10,13 +10,17 @@
  * Run-logs are written to `evals/logs/`; the comparison reads them from there.
  *
  * Config files are passed with repeatable `--config=<path>` (same flag name as the
- * qualops CLI). Usage:
- *   npx tsx evals/src/run-ab.ts --config=<A.json> --config=<B.json> [...]        # smoke: 1 item/arm
- *   npx tsx evals/src/run-ab.ts --full --config=<A.json> --config=<B.json> [...] # REPEATS runs/arm
+ * qualops CLI). By default it runs the full CRB suite; use the same flags as a
+ * normal eval run to scope it. Usage:
+ *   npx tsx evals/src/run-ab.ts --config=<A.json> --config=<B.json> [...]
+ *   npx tsx evals/src/run-ab.ts --config=<A> --config=<B> --limit=5 --repeats=3
  *
- * Env: DATASET (default qualops/crb-sentry), REPEATS (full mode, default 1),
- *      LIMIT (items/run). Requires the provider key your configs use (loaded via
- *      the `eval:ab` npm alias's --env-file=.env).
+ * Flags (same names as run-eval; env vars kept as fallbacks):
+ *   --dataset=<name>   dataset to run (default qualops/crb-sentry; env DATASET)
+ *   --limit=<N>        cap items per run (default: all; env LIMIT)
+ *   --repeats=<N>      runs per arm (default 1; env REPEATS)
+ * Requires the provider key your configs use (loaded via the `eval:ab` npm alias's
+ * --env-file=.env).
  */
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -42,19 +46,28 @@ function evalRun(args: string[]): void {
   }
 }
 
+/** Collect all values of a repeatable `--flag=value`. */
+function multiFlag(argv: string[], flag: string): string[] {
+  const p = `--${flag}=`;
+  return argv.filter((a) => a.startsWith(p)).map((a) => a.slice(p.length)).filter(Boolean);
+}
+/** Read the last value of a `--flag=value`, or undefined. */
+function singleFlag(argv: string[], flag: string): string | undefined {
+  return multiFlag(argv, flag).at(-1);
+}
+
 function main(): void {
   const argv = process.argv.slice(2);
-  const full = argv.includes('--full');
-  // Repeatable `--config=<path>` (same flag name as the qualops CLI). Order is preserved.
-  const configs = argv
-    .filter((a) => a.startsWith('--config='))
-    .map((a) => a.slice('--config='.length))
-    .filter(Boolean);
+
+  // Repeatable `--config=<path>` (same flag name as the qualops CLI). Order preserved.
+  const configs = multiFlag(argv, 'config');
 
   if (configs.length < 2) {
     console.error(
-      'Usage: run-ab.ts [--full] --config=<A.json> --config=<B.json> [--config=<C.json> ...]\n' +
+      'Usage: run-ab.ts --config=<A.json> --config=<B.json> [--config=<C.json> ...]\n' +
+        '            [--dataset=<name>] [--limit=<N>] [--repeats=<N>]\n' +
         '  e.g. run-ab.ts --config=.qualops/.qualopsrc.json --config=.qualops/.qualopsrc-cheap.json\n' +
+        '  Defaults: full CRB suite (--dataset=qualops/crb-sentry), all items, 1 repeat.\n' +
         '  Run-logs are written to evals/logs/ and compared from there.',
     );
     process.exit(2);
@@ -68,20 +81,25 @@ function main(): void {
     process.exit(1);
   }
 
-  const dataset = process.env.DATASET || 'qualops/crb-sentry';
-  const repeats = full ? parseInt(process.env.REPEATS || '1', 10) : 1;
-  const limitArg = process.env.LIMIT ? [`--limit=${process.env.LIMIT}`] : full ? [] : ['--limit=1'];
+  // Same flag names as run-eval; env vars kept as fallbacks for convenience.
+  const dataset = singleFlag(argv, 'dataset') || process.env.DATASET || 'qualops/crb-sentry';
+  const limit = singleFlag(argv, 'limit') ?? process.env.LIMIT; // undefined -> all items
+  const repeats = parseInt(singleFlag(argv, 'repeats') || process.env.REPEATS || '1', 10);
+  const limitArg = limit ? [`--limit=${limit}`] : [];
   const labels = configs.map(labelOf);
 
   console.log(
-    `=== ${full ? 'FULL' : 'SMOKE'} A/B on ${dataset} — ${configs.length} arm(s)` +
-      `${full ? `, ${repeats} repeat(s)` : ''} ===`,
+    `=== A/B on ${dataset} — ${configs.length} arm(s), ${repeats} repeat(s)` +
+      `${limit ? `, limit=${limit}` : ', full suite'} ===`,
   );
 
   for (let r = 1; r <= repeats; r++) {
     configs.forEach((config, i) => {
-      const experiment = full ? [`--experiment=${labels[i]}-run${r}`] : [];
-      console.log(`--- arm ${String.fromCharCode(65 + i)}${full ? ` run ${r}/${repeats}` : ''}: ${config} ---`);
+      // Distinct experiment label per repeat so compareEvalLogs picks the latest.
+      const experiment = repeats > 1 ? [`--experiment=${labels[i]}-run${r}`] : [];
+      console.log(
+        `--- arm ${String.fromCharCode(65 + i)}${repeats > 1 ? ` run ${r}/${repeats}` : ''}: ${config} ---`,
+      );
       evalRun([`--config=${config}`, `--dataset=${dataset}`, '--no-judge', ...limitArg, ...experiment]);
     });
   }
