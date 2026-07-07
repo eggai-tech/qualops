@@ -9,9 +9,10 @@
  *
  * Run-logs are written to `evals/logs/`; the comparison reads them from there.
  *
- * Usage:
- *   npx tsx evals/src/run-ab.ts <A.json> <B.json> [<C.json> ...]     # smoke: 1 item/arm
- *   npx tsx evals/src/run-ab.ts --full <A.json> <B.json> [...]       # REPEATS runs/arm
+ * Config files are passed with repeatable `--config=<path>` (same flag name as the
+ * qualops CLI). Usage:
+ *   npx tsx evals/src/run-ab.ts --config=<A.json> --config=<B.json> [...]        # smoke: 1 item/arm
+ *   npx tsx evals/src/run-ab.ts --full --config=<A.json> --config=<B.json> [...] # REPEATS runs/arm
  *
  * Env: DATASET (default qualops/crb-sentry), REPEATS (full mode, default 1),
  *      LIMIT (items/run). Requires the provider key your configs use (loaded via
@@ -43,13 +44,17 @@ function evalRun(args: string[]): void {
 
 function main(): void {
   const argv = process.argv.slice(2);
-  const full = argv[0] === '--full';
-  const configs = (full ? argv.slice(1) : argv).filter((a) => !a.startsWith('--'));
+  const full = argv.includes('--full');
+  // Repeatable `--config=<path>` (same flag name as the qualops CLI). Order is preserved.
+  const configs = argv
+    .filter((a) => a.startsWith('--config='))
+    .map((a) => a.slice('--config='.length))
+    .filter(Boolean);
 
   if (configs.length < 2) {
     console.error(
-      'Usage: run-ab.ts [--full] <A.json> <B.json> [<C.json> ...]\n' +
-        '  e.g. run-ab.ts .qualops/.qualopsrc.json .qualops/.qualopsrc-cheap.json\n' +
+      'Usage: run-ab.ts [--full] --config=<A.json> --config=<B.json> [--config=<C.json> ...]\n' +
+        '  e.g. run-ab.ts --config=.qualops/.qualopsrc.json --config=.qualops/.qualopsrc-cheap.json\n' +
         '  Run-logs are written to evals/logs/ and compared from there.',
     );
     process.exit(2);
@@ -58,7 +63,7 @@ function main(): void {
   if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) {
     console.error(
       'ERROR: no provider key in the environment (ANTHROPIC_API_KEY / OPENAI_API_KEY).\n' +
-        'Use `npm run eval:ab -- <A> <B>` (loads .env), or export the key first.',
+        'Use `npm run eval:ab -- --config=<A> --config=<B>` (loads .env), or export the key first.',
     );
     process.exit(1);
   }

@@ -7,15 +7,17 @@ best results per dollar."
 
 ## Quick start
 
+Config files are passed with repeatable `--config=<path>` (same flag name as the qualops CLI).
+
 ```bash
 # Smoke: 1 item per arm, then compare
-npm run eval:ab -- .qualops/.qualopsrc.json .qualops/.qualopsrc-cheap.json
+npm run eval:ab -- --config=.qualops/.qualopsrc.json --config=.qualops/.qualopsrc-cheap.json
 
 # Full: REPEATS runs per arm, then compare
-REPEATS=3 npm run eval:ab -- --full .qualops/.qualopsrc.json .qualops/.qualopsrc-cheap.json
+REPEATS=3 npm run eval:ab -- --full --config=.qualops/.qualopsrc.json --config=.qualops/.qualopsrc-cheap.json
 
 # More than two arms (one column each) — e.g. opus vs sonnet vs haiku configs
-npm run eval:ab -- a.json b.json c.json
+npm run eval:ab -- --config=a.json --config=b.json --config=c.json
 ```
 
 Each arm runs the **exact pipeline defined in its config file** — the harness never passes
@@ -27,7 +29,7 @@ isolates that change. `npm run eval:ab` loads `.env` for provider keys.
 
 | Command | What it does |
 |---|---|
-| `npm run eval:ab -- [--full] <A.json> <B.json> [<C.json> …]` | Runs each config on `DATASET`, then compares. (`evals/src/run-ab.ts`) |
+| `npm run eval:ab -- [--full] --config=<A.json> --config=<B.json> …` | Runs each config on `DATASET`, then compares. (`evals/src/run-ab.ts`) |
 | `npm run eval:ab:compare -- --eval-log=<X> --eval-log=<Y> …` | Compare existing run-logs (any number of arms). (`evals/src/compare-experiments.ts`) |
 | `npx tsx --env-file=.env evals/src/run-eval.ts --config=<path>` | Run one eval against an arbitrary repo config file (precedence over `--preset`). |
 
