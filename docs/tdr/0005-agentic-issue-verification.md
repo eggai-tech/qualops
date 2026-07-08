@@ -1,330 +1,517 @@
-# TDR 0005 — Agentic Per-Issue Verification of Findings
+# TDR 0005 — Intent-Based Agentic Review (Plan → Execute → Aggregate → Critique)
 
-**Status:** Proposed — 2026-06-22
+**Status:** Rejected (Opus 4.6) — 2026-07-02 (built and A/B-tested on Opus 4.6; recall and F1 *worse* than the flat baseline at ~4× cost — see *Evidence* and *Decision*). Smaller models untested. Originally Proposed 2026-06-22.
+
+**Two framings of the same problem.** False positives can be framed as a *filtering* problem — clean an
+existing finding stream with cheaper downstream levers (deterministic pre-checks, richer context, a tightened
+verdict) — or as a *review-architecture* problem — they are evidence the review step reasons too shallowly, to
+be fixed by redesigning review generation itself. This TDR proposes and evaluates the second (intent-based
+redesign) and, having **rejected** it on Opus 4.6, records the *filtering* levers as the path forward — see
+[*The options to pursue*](#the-options-to-pursue) under Consequences. The two differ in unit
+(finding vs. intent), fix location (downstream filter vs. review generation), and critique (separate stage vs.
+intrinsic phase); the filtering framing is the floor, the redesign was the (unrealized) ceiling.
 
 ## Context
 
-QualOps reports code-quality and security findings on pull requests. A recurring complaint is
-**false positives** — findings that survive to the report but are not real problems. Common shapes:
+QualOps reports code-quality and security findings on pull requests. The recurring complaint is **false
+positives** — findings that survive to the report but are not real problems. Common shapes:
 
 - a `process.exit()` in a CLI entry point flagged as a "bug",
 - an "unvalidated input" that is in fact operator-controlled, not attacker-controlled,
 - a vulnerability that is already guarded by a check elsewhere in the call chain,
 - a finding against code that a later commit in the same PR already fixed.
 
-The only mechanism that removes false positives today is a **single batched LLM call** in
-`ValidationResolver.validateWithAI()` (`src/stages/review/processors/validation-resolver.ts:80-158`). Every
-issue that clears the confidence pre-filter is serialised into one JSON list and sent to the model with the
-`ValidationResultsSchema`; entries the model marks `is_false_positive` are dropped (`:139-143`). This has
-three structural weaknesses:
+Today, review runs as a **single flat agentic loop**. `AgenticExecutor`
+(`src/stages/review/agentic/agentic-executor.ts`) builds one user prompt over a set of files
+(`buildUserPrompt(files, config)`), hands the model bash/read/grep with `maxTurns`/`maxBudgetUsd` caps, and
+parses findings out of the result. A downstream batched LLM call in `ValidationResolver.validateWithAI()`
+(`src/stages/review/processors/validation-resolver.ts:80-158`) then tries to drop false positives.
 
-1. **No investigation.** The judge sees only the finding's `description`, `reasoning`, and a small `context`
-   snippet captured at review time. It cannot open the file, trace a caller, check whether input is actually
-   attacker-controlled, or confirm a guard or fix exists. It can reject only *pattern-shaped* false positives
-   that the prompt enumerates — not the *evidence-based* ones, which are precisely the ones that slip through.
-2. **Divided attention.** One call spreads the model's focus across N findings; per-finding reasoning gets
-   shallower as N grows.
-3. **Fragility.** Verdicts map back by array `index`, and a single `StructuredOutputError` discards the
-   entire batch (`:122-128`) — one malformed response can drop every finding.
+The common thread in the false-positive shapes above is **missing cross-file, intent-level context**. The
+input *is* validated — two files away. The vulnerability *is* guarded — elsewhere in the call chain. The bug
+*was* fixed — by a later commit in the same change set. A file-by-file reviewer that reasons in one pass
+cannot reliably see this evidence, and a downstream judge that sees only a captured snippet certainly cannot.
+The false positives are an artifact of the **unit of review** (a file) and the **shape of reasoning** (one
+flat pass), not merely of a missing filter.
 
-QualOps already has an agentic execution path — `AgenticExecutor`
-(`src/stages/review/agentic/agentic-executor.ts`) plus provider adapters
-(`src/stages/review/agentic/adapters/`) — that grants sandboxed bash/read/grep tools with workspace
-boundary enforcement and `maxTurns` / `maxBudgetUsd` / bash `maxCallsPerReview` caps.
+This is how human reviewers — and how Claude Code itself — approach the same task. A senior reviewer does not
+think "file A, then file B"; they ask "what is this PR trying to do, and does the change across these files
+correctly and safely achieve it?" They decompose the diff by **intent**, verify each intent end-to-end across
+whatever files it touches, then critique their own conclusions before speaking. Claude Code structures complex
+work the same way (see *Grounding* below): a coordinator that plans and decomposes, workers that execute
+focused tasks, and an independent adversarial verification pass.
 
-False-positive rate is not reducible at a single point. There are at least four distinct levers, each
-intervening at a different place in the pipeline:
+The problem is too complex to solve with a single agent prompt and loop. It is a **workflow**: a small number
+of deterministic phases — plan/decompose, execute, aggregate, critique — each driven by its own prompt and,
+where useful, its own sub-agents and tool loops. This TDR proposes that architecture and weighs it against the
+status quo and against v1's filtering approach.
 
-- **Generation-side** — capture more evidence at review time so fewer false positives are produced or so the
-  existing judge can reject them without investigating.
-- **Threshold** — where the confidence pre-filter (`>= 7`) is placed.
-- **Deterministic pre-checks** — cheap, LLM-free filters that remove pattern-shaped false positives before
-  any model is invoked.
-- **Verdict mechanism** — how each surviving finding is judged.
+## Grounding — transferable patterns, and provider-agnosticism
 
-This TDR evaluates the structural choices for the last lever (where filtering lives, and how a verdict is
-reached) and the deterministic-pre-check lever, and records the generation-side and threshold levers as
-adjacent, complementary work. It does not pre-commit to a single configuration.
+Production agent systems converge on the same shape for complex work — and it is **not** a bigger loop. The
+transferable principles, with Claude Code cited as one well-documented reference (*Claude Code from Source*,
+`book/ch05,ch08,ch10`):
 
-## Adjacent levers (outside the numbered axes)
+- **Planning is its own phase, not bolted onto the loop.** A core agent loop is a forward-moving
+  call→tools→repeat machine with no planning step; planning lives in a separate plan/decompose phase that
+  *precedes* execution and distils work into specific, scoped tasks (Claude Code's coordinator: Research →
+  Synthesis → Implementation → Verification; "never delegate understanding" — vague delegation is lossy).
+- **Sub-agents are isolated and return only results.** A child runs with its own context, tool set, and
+  permission boundary; the parent sees the final output, not the reasoning. Fan-out is deliberately fenced to
+  avoid exponential spawning.
+- **Critique is a distinct adversarial persona** — read-only, told to refute by default, required to produce
+  evidence, and barred from spawning further agents.
+- **Failure is per-task, recovery is explicit** — no all-or-nothing cascade.
 
-These two levers reduce false positives but are not verdict-stage design choices. They combine with any
-selection from the axes below rather than competing with them, and are recorded here so the document does not
-present the verdict stage as the only intervention point.
+**This must hold across providers, not just Anthropic.** QualOps reviews run through a provider-agnostic
+`AgentAdapter` (`src/stages/review/agentic/adapters/`) with `anthropic`, `openai`, and OpenAI-compatible
+(`configurable-agent`, per TDR 0004) implementations, so the workflow is designed *above* the adapter and
+depends only on the common adapter contract (`run({systemPrompt, userPrompt, model, maxTurns, maxBudgetUsd,
+tools, baseUrl})` → `{output, structuredOutput?, tokens, errorSubtype?}`). Concretely:
 
-**Source-side reduction.** Several enumerated false-positive shapes (`process.exit()` in a CLI,
-operator-controlled input) are knowable at review time given enough surrounding code. Capturing a richer
-`context` up front — more lines, the enclosing function signature, the call site — would let even the current
-batched judge reject them with evidence, at a fraction of the cost of investigation. This is upstream of every
-option below and complements all of them; it is not a numbered axis because it changes *what the review
-produces*, not *how a verdict is reached*.
+- **Phases and fan-out are orchestrated by QualOps, not the SDK.** Each phase is a separate `adapter.run()`
+  call; sub-agent fan-out is `processConcurrently` over adapter runs. This works identically whether the
+  underlying model is Claude via the Anthropic SDK or Mistral/Groq/Ollama via the OpenAI-compatible loop — no
+  provider-specific orchestration primitive is required.
+- **Provider-specific optimisations are treated as optional accelerators, not load-bearing.** Anthropic
+  prompt-cache prefix sharing and fork-agents lower cost when available; the OpenAI-compatible path may lack
+  them. The design must be *correct and affordable without them* (via deterministic gating and model tiering,
+  below) and merely *cheaper* with them.
+- **Capability differences are handled by the existing adapter layer.** Structured output, tool-calling
+  reliability, and context-window/compaction differ by model; the adapter already normalises these (e.g.
+  `structuredOutput` vs. text parsing, `errorSubtype` codes), so phases consume a uniform result shape.
 
-**Confidence calibration.** The pre-filter is a hard `issue.confidence >= 7`
-(`validation-resolver.ts:49-57`). False-positive rate is partly a threshold-placement problem: raising the
-bar drops more findings (trading recall for precision) without any model change. Calibration is orthogonal to
-the verdict mechanism and can be tuned independently of, and alongside, any option below.
+Two caveats carried into the design, since QualOps runs **unattended on every PR** with no human coordinator:
+concurrency is **hard-capped** (not the "3-5 workers" methodology heuristic) and task failure has an
+**explicit fail-open/fail-closed policy** (not coordinator judgement).
 
-## Decision 1 — Where does false-positive filtering live?
+## Prior art — the `code-review` skill (a working multi-agent reviewer)
 
-### Option 1A — Enhance the existing validation step
+A mature, in-use review workflow already encodes many of these patterns: the `code-review` skill
+(`~/.claude/skills/code-review/SKILL.md`). It is a six-step workflow — collect context → fan-out review →
+validate → filter → collate → output — and it is **evidence that complicates this TDR's thesis as much as it
+supports it**, so it is recorded faithfully rather than as endorsement.
 
-Keep false-positive removal inside `ValidationResolver`, in the same pipeline position
-(`review → validate → dedup`), and change only the *mechanism* of the AI step. The output type stays
-`ReviewIssue[]`; the confidence pre-filter (`:49-57`) and all call sites are unchanged.
+**Harness-enforced mechanisms (not prompt-discretionary).** These are the parts the runtime — not the model —
+guarantees, and they are what a QualOps workflow must replicate *in code*, independent of any prompt wording:
+
+- **Per-agent tool allowlisting.** The skill's `allowed-tools` frontmatter restricts every agent and subagent
+  to read-only git/`gh` plus the inline-comment MCP tool. This is runtime tool-scoping (Claude Code's
+  per-agent permission boundary), the same isolation v2 relies on — not a request the model can ignore.
+- **Parallel sub-agent fan-out with context isolation.** "Launch 6 agents in parallel" (Step 3) and one
+  validation subagent per issue (Step 4) are scheduled and isolated by the harness; each child has its own
+  context and returns only its final output. The prompt declares the fan-out; the harness enforces it.
+- **Per-task model pinning.** Haiku for cheap precondition/path-collection checks, Sonnet for CLAUDE.md, Opus
+  for bug/logic/security/maintainability — a harness routing decision, matching v2's cost-tiering claim.
+- **Mode branching and precondition gates.** PR-vs-local control flow, and a hard stop if the PR is
+  closed/draft/trivial/already-reviewed — deterministic gating, not model judgement.
+- **Output-side-effect gating.** A `--comment` flag switches between writing a local markdown file and posting
+  `gh pr comment` + inline MCP comments. Side effects are flag-gated, not left to the model.
+
+**Prompt patterns worth stealing into whichever option wins.** These transfer directly:
+
+- **Adversarial steelman validation.** For maintainability issues, Step 4 instructs the validating subagent to
+  *"actively argue against the flagged issue. Only confirm it if you cannot find a reasonable justification for
+  the existing code… Only confirm if the problem clearly stands after steelmanning the existing code."* This is
+  the cleanest available phrasing for v2's Phase 4 critique persona — refute-by-default, confirm only what
+  survives steelmanning — and should be lifted rather than reinvented.
+- **High-signal-only gating.** "If you are not certain an issue is real, do not flag it" plus an explicit
+  flag/don't-flag list — a precision lever applied at *generation* time, not only at validation.
+- **Known-issue false-positive classification.** Step 2 collects prior review comments; Step 4B classifies
+  each as Addressed / Still present / **False positive**. This is structurally the same labelled-FP loop as the
+  eval `falsePositives[]` corpus — confirmation the FP-tracking concept is sound and already in practice.
+
+**The tension this surfaces — and it is the crux of v1-vs-v2.** The skill decomposes review **by reviewer
+dimension** (CLAUDE.md ×2, bug, security/logic, maintainability, structural), *not by intent*, and most agents
+are told to **stay inside the diff** (the bug agent: "Focus only on the diff; do not read extra context… Do not
+flag issues that require context outside the diff to validate"). Only the maintainability and structural agents
+may read beyond the diff. In other words, a working review system deliberately chose **diff-scoped,
+dimension-fanned generation** and achieved its false-positive control through the **adversarial validation
+step** — *not* by restructuring the unit of review into cross-file intents. This is a real-world prior leaning
+toward *"validation, not generation-redesign"*: it is direct evidence that strong precision is reachable
+without v2's intent decomposition, and it raises the bar v2 must clear. It also makes the root-cause check
+below decisive — the skill implicitly bets that false positives come from *sloppy reasoning over visible code*
+(fixable by adversarial validation), which is exactly the hypothesis v2's intent unit only pays off if it is
+*false*.
+
+## Proposed architecture — review as a bounded workflow
+
+Review becomes a four-phase workflow. Each phase is a distinct prompt; phases 1, 2, and 4 use agentic
+sub-runs with tools; phase 3 is mostly deterministic. The whole thing is **bounded control flow**, not an
+open-ended loop — the workflow script owns fan-out and budget; agents own reasoning inside each node.
+
+Schematically, the change is from one flat agentic call to a decompose → fan-out → merge → refute pipeline:
+
+```
+  FLAT BASELINE (mode: 'agentic')            PROPOSED v2 (mode: 'agentic-v2')
+  ─────────────────────────────             ──────────────────────────────────
+
+                                            diff
+                                              │
+                                              ▼
+                                    ┌───────────────────────┐
+                                    │ Phase 1 · PLAN        │  1 agentic run
+                                    │ decompose by intent   │  → ReviewPlan
+                                    └───────────┬───────────┘    (N intents)
+                                                │
+                          ┌─────────────────────┼─────────────────────┐
+   diff                   ▼                     ▼                     ▼   (bounded
+    │            ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  fan-out,
+    ▼            │ Phase 2 · VERIFY│  │ Phase 2 · VERIFY│  │ Phase 2 · VERIFY│  concurrency
+ ┌──────────┐    │ intent A (tools)│  │ intent B (tools)│  │ intent C (tools)│  cap; one
+ │ one      │    └────────┬────────┘  └────────┬────────┘  └────────┬────────┘  agentic run
+ │ agentic  │             └─────────────────────┼─────────────────────┘          per intent)
+ │ run w/   │                                   ▼
+ │ tools +  │                        ┌───────────────────────┐
+ │ subagents│                        │ Phase 3 · AGGREGATE   │  deterministic:
+ └────┬─────┘                        │ dedup + pre-checks    │  no model
+      │                              └───────────┬───────────┘
+      ▼                                          ▼
+  findings                          ┌───────────────────────┐
+      │                             │ Phase 4 · CRITIQUE    │  1 agentic run,
+      ▼                             │ refute each finding + │  adversarial
+ (downstream                        │ "same issue elsewhere"│  → IssueVerdicts
+  validate/dedup)                   └───────────┬───────────┘
+                                                ▼
+                                          final findings
+                                    (critique IS the FP filter)
+```
+
+The cost delta is visible in the diagram: the flat path is **one** model call; v2 is **1 + N + 1** agentic
+runs (plan, per-intent verify, critique) — the ~4× cost the *Evidence* section measured.
+
+**Phase 1 — Plan & decompose (by intent).** One agentic run reads the PR diff and decomposes it into a small
+set of **intents** — the things the change is trying to accomplish (e.g. "add health monitoring to the span
+buffer", "harden the auth callback"). Each intent names the files/regions it spans and what end-to-end
+property must hold for it to be correct and secure. Output is a structured **review plan**: a bounded list of
+intent-scoped verification tasks. This mirrors the coordinator's Research/Synthesis phases and the "never
+delegate understanding" rule — the plan carries concrete file paths and the property to check, not a vague
+instruction.
+
+**Phase 2 — Execute the plan.** Each intent task is a **focused agentic sub-run** with read/grep/bash,
+prompted to "verify this intent end-to-end across its files; report real, evidence-backed findings." Tasks for
+disjoint intents run **concurrently, with a hard cap** (`processConcurrently`,
+`src/shared/utils/concurrency.ts`). A task returns its findings via a tool/structured output. Because the unit
+is an intent spanning all its files, the agent *has the cross-file evidence* that today's file-by-file pass
+lacks — the validation two files away, the guard up the call chain — so it produces fewer false positives at
+the source and catches cross-file bugs the current pass misses (a recall gain, not only a precision gain).
+
+**Phase 3 — Aggregate.** Deterministic merge of per-task findings: dedup across intents (the same root issue
+surfaced by two intents), reconcile overlapping line ranges, and apply the cheap deterministic pre-checks from
+v1 (e.g. "already fixed by a later commit in this PR" via `git log -L`/blame — no model needed). This phase is
+LLM-free and stable.
+
+**Phase 4 — Critique (adversarial self-review).** A distinct persona — modelled on Claude Code's Verification
+agent — takes the aggregated findings and is told to **refute** them: open the code, attempt to prove each
+finding is *not* real (operator-controlled input, guard exists, unreachable), and require an evidence block
+for the verdict. Crucially, this phase also does the inverse sweep the current pipeline cannot express:
+**"given this confirmed finding, check whether the same class of issue exists elsewhere in the changed code"**
+— one confirmed finding seeds a focused targeted review, the way a senior reviewer says "you forgot to escape
+here — and here, and here." Phase 4 is structurally close to Phase 2 (same investigate-with-tools capability)
+but with a different persona, return shape, and possibly a different model/reasoning tier; the two can share
+machinery.
+
+Phase 4 is the false-positive filter — but it is *part of producing the answer*, not a separate stage cleaning
+a stream. There is no standalone "verification stage" to place in the pipeline; critique is the last phase of
+review.
+
+### Mapping to the current agentic execution path
+
+This workflow is scoped to the **agentic execution path only** (`mode: 'agentic'`). It does **not** touch the
+`file-by-file` / prose paths or the shared `PipelineExecutor` plumbing (validation/dedup resolvers, etc.);
+those are explicitly out of scope. The four phases are a **re-orchestration of `AgenticExecutor.execute`**
+(`src/stages/review/agentic/agentic-executor.ts:56`), not new infrastructure. How each phase maps onto what
+exists today:
+
+  | Phase                  | Maps to in the agentic path                                                                                                                               | Status today                                                                                                                                                                                         |
+  |------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+  | **1 — Plan/decompose** | A new step before the agentic run, replacing `buildUserPrompt(files)` (`agentic-executor.ts:77`, `prompt-builder.ts:3`)                                   | **Missing.** The unit is the whole file set; `buildUserPrompt` only churn-sorts files (`prompt-builder.ts:14-18`) — the opposite of intent grouping.                                                 |
+  | **2 — Execute**        | The **existing subagent framework** (`createSubagentDefinitions`, `subagents/definitions.ts:52`; the adapter's `agents` param, `agentic-executor.ts:103`) | **Partial — strong base.** Isolated workers, per-agent tools, and per-agent model overrides (`applyModelOverrides`, `:196`) already exist. Missing: intent-scoped dispatch + a **hard fan-out cap**. |
+  | **3 — Aggregate**      | Issue collection + `confidence >= 7` filter + `normalizeIssue` (`agentic-executor.ts:152-178`)                                                            | **Degenerate.** Concatenation + a threshold only. Dedup and deterministic pre-checks lived in `PipelineExecutor` — now out of scope — so within the agentic path Phase 3 is **net-new**.             |
+  | **4 — Critique**       | A new final agentic sub-run reusing the same `adapter.run` + subagent machinery (`agentic-executor.ts:100`) with a refute persona                         | **Missing.** The agentic path has no critique step of its own; the old `ValidationResolver` is out of scope. **Net-new.**                                                                            |
+
+Two semantic shifts this surfaces, both worth naming because they are the crux of the redesign:
+
+- **Capability decomposition → intent decomposition.** Today's subagents (`dependency-tracer`,
+  `breaking-change-detector`, `security-analyzer`, `pattern-validator` — `agentic-executor.ts:30-35`) are
+  **capability/dimension** helpers the coordinator invokes opportunistically. Phase 2's workers are
+  **intent-scoped** ("verify *this* intent end-to-end across its files"). Same worker machinery, different
+  decomposition axis. This is the same capability-vs-intent tension the TDR flags about the `code-review`
+  skill (above) — it applies to QualOps's *own* existing subagents too.
+- **Model-decided fan-out → deterministic fan-out.** Today `adapter.run` lets the model decide if/when to
+  spawn subagents inside one loop (`agentic-executor.ts:100-120`). That directly **violates** the design
+  constraint below ("not model-decided"). V2 makes the workflow script own decomposition and fan-out; the
+  model owns reasoning *inside* a node.
+
+So in the agentic path, Phases 1 and 4 are genuinely new, Phase 3 is new (its old home is out of scope), and
+Phase 2 is a re-orchestration of an existing subagent framework. Context-building (`buildUserPrompt` /
+`buildFileContext`, `prompt-builder.ts`) is still whole-file/whole-diff and churn-sorted today; it is replaced
+by Phase 1 (intent scoping) and is also the plug-in site for [0006](./0006-structural-context-enrichment-for-verification.md)'s
+structural slicing in Phase 4.
+
+### Implementation strategy — `AgenticExecutorV2` behind a new mode
+
+To evaluate v2 against today's behaviour **without a risky in-place rewrite**, build the workflow as a new
+`AgenticExecutorV2` selected by a new review mode, so both implementations coexist and A/B comparison is a
+config flip:
+
+- **New mode value.** Extend `ReviewMode` (`src/shared/types/config.ts:18`) from
+  `'file-by-file' | 'agentic'` to also include `'agentic-v2'`.
+- **Single new dispatch branch.** The only change to `PipelineExecutor` is one branch in `execute()`
+  (`pipeline-executor.ts:72-76`): `mode === 'agentic-v2'` → `executeAgenticJobV2` → `AgenticExecutorV2`. This
+  is the *minimal* touch the "don't rewrite the pipeline executor" constraint allows — a sibling branch, not a
+  modification of the existing `agentic` path.
+- **`AgenticExecutorV2` is a sibling, not a replacement.** It reuses the existing adapters, subagent loader,
+  tools, and result parser; the new logic is the four-phase orchestration around them. The current
+  `AgenticExecutor` is left **untouched** so `mode: 'agentic'` remains the stable baseline.
+- **Why this shape.** It lets the CRB/Langfuse experiments below run `agentic` vs. `agentic-v2` as two
+  variants on the same harness (the eval config sets `mode`), so the precision/recall comparison is
+  apples-to-apples and migration is a decision made *on evidence*, not committed up front. The v2 mode can ship
+  disabled-by-default and be promoted only if it clears the pass condition.
+
+### Design constraints (where this departs from Claude Code's defaults)
+
+QualOps runs unattended on every PR, so two of Claude Code's "methodology-driven" choices must become
+hard mechanisms:
+
+- **Deterministic, bounded fan-out — not model-decided.** The workflow script decomposes (Phase 1 proposes
+  intents; the script caps how many become tasks) and fans out (Phase 2 runs them under a fixed concurrency
+  and per-task `maxTurns`/`maxBudgetUsd`). We do **not** let an orchestrator agent spawn sub-agents at its own
+  discretion: that re-introduces the divided-attention and unbounded-cost failures v1 identifies, and there is
+  no human to catch a runaway. "Give the LLM all findings and let it decide the fan-out" is explicitly
+  rejected for this reason.
+- **Explicit failure & fallback policy.** A failed Phase-2 task is isolated (its intent's findings are
+  dropped or marked low-confidence — a **fail-open vs fail-closed** choice that must be made explicitly, as in
+  v1). A pathologically large diff falls back to a cheaper path (e.g. v1's batched verdict), and that fallback
+  is **logged and surfaced**, never silent — large PRs are the ones most likely to carry false positives.
+
+## Options Considered
+
+### Option 1 — Status quo (flat loop + batched downstream filter)
+
+Keep the single-pass `AgenticExecutor` and the batched `ValidationResolver`.
 
 **Pros:**
-- Validation already owns false-positive removal — one home, one responsibility.
-- No new stage wiring, metadata, or orchestration; smallest blast radius.
-- Medium- and low-severity findings remain covered (they all reach validation).
+- Cheapest and simplest; no new orchestration.
 
 **Cons:**
-- Verification stays buried inside the review stage rather than being a first-class, independently
-  traceable/evaluable/toggleable step. This matters precisely because the mechanism is about to become the
-  most expensive part of the run, where independent observability and a kill switch are most useful.
+- Reviews file-by-file with no planning/decomposition, so it structurally lacks the cross-file evidence that
+  the dominant false-positive shapes require. The downstream filter inherits the same blind spot.
 
 ---
 
-### Option 1B — Remove validation; new standalone "verify" stage between review and fix
+### Option 2 — v1 filtering (better verdict mechanism on the current stream)
 
-Retire the batched validation step entirely and move false-positive removal into a new dedicated agentic
-verification stage that sits between `review` and `fix`.
+The filtering framing: keep review as-is, and improve the false-positive *filter* — deterministic pre-checks, a
+per-issue agentic verdict, or tiered escalation. (See [*The options to pursue*](#the-options-to-pursue)
+under Consequences for the full menu.)
 
 **Pros:**
-- Clean separation of concerns — verification becomes a first-class, independently toggleable stage with its
-  own metadata and config, rather than a step buried inside review.
-- A natural home if verification later grows beyond false-positive removal (e.g. cross-finding correlation,
-  severity re-grading as a deliberate pass).
+- Incremental and lower-risk; reuses the existing pipeline scaffolding.
+- Deterministic pre-checks and tiered escalation are cheap, high-value, and **carry over into Option 3 as
+  Phase 3 / gating** — so this work is not wasted even if Option 3 is later adopted.
+- **Has a proven instantiation.** The `code-review` skill (above) is essentially "this option done well":
+  diff-scoped, dimension-fanned generation plus adversarial steelman validation, and it produces high-signal
+  results in practice without any intent-based generation redesign. That weakens the "treats symptom not
+  cause" objection — the symptom-level approach demonstrably works.
 
 **Cons:**
-- New stage wiring: pipeline ordering, stage metadata, session paths, and config surface all have to be
-  added and maintained, where validation already provides that scaffolding today.
+- May treat the symptom (bad findings) rather than the cause (shallow, file-scoped review) — *if* the cause is
+  in fact missing cross-file context. A per-issue verifier re-derives cross-file context one finding at a time
+  that an intent-based review would establish once. (Whether this con is real is exactly what the root-cause
+  check below decides — the skill is evidence it may not be.)
+- Adds the false-negative, non-determinism, latency, checkout-dependency, and prompt-injection risks v1
+  documents. It does not, on its own, bring the recall upside intent-based review claims — though the skill's
+  structural/eagle-eye agent shows some cross-file recall is reachable within a dimension fan-out.
 
 ---
 
-### Option 1C — Remove validation; fold verification into the fix stage
+### Option 3 — Intent-based review workflow (this proposal)
 
-Retire the batched validation step and have the fix stage decide whether a finding is a false positive
-(before generating a fix) as the sole false-positive filter.
+Plan → execute → aggregate → critique, as above.
 
 **Pros:**
-- The fix agent already inspects code with tools, so the investigation capability is nearby.
+- Attacks false positives **at the source**: the intent unit gives the reviewer the cross-file evidence the
+  FP shapes depend on, so fewer bad findings are produced in the first place.
+- **Recall gain, not only precision:** intent-level verification and the Phase-4 "same issue elsewhere" sweep
+  catch cross-file bugs the file-by-file pass misses.
+- Critique is intrinsic to producing the answer (adversarial self-review), matching how humans and Claude
+  Code actually review — no separate verification stage to wire and place.
+- Maps onto proven patterns (coordinator phases, isolated sub-agents, adversarial verifier). Affordability
+  rests on provider-agnostic controls — deterministic gating and model tiering (read-only search on a cheap
+  tier); provider-specific accelerators (Anthropic prompt-cache prefix sharing, fork-agents) lower cost
+  further *when available* but are not assumed on the OpenAI-compatible path.
 
 **Cons:**
-- The fix stage only processes HIGH-severity, confidence ≥ 7, non-ESLint issues
-  (`src/stages/fix/index.ts:14-23`). With validation removed, medium- and low-severity findings would never
-  be verified and would reach the report unfiltered.
-- For any run that does not fix (report-only is a common mode), there would be **no** false-positive filter
-  at all.
+- **Largest change:** it redesigns review *generation*, not just filtering — higher implementation and
+  validation cost, and a bigger behavioural shift to evaluate.
+- **Highest cost/latency per PR**, because every review now runs a multi-phase workflow. This makes the cheap
+  gates (deterministic pre-checks; "is this a 3-line dep bump?" skip) **load-bearing**, not optional.
+- More moving parts: a plan whose quality bounds everything downstream (a bad decomposition mis-scopes every
+  task), plus per-phase prompts and failure policies to tune.
+- Inherits the agentic risks (non-determinism, checkout-dependency, prompt-injection surface from reading
+  PR-authored code with tools) across more phases.
 
 ---
 
-## Decision 2 — How is a verdict reached?
+### Comparison
 
-### Option 2A — Batched, no tools (status quo)
+ | Criterion                   | 1 — Status quo | 2 — v1 filtering         | 3 — Intent workflow        |
+ |-----------------------------|----------------|--------------------------|----------------------------|
+ | Cross-file / intent context | ❌ file-scoped | ⚠️ re-derived per finding | ✅ native unit             |
+ | Attacks cause vs symptom    | —              | symptom                  | ✅ cause                   |
+ | Precision (fewer FPs)       | ❌             | ✅                       | ✅                         |
+ | Recall (fewer missed bugs)  | baseline       | ❌ no gain               | ✅ gain                    |
+ | Built-in critique           | ❌             | ⚠️ separate stage         | ✅ intrinsic phase         |
+ | Cost / latency              | ✅ lowest      | ⚠️ medium                 | ❌ highest (gated)         |
+ | Implementation risk         | ✅ none        | ⚠️ moderate               | ❌ largest                 |
+ | Reuses proven patterns      | n/a            | partial                  | ✅ CC coordinator/verifier |
 
-One LLM call, all issues, pattern-only judgement. The current behaviour, and the baseline the other
-options are measured against.
+## Validation — does the hypothesis hold?
 
-**Pros:**
-- Lowest cost and lowest latency — a single call.
+Option 3 rests on one empirical claim: **today's false positives stem mainly from missing intent/cross-file
+context, not from sloppy reasoning over code the model already saw.** This is testable before committing to the
+architecture — and the test now adjudicates between **two demonstrated approaches** (the `code-review` skill's
+validation-centric, diff-scoped design vs. Option 3's intent-based generation), not one real and one
+hypothetical. The skill is a standing prior that the validation-centric approach suffices; Option 3 must show
+the prior is wrong on QualOps's actual false positives.
 
-**Cons:**
-- No investigation: rejects only pattern-shaped false positives, not evidence-based ones.
-- Divided attention across N findings; reasoning gets shallower as N grows.
-- All-or-nothing parse failure (`:122-128`) — one malformed response drops every finding.
+- **Root-cause check (gate before building).** Pull 5–10 real false positives from the CRB dataset
+  (`evals/datasets/crb/`) and classify each: *was the disconfirming evidence in a file the file-by-file
+  reviewer never looked at?* If the dominant cause is "evidence lived elsewhere", Option 3 is justified. If
+  most FPs are "the model reasoned poorly about code it did see", then the skill's recipe — better adversarial
+  validation (Phase 4 alone, or v1's per-issue verifier) — suffices and the full intent decomposition is
+  over-engineering.
+- **Precision *and* recall, on the existing harness.** The CRB scorers
+  (`evals/src/scorers/crb-pairwise.ts`) already compute `crb_precision = TP/(TP+FP)` and
+  `crb_recall = TP/(TP+FN)`. The `AgenticExecutorV2`-behind-a-mode strategy above makes this a clean A/B:
+  run the **`agentic`** baseline vs. the **`agentic-v2`** candidate as two variants of the same Langfuse
+  experiment (the eval config sets `mode`), so the comparison is apples-to-apples on identical inputs. Pass
+  condition is **precision up, recall flat-or-up** (Option 3 should additionally *raise* recall — if it does
+  not, its main advantage over v1 is unproven). The new mode ships disabled-by-default and is promoted only
+  if it clears this bar.
+- **Targeted FP regression set.** Curate real-PR slices via `/new-eval-from-pr`, which writes
+  `expected[]`/`falsePositives[]` to `evals/datasets/inbox/<slug>/`; seed with the enumerated shapes plus
+  production misses. Target: every `falsePositives[]` entry dropped, every `expected[]` entry kept. (Asserting
+  on `falsePositives[]` is a small scorer extension and part of the implementation work.)
 
----
+## Evidence (2026-06 A/B run)
 
-### Option 2B — Single agentic run, all issues, with tools
+Option 3 was built (`AgenticExecutorV2` behind `mode: 'agentic-v2'`) and run head-to-head against the flat
+`agentic` baseline on the CRB `crb-sentry` dataset via the config-driven eval harness (`--config` selecting
+two symmetric `.qualops/.qualopsrc-eval-agentic-v{1,2}.json` configs: same Opus model, security system prompt,
+budgets, and dedup; the only difference is the executor). The comparison that matters is the **full 10-case
+dataset run** of each arm (single-item smoke runs were also done but are too noisy to draw from — see below):
 
-One agent receives the whole list plus bash/read/grep and returns all verdicts.
+| Metric (mean over 10 cases) | `agentic` (v1) | `agentic-v2` | Δ |
+|---|---|---|---|
+| crb_precision | 0.248 | 0.239 | −0.009 |
+| crb_recall | **0.412** | 0.348 | **−0.064** |
+| crb_f1 | **0.299** | 0.246 | **−0.053** |
+| wall-clock / item | ~145 s | ~600 s | **~4× slower** |
 
-**Pros:**
-- Cheaper than per-issue (one context, one run).
-- Can reason about cross-issue relationships in a single pass.
+v2 was **worse on recall and F1** than the flat baseline, at ~4× the cost. This is the opposite of the pass
+condition from *Validation* ("precision up, recall flat-or-up, ideally recall up"): recall dropped ~15%
+relative and F1 dropped ~18% relative, while cost quadrupled.
 
-**Cons:**
-- Keeps the **divided-attention** weakness — the core reason 2A misses findings — because the model still
-  splits focus across N issues.
-- Keeps the all-or-nothing parse failure.
-- Bolting tools onto a batch does not deliver focused investigation.
-- **Introduces a false-negative risk** absent from 2A: an investigating agent can *wrongly drop a real
-  finding* (e.g. mistaking a bypassable guard for a safe one). Tool use widens the failure surface in both
-  directions, not just toward better precision.
-- **Non-deterministic** — tool transcripts vary run-to-run, so verdicts can differ between runs of the same
-  PR, which destabilises regression evals.
-- **Depends on a correct checkout.** The agent's value is contingent on the repository being checked out at
-  the right commit in the sandbox; a stale or wrong checkout makes it investigate the wrong code and produce
-  confidently-wrong verdicts — strictly worse than no investigation.
-- **Expands the prompt-injection surface** — the agent reads PR-authored (potentially hostile) code with
-  bash/read access. For a tool that is partly a security reviewer, this is a real threat-model change.
+**Scope of this result — model-specific, only Opus 4.6 tested.** Both arms ran `claude-opus-4-6`. The finding
+that intent-decomposition adds cost without upside may be *specific to a strong model*: the flat single pass
+already reasons well over the whole diff, so the decomposition has little attention-headroom to exploit. A
+**smaller/cheaper model** (e.g. Sonnet or Hauku tiers) is untested and could plausibly go either way — it might
+benefit more from the structured decomposition (the attention-budget hypothesis is strongest when a single
+pass is weakest), or it might fail at the planning/critique steps that v2 leans on. This is a real open
+question, not a settled one; the rejection below is scoped to the model tested.
 
----
+**On run-to-run noise.** Several single-item runs were also executed (not all well-logged); they are cited only
+to show variance, not as evidence. On the same one case, v2 f1 ranged 0.000 → 0.333 across runs and v1 ranged
+0.200 → 0.250 — swings that dwarf any between-arm signal at N=1. This is exactly why the 10-case aggregate is
+the basis for the decision, and why a robust conclusion would want N≥3 full-dataset runs (not affordable here
+at ~10 min/item for v2, which is itself part of the finding).
 
-### Option 2C — Per-issue agentic run, tightly bounded
+Two observations reinforce the negative result:
 
-Each issue gets its own agentic run with bash/read/grep, bounded by a low `maxTurns`, a small
-`maxBudgetUsd`, and a small bash call cap so it performs a *focused, targeted* check rather than open-ended
-exploration. Runs execute concurrently (bounded by `processConcurrently`,
-`src/shared/utils/concurrency.ts` — the same utility the fix stage already uses). Each returns a full
-verdict `{is_false_positive, confidence, severity, reasoning, evidence}`.
-
-**Pros:**
-- Maximum focus and depth per finding; the agent actually inspects the checked-out repository to confirm or
-  refute the finding.
-- Failures can be isolated to a single finding rather than dropping the batch.
-- Clean per-finding evidence trail recorded on the kept issue.
-
-**Cons:**
-- N agentic runs cost more **tokens** than one batched call. Mitigated by tight per-issue bounds, bounded
-  concurrency, and a `maxIssues` guard that falls back to the batched call for pathologically large lists —
-  but see the silent-fallback caveat under *Configuration tradeoffs*.
-- Adds **latency** distinct from token cost: even with bounded concurrency, N runs lengthen the wall-clock
-  time before a PR comment appears, which is a product constraint for an inline review tool.
-- Carries the same **false-negative**, **non-determinism**, **checkout-dependency**, and
-  **prompt-injection** risks described under 2B, amplified by running N independent agents instead of one.
-
-**Fail-open vs fail-closed.** Whether a verification timeout or error *keeps* (fail-open) or *drops*
-(fail-closed) the finding is the single most consequential precision/recall lever in this option, not an
-implementation detail. Fail-open protects recall (real findings survive agent failures) at the cost of
-letting some false positives through; fail-closed does the reverse. This choice must be made explicitly and
-applies equally to 2B.
-
----
-
-### Option 2D — Tiered: batched triage, then per-issue escalation
-
-Run the batched judge (2A) first as a cheap triage pass, then escalate only the *uncertain or borderline*
-findings — those near the confidence boundary, or where the batched judge's verdict is low-confidence — to a
-bounded per-issue agentic run (2C). Clear-cut findings keep the batched verdict; only the ambiguous tail pays
-for investigation.
-
-**Pros:**
-- Directly attacks the one weakness 2C cannot mitigate on its own — **cost** — by sending only the borderline
-  subset to the expensive path.
-- Cost/accuracy is tunable via the escalation threshold rather than fixed.
-- Preserves per-finding evidence and failure isolation for the escalated set.
-
-**Cons:**
-- More moving parts: a two-stage pipeline with its own threshold to tune and validate.
-- Two failure modes to reason about (batched parse failure *and* per-issue agent failure), each needing its
-  own fail-open/fail-closed policy.
-- A miscalibrated escalation threshold can route the wrong findings — sending easy ones to the agent or
-  keeping hard ones on the shallow path.
-
----
-
-## Decision 3 — Deterministic pre-checks (orthogonal)
-
-An LLM-free filter layer that runs *before* any verdict mechanism. It is orthogonal to Decisions 1 and 2:
-it combines with any "where" and any "how" selection, and it reduces the population of findings reaching the
-verdict stage — cutting cost regardless of which mechanism is chosen.
-
-### Option 3A — None (status quo)
-
-No deterministic pre-check; every survivor of the confidence filter reaches the verdict mechanism.
-
----
-
-### Option 3B — Git/diff-based checks
-
-Cheap, deterministic checks against the PR's own history. The clearest case: "a later commit in the same PR
-already fixed the flagged code" is answerable with `git log -L` / `git blame` against the finding's line
-range — no model needed. Findings whose target lines were superseded by a later commit are dropped
-deterministically.
-
-**Pros:**
-- Removes a whole class of false positives at near-zero cost and with no model variance.
-- Fully deterministic — stable across runs, eval-friendly.
-
-**Cons:**
-- Narrow: only catches false positives that are visible in version-control history, not semantic ones.
-- A precise line-range mapping is required; sloppy mapping risks dropping a still-relevant finding (a
-  false-negative risk of its own).
-
----
-
-### Option 3C — Static heuristics
-
-Pattern-based rules for the most common pattern-shaped false positives — e.g. `process.exit()` in a known
-entry-point/CLI file, or simple reachability/guard heuristics — applied before the verdict stage.
-
-**Pros:**
-- Catches the highest-frequency pattern-shaped false positives without an LLM call.
-- Deterministic and inspectable; each rule is auditable.
-
-**Cons:**
-- Heuristics carry a **precision/recall risk**: an over-broad rule drops real findings (false negatives),
-  an over-narrow one earns nothing. Each rule needs its own validation on labelled data.
-- Rule maintenance is ongoing as the codebase and finding shapes evolve.
-
----
-
-## Configuration tradeoffs
-
-The axes above are combinable; listing every product is not useful. Instead, a few representative end-to-end
-configurations, each labelled by what it optimises:
-
-- **Lowest cost / fastest — `1A + 3A + 2A`** (today) or **`1A + 3B + 2A`.** A single batched call, optionally
-  preceded by deterministic git checks. Cheapest and lowest-latency; weakest on evidence-based false
-  positives. Adding 3B removes the "already-fixed-in-PR" class for free without changing the cost profile of
-  the verdict step. *Favors: speed, $, determinism. Trades away: precision on evidence-based FPs.*
-
-- **Best precision — `1A + 3B/3C + 2C`.** Deterministic checks thin the population, then every survivor gets a
-  focused per-issue investigation. Strongest false-positive removal; most expensive in tokens and latency, and
-  most exposed to the false-negative / checkout / injection risks unless fail-open is chosen. *Favors:
-  precision. Trades away: $, latency, determinism.*
-
-- **Balanced cost/precision — `1A + 3B + 2D`.** Deterministic pre-checks, then batched triage, then per-issue
-  escalation only for the borderline tail. Most of 2C's precision at a fraction of its cost, at the price of a
-  threshold to tune. *Favors: cost/precision balance. Trades away: simplicity.*
-
-- **Recall-protective — any config with deterministic-only hard drops + fail-open verdicts.** Findings are
-  only *dropped* with certainty by deterministic checks (3B/3C); the LLM/agent verdict can lower confidence
-  but a verification failure keeps the finding. Minimises false negatives at the cost of admitting more false
-  positives. *Favors: recall. Trades away: precision.*
-
-**Open questions to resolve before choosing a configuration:**
-
-- **Baseline.** What is the current false-positive *and* false-negative rate on a labelled set? Without this,
-  no option can be shown to improve precision without regressing recall.
-- **Recall guard.** Any option that *drops* findings (2B/2C/2D, 3C) needs a measured recall guard — the FP
-  win must not come at an unmeasured recall cost.
-- **Latency budget.** What wall-clock ceiling is acceptable for an inline PR comment? This bounds how much of
-  the population 2C may touch.
-- **Checkout reliability.** How reliably is the repository checked out at the correct commit in the sandbox?
-  The value of every tool-using option (2B/2C/2D) is contingent on this.
-- **Fail-open vs fail-closed.** The default verification-failure policy must be chosen explicitly (see 2C).
-- **`maxIssues` fallback visibility.** If 2C/2D fall back to the batched call for large lists, that fallback
-  must be **logged and surfaced**, not silent — large PRs are the ones most likely to contain false positives,
-  so silently giving them the weaker filter is the opposite of what is intended.
-
-## Evaluation strategy
-
-The goal — *reduce false positives without regressing recall* — is measurable, and the existing harness already
-provides the instruments, so the strategy reuses them rather than building new ones. Two tiers:
-
-- **Aggregate (CRB).** The scorers in `evals/src/scorers/crb-pairwise.ts` already compute
-  `crb_precision = TP/(TP+FP)` (a direct false-positive measure) and `crb_recall = TP/(TP+FN)`. Run each
-  candidate with `npm run eval:run:crb:all` over the 50-PR CRB dataset in `pipeline` mode (so the verification
-  step is exercised) and compare against the `3A + 2A` baseline as Langfuse experiments. Pass condition:
-  **precision up, recall flat-or-up** — improving precision while dropping recall is a regression, not a win.
-- **Targeted (curated FP set).** CRB's golden comments aren't selected for the FP shapes this TDR targets, so
-  curate a small labelled set via `/new-eval-from-pr`, which already writes slices with `expected[]`,
-  `outOfScope[]`, and `falsePositives[]` to `evals/datasets/inbox/<slug>/`. Seed it with the enumerated shapes
-  (CLI `process.exit()`, operator-controlled input, guarded vulnerability, already-fixed-in-PR) plus real
-  production misses. Target: **every `falsePositives[]` entry dropped, every `expected[]` entry kept.** Asserting
-  on `falsePositives[]` is a small extension of the CRB scorer (captured today but not yet scored) and is part
-  of the chosen option's implementation work.
+- The critique phase (Phase 4) *does* drop false positives with reasoning, but the net effect vs. the flat
+  path was neutral-to-negative on precision and actively lost recall — the extra generation/critique work did
+  not surface findings the cheaper baseline missed.
+- Operationally, a Phase-2 verification intent exhausted its turn budget and failed open, losing that intent
+  entirely — the added machinery introduces new failure surface without a corresponding quality upside.
 
 ## Decision
 
-_TBD._
+**Rejected.** Do not adopt Option 3 (intent-based `agentic-v2`) as the default or promoted path. On the full
+10-case dataset it was *worse* than the flat `agentic` baseline on recall (0.348 vs 0.412) and F1 (0.246 vs
+0.299) at ~4× the cost — the opposite of the pass condition. The
+`code-review`-skill prior (validation-centric, diff-scoped) stands: better *validation* of a cheaply-generated
+finding stream, not a *generation* redesign, is where the leverage is.
+
+The `AgenticExecutorV2` code remains in the tree behind the disabled-by-default `mode: 'agentic-v2'` flag as a
+recorded, runnable negative result — not deleted, not promoted. The rejection is scoped to **Opus 4.6**; the
+clearest reason to revisit is a **different (smaller/cheaper) model**, where decomposition might have more to
+exploit. If revisited, it must clear the same bar with N≥3 full-dataset runs and a per-item cost that makes the
+tradeoff worthwhile.
+
+The genuinely useful artifacts from this effort were **not** the v2 executor but the **evaluation tooling**
+built to test it: the config-driven eval entry point (`--config`, per-job executor routing), the
+`compare-experiments` precision/recall/cost diff, and the A/B harness. Those generalise to "compare any two
+QualOps configs (model per stage, budgets, prompts) on quality vs. cost" and are being extracted to a
+dedicated branch/feature independent of this TDR.
 
 ## Consequences
 
-_TBD._
+- **False-positive reduction reverts to the filtering framing.** The options — deterministic pre-checks,
+  richer context capture, a tightened validation/critique on the existing stream — are the path forward, not
+  an architectural rewrite. They are catalogued below under [*The options to pursue*](#the-options-to-pursue).
+- **Cost is a first-class constraint.** This experiment quantified that multi-phase agentic review multiplies
+  token/latency cost several-fold; any future FP work is measured on a quality-*and*-cost frontier, not
+  quality alone.
+- **Config A/B tooling is the lasting win.** The harness that produced this evidence is reusable for the real
+  ongoing question — per-stage model/config cost-quality tradeoffs — and outlives the rejected architecture.
+- **Untested: smaller models.** The result holds only for Opus 4.6. Whether intent-decomposition helps a
+  weaker model (more attention-limited, more to gain from structure) — or breaks on the planning/critique steps
+  — is open. The config-A/B harness above makes this a cheap follow-up: swap the model in each arm's config and
+  re-run. Worth doing before the `agentic-v2` code is ever deleted.
+
+### The options to pursue
+
+Concrete filtering options, recovered from the earlier v1 draft so this record is self-contained. They are
+complementary — each intervenes at a different point in the pipeline and combines with the others — and none
+requires the rejected redesign.
+
+- **Git/diff pre-check (LLM-free).** Drop findings whose lines a later commit in the same PR already fixed —
+  `git log -L` / `git blame` on the line range, no model. Deterministic and cheap; narrow (history-visible FPs
+  only) and needs precise line-range mapping.
+- **Static heuristics (LLM-free).** Pattern rules for common pattern-shaped FPs (`process.exit()` in a
+  CLI/entry-point, guard/reachability). Auditable, but each rule carries a precision/recall risk and needs
+  validation on labelled data.
+- **Tiered verdict.** Cheap batched judge as triage; escalate only the borderline tail (low-confidence /
+  near-threshold) to a bounded per-issue agentic run. Attacks the cost weakness of a blanket per-issue pass;
+  cost is a threshold to calibrate and two failure modes to handle.
+- **Source-side richer context.** Capture more lines / enclosing signature / call site at review time so the
+  existing batched judge can reject evidence-based FPs cheaply. Changes what review *produces*, not how a
+  verdict is reached.
+- **Confidence calibration.** Tune the hard `issue.confidence >= 7` pre-filter (`validation-resolver.ts:49-57`);
+  raising the bar trades recall for precision with no model change.
+
+**Measuring any of these** (existing harness):
+
+- **Aggregate (CRB).** `evals/src/scorers/crb-pairwise.ts` already computes `crb_precision` and `crb_recall`.
+  **Pass condition: precision up, recall flat-or-up** — precision up at recall's expense is a regression.
+- **Targeted (curated FP set).** Curate labelled slices via `/new-eval-from-pr` (`expected[]` / `outOfScope[]`
+  / `falsePositives[]`); seed with the four FP shapes plus real misses. **Target: every `falsePositives[]`
+  dropped, every `expected[]` kept.** (Scoring `falsePositives[]` is a small scorer extension.)
+
+**Constraints on any FP work:**
+
+- **Baseline first** — measure current FP *and* FN rate, else a precision win can hide a recall regression.
+- **Recall guard** — only deterministic checks hard-drop; an LLM/agent verdict may lower confidence but a
+  verification *failure* keeps the finding (fail-open). Choose fail-open vs fail-closed explicitly per
+  mechanism.
+- **No silent fallback** — if a per-issue path falls back to the batched call for large lists, log it; large
+  PRs are the likeliest to carry FPs.
 
 ## Implementation notes
 
-_TBD._
+The rejected implementation (kept for reference) lives on the `feat-reduce-reported-false-positives-implementation`
+branch: `AgenticExecutorV2` (`src/stages/review/agentic/agentic-executor-v2.ts`), the per-phase schemas
+(`review-plan`, `issue-verdict`), the per-call adapter output schema (`AgentOutputSpec`), and the phase-output
+capture in the eval log. Selectable only via `mode: 'agentic-v2'`; off by default.

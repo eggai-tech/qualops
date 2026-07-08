@@ -29,4 +29,4 @@ TDRs are immutable once accepted. If a future decision changes things, write a n
 - [0002 — Evals from real PRs](./0002-evals-from-real-prs.md)
 - [0003 — Unstructured review dialect](./0003-unstructured-review-dialect.md)
 - [0004 — OpenAI-compatible agentic adapter](./0004-openai-compat-adapter-with-agent-loop.md)
-- [0005 — Agentic per-issue verification of findings](./0005-agentic-issue-verification.md)
+- [0005 — Intent-based agentic review (rejected)](./0005-agentic-issue-verification.md)
