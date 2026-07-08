@@ -3,6 +3,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { detectProvider } from '@/config/config';
+import { isPathTraversalSafe } from '@/shared/utils/security';
 
 export const QUALOPS_ROOT = path.join(__dirname, '../..');
 export const PRESETS_DIR = path.join(QUALOPS_ROOT, 'evals/qualopsrc');
@@ -111,6 +112,7 @@ export interface EvalArgs {
   dataset?: string;
   source?: string;
   preset?: string;
+  config?: string;
   mode?: string;
   model?: string;
   provider?: string;
@@ -146,6 +148,27 @@ export function resolvePreset(name: string | null | undefined): string | null {
     throw new Error(`Unknown preset: "${name}". Available: ${available}`);
   }
   return presetFile;
+}
+
+/**
+ * Resolve an explicit `--config=<path>` to an absolute config file. The path may
+ * be relative to the repo root (e.g. `.qualops/.qualopsrc.json`) or absolute, but
+ * must resolve inside the repo root and end in `.json`. This lets evals A/B any
+ * two arbitrary config files directly instead of copying them into presets.
+ */
+export function resolveConfigFile(configPath: string | null | undefined): string | null {
+  if (!configPath) return null;
+  const resolved = path.resolve(QUALOPS_ROOT, configPath);
+  if (resolved !== QUALOPS_ROOT && !resolved.startsWith(QUALOPS_ROOT + path.sep)) {
+    throw new Error(`Unsafe --config path rejected: "${resolved}" is outside the repo root`);
+  }
+  if (!resolved.endsWith('.json')) {
+    throw new Error(`--config must point to a .json file: "${configPath}"`);
+  }
+  if (!fs.existsSync(resolved)) {
+    throw new Error(`--config file not found: "${configPath}"`);
+  }
+  return resolved;
 }
 
 export function listPresets(): string[] {
@@ -194,7 +217,10 @@ export function resolveDatasets(args?: EvalArgs): string[] {
 
 export function buildConfig(args: EvalArgs): EvalBuildConfig {
   const presetName = args.preset || null;
-  const presetFile = resolvePreset(presetName);
+  // `--config=<path>` (an arbitrary repo config, e.g. .qualops/.qualopsrc.json)
+  // takes precedence over `--preset` for which config file drives the run.
+  const explicitConfig = resolveConfigFile(args.config);
+  const presetFile = explicitConfig ?? resolvePreset(presetName);
 
   let presetMeta: PresetMeta = {};
   const metaFile = presetFile || path.join(QUALOPS_ROOT, DEFAULT_QUALOPSRC);
@@ -216,7 +242,18 @@ export function buildConfig(args: EvalArgs): EvalBuildConfig {
   const severityFilter = args.severity
     ? new Set(args.severity.split(',').map((s) => s.trim().toLowerCase()))
     : null;
-  const presetLabel = presetName || 'default';
+  // Label the run for the experiment name: explicit --config uses the file's
+  // basename (e.g. ".qualopsrc"), else the preset name, else "default".
+  const presetLabel = explicitConfig
+    ? path.basename(explicitConfig, '.json').replace(/^\./, '')
+    : presetName || 'default';
+  // The experiment name becomes the run-log filename, so reject path separators
+  // up front — failing loud rather than letting run-log.ts silently sanitize it.
+  if (args.experiment && !isPathTraversalSafe(args.experiment)) {
+    throw new Error(
+      `--experiment must not contain path separators or ".." (got: "${args.experiment}")`,
+    );
+  }
   const experimentName = args.experiment || `${presetLabel}:${model}:${mode}:${new Date().toISOString().slice(0, 16)}`;
   const concurrency = args.concurrency ? parseInt(args.concurrency, 10) : 3;
   const configPath = presetFile ? path.relative(QUALOPS_ROOT, presetFile) : DEFAULT_QUALOPSRC;

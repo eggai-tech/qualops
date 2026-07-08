@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A/B testing for QualOps config changes: run N config files against the same dataset and compare quality (precision/recall/F1) and cost/latency — for testing per-stage model choices, budgets, prompts, or pipeline modes. New `--config=<repo-relative-path>` eval flag runs against an arbitrary config file (validated: inside repo, `.json`, exists; precedence over `--preset`), so real ship configs are A/B-tested with no copy to drift. `evals/src/run-ab.ts` (TypeScript) takes configs via repeatable `--config=<path>` (same flag name as the qualops CLI), runs the full dataset per arm by default (scope with `--dataset`/`--limit`/`--repeats`, matching a normal eval run), and calls `evals/src/compare-experiments.ts`, which reads run-logs from `evals/logs/` (by path or experiment-label prefix via repeatable `--eval-log=<X>`) and renders a metric × arm table — one column per arm, N arms supported — with a held-or-up vs. regressed verdict for the 2-arm case. Run-log file/entry types are shared from `run-log.ts` (`RunLogFile`, `ItemCompleteEntry`). npm aliases: `eval:ab`, `eval:ab:compare`. Documented under "A/B testing configurations" in `evals/README.md`.
+
 ### Changed
 - `BASH_TOOL_DESCRIPTION` constant removed; callers use `buildBashToolDescription(root)` directly so the description always reflects the actual workspace root rather than a hardcoded `/workspace/pr`.
 
 ### Fixed
+- Hardened the eval A/B tooling's CLI-path handling: filesystem access is confined to the repo/`evals/logs/` (run-log write path, `--eval-log` reads, and `--config`/`--experiment` values), and `--config`/`--repeats` are validated up front so a bad arg fails immediately rather than after a costly run.
 - Bash tool description in `createToolSet` now derives its workspace root from `toolConfig.bash.workspaceRoot ?? cwd`, matching the root the policy enforces. Previously the description always pointed at `/workspace/pr`, causing every command to be denied with `path-outside-workspace` in local environments.
 - `git-config-template` `safe.directory` is now derived from the actual `workspaceRoot` passed by the session. Previously it was hardcoded to `/workspace/pr` and `/workspace/base`, causing `git` commands to fail with a dubious ownership error in local environments.
 - `GIT_CEILING_DIRECTORIES` in `env-scrub` is now set to the parent of `workspaceRoot` rather than the hardcoded `/workspace`, so git's directory-traversal protection is effective in local checkout environments.

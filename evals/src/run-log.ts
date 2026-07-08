@@ -3,6 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { sanitizeFilename } from '@/shared/utils/security';
+
 import { LOGS_DIR } from './config';
 
 export type ErrorCode =
@@ -23,6 +25,39 @@ export interface LogEntry {
   errorCode?: ErrorCode;
   warnCode?: string;
   [key: string]: unknown;
+}
+
+/**
+ * An `item_complete` log entry — the per-case record readers (e.g.
+ * compare-experiments) consume. Narrows the fields `run-eval` writes for a
+ * completed item; still a `LogEntry` (open index signature) underneath.
+ */
+export interface ItemCompleteEntry extends LogEntry {
+  event: 'item_complete';
+  caseId?: string;
+  issueCount?: number;
+  durationMs?: number;
+  scores?: Record<string, number | null>;
+}
+
+/**
+ * The shape written to `evals/logs/<experimentName>-<ts>.json` by
+ * {@link createRunLog}. This is the single source of truth for the run-log file
+ * format; consumers import this type rather than redefining it.
+ */
+export interface RunLogFile {
+  experimentName: string;
+  preset: string;
+  configPath: string;
+  model: string;
+  mode: string;
+  provider: string;
+  startedAt: string;
+  finishedAt: string;
+  totals: { successes: number; errors: number; warnings: number };
+  errorBreakdown: Record<string, number>;
+  warningBreakdown: Record<string, number>;
+  entries: (LogEntry & { timestamp: string })[];
 }
 
 export interface RunLogConfig {
@@ -84,7 +119,7 @@ export function createRunLog(config: RunLogConfig): RunLog {
         warningBreakdown[code] = (warningBreakdown[code] ?? 0) + 1;
       }
 
-      const summary = {
+      const summary: RunLogFile = {
         experimentName: config.experimentName,
         preset: config.presetLabel,
         configPath: config.configPath,
@@ -100,7 +135,11 @@ export function createRunLog(config: RunLogConfig): RunLog {
       };
 
       fs.mkdirSync(LOGS_DIR, { recursive: true });
-      const logFile = path.join(LOGS_DIR, `${config.experimentName}-${Date.now()}.json`);
+      // Sanitize the experiment name before using it as a filename: it can come
+      // from a raw --experiment= CLI arg. sanitizeFilename() strips path
+      // components and disallowed chars, so the write cannot escape LOGS_DIR.
+      const safeName = sanitizeFilename(config.experimentName) || 'eval';
+      const logFile = path.join(LOGS_DIR, `${safeName}-${Date.now()}.json`);
       fs.writeFileSync(logFile, JSON.stringify(summary, null, 2));
       return logFile;
     },
