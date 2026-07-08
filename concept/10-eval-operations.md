@@ -13,7 +13,7 @@
 | Quick loop | `--limit=N`, `--source=qualops` (the 3-item set), `--preset=fast`, `--no-judge`, `--concurrency`. **Still Langfuse-gated**, and the review still calls a provider. |
 | Scorers | parse · line-accuracy · coverage · severity · judge · crb-pairwise (precision/recall/f1). |
 
-> Data-integrity flag: the `CHANGELOG` `[Unreleased]` advertises A/B tooling (`run-ab.ts`, `compare-experiments.ts`, `--repeats`, `--eval-log`) that **does not exist** in this tree — A/B is done manually in the Langfuse UI. Reconcile the changelog with reality (it describes unshipped code).
+> Note (post-merge, 2026-07-08): the A/B tooling the CHANGELOG advertises now **exists** in the tree — `evals/src/run-ab.ts` (`--repeats`) and `evals/src/compare-experiments.ts` (`--eval-log`, run via `eval:ab:compare`). The earlier changelog/reality gap is closed, and A/B no longer depends on the Langfuse UI. The remaining eval-ops gaps are the committed scoreboard and optional-Langfuse (§1) — not the A/B tooling.
 
 ## Honest framing: what's new vs. already in the concept
 
