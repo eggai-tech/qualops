@@ -1,0 +1,130 @@
+# Spec Readiness Review — QualOps specs/
+# Produced by spec-readiness-review. Not an approval.
+language: en
+status: needs_human_review
+reviewed_at: "2026-07-08"
+scope: >
+  All specs under specs/ (architecture, contracts, documentation, quality/,
+  behavior/{pipeline,configuration,integrations}/, operations/release,
+  evaluation/eval-cases, decisions/, plans/refactor). Baseline set:
+  current behavior + committed correctness fixes; functional redesign
+  stays in concept/.
+
+human_approval:
+  status: pending
+  note: >
+    Human must resolve the open_decisions below and assign spec owners
+    before this set can move to approved and on to implementation planning.
+
+verdict: >
+  NOT READY for approval. The domain specs are internally consistent
+  (zero broken links, no contradictions) and well structured, but three
+  classes of items block approval: (1) open human decisions; (2) missing
+  canonical readiness artifacts the framework requires; (3) content-depth
+  gaps (per-requirement IDs, machine-readable contract artifacts, in-spec
+  dependency-doc evidence). None require source-code changes.
+
+deterministic_checks:
+  script: skills/spec-readiness-review/scripts/check_specs.mjs
+  result: fail
+  broken_links: 0
+  contradictions: 0
+  blocking:
+    - "Missing canonical artifacts: _registry.yaml, _provenance.yaml,
+       00-vision.md, 00-stack.md, 00-conventions.md, 00-architecture-overview.md,
+       00-file-structure.md, 02-capabilities/capability-inventory.md,
+       glossary.md, 03-flows/e2e-coverage.md, 03-contracts/*"
+    - "Unresolved 'TBD' markers (Owner: TBD) in 5 specs"
+    - "Public API Inventory / execution_semantics section absent (triggered by CLI/SDK surface)"
+  note: >
+    The strict content gates only enforce when a report claims approval;
+    in Draft they do not fire. The failures above are template-conformance
+    and owner-assignment, not defects in the domain specs' content.
+
+# ── The items a human must decide (see the plain-language summary in the PR) ──
+open_decisions:
+  - id: DEC-1
+    topic: Fix-stage selection scope
+    where: behavior/pipeline/fix.md
+    question: >
+      Should the refactor make fix selection honor configured fix.severities /
+      fix.minConfidence (so critical is fixed and --include-medium works) — a
+      behavior change (bucket C) — or keep today's hardcoded high + >=7 and
+      defer? An implementing agent must not guess.
+    recommendation: implement as bucket C (honor config); it fixes two dead flags at once
+    blocking: true
+  - id: DEC-2
+    topic: Config-file location unification
+    where: behavior/integrations/{github,gitlab}.md
+    question: >
+      GitHub reads .qualops/.qualopsrc.json; GitLab reads .qualopsrc.json at
+      the repo root. Which single path is canonical?
+    recommendation: .qualops/.qualopsrc.json (matches the CLI/Action default)
+    blocking: true
+  - id: DEC-3
+    topic: Report-source unification
+    where: behavior/integrations/{github,gitlab}.md
+    question: >
+      GitHub uses the latest session's review-summary.json; GitLab aggregates
+      all sessions. Which is the canonical behavior?
+    recommendation: latest session only (predictable; matches per-run semantics)
+    blocking: true
+  - id: DEC-4
+    topic: Gate-thresholds config section (F-4)
+    where: behavior/pipeline/gate.md, behavior/configuration/config-file.md
+    question: name/shape of the new config section — `judge` vs `gate` — and its keys.
+    recommendation: "`gate` (the stage is renamed gate); keys mirror the env var names"
+    blocking: false
+  - id: DEC-5
+    topic: Docs authoring direction (DOC-11)
+    where: documentation.md
+    question: docs-first (authored in docs/, website syncs) vs website-first.
+    recommendation: docs-first (matches existing sync scripts)
+    blocking: false
+  - id: DEC-6
+    topic: README length budget (DOC-4)
+    where: documentation.md
+    question: confirm ≤ ~150 lines or set another number.
+    recommendation: "≤ 150 lines"
+    blocking: false
+  - id: DEC-7
+    topic: Timing of CI doc-checks (link-check / TOC-consistency / length)
+    where: documentation.md §5
+    question: land in this refactor round or the documentation phase?
+    recommendation: documentation phase (they touch CI config, not src/)
+    blocking: false
+  - id: DEC-8
+    topic: Spec owners
+    where: all specs (Owner: TBD)
+    question: who owns each spec? (removes the TBD markers)
+    recommendation: assign per domain (e.g. pipeline, config, integrations, ops, evals)
+    blocking: true
+
+# ── Authoring gaps to close before approval (no human decision; work items) ──
+readiness_gaps:
+  - "Add capability inventory (02-capabilities/capability-inventory.md) enumerating
+     CLI, pipeline stages, forge integrations, providers, eval, release capabilities."
+  - "Add E2E coverage matrix (03-flows/e2e-coverage.md): each capability →
+     entrypoint, contracts, states, failures, recovery, verification."
+  - "Add the framework scaffolding files (00-vision/stack/conventions/
+     architecture-overview/file-structure, glossary, _registry, _provenance)
+     OR record N/A rationale for the ones the domain specs already cover
+     (e.g. architecture.md already is the architecture-overview + file-structure)."
+  - "Reference qualops-config.schema.json as the machine-readable config contract
+     under 03-contracts/, and express the Finding contract as a schema artifact."
+  - "Add per-requirement IDs + verification to the behavior specs (only
+     documentation/release/dialects/eval carry IDs today)."
+  - "Cite current dependency-doc evidence in-spec (AI SDK version + docs);
+     today it lives in concept/08 by reference."
+
+strengths:
+  - "Zero broken links across the tree; no contradictions found."
+  - "Clean domain/responsibility nesting; each file single-purpose."
+  - "Every intended behavior change is bucketed (A/B/C) and traceable to F-nn."
+  - "Contract-only; rationale separated into decisions/."
+
+next_step: >
+  Human resolves open_decisions (especially the four blocking ones) and assigns
+  owners. Then run spec-architect in Fix-Gap mode to close readiness_gaps, then
+  re-run this review. Do not proceed to spec-implementation-planner until
+  status: approved with human_approval.status: approved.
