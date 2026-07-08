@@ -91,7 +91,7 @@ QualOps ships on **two tiers**:
 - **`@beta`** — pre-release track for internal users. Consumed as `uses: eggai-tech/qualops@beta` or `npm install @eggai/qualops@beta`.
 - **`@stable`** — production track for external clients. Consumed as `uses: eggai-tech/qualops@stable` or the default `npm install @eggai/qualops`.
 
-`beta` and `stable` are **movable lightweight git tags**. They are moved automatically by CI on every release or promotion. **Never move them by hand.** If you find them out of sync, see [`docs/tdr/0001-release-process.md`](docs/tdr/0001-release-process.md).
+`beta` and `stable` are **movable lightweight git tags**. They are moved automatically by CI on every release or promotion. **Never move them by hand.** If you find them out of sync, see [`specs/adr/0001-release-process.md`](specs/adr/0001-release-process.md).
 
 ### Cutting a beta release
 
@@ -152,7 +152,7 @@ Pre-release suffix: `-beta.N` (e.g., `0.3.0-beta.1`, `0.3.0-beta.2`). The `-rc.N
 - **A release workflow fails partway.** Check the auto-generated failure issue — it lists which stage failed. If `publish-npm` succeeded but a later stage failed, re-running the workflow is safe (later stages are idempotent). If `publish-npm` itself failed, check npm for partial state before retrying.
 - **`Create Release PR` left a `release/v*` branch behind after a failure.** Delete it manually with `git push origin --delete release/vX.Y.Z` and re-run.
 
-The full design rationale lives in [`docs/tdr/0001-release-process.md`](docs/tdr/0001-release-process.md).
+The full design rationale lives in [`specs/adr/0001-release-process.md`](specs/adr/0001-release-process.md).
 
 ## Code Style
 

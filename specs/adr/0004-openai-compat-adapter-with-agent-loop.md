@@ -1,6 +1,8 @@
-# TDR 0004 — OpenAI-Compatible Agentic Adapter
+# ADR 0004 — OpenAI-Compatible Agentic Adapter
 
-**Status:** Accepted — 2026-06-09
+**Status:** ~~Accepted — 2026-06-09~~ · **Superseded 2026-07-08** by the harness-backbone decision ([`concept/08-harness-decision.md`](../../concept/08-harness-decision.md)): the agent-loop backbone is the **Vercel AI SDK**, behind an `AgentRunPort`; `@eggai/configurable-agent` (chosen here) and the hand-rolled loop are both retired/rejected. The context and options analysis below remain valid as the historical record of why the loop was needed; the *chosen option* no longer holds.
+
+> ADRs are immutable records — this banner marks the supersession; the body is preserved as written.
 
 ## Context
 
