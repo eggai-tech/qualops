@@ -2,6 +2,8 @@
 
 **Status:** Draft for human review · Unifies the pipeline phases (P0–P4), the structure migration (M1–M6), the configuration rework (C1–C3), and the eval build-out (E0–E3) into one sequence. F-nn references: appendix A. Ground rules: every phase ships green with before/after deep-run eval results under [05-quality-spec.md](05-quality-spec.md) §7's statistical rules; move and rewrite are separate commits; specs/docs/tests stay aligned per repo policy.
 
+> **Phases 0 and 1 are now specified and approved** as one **Structure & Cleanup Refactor** — see [`specs/plans/refactor.md`](../specs/plans/refactor.md) (the first concept→spec graduation). It is the authoritative plan for this work, incl. the reviewable PR-stack order and the bucketed defect list; the summaries below are kept for the phase overview. The behavior-correcting fixes (F-1/F-2/F-13 et al.) are **in** the refactor phase, bucketed and changelog-noted (spec §4).
+
 ## Phase 0 — Correctness & trust (days)
 
 Restore the tool's own contract before building anything. Rides migration step **M1** (create `contracts/` + `kernel/`; the fixes land in their target homes; old paths re-export temporarily).
