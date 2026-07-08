@@ -1,6 +1,6 @@
 # Spec — Integrations (overview)
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Current behavior the refactor **preserves**; it wraps providers behind the two ports ([`../../architecture.md`](../../architecture.md) §3) and de-duplicates forge code into `forges/core`. The model-backbone swap to the Vercel AI SDK and the fingerprint-based posting protocol are **later phases** (`concept/08`, `concept/02`).
+**Status:** Approved — EggAI, 2026-07-08 · Current behavior the refactor **preserves**; it wraps providers behind the two ports ([`../../architecture.md`](../../architecture.md) §3) and de-duplicates forge code into `forges/core`. The model-backbone swap to the Vercel AI SDK and the fingerprint-based posting protocol are **later phases** (`concept/08`, `concept/02`).
 
 | Spec | Scope |
 |---|---|

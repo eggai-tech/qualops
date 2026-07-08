@@ -1,6 +1,6 @@
 # Spec — Fix stage
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Domain: pipeline · Overview: [README.md](README.md)
+**Status:** Approved — EggAI, 2026-07-08 · Domain: pipeline · Overview: [README.md](README.md)
 
 Generates search/replace fix suggestions for selected findings; applies them only when asked.
 
@@ -17,9 +17,13 @@ Generates search/replace fix suggestions for selected findings; applies them onl
 - Default is **dry-run** (no file changes); `--fix-apply` enables application. Applied fixes are further restricted to `confidence: high && !breaking`.
 - Generation requires the `search` string to occur **exactly once** in the file, else the fix is discarded.
 
-## Open discrepancy — decide refactor scope
+## Selection (decided — bucket C)
 
-Selection today is hardcoded to `severity === 'high' && confidence >= 7 && !context.startsWith('[ESLint]')` and ignores `fix.severities` / `fix.minConfidence` and `--include-medium`; **`critical` is never fixed**. The intended contract is that selection honors the configured severities and threshold. **Decision required:** implement as bucket C (behavior change) in the refactor, or defer explicitly. Until decided, an implementing agent must not guess — this is flagged, not specified.
+⚠ Correction (bucket C): selection **honors the configured `fix.severities` and `fix.minConfidence`**, and the `--include-medium` / `--exclude-medium` flags take effect. In particular `critical` findings are eligible for fixing (they are not today). ESLint-sourced findings (`context` starting with `[ESLint]`) remain excluded — a linter owns its own fixes.
+
+*(Today: selection is hardcoded to `severity === 'high' && confidence >= 7 && !context.startsWith('[ESLint]')`, ignoring the config and the flags, so `critical` is never fixed. This is a behavior change — changelog + release note.)*
+
+Defaults when unset: `fix.severities` defaults to `['critical','high']`; `fix.minConfidence` defaults to the review confidence threshold.
 
 ## Cleanup
 

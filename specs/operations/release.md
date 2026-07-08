@@ -1,6 +1,6 @@
 # Spec — Release & Versioning
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · **Owner:** TBD
+**Status:** Approved — EggAI, 2026-07-08 · **Owner:** EggAI
 **Domain:** operations · **Decision record:** [`../decisions/0001-release-process.md`](../decisions/0001-release-process.md) (rationale & alternatives)
 
 Defines how QualOps is versioned, tagged, and published across its two consumption surfaces. Contract only — the CI workflows that realize it are implementation and are out of scope here.

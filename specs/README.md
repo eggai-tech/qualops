@@ -2,9 +2,9 @@
 
 Approved, refined specifications — the source of truth for implementation.
 
-**Flow:** `concept/ → specs/ → implementation → docs/`. A `concept/` document is exploratory and may be rejected or conflict with others. Once agreed, it is rewritten here as a **gap-free, concise, aligned** spec. Implementation follows the spec precisely; shipped behavior (and only shipped behavior) is then described in `docs/`.
+**Flow:** `concept/ → specs/ → implementation → website/`. A `concept/` document is exploratory and may be rejected or conflict with others. Once agreed, it is rewritten here as a **gap-free, concise, aligned** spec. Implementation follows the spec precisely; shipped behavior (and only shipped behavior) is then described on the `website/`.
 
-A spec here is binding **once approved**. Authoring is done with the `spec-architect` skill; a spec is not self-approved — it is **Draft** until `spec-readiness-review` passes and a human records approval, then it becomes the source of truth. If reality and an approved spec diverge, fix the spec first, then the code. Engineering rules that apply across all specs are in [`../CLAUDE.md`](../CLAUDE.md) / [`../AGENTS.md`](../AGENTS.md).
+A spec here is binding **once approved**. Authoring is done with the `spec-architect` skill; a spec is not self-approved. **This baseline set is human-approved (EggAI, 2026-07-08)** — the codebase already implements it — with the open decisions resolved (see [`.readiness-report.yaml`](.readiness-report.yaml)). If reality and an approved spec diverge, fix the spec first, then the code. Engineering rules that apply across all specs are in [`../CLAUDE.md`](../CLAUDE.md) / [`../AGENTS.md`](../AGENTS.md).
 
 ## What these specs describe
 
@@ -43,7 +43,7 @@ flowchart TD
 |---|---|---|
 | Foundations | [architecture.md](architecture.md) | Module structure, layering, ports, conventions, structural budget |
 | Foundations | [contracts.md](contracts.md) | Unified type & validation system (Zod-first, one definition per concept) |
-| Foundations | [documentation.md](documentation.md) | Root README + `docs/` standard |
+| Foundations | [documentation.md](documentation.md) | Root README + website (user-docs) standard |
 | Quality | [quality/](quality/README.md) | testing · error-handling · logging · security · dependencies |
 | Behavior | [behavior/pipeline/](behavior/pipeline/README.md) | Orchestration + per-stage: intake, review (+review-dialects), fix, reporting, gate |
 | Behavior | [behavior/configuration/](behavior/configuration/README.md) | CLI, config file, Action & env, custom agents |

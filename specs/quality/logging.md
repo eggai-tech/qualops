@@ -1,6 +1,6 @@
 # Spec — Logging
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Domain: quality · Overview: [README.md](README.md)
+**Status:** Approved — EggAI, 2026-07-08 · Domain: quality · Overview: [README.md](README.md)
 
 - **Redaction-safe by construction:** the default log path drops fields whose keys look like prompts/content/tokens/secrets and truncates large values, so a prompt or secret cannot be logged by accident.
 - Structured, level-appropriate logging (`debug|info|warn|error`); **no `console.log`** in production code. The logger honors the configured `logger` block and the `--config` path (⚠ F-26 — [`../plans/refactor.md`](../plans/refactor.md) §4).

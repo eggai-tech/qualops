@@ -1,6 +1,6 @@
 # Spec — Review Dialects (structured vs. prose)
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · **Owner:** TBD
+**Status:** Approved — EggAI, 2026-07-08 · **Owner:** EggAI
 **Domain:** review behavior · **Decision record:** [`decisions/0003`](../../decisions/0003-review-dialects.md)
 
 How QualOps obtains review output from models of differing capability. This is the single home for dialect behavior; [`review.md`](review.md) and [`../integrations/providers.md`](../integrations/providers.md) reference it rather than restating it. Contract only.

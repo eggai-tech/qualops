@@ -1,6 +1,6 @@
 # Spec — Testing & coverage
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Domain: quality · Overview: [README.md](README.md)
+**Status:** Approved — EggAI, 2026-07-08 · Domain: quality · Overview: [README.md](README.md)
 
 - **Unit tests are colocated** with the code they test: `foo.ts` → `foo.test.ts` in the same folder. They test one module, with its dependencies provided as arguments (no global state).
 - **Integration and smoke tests live in `tests/`**: integration exercises multiple modules or the full pipeline with the AI provider faked; smoke exercises real providers (credentialed, opt-in, excluded from the default `npm test`).

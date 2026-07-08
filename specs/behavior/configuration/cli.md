@@ -1,6 +1,6 @@
 # Spec — CLI
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Domain: configuration · Overview: [README.md](README.md)
+**Status:** Approved — EggAI, 2026-07-08 · Domain: configuration · Overview: [README.md](README.md)
 
 Binary `qualops` (commander). Running it with no subcommand runs the stage pipeline.
 
@@ -31,4 +31,4 @@ Binary `qualops` (commander). Running it with no subcommand runs the stage pipel
 ## Corrections / open items
 
 - ⚠ (F-6) `--skip-cache`/resume behavior is made explicit — [`../pipeline/README.md`](../pipeline/README.md) (Orchestration).
-- **Open discrepancy:** `--include-medium`/`--exclude-medium` are currently non-functional (fix selection is hardcoded) — tied to the fix-selection decision in [`../pipeline/fix.md`](../pipeline/fix.md).
+- ⚠ Correction (bucket C): `--include-medium`/`--exclude-medium` **take effect** on fix selection (non-functional today) — see [`../pipeline/fix.md`](../pipeline/fix.md).

@@ -1,6 +1,6 @@
 # Spec — GitHub integration
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Domain: integrations · Overview: [README.md](README.md)
+**Status:** Approved — EggAI, 2026-07-08 · Domain: integrations · Overview: [README.md](README.md)
 
 Posting behavior is preserved by the refactor; shared code moves to `forges/core`.
 
@@ -15,8 +15,8 @@ Posting behavior is preserved by the refactor; shared code moves to `forges/core
 
 GitHub inline findings are ephemeral annotations with no resolution semantics. Motivates the future fingerprint-based posting protocol (`concept/02` §7).
 
-## Deviations to fix in this refactor
+## Decided corrections in this refactor
 
-- ⚠ **Config location (bucket B):** GitHub reads `.qualops/.qualopsrc.json` while GitLab reads `.qualopsrc.json` at the repo root — unify to the single configured path.
-- ⚠ **Report source (bucket A/B):** GitHub uses the latest session's `review-summary.json`; GitLab aggregates all sessions — pick one consistent behavior.
+- ⚠ **Config location (bucket B):** both forges read the single configured path, default **`.qualops/.qualopsrc.json`**. *(GitHub already does; GitLab aligns — see [gitlab.md](gitlab.md).)*
+- ⚠ **Report source (bucket B):** both forges use the **latest session's** `review-summary.json`. *(GitHub already does; GitLab aligns.)*
 - ⚠ Shared comment formatting (`getStatusText`, `formatIssuesByType`, `generateCommentFromResults`) and the `QualOpsResult` shape are duplicated with GitLab → single home in `forges/core` ([`../../architecture.md`](../../architecture.md) §6).

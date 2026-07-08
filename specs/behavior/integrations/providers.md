@@ -1,6 +1,6 @@
 # Spec — AI providers, dialects & cost
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Domain: integrations · Overview: [README.md](README.md)
+**Status:** Approved — EggAI, 2026-07-08 · Domain: integrations · Overview: [README.md](README.md)
 
 ## Providers
 

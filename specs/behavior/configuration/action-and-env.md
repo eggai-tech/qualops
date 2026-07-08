@@ -1,6 +1,6 @@
 # Spec — GitHub Action & environment variables
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Domain: configuration · Overview: [README.md](README.md)
+**Status:** Approved — EggAI, 2026-07-08 · Domain: configuration · Overview: [README.md](README.md)
 
 ## GitHub Action (`action.yml`)
 

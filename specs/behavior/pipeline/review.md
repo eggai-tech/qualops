@@ -1,6 +1,6 @@
 # Spec — Review stage
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Domain: pipeline · Overview: [README.md](README.md)
+**Status:** Approved — EggAI, 2026-07-08 · Domain: pipeline · Overview: [README.md](README.md)
 
 The core stage: generates findings from the diff. Dialect routing (structured vs. prose) is specified in [review-dialects.md](review-dialects.md); this spec covers the structured pipeline (jobs/modes), validation/dedup, and post-processing.
 

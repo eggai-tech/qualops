@@ -1,6 +1,6 @@
 # Spec — Architecture (post-refactor target)
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Derived from `concept/03-architecture-spec.md`. This spec is scoped to the **outcome of the structure & cleanup refactor** ([`plans/refactor.md`](plans/refactor.md)): the module layout, layering, and conventions the code must satisfy when the refactor is done. It describes **structure**, not functional behavior — behavior is in [`behavior/`](behavior/). Future functional domains (verification, admission, memory) sketched in `concept/` are **reserved, not created by this refactor** (§4).
+**Status:** Approved — EggAI, 2026-07-08 · Derived from `concept/03-architecture-spec.md`. This spec is scoped to the **outcome of the structure & cleanup refactor** ([`plans/refactor.md`](plans/refactor.md)): the module layout, layering, and conventions the code must satisfy when the refactor is done. It describes **structure**, not functional behavior — behavior is in [`behavior/`](behavior/). Future functional domains (verification, admission, memory) sketched in `concept/` are **reserved, not created by this refactor** (§4).
 
 ## 1. Layering (normative)
 

@@ -1,6 +1,6 @@
 # Spec — Pipeline (overview)
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Behavior the code must exhibit **after the refactor** = today's behavior plus the committed corrections in [`../../plans/refactor.md`](../../plans/refactor.md) §4 (buckets B/C, flagged ⚠ per stage). No functional redesign here (verifier, fingerprint identity, folder-config are future — `concept/`). Structure that realizes it: [`../../architecture.md`](../../architecture.md).
+**Status:** Approved — EggAI, 2026-07-08 · Behavior the code must exhibit **after the refactor** = today's behavior plus the committed corrections in [`../../plans/refactor.md`](../../plans/refactor.md) §4 (buckets B/C, flagged ⚠ per stage). No functional redesign here (verifier, fingerprint identity, folder-config are future — `concept/`). Structure that realizes it: [`../../architecture.md`](../../architecture.md).
 
 ## Stages
 
@@ -50,4 +50,6 @@ Every intended difference from today's code, with its bucket ([`../../plans/refa
 | Root-cause / issue-md flags | ignored | honored | B |
 | Injection filter, `projectsReviewed` | vestigial | removed | A |
 | Rollback metadata | dead (commented out) | restored or removed cleanly | A |
-| Fix selection vs config | hardcoded `high`+`>=7` | **open — decide scope** | C? |
+| Fix selection vs config | hardcoded `high`+`>=7`, `critical` never fixed | honors `fix.severities`/`minConfidence` + `--include-medium` | C |
+| Config location (forges) | GitHub `.qualops/`, GitLab repo-root | both `.qualops/.qualopsrc.json` (migration note) | B |
+| Report source (forges) | GitHub latest, GitLab all sessions | latest session only | B |

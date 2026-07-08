@@ -1,6 +1,6 @@
 # Spec — Eval Cases (real-PR "slice" format)
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · **Owner:** TBD
+**Status:** Approved — EggAI, 2026-07-08 · **Owner:** EggAI
 **Domain:** evaluation · **Decision record:** [`../decisions/0002-eval-cases.md`](../decisions/0002-eval-cases.md) (the source ADR is itself Draft)
 
 Defines the **data contract** for capturing a real-world review miss as a self-contained, regression-scored eval case (a "slice"). Contract only — the harness/uploader code that consumes it is implementation and out of scope.

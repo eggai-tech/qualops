@@ -2,12 +2,12 @@
 
 Rules for anyone (human or AI) changing this codebase. They are binding. When a rule and a request conflict, surface the conflict — don't silently break the rule.
 
-## 0. The workflow: concept → spec → implementation → documentation
+## 0. The workflow: concept → spec → implementation → website (user docs)
 
 - **`concept/`** — exploratory ideas, may conflict or be rejected. Not binding.
 - **`specs/`** — approved, gap-free, aligned specifications. **The source of truth.**
 - **implementation** — follows the relevant spec *precisely*. You may not violate a spec or change one on your own; specs are human-owned and human-reviewed. If a spec is wrong or a gap appears, stop and fix the spec first (or raise it), then implement.
-- **`docs/`** — end-user documentation; describes **only shipped behavior**, never planned behavior.
+- **`website/`** — user-facing documentation (Astro/Starlight); describes **only shipped behavior**, never planned behavior. No repo `docs/` folder.
 
 Every change starts from a spec and ends with docs and tests in sync. See [`specs/README.md`](specs/README.md).
 
@@ -60,9 +60,9 @@ Every change starts from a spec and ends with docs and tests in sync. See [`spec
 
 ## 8. Documentation
 
-- User docs in `docs/` track **shipped** behavior. If a change alters observable behavior, update `docs/` **in the same PR**. Specs describe intent; docs describe reality; keep both true.
-- The root **`README.md` stays short and crisp**: a one/two-paragraph intro, a runnable quick start (install, credential, zero-config run, Action snippet), and a **table of contents that links into `docs/`**. Depth lives in `docs/`, never inlined into the README.
-- **`docs/` is concise, current, and nested by reader journey** (overview → getting started → understanding → configuration → customizing → guides → reference → troubleshooting); one topic per page, one home per fact, no dead links, no "coming soon" stubs. `docs/` is the authored source of truth that `website/` syncs from.
+- User-facing docs live **only in the `website/`** (Astro/Starlight) — there is **no repo `docs/` folder**. The website tracks **shipped** behavior; if a change alters observable behavior, update the website **in the same PR**. Specs describe intent; the website describes reality; keep both true.
+- The root **`README.md` stays short, crisp, and precise** (no fixed line limit): a one/two-paragraph intro, a runnable quick start (install, credential, zero-config run, Action snippet), and a **table of contents that links into the website**. Depth lives on the website, never inlined into the README.
+- The website is **concise, current, and nested by reader journey** (overview → getting started → understanding → configuration → customizing → guides → reference → troubleshooting); one topic per page, one home per fact, no dead links, no "coming soon" stubs.
 - Full standard and acceptance criteria: [`specs/documentation.md`](specs/documentation.md).
 - Update `CHANGELOG.md` for any behavior-affecting change.
 

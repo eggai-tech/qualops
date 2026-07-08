@@ -1,6 +1,6 @@
 # Spec — Structure & Cleanup Refactor
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · **Owner:** TBD · Derived from `concept/03-architecture-spec.md`, `concept/06-roadmap.md` (Phase 0–1), evidence in `concept/appendix/A-current-state.md` (defects cited as F-nn).
+**Status:** Approved — EggAI, 2026-07-08 · **Owner:** EggAI · Derived from `concept/03-architecture-spec.md`, `concept/06-roadmap.md` (Phase 0–1), evidence in `concept/appendix/A-current-state.md` (defects cited as F-nn).
 
 The first implementation phase. It moves the codebase to the target structure, removes duplication and code smells, unifies types behind Zod schemas, and fixes the defect inventory — **without new features**. It is a prerequisite for every later phase; those (verifier, fingerprint identity, config folder-model, AI SDK swap, publishing protocol, memory) are explicitly out (§3).
 

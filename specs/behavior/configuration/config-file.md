@@ -1,6 +1,6 @@
 # Spec — Config file (`.qualopsrc.json`)
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Domain: configuration · Overview: [README.md](README.md)
+**Status:** Approved — EggAI, 2026-07-08 · Domain: configuration · Overview: [README.md](README.md)
 
 The top-level object is `.strict()` (unknown top-level keys are rejected). Every field is optional. The Zod schema is the machine source of truth; this captures the contract and invariants.
 
@@ -23,7 +23,7 @@ Prompt paths are relative to `.qualops/prompts/`.
 ### `report`, `github`, `gitlab`, `logger`
 `report`: `includedSeverities`, `generateIssueMarkdown`, `enableRootCauseExtraction` (⚠ the latter two are honored post-refactor — [`../pipeline/reporting.md`](../pipeline/reporting.md)). `github`: `postComments`, `skipOnDraft`, `blockPipeline`, `maxInlineComments`. `gitlab`: `blockPipeline` (+ deprecated toggles). `logger`: `level`, `enableColors`, `enableTimestamps`, `prefix`.
 
-- ⚠ Correction (F-4): a `judge`/`gate` thresholds section is **added** to the schema (thresholds are env-only today). Additive, non-breaking. Gate logic: [`../pipeline/gate.md`](../pipeline/gate.md).
+- ⚠ Correction (F-4): a **`gate`** thresholds section is **added** to the schema — keys `maxCritical`, `maxHigh`, `maxMedium`, `maxLow`, `failOnMedium`, `failOnLow`, `requireAllStages` (thresholds are env-only today; env remains an override). Additive, non-breaking. Gate logic: [`../pipeline/gate.md`](../pipeline/gate.md).
 
 ## Zero-config defaults
 

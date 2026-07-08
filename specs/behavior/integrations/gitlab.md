@@ -1,6 +1,6 @@
 # Spec — GitLab integration
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Domain: integrations · Overview: [README.md](README.md)
+**Status:** Approved — EggAI, 2026-07-08 · Domain: integrations · Overview: [README.md](README.md)
 
 Posting behavior is preserved by the refactor; shared code moves to `forges/core`.
 
@@ -15,8 +15,8 @@ Posting behavior is preserved by the refactor; shared code moves to `forges/core
 
 The dedup key is content-agnostic `file:line`: two distinct findings on one line collide; a resolved-but-unfixed finding can be re-posted on the next run; line drift across pushes duplicates. Motivates the future fingerprint-based posting protocol (`concept/02` §7).
 
-## Deviations to fix in this refactor
+## Decided corrections in this refactor
 
-- ⚠ **Config location (bucket B):** GitLab reads `.qualopsrc.json` at the repo root while GitHub reads `.qualops/.qualopsrc.json` — unify to the single configured path.
-- ⚠ **Report source (bucket A/B):** GitLab aggregates all sessions; GitHub uses the latest session — pick one consistent behavior.
+- ⚠ **Config location (bucket B):** GitLab **aligns to `.qualops/.qualopsrc.json`** (it reads `.qualopsrc.json` at the repo root today). **Migration/release note required:** GitLab users with a root `.qualopsrc.json` must move it under `.qualops/`; call this out in the release notes and provide a one-line migration hint.
+- ⚠ **Report source (bucket B):** GitLab uses the **latest session's** `review-summary.json` (it aggregates all sessions today).
 - ⚠ Shared comment formatting and the `QualOpsResult` shape are duplicated with GitHub → single home in `forges/core` ([`../../architecture.md`](../../architecture.md) §6).
