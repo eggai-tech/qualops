@@ -14,21 +14,25 @@ describe('tracing', () => {
   describe('setupTracing', () => {
     it('does not register a provider when no env vars are set', async () => {
       await setupTracing();
-      // Without Langfuse/OTLP env vars, no NodeTracerProvider is registered.
+      // Without Langfuse/OTLP env vars, no tracer provider is registered.
       // The global provider remains the ProxyTracerProvider wrapping the NoopTracerProvider.
       const provider = trace.getTracerProvider() as any;
       expect(provider.getDelegate().constructor.name).toBe('NoopTracerProvider');
     });
 
-    it('registers a NodeTracerProvider when Langfuse keys are set', async () => {
+    it('registers a real TracerProvider when Langfuse keys are set', async () => {
       process.env.LANGFUSE_SECRET_KEY = 'sk-test';
       process.env.LANGFUSE_PUBLIC_KEY = 'pk-test';
       process.env.LANGFUSE_BASE_URL = 'http://localhost:3000';
 
       await setupTracing();
 
+      // @opentelemetry/sdk-node registers a TracerProvider instance (previously
+      // NodeTracerProvider prior to the 0.220.0 sdk-trace consolidation).
+      // Assert it's no longer the no-op delegate rather than a specific class
+      // name, so this stays resilient to future internal OTel renames.
       const provider = trace.getTracerProvider() as any;
-      expect(provider.getDelegate().constructor.name).toBe('NodeTracerProvider');
+      expect(provider.getDelegate().constructor.name).not.toBe('NoopTracerProvider');
     });
 
     it('is idempotent — calling twice does not register a second provider', async () => {

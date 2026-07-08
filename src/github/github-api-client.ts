@@ -116,13 +116,7 @@ export class GitHubAPIClient {
     head_sha: string;
     status?: 'queued' | 'in_progress' | 'completed';
     conclusion?:
-      | 'success'
-      | 'failure'
-      | 'neutral'
-      | 'cancelled'
-      | 'skipped'
-      | 'timed_out'
-      | 'action_required';
+      'success' | 'failure' | 'neutral' | 'cancelled' | 'skipped' | 'timed_out' | 'action_required';
     output?: {
       title: string;
       summary: string;
