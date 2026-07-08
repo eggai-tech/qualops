@@ -8,7 +8,7 @@ This replaces the former flat `specs/adr/`: normative content moved into domain 
 |---|---|---|---|
 | [0001](0001-release-process.md) | Two-tier beta/stable release model | Accepted (2026-05-11) | [`operations/release.md`](../operations/release.md) |
 | [0002](0002-eval-cases.md) | Real-PR "slice" eval-case format | Draft (2026-05-08) | [`evaluation/eval-cases.md`](../evaluation/eval-cases.md) |
-| [0003](0003-review-dialects.md) | Prose dialect for schema-less models | Accepted (2026-06-09) | [`behavior/review-dialects.md`](../behavior/review-dialects.md) |
+| [0003](0003-review-dialects.md) | Prose dialect for schema-less models | Accepted (2026-06-09) | [`behavior/pipeline/review-dialects.md`](../behavior/pipeline/review-dialects.md) |
 | [0004](0004-agent-backbone.md) | Agent-loop backbone | **Superseded** (2026-07-08) | [`../../concept/08-harness-decision.md`](../../concept/08-harness-decision.md) |
 
 ## Format

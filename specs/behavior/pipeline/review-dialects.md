@@ -1,9 +1,9 @@
 # Spec — Review Dialects (structured vs. prose)
 
 **Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · **Owner:** TBD
-**Domain:** review behavior · **Decision record:** [`../decisions/0003-review-dialects.md`](../decisions/0003-review-dialects.md)
+**Domain:** review behavior · **Decision record:** [`decisions/0003`](../../decisions/0003-review-dialects.md)
 
-How QualOps obtains review output from models of differing capability. This is the single home for dialect behavior; [`pipeline.md`](pipeline.md) §3 and [`integrations.md`](integrations.md) §A reference it rather than restating it. Contract only.
+How QualOps obtains review output from models of differing capability. This is the single home for dialect behavior; [`review.md`](review.md) and [`../integrations/providers.md`](../integrations/providers.md) reference it rather than restating it. Contract only.
 
 ## 1. Principle
 
@@ -48,7 +48,7 @@ When the model is unstructured, review runs three sequential phases (mirrors the
 | Validation | each file's response sent back once to remove false positives and rewrite only valid findings | pruned prose, or the empty sentinel |
 | Deduplication | all non-empty responses consolidated in one call; per-file heading structure preserved so results re-split | consolidated prose |
 
-Result: a Markdown `prose-report.md`; **zero** structured `Finding[]`. Downstream, the report surfaces the prose report and the gate marks it **not gateable** ([`pipeline.md`](pipeline.md) §2 report/judge).
+Result: a Markdown `prose-report.md`; **zero** structured `Finding[]`. Downstream, [`reporting.md`](reporting.md) surfaces the prose report and [`gate.md`](gate.md) marks it **not gateable**.
 
 **INV-DIA-2 (shared sentinel):** the "no issues" sentinel string is identical across all three phases. If phases used different sentinels, genuinely-empty reviews would pass through as non-empty content and inflate the report.
 

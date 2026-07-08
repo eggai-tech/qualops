@@ -38,8 +38,8 @@ Parsing note: the model boundary (`llm/boundary`) accepts loose model output (en
 ## 3. Other shared shapes
 
 - **`FixSuggestion`** — `{ issueId, filePath, originalCode, suggestedCode, confidence: high|medium|low, breaking: boolean }`. (Unifies the type + the report-local copy + `SearchReplaceFixSchema`.)
-- **Stage metadata** — `AnalysisMetadata`, `ReviewMetadata`, `FixMetadata`, `ReportMetadata`, `JudgeMetadata` (shapes per [`behavior/pipeline.md`](behavior/pipeline.md)), each carrying `schemaVersion`.
-- **Config** — types inferred from the config schema (`contracts/config`); see [`behavior/configuration.md`](behavior/configuration.md).
+- **Stage metadata** — `AnalysisMetadata`, `ReviewMetadata`, `FixMetadata`, `ReportMetadata`, `JudgeMetadata` (shapes per [`behavior/pipeline/`](behavior/pipeline/README.md)), each carrying `schemaVersion`.
+- **Config** — types inferred from the config schema (`contracts/config`); see [`behavior/configuration/`](behavior/configuration/config-file.md).
 - **`RejectReason`, gate thresholds, token usage/stats, report summary** — one definition each.
 - **Forge result** — one `PublishInput`/`QualOpsResult` in `contracts`, consumed by `forges/core` (kills the github/gitlab duplicate).
 

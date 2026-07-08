@@ -1,6 +1,6 @@
 # Decision 0003 — Prose dialect for schema-less models
 
-**Status:** Accepted — 2026-06-09 · **Normative spec:** [`../behavior/review-dialects.md`](../behavior/review-dialects.md)
+**Status:** Accepted — 2026-06-09 · **Normative spec:** [`../behavior/pipeline/review-dialects.md`](../behavior/pipeline/review-dialects.md)
 
 ## Context
 

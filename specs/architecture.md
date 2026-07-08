@@ -52,7 +52,7 @@ src/
     └── action/   # GitHub-Action entry
 ```
 
-Tests are colocated (`foo.ts` + `foo.test.ts`); `tests/` holds integration/smoke only ([`quality.md`](quality.md)).
+Tests are colocated (`foo.ts` + `foo.test.ts`); `tests/` holds integration/smoke only ([`quality/testing.md`](quality/testing.md)).
 
 ## 3. The two ports & the backend
 
@@ -63,7 +63,7 @@ Domains depend on two interfaces from `contracts/ports`, implemented in `llm/bac
 
 Rules that hold under any backend: tools are **always QualOps-owned** (a backend's built-in tools are never enabled); adapter output always passes back through `llm/boundary` (a backend is a transport, never a parser); model resolution and dialect routing live in `llm/model`, so domains never name a provider.
 
-**Refactor-phase state:** the ports are introduced **wrapping the current provider/agentic code** (behavior-preserving). The Vercel AI SDK adapter replaces the wrapped implementation in a later phase (`concept/08-harness-decision.md`); the port bounds that swap's blast radius. See [`behavior/integrations.md`](behavior/integrations.md) for the current provider behavior being wrapped.
+**Refactor-phase state:** the ports are introduced **wrapping the current provider/agentic code** (behavior-preserving). The Vercel AI SDK adapter replaces the wrapped implementation in a later phase (`concept/08-harness-decision.md`); the port bounds that swap's blast radius. See [`behavior/integrations/providers.md`](behavior/integrations/providers.md) for the current provider behavior being wrapped.
 
 ## 4. Domains: current vs. reserved
 

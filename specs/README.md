@@ -14,25 +14,27 @@ They define the **baseline**: the codebase as it will be after the structure & c
 
 Specs are organized by purpose/domain. Cross-cutting foundations at the top level; behavior and operational concerns in domain folders; the **why** in `decisions/` (each linking to the domain spec that holds the **what**).
 
+Larger specs are split into folders, one file per responsibility, each with a `README.md` overview.
+
 ```mermaid
 flowchart TD
-  R[specs/] --> F[foundations]
+  R[specs/] --> A[architecture.md]
+  R --> C[contracts.md]
+  R --> DOC[documentation.md]
+  R --> Q[quality/]
   R --> B[behavior/]
-  R --> S[surface & ops]
+  R --> O[operations/]
+  R --> E[evaluation/]
   R --> D[decisions/]
   R --> P[plans/]
-  F --> A[architecture.md]
-  F --> C[contracts.md]
-  F --> Q[quality.md]
-  F --> DOC[documentation.md]
-  B --> BP[pipeline.md]
-  B --> BD[review-dialects.md]
-  B --> BC[configuration.md]
-  B --> BI[integrations.md]
-  S --> OR[operations/release.md]
-  S --> EV[evaluation/eval-cases.md]
-  D --> DL[0001…0004 records → domain specs]
-  P --> PR[refactor.md]
+  Q --> Qf[testing · error-handling · logging<br/>security · dependencies]
+  B --> BP[pipeline/<br/>intake · review · review-dialects<br/>fix · reporting · gate]
+  B --> BC[configuration/<br/>cli · config-file · action-and-env · custom-agents]
+  B --> BI[integrations/<br/>providers · github · gitlab]
+  O --> Of[release.md]
+  E --> Ef[eval-cases.md]
+  D --> Df[0001…0004 → domain specs]
+  P --> Pf[refactor.md]
 ```
 
 ## Index
@@ -41,12 +43,11 @@ flowchart TD
 |---|---|---|
 | Foundations | [architecture.md](architecture.md) | Module structure, layering, ports, conventions, structural budget |
 | Foundations | [contracts.md](contracts.md) | Unified type & validation system (Zod-first, one definition per concept) |
-| Foundations | [quality.md](quality.md) | Testing, coverage, error handling, logging, security, dependencies |
 | Foundations | [documentation.md](documentation.md) | Root README + `docs/` standard |
-| Behavior | [behavior/pipeline.md](behavior/pipeline.md) | Stages, review pipeline, gate; refactor acceptance list |
-| Behavior | [behavior/review-dialects.md](behavior/review-dialects.md) | Structured vs. prose dialect routing (the single dialect home) |
-| Behavior | [behavior/configuration.md](behavior/configuration.md) | Config file, CLI, GitHub Action, env vars, custom-agent mechanism |
-| Behavior | [behavior/integrations.md](behavior/integrations.md) | AI providers; GitHub/GitLab posting behavior |
+| Quality | [quality/](quality/README.md) | testing · error-handling · logging · security · dependencies |
+| Behavior | [behavior/pipeline/](behavior/pipeline/README.md) | Orchestration + per-stage: intake, review (+review-dialects), fix, reporting, gate |
+| Behavior | [behavior/configuration/](behavior/configuration/README.md) | CLI, config file, Action & env, custom agents |
+| Behavior | [behavior/integrations/](behavior/integrations/README.md) | AI providers & dialects; GitHub & GitLab posting |
 | Operations | [operations/release.md](operations/release.md) | Release channels, versioning, tag/dist-tag policy, promotion & hotfix |
 | Evaluation | [evaluation/eval-cases.md](evaluation/eval-cases.md) | Real-PR "slice" eval-case data contract |
 | Decisions | [decisions/](decisions/README.md) | Decision records 0001–0004 (rationale; link to domain specs) |
@@ -54,4 +55,4 @@ flowchart TD
 
 ## Reading order
 
-New to the project: `architecture.md` → `behavior/pipeline.md` → the other `behavior/` specs → `contracts.md` → `quality.md`. Implementing the refactor: `plans/refactor.md` first, with the above as the target contract.
+New to the project: `architecture.md` → [`behavior/pipeline/`](behavior/pipeline/README.md) → the other `behavior/` folders → `contracts.md` → [`quality/`](quality/README.md). Implementing the refactor: [`plans/refactor.md`](plans/refactor.md) first, with the above as the target contract.

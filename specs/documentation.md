@@ -1,6 +1,6 @@
 # Spec — Documentation
 
-**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · **Owner:** TBD · Source: user requirement (root README + `docs/` standard), aligned with [`quality.md`](quality.md) §7 and [`../CLAUDE.md`](../CLAUDE.md) §8.
+**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · **Owner:** TBD · Source: user requirement (root README + `docs/` standard), aligned with [`quality/README.md`](quality/README.md) and [`../CLAUDE.md`](../CLAUDE.md) §8.
 
 Defines the shape and upkeep rules for user-facing documentation: the root `README.md` and the `docs/` tree. It governs **structure and hygiene**, not the prose itself (writing/porting the pages is the documentation phase of implementation). Rule of record: `specs/` = intent, `concept/` = exploration, **`docs/` = shipped behavior only**.
 
@@ -22,7 +22,7 @@ Each is verifiable; IDs are stable for traceability.
 ### `docs/` folder
 - **DOC-6 — Nested by reader journey.** `docs/` is organized so a reader progresses from high-level to advanced without the structure announcing itself: overview → getting started → understanding (how it works) → configuration → customizing/extending → guides → reference → troubleshooting (§3). Each page covers one topic.
 - **DOC-7 — Concise, no duplication.** Each fact has one home; pages link rather than repeat. Prefer short focused pages over long omnibus ones (mirrors the file-size discipline in [`architecture.md`](architecture.md) §5).
-- **DOC-8 — Shipped behavior only.** `docs/` describes what the released version does. It never documents planned or concept-stage behavior; updated in the same PR as any observable change (with [`quality.md`](quality.md) §7).
+- **DOC-8 — Shipped behavior only.** `docs/` describes what the released version does. It never documents planned or concept-stage behavior; updated in the same PR as any observable change (with [`quality/README.md`](quality/README.md)).
 - **DOC-9 — Index mirrors the README TOC.** `docs/` has an index (`docs/README.md`) listing its sections; the root README TOC (DOC-3) and this index stay consistent — every top-level `docs/` section appears in the README TOC and vice versa.
 - **DOC-10 — No dead links, no stubs pretending to be content.** All internal doc links resolve; a page is either real content or absent (no "coming soon" placeholders masquerading as documentation).
 

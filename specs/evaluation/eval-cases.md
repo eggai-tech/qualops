@@ -82,7 +82,7 @@ Target: under five minutes for a developer who just spotted a miss.
 
 - Automatic capture tooling (extension/wizard) — manual capture is fast enough.
 - Upstream-PR syncing — a slice is a snapshot, not tracked.
-- Precision scoring on `falsePositives[]` — recorded for analysis; a precision scorer is a separate problem ([`../quality.md`](../quality.md) references the broader eval strategy in `concept/`).
+- Precision scoring on `falsePositives[]` — recorded for analysis; a precision scorer is a separate problem ([`../quality/README.md`](../quality/README.md) references the broader eval strategy in `concept/`).
 - Multi-PR cases — one PR per case; split independent misses.
 
 ## 8. Acceptance
