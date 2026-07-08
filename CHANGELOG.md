@@ -7,15 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A/B testing for QualOps config changes: run N config files against the same dataset and compare quality (precision/recall/F1) and cost/latency — for testing per-stage model choices, budgets, prompts, or pipeline modes. New `--config=<repo-relative-path>` eval flag runs against an arbitrary config file (validated: inside repo, `.json`, exists; precedence over `--preset`), so real ship configs are A/B-tested with no copy to drift. `evals/src/run-ab.ts` (TypeScript) takes configs via repeatable `--config=<path>` (same flag name as the qualops CLI), runs the full dataset per arm by default (scope with `--dataset`/`--limit`/`--repeats`, matching a normal eval run), and calls `evals/src/compare-experiments.ts`, which reads run-logs from `evals/logs/` (by path or experiment-label prefix via repeatable `--eval-log=<X>`) and renders a metric × arm table — one column per arm, N arms supported — with a held-or-up vs. regressed verdict for the 2-arm case. Run-log file/entry types are shared from `run-log.ts` (`RunLogFile`, `ItemCompleteEntry`). npm aliases: `eval:ab`, `eval:ab:compare`. Documented under "A/B testing configurations" in `evals/README.md`.
+
 ### Changed
 - `BASH_TOOL_DESCRIPTION` constant removed; callers use `buildBashToolDescription(root)` directly so the description always reflects the actual workspace root rather than a hardcoded `/workspace/pr`.
+- Updated all dependencies to their latest stable versions (OpenTelemetry, `openai`, `@openai/agents`, `@types/node`, ESLint + `typescript-eslint`, `jest`/`ts-jest`, `prettier`, `zod`; website: Astro 6→7 + Starlight). Dropped the redundant `@types/diff` stub (diff@9 ships its own types) and pinned transitive `uuid` via `overrides`. Build, lint, type-check, unit tests, and evals all pass.
+
+### Security
+- Reduced dependency vulnerabilities: website advisories fully resolved (8→0); remaining root advisories trace to `@eggai/configurable-agent@0.2.1` (no upstream fix; slated for retirement). Note: the majority of GitHub's Dependabot alerts are frozen third-party eval fixtures under `evals/datasets/`, not shipped dependencies.
 
 ### Fixed
+- Hardened the eval A/B tooling's CLI-path handling: filesystem access is confined to the repo/`evals/logs/` (run-log write path, `--eval-log` reads, and `--config`/`--experiment` values), and `--config`/`--repeats` are validated up front so a bad arg fails immediately rather than after a costly run.
 - Bash tool description in `createToolSet` now derives its workspace root from `toolConfig.bash.workspaceRoot ?? cwd`, matching the root the policy enforces. Previously the description always pointed at `/workspace/pr`, causing every command to be denied with `path-outside-workspace` in local environments.
 - `git-config-template` `safe.directory` is now derived from the actual `workspaceRoot` passed by the session. Previously it was hardcoded to `/workspace/pr` and `/workspace/base`, causing `git` commands to fail with a dubious ownership error in local environments.
 - `GIT_CEILING_DIRECTORIES` in `env-scrub` is now set to the parent of `workspaceRoot` rather than the hardcoded `/workspace`, so git's directory-traversal protection is effective in local checkout environments.
 - `workspaceRoot` is now validated against a safe path charset before being interpolated into the git config file. A newline in the value would have allowed config injection (e.g. overriding `hooksPath`).
 
+### Documentation
+- Add TDR 0005 (intent-based agentic review) — reframes false-positive reduction as a review-architecture problem (plan/decompose by intent → execute → aggregate → critique) above the provider-agnostic `AgentAdapter`. **Status: Rejected (on Opus 4.6).** Built and A/B-tested against the flat `agentic` baseline on CRB (10 cases): `agentic-v2` was *worse* on recall (0.348 vs 0.412) and F1 (0.246 vs 0.299) at ~4× the cost. The result is scoped to Opus 4.6 — smaller models are untested and could differ. The `AgenticExecutorV2` code is dropped (not merged; kept only on its implementation branch as a reference). TDR records the evidence, the reject decision, the filtering options to pursue instead, and consequences (cost is a first-class constraint; the config-A/B eval tooling built to test it is the lasting win).
 
 ## [0.2.7] - 2026-06-18
 

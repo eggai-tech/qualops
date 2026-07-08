@@ -1,0 +1,144 @@
+{
+  "id": "qualops-pr-144-bash-tool",
+  "prUrl": "https://github.com/eggai-tech/qualops/pull/144",
+  "prTitle": "feat(agentic): hardened bash tool with policy enforcement for agentic review",
+  "capturedAt": "2026-05-11",
+  "capturedBy": "valdis",
+  "language": "TypeScript",
+  "baseSha": "415d0e5352e032ba743b4e3f51abe393543cb27f",
+  "reviewPromptSha": "415d0e5352e032ba743b4e3f51abe393543cb27f",
+  "reviewPromptDir": "prompt/",
+  "capturedWithProvider": "anthropic",
+  "capturedWithModel": "claude-sonnet-4-5-20250929",
+  "diff": "",
+  "expected": [
+    {
+      "file": "src/stages/review/agentic/tools/bash/exec.ts",
+      "line": 30,
+      "lineEnd": 30,
+      "type": "security",
+      "severity": "high",
+      "description": "Command string is logged before secret redaction. If the agent calls a command containing an operator-supplied token (e.g. a git remote URL with embedded credentials), the raw value appears in the log. redactOutput is applied to stdout/stderr later (lines 87-88) but the input command itself is never redacted before logging."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/session.ts",
+      "line": 86,
+      "lineEnd": 89,
+      "type": "security",
+      "severity": "high",
+      "description": "Policy denial log includes raw input.command (up to 200 chars) without redaction. A denied command containing a secret token \u2014 e.g. an agent attempt to exfiltrate a credential \u2014 would be written to the log in plaintext, persisting the value that the policy was trying to block."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/modes/besteffort.macos.ts",
+      "line": 16,
+      "lineEnd": 22,
+      "type": "security",
+      "severity": "high",
+      "description": "workspaceRoot is interpolated directly into a Seatbelt profile string without charset validation. A path containing Seatbelt metacharacters (e.g. parentheses, quotes, or newlines) can break the profile structure or inject additional rules, bypassing the intended file-read restrictions."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/policy.ts",
+      "line": 518,
+      "lineEnd": 543,
+      "type": "security",
+      "severity": "medium",
+      "description": "checkPathAccess only checks absoluteArgs (paths starting with '/'). Relative paths like '../../etc/passwd' passed to cat/head/cp/mv are silently allowed. In CI mode there is no filesystem confinement (CISandboxDriver applies only rlimits, a network proxy, and hook monitoring \u2014 no bwrap/Seatbelt), so the policy layer is the sole guard against path escape."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/parser.ts",
+      "line": 64,
+      "lineEnd": 74,
+      "type": "security",
+      "severity": "medium",
+      "description": "toAnalysisCopy strips single-quoted ('...') and double-quoted (\"...\") substrings but not ANSI-C quoted strings ($'...'). The $ prefix prevents the single-quote regex from matching, so $'/etc/passwd' survives into the analysis copy with its path intact. Commands like `cat $'/etc/passwd'` pass the path-outside-workspace check. In CI mode the sandbox provides no filesystem boundary, making this a direct policy bypass."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/session.ts",
+      "line": 42,
+      "lineEnd": 42,
+      "type": "security",
+      "severity": "low",
+      "description": "QUALOPS_REVIEW_ID is read from the environment and used directly in call IDs and log messages with no charset validation. A misconfigured operator env var containing '/', '..', or shell metacharacters could produce unexpected path components or log injection. The UUID fallback is only used when the env var is absent, not when it contains invalid characters."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/policy.ts",
+      "line": 392,
+      "lineEnd": 393,
+      "type": "security",
+      "severity": "high",
+      "description": "checkGitCommand uses args.indexOf('-c') to detect the -c flag. The shell tokenizer splits on whitespace, so `git -ccore.hooksPath=/evil` arrives as a single token '-ccore.hooksPath=/evil' and indexOf('-c') returns -1. The concatenated form bypasses the DENIED_GIT_CONFIG_PATTERNS check entirely, allowing arbitrary git config injection including setting core.hooksPath to a malicious directory."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/policy.ts",
+      "line": 497,
+      "lineEnd": 498,
+      "type": "security",
+      "severity": "high",
+      "description": "checkShellInvocation uses the same args.indexOf('-c') pattern. The concatenated form `bash -c'malicious_cmd'` tokenizes as a single arg '-c'malicious_cmd'' which indexOf misses, allowing the agent to invoke arbitrary shell commands while the policy believes no -c flag was used."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/policy.ts",
+      "line": 250,
+      "lineEnd": 250,
+      "type": "security",
+      "severity": "high",
+      "description": "'config' is in ALLOWED_GIT_SUBCOMMANDS with a comment claiming it is 'checked further below for dangerous patterns', but no read-only enforcement exists. `git config core.hooksPath /evil` is allowed through to the shell; only the `-c` flag path is checked. This enables hook injection via git config write subcommands."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/policy.ts",
+      "line": 340,
+      "lineEnd": 354,
+      "type": "security",
+      "severity": "high",
+      "description": "isAllowedCdTarget checks containment using target.startsWith(root + '/'), which does not resolve symlinks. A symlink inside the workspace pointing to /etc passes this check because the path string starts with the workspace root, but the resolved filesystem path is outside it. In CI mode the sandbox provides no filesystem boundary, making this a direct escape."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/policy.ts",
+      "line": 344,
+      "lineEnd": 345,
+      "type": "security",
+      "severity": "medium",
+      "description": "isAllowedCdTarget allows all relative cd targets unconditionally. In CI mode (CISandboxDriver) there is no filesystem-level confinement \u2014 no bwrap, no Seatbelt. A relative cd like 'cd ../../etc' is not caught by the binary deny list and is not blocked by the sandbox, giving the agent unrestricted cwd movement inside the CI container, which has access to runner credentials and the full container filesystem."
+    }
+  ],
+  "outOfScope": [
+    {
+      "file": "src/stages/review/agentic/tools/bash/session-impl.ts",
+      "line": 32,
+      "lineEnd": 177,
+      "type": "bug",
+      "severity": "high",
+      "description": "$(pwd) is embedded raw inside a JSON string in the sentinel echo (SHELL_INIT line 32 and exec script line 177). A workspace path containing '\"' or '\\\\' produces malformed JSON that parseSentinel cannot parse, causing all commands to silently report exit code 1 and fall back to the initial cwd.",
+      "reason": "Correctness/reliability bug, not a security vulnerability. The cwd value comes from the shell's own pwd, not from attacker-controlled input. The prompt is scoped to security review."
+    }
+  ],
+  "falsePositives": [
+    {
+      "file": "src/stages/review/agentic/tools/bash/policy.ts",
+      "line": 0,
+      "lineEnd": 0,
+      "type": "security",
+      "severity": "low",
+      "description": "pushd and popd are shell builtins and cannot be blocked via the binary deny list",
+      "reason": "The policy engine checks the binary name from the tokenizer. Shell builtins like pushd/popd have no separate binary; they are executed by the shell directly. Blocking them is structurally impossible via a binary deny list \u2014 it would require a different mechanism (e.g. a restricted shell). The 'sandbox handles it' reasoning does NOT apply here: in CI mode there is no filesystem sandbox. This remains a FP only because the finding mechanism (binary deny list) is wrong, not because the sandbox compensates."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/env-scrub.ts",
+      "line": 115,
+      "lineEnd": 115,
+      "type": "security",
+      "severity": "low",
+      "description": "EXPLICIT_DENY Set lookup may be case-sensitive, missing mixed-case env var names",
+      "reason": ".toUpperCase() is applied to every env var key before the Set lookup, so the check is already case-insensitive. Confirmed by reading env-scrub.ts."
+    },
+    {
+      "file": "src/stages/review/agentic/tools/bash/session-impl.ts",
+      "line": 177,
+      "lineEnd": 177,
+      "type": "security",
+      "severity": "critical",
+      "description": "Command injection via direct string interpolation \u2014 the agent-supplied command is interpolated directly into the script string",
+      "reason": "The BashShellSession is an executor: interpolating the command into the script is its designed purpose. The policy layer (evaluatePolicy) already checked and allowed the command before exec() is called. There is no second attacker between the policy check and the executor. Flagging the executor for running what it was told to run conflates the executor with a validator."
+    }
+  ]
+}
