@@ -61,6 +61,9 @@ Every change starts from a spec and ends with docs and tests in sync. See [`spec
 ## 8. Documentation
 
 - User docs in `docs/` track **shipped** behavior. If a change alters observable behavior, update `docs/` **in the same PR**. Specs describe intent; docs describe reality; keep both true.
+- The root **`README.md` stays short and crisp**: a one/two-paragraph intro, a runnable quick start (install, credential, zero-config run, Action snippet), and a **table of contents that links into `docs/`**. Depth lives in `docs/`, never inlined into the README.
+- **`docs/` is concise, current, and nested by reader journey** (overview → getting started → understanding → configuration → customizing → guides → reference → troubleshooting); one topic per page, one home per fact, no dead links, no "coming soon" stubs. `docs/` is the authored source of truth that `website/` syncs from.
+- Full standard and acceptance criteria: [`specs/documentation.md`](specs/documentation.md).
 - Update `CHANGELOG.md` for any behavior-affecting change.
 
 ## 9. Dependencies

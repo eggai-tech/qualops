@@ -1,6 +1,6 @@
 # Spec — Pipeline Behavior
 
-**Status:** Approved 2026-07-08 · Describes the behavior the code must exhibit **after the refactor** = today's behavior plus the committed corrections in [`../plans/refactor.md`](../plans/refactor.md) §4 (buckets B/C, flagged inline as ⚠). No functional redesign here — the verifier, fingerprint identity, and folder-config are future phases in `concept/`. Structure that realizes this behavior: [`../architecture.md`](../architecture.md).
+**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Describes the behavior the code must exhibit **after the refactor** = today's behavior plus the committed corrections in [`../plans/refactor.md`](../plans/refactor.md) §4 (buckets B/C, flagged inline as ⚠). No functional redesign here — the verifier, fingerprint identity, and folder-config are future phases in `concept/`. Structure that realizes this behavior: [`../architecture.md`](../architecture.md).
 
 ## 1. Orchestration & sessions
 

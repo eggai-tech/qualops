@@ -1,6 +1,6 @@
 # Spec — Contracts (types & validation)
 
-**Status:** Approved 2026-07-08 · The single source of truth for shared data shapes. **Zod schemas are authoritative; TypeScript types are inferred** (`z.infer`) — never hand-written in parallel. Every shape below lives in `contracts/` and is imported by all layers; the four divergent `Finding` shapes, two severity vocabularies, and duplicate `FixSuggestion`/`FileDiff`/`ReportSummary`/`ExtractLog`/`RootCauseTaxonomy`/`QualOpsResult` in today's code collapse into these ([`architecture.md`](architecture.md) §6). Rule: **one definition per concept**; if a shape exists here, no module may redefine it.
+**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · The single source of truth for shared data shapes. **Zod schemas are authoritative; TypeScript types are inferred** (`z.infer`) — never hand-written in parallel. Every shape below lives in `contracts/` and is imported by all layers; the four divergent `Finding` shapes, two severity vocabularies, and duplicate `FixSuggestion`/`FileDiff`/`ReportSummary`/`ExtractLog`/`RootCauseTaxonomy`/`QualOpsResult` in today's code collapse into these ([`architecture.md`](architecture.md) §6). Rule: **one definition per concept**; if a shape exists here, no module may redefine it.
 
 ## 1. Vocabularies (canonical, single)
 

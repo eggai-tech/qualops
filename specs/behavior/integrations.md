@@ -1,6 +1,6 @@
 # Spec — Providers, Dialects & Forge Integrations
 
-**Status:** Approved 2026-07-08 · Current behavior the refactor **preserves**, with the bucket-B corrections flagged ⚠. The refactor wraps this behind the two ports ([`../architecture.md`](../architecture.md) §3) and de-duplicates the forge code into `forges/core`; the model-backbone swap to the Vercel AI SDK and the fingerprint-based posting protocol are **later phases** (`concept/08`, `concept/02`) and are not described here.
+**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Current behavior the refactor **preserves**, with the bucket-B corrections flagged ⚠. The refactor wraps this behind the two ports ([`../architecture.md`](../architecture.md) §3) and de-duplicates the forge code into `forges/core`; the model-backbone swap to the Vercel AI SDK and the fingerprint-based posting protocol are **later phases** (`concept/08`, `concept/02`) and are not described here.
 
 ## A. AI providers & dialects
 

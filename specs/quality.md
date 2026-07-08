@@ -1,6 +1,6 @@
 # Spec — Quality Standards
 
-**Status:** Approved 2026-07-08 · Binding engineering quality bar. [`CLAUDE.md`](../CLAUDE.md) is the short enforceable summary; this is the detailed home. Applies to all code from the refactor onward.
+**Status:** Draft (authored 2026-07-08) — pending spec-readiness-review + human approval · Binding engineering quality bar. [`CLAUDE.md`](../CLAUDE.md) is the short enforceable summary; this is the detailed home. Applies to all code from the refactor onward.
 
 ## 1. Testing
 
@@ -39,6 +39,6 @@ Minimize runtime dependencies; a new one needs a stated justification (what it r
 
 ## 7. Documentation & change hygiene
 
-- `docs/` describes **shipped** behavior; update it in the **same PR** as any observable change. Specs describe intent; docs describe reality.
+- `docs/` describes **shipped** behavior; update it in the **same PR** as any observable change. Specs describe intent; docs describe reality. The full documentation standard — crisp root README with a TOC into `docs/`, and a concise, current, nested `docs/` tree — is [`documentation.md`](documentation.md).
 - `CHANGELOG.md` updated for every behavior-affecting change (buckets B and C in [`plans/refactor.md`](plans/refactor.md) get changelog entries; bucket C also gets a release note).
 - The reviewable-refactor method (move ≠ edit, strangler shims, characterization tests, one-singleton-at-a-time) is normative for the refactor — [`plans/refactor.md`](plans/refactor.md) §5.
