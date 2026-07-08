@@ -1,31 +1,21 @@
 /**
  * A/B (or A/B/C/…) harness for QualOps config changes: run N config files against
- * the same dataset and compare quality (precision/recall/F1) and cost/latency. Use
- * it to test per-stage model choices, budgets, prompts, or pipeline modes.
+ * the same dataset and compare quality (precision/recall/F1) and cost/latency —
+ * for testing per-stage model choices, budgets, prompts, or pipeline modes.
  *
- * Each arm runs the exact pipeline defined in its config file — no `--mode` is
- * passed, so model/budgets/prompts/mode all come from the config. Make configs that
- * differ only in the knob under test to isolate its effect.
+ * Each arm runs the exact pipeline in its config file (no `--mode` override), so
+ * configs should differ only in the knob under test. Run-logs go to `evals/logs/`,
+ * where the comparison reads them. Flags mirror run-eval (`--dataset`/`--limit`/
+ * `--repeats`, env vars as fallbacks); see the usage string in `main()`.
  *
- * Run-logs are written to `evals/logs/`; the comparison reads them from there.
- *
- * Config files are passed with repeatable `--config=<path>` (same flag name as the
- * qualops CLI). By default it runs the full CRB suite; use the same flags as a
- * normal eval run to scope it. Usage:
- *   npx tsx evals/src/run-ab.ts --config=<A.json> --config=<B.json> [...]
- *   npx tsx evals/src/run-ab.ts --config=<A> --config=<B> --limit=5 --repeats=3
- *
- * Flags (same names as run-eval; env vars kept as fallbacks):
- *   --dataset=<name>   dataset to run (default qualops/crb-sentry; env DATASET)
- *   --limit=<N>        cap items per run (default: all; env LIMIT)
- *   --repeats=<N>      runs per arm (default 1; env REPEATS)
- * Requires the provider key your configs use (loaded via the `eval:ab` npm alias's
- * --env-file=.env).
+ *   npx tsx evals/src/run-ab.ts --config=<A.json> --config=<B.json> \
+ *     [--dataset=<name> --limit=5 --repeats=3]
  */
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 import { compareEvalLogs } from './compare-experiments';
+import { resolveConfigFile } from './config';
 
 const REPO_ROOT = path.join(__dirname, '../..');
 
@@ -59,7 +49,6 @@ function singleFlag(argv: string[], flag: string): string | undefined {
 function main(): void {
   const argv = process.argv.slice(2);
 
-  // Repeatable `--config=<path>` (same flag name as the qualops CLI). Order preserved.
   const configs = multiFlag(argv, 'config');
 
   if (configs.length < 2) {
@@ -81,7 +70,17 @@ function main(): void {
     process.exit(1);
   }
 
-  // Same flag names as run-eval; env vars kept as fallbacks for convenience.
+  // Validate all configs before any arm runs, so a bad path fails fast rather than
+  // after an earlier arm has already completed a costly review.
+  for (const config of configs) {
+    try {
+      resolveConfigFile(config);
+    } catch (err) {
+      console.error(`ERROR: ${(err as Error).message}`);
+      process.exit(2);
+    }
+  }
+
   const dataset = singleFlag(argv, 'dataset') || process.env.DATASET || 'qualops/crb-sentry';
   const limit = singleFlag(argv, 'limit') ?? process.env.LIMIT; // undefined -> all items
   const repeatsRaw = singleFlag(argv, 'repeats') || process.env.REPEATS || '1';

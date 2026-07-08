@@ -1,18 +1,9 @@
 /**
- * Compare N eval experiment run-logs side by side — the A/B (or A/B/C/…) primitive
- * for QualOps config changes (per-stage model, budgets, prompts, pipeline mode).
- * Reads the structured JSON logs written by run-log.ts under evals/logs/ and reports
- * mean precision / recall / F1, issue counts, and duration per arm as one column each.
+ * Compare N eval run-logs side by side — the A/B (or A/B/C/…) primitive for QualOps
+ * config changes. Reads the JSON logs written by run-log.ts under evals/logs/ and
+ * reports mean precision / recall / F1, issue counts, and duration per arm.
  *
- * Run-logs live in `evals/logs/` (the `LOGS_DIR` this repo writes to). Pass each log
- * by path or by its experiment-label prefix (the latest matching file is used).
- *
- * Usage:
- *   # by path (any number of logs -> one column each):
- *   npx tsx evals/src/compare-experiments.ts --eval-log=evals/logs/foo-...json \
- *                                            --eval-log=evals/logs/bar-...json
- *
- *   # by experiment-label prefix (latest matching log in evals/logs/):
+ * Each `--eval-log` is a log path or an experiment-label prefix (latest match wins):
  *   npx tsx evals/src/compare-experiments.ts --eval-log=qualopsrc --eval-log=qualopsrc-cheap
  */
 import fs from 'node:fs';
@@ -42,14 +33,25 @@ function mean(xs: number[]): number | null {
 }
 
 /**
- * Resolve an `--eval-log` value to a log file: use it directly if it's an
- * existing path, otherwise treat it as an experiment-label prefix and pick the
- * latest matching file in LOGS_DIR (the run-log naming scheme is `<label>-<ts>.json`).
+ * Resolve an `--eval-log` value to a log file: a path inside LOGS_DIR, or an
+ * experiment-label prefix matching the latest `<label>-<ts>.json` there.
+ * Reads are confined to LOGS_DIR — paths outside it, or prefixes with path
+ * separators, are rejected.
  */
 function resolveLog(ref: string): string {
-  if (fs.existsSync(ref) && fs.statSync(ref).isFile()) return ref;
+  // A direct path is accepted only inside LOGS_DIR.
+  const resolved = path.resolve(process.cwd(), ref);
+  if (resolved.startsWith(LOGS_DIR + path.sep)) {
+    if (fs.existsSync(resolved) && fs.statSync(resolved).isFile()) return resolved;
+  }
+  // Otherwise treat ref as a label prefix — which must not itself be a path.
+  if (ref.includes('/') || ref.includes(path.sep)) {
+    throw new Error(
+      `Unsafe --eval-log "${ref}": must be a file inside ${LOGS_DIR} or a bare label prefix.`,
+    );
+  }
   if (!fs.existsSync(LOGS_DIR)) {
-    throw new Error(`"${ref}" is not a file and no logs dir exists at ${LOGS_DIR}`);
+    throw new Error(`"${ref}" is not a log in ${LOGS_DIR} and no logs dir exists there.`);
   }
   const matches = fs
     .readdirSync(LOGS_DIR)
@@ -58,7 +60,7 @@ function resolveLog(ref: string): string {
     .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
   if (matches.length === 0) {
     throw new Error(
-      `No log for "${ref}": not an existing file, and no ${LOGS_DIR}/${ref}*.json found.`,
+      `No log for "${ref}": not a file in ${LOGS_DIR}, and no ${LOGS_DIR}/${ref}*.json found.`,
     );
   }
   return matches[0];

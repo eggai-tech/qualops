@@ -89,4 +89,14 @@ describe('compareEvalLogs', () => {
   it('throws for an unresolvable ref', () => {
     expect(() => compareEvalLogs(['definitely-no-such-log-xyz', 'nope-either'])).toThrow(/No log for/);
   });
+
+  it('rejects an --eval-log path outside LOGS_DIR (no arbitrary file read)', () => {
+    // A direct path that resolves outside evals/logs/ must not be read.
+    expect(() => compareEvalLogs(['/etc/passwd', 'cmp-x'])).toThrow(/Unsafe --eval-log/);
+    expect(() => compareEvalLogs(['../../etc/passwd', 'cmp-x'])).toThrow(/Unsafe --eval-log/);
+  });
+
+  it('rejects a label prefix that contains path separators', () => {
+    expect(() => compareEvalLogs(['../secrets', 'cmp-x'])).toThrow(/Unsafe --eval-log/);
+  });
 });
