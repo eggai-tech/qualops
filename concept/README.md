@@ -28,7 +28,7 @@ This spec realigns QualOps to that shape while keeping its genuine strengths (pr
 | [07-backlog.md](07-backlog.md) | Deliberately deferred ideas with promotion triggers |
 | [08-harness-decision.md](08-harness-decision.md) | **ADR (decided → Vercel AI SDK):** agent-loop backend — measured fact sheet (AI SDK, @purista/harness, Eve, Claude Agent SDK, @openai/agents, configurable-agent, custom loop), pro/cons, decision + rationale (no own harness) |
 | [09-issue-triage.md](09-issue-triage.md) | **Triage (proposed):** every open GitHub issue vs. concept & code — adopt (MCP context sources), already-covered, superseded, reject (chaining, marketplace), and stale-close list |
-| [10-eval-operations.md](10-eval-operations.md) | **Eval ops (proposed):** committed result scoreboard + optional Langfuse (gap), dataset growth incl. per-language negatives (concept 05 §3), offline `eval:quick` loop; spike ports |
+| [10-eval-operations.md](10-eval-operations.md) | **Eval ops (proposed):** committed result scoreboard + optional Langfuse (gap), dataset growth incl. per-language negatives (concept 05 §3), offline `eval:quick` loop; spike ports; **benchmark-landscape verdict (§4: adopt CRB, defer security/CVEfixes, build perf/memory/concurrency synthetically)** and **verified spike-port mapping + code blockers (§5)** |
 
 **Appendix** (evidence and analysis; terminology may predate the glossary):
 

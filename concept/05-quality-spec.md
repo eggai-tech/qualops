@@ -20,7 +20,7 @@ Principle: **you cannot ship a "reliable, non-polluting" reviewer on recall metr
 - `duplicate_rate` — fingerprint collisions in published output (must be 0)
 - `findings_per_kloc_changed` — volume as cost
 - **Recall, tiered**: headline `productRecall` counts runtime-critical/security/logic findings only — correctly ignoring nits is not punished (spike adoption)
-- Scorer fixes carried from the analysis: clean output on a clean case is a pass, not score 0; missing judge keys → `null`, never 0; CRB matching includes anchor proximity where goldens carry locations.
+- Scorer fixes carried from the analysis: clean output on a clean case is a pass, not score 0; missing judge keys → `null`, never 0; CRB matching includes anchor proximity where goldens carry locations. **No-finding (empty-expected) cases must score a spurious-finding count, never `null`** — today `crb-pairwise` skips them, so negatives measure nothing (blocker + fix in [10 §5](10-eval-operations.md)); this is what makes `spurious_rate` real.
 
 ## 3. Datasets
 
@@ -31,6 +31,7 @@ Principle: **you cannot ship a "reliable, non-polluting" reviewer on recall metr
 5. **Planted-FP set**: clean slices with programmatically injected plausible-but-wrong candidates — isolates verifier quality from generator quality.
 6. **Posting-behavior fixtures**: recorded forge-API push sequences (post → drift → fix-one → human-resolve-one → re-run) asserting no drift duplicates, auto-resolution fires, human resolution respected, summary updated in place. Deterministic asserts — no `pass^k` needed here (§8, C3).
 7. **Fix-stage harness**: SWE-bench-style — apply the fix proposal, run FAIL_TO_PASS + PASS_TO_PASS, plus a linter/quality delta to catch tests-pass-but-ugly patches. Seed fresh cases monthly (SWE-bench-Live methodology) for contamination control. *(New — the fix stage previously had no eval at all.)*
+8. **Multi-use-case planted-defect set** (QualOps-internal, synthetic): per-language before/after diffs for the categories **no public benchmark covers** — performance regressions, memory leaks, resource leaks, concurrency bugs (templates in [10 §4](10-eval-operations.md)) — plus security probes for languages the public sets skip (JS/TS/Go/Rust). Exact file+line ground truth, severity, and a ~1:1 clean-negative ratio so per-category precision/recall/F1 is measurable and hard categories aren't diluted by an aggregate. Labeled internal/synthetic — not a claimed academic benchmark. The benchmark-landscape review (10 §4) confirmed this must be built, not adopted: CRB stays the anchor; CVEfixes is a deferred, label-noise-heavy reshape project; performance/memory/concurrency have no usable public data.
 
 ## 4. What is measured, per layer (PR #149's three-layer model)
 
