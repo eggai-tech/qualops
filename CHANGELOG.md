@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `BASH_TOOL_DESCRIPTION` constant removed; callers use `buildBashToolDescription(root)` directly so the description always reflects the actual workspace root rather than a hardcoded `/workspace/pr`.
+- Updated all dependencies to their latest stable versions (OpenTelemetry, `openai`, `@openai/agents`, `@types/node`, ESLint + `typescript-eslint`, `jest`/`ts-jest`, `prettier`, `zod`; website: Astro 6→7 + Starlight). Dropped the redundant `@types/diff` stub (diff@9 ships its own types) and pinned transitive `uuid` via `overrides`. Build, lint, type-check, unit tests, and evals all pass.
+
+### Security
+- Reduced dependency vulnerabilities: website advisories fully resolved (8→0); remaining root advisories trace to `@eggai/configurable-agent@0.2.1` (no upstream fix; slated for retirement). Note: the majority of GitHub's Dependabot alerts are frozen third-party eval fixtures under `evals/datasets/`, not shipped dependencies.
 
 ### Fixed
 - Hardened the eval A/B tooling's CLI-path handling: filesystem access is confined to the repo/`evals/logs/` (run-log write path, `--eval-log` reads, and `--config`/`--experiment` values), and `--config`/`--repeats` are validated up front so a bad arg fails immediately rather than after a costly run.
