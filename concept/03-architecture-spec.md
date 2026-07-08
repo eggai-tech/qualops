@@ -10,33 +10,34 @@ contracts ← kernel ← platform ← llm ← domains/forges ← app
 
 - **`contracts`** imports nothing internal (only `zod`). **`kernel`** imports nothing internal at all.
 - Domains never import other domains' internals, `forges`, or `app`; cross-domain data flows through `contracts` types, wired by `app/run`.
-- Three exclusivity rules: only `llm/boundary` parses model output; only `platform/env` reads `process.env`; only `platform/session-store` writes run artifacts.
+- Four exclusivity rules: only `llm/backend` imports a model SDK (`ai`/`@ai-sdk/*`); only `llm/boundary` parses model output; only `platform/env` reads `process.env`; only `platform/session-store` writes run artifacts. Domains import port *interfaces* from `contracts/ports`, never an SDK.
 - Enforced in CI (dependency-cruiser / ESLint restricted paths / `.sentrux/rules.toml`); violations fail the build.
 
 ## 2. Target tree
 
 ```
 src/
-├── contracts/        # single source of truth: finding/, config/, run/, report/, shared/ primitives
-│                     # strictObject + readonly, inferred types, colocated drift tests
+├── contracts/        # single source of truth: finding/, config/, run/, report/, ports/, shared/
+│                     # ports/ = CompletionPort, AgentRunPort, ToolDefinition — the domain-facing
+│                     # seams (§4a); strictObject + readonly, inferred types, colocated drift tests
 ├── kernel/           # pure stateless utilities, stdlib only:
 │                     # result, error (StructuredError + exit-code table), redaction, retry,
 │                     # concurrency, hash/fingerprint, text (line numbering, escapeHtml),
 │                     # markdown (frontmatter), template, path-safety, location, glob
 ├── platform/         # process adapters: env, config loading/merging, logger (redaction-safe
 │                     # by construction), git, session-store, observability (OTel + Langfuse)
-├── llm/
-│   ├── providers/    # anthropic, bedrock, openai-compatible (+ openai, github-models),
-│   │                 # capabilities catalog, pricing, token accounting
-│   ├── boundary/     # THE model-I/O wall: extract-json, Model*Schemas, normalize,
+├── llm/              # the ONLY layer that talks to a model SDK
+│   ├── model/        # config model-slug → AI SDK LanguageModel; capabilities catalog
+│   │                 # (dialect routing, litellm snapshot); pricing catalog; token/cost accounting
+│   ├── boundary/     # THE model-output wall: extract-json, Model*Schemas, normalize,
 │   │                 # dialects (structured|prose as one seam), token estimation
 │   ├── prompts/      # prompt loading, template binding, prompt/config hashing (provenance)
 │   ├── tools/        # QualOps-OWNED tool implementations: read/grep/glob/usages/git +
-│   │                 # bash sandbox (moves as-is) — harness-agnostic, defined against
-│   │                 # the port's ToolDefinition shape
-│   └── harness/      # the agent-loop PORT (§4a) + the ai-sdk/ adapter (decided
-│                     # backbone, 08). Port keeps other backends swappable
-│                     # (eve/ at GA; claude-agent-sdk/ only if a need appears)
+│   │                 # bash sandbox (moves as-is) — backend-agnostic, ToolDefinition shape
+│   └── backend/      # port IMPLEMENTATIONS. ai-sdk/ implements CompletionPort (generateObject/
+│                     # generateText) + AgentRunPort (tool loop via stopWhen); owns the
+│                     # compaction + USD-budget wrappers (08 §4.2). Sole shipped backend;
+│                     # the port keeps it swappable (eve/ at GA; others only if a need appears)
 ├── domains/          # business logic; no cross-domain imports
 │   ├── intake/       # change detection, diff hygiene, tiering, import-graph clustering
 │   ├── review/       # candidate generation: reviewer execution, ONE traversal
@@ -64,7 +65,7 @@ Tests are colocated (`foo.ts` + `foo.test.ts`) for new/moved code; the `tests/` 
 
 ## 3. Code conventions (normative)
 
-- Named exports only; functions by default — classes only for live state (provider clients, bash sessions). No new singletons; dependencies arrive via `RunContext` or parameters.
+- Named exports only; functions by default — classes only for genuine live state (e.g. the bash sandbox session). Model clients are the AI SDK's concern, not ours. No new singletons; dependencies arrive via `RunContext` or parameters.
 - Comments state policy decisions and constraints, not narration.
 - Before writing any helper: it exists in `kernel/` or it is added there — never inline. New `utils/` folders are prohibited.
 - A conventions file (`.agent/IMPLEMENTATION.md`-style) records these plus the anti-pattern list (no inline env reads, no parsing outside `llm/boundary`, …) for humans and coding agents alike.
@@ -73,11 +74,14 @@ Tests are colocated (`foo.ts` + `foo.test.ts`) for new/moved code; the `tests/` 
 
 Placement of [02-pipeline-spec.md](02-pipeline-spec.md) §4. One funnel: recovery ladder → loose `Model*Schema` (`z.preprocess`: alias maps, coercion, `.catch`, truncate-before-parse) → `normalize()` → strict contract. The two existing JSON ladders (`ai/shared/structured/` and the agentic `result-parser`) merge here, keeping the union of their recovery tricks. Prose is a dialect behind the same interface, not a parallel class tree. Port the spike's `agent-contracts.ts` normalization and verdict alias maps rather than rewriting them (D8).
 
-## 4a. The harness port (business logic ⟂ agent loop)
+## 4a. The two ports (business logic ⟂ model backend)
 
-The agent-loop backend is the **Vercel AI SDK** ([08-harness-decision.md](08-harness-decision.md)); the port keeps it swappable so the choice never leaks into business logic (and a future reversal — Eve at GA, or a rejected own-harness option — stays cheap):
+The model backend is the **Vercel AI SDK** ([08-harness-decision.md](08-harness-decision.md)). Domains never see it: they depend only on two port interfaces declared in `contracts/ports` and implemented in `llm/backend/ai-sdk`. This keeps the choice swappable (a reversal — Eve at GA, or a rejected own-harness option — stays cheap) and, more importantly, keeps everything that differentiates QualOps (tools, sandbox, parsing, verification) on our side of the seam rather than inside a vendor's loop.
 
-- Domains consume exactly two ports from `contracts/`: **`CompletionPort`** (single-shot, schema-constrained calls — checklist reviewers, verifier, judges) and **`AgentRunPort`** (tool-using runs). No domain code imports a harness adapter, a provider SDK, or an agent framework — enforced by the layer rules in §1.
+- **`CompletionPort`** — single-shot, optionally schema-constrained calls (checklist reviewers, the verifier, LLM judges). Backed by the AI SDK's `generateObject`/`generateText`.
+- **`AgentRunPort`** — tool-using multi-turn runs (agent reviewers). Backed by the AI SDK's tool loop (`stopWhen`/`stepCountIs`, `prepareStep`).
+- **Model resolution and dialect routing live in `llm/model`**, not in the ports: a config model-slug resolves to an AI SDK `LanguageModel` plus its capabilities (structured vs. prose dialect, from the litellm snapshot) and pricing. The ports take a resolved `ModelRef`; domains never name a provider.
+- No domain code imports a model SDK, a provider package, or an agent framework — enforced by the layer rules in §1.
 - **`AgentRunPort` contract** (normative shape):
 
 ```ts
@@ -126,6 +130,8 @@ interface AgentRunResult {
 | static classes (`TemplateEngine`, `FilterMatcher`, `DocDiscovery`, `PromptLoader`, `IssueValidator`, `AgentLoader`) | plain function modules |
 | 8 singletons, 16+ `getInstance()` sites | `RunContext` |
 
+**Provider-layer collapse (a deletion, not a dedup).** The AI SDK decision (08) removes most of today's hand-rolled `src/ai/providers/` — `base.ts`, `anthropic.ts`, `bedrock.ts`, `openai-compatible-provider.ts`, `openai.ts`, `github.ts`, `factory.ts`, and the `token-stats` global — all replaced by `@ai-sdk/*`. Only the genuinely QualOps-specific parts survive, into `llm/model`: the capabilities catalog (dialect routing), the pricing catalog, and the token/cost accounting policy. The two provider singletons (global provider, global token stats) die with the rest. This is the single largest code reduction in the refactor and removes ~7 bespoke files from the critical path.
+
 ## 6. Runtime model
 
 - **Stage registry**: stages implement `{ name, deps, run(ctx): Promise<Result> }`; the orchestrator resolves order from `deps` (replaces the hand-written switch + parallel dependency map + `getStageResults`).
@@ -134,8 +140,10 @@ interface AgentRunResult {
 
 ## 7. Dependency policy
 
-Keep: `zod`, OTel + `@langfuse/otel`, `commander`, `minimatch`, `glob`, one YAML parser (D4). Drop: `diff`. Provider SDKs and harness adapters: single-site imports today, structured for **optional peerDependencies** with `provider_adapter_missing` errors; the packaging flip ships separately after P3 (composite-action install matrix must be tested first). Harness backend selection and its supply-chain consequences: [08-harness-decision.md](08-harness-decision.md). Hand-rolled stays hand-rolled (template, retry, concurrency, frontmatter): small, tested, dependency-free.
+Keep: `zod`, OTel + `@langfuse/otel`, `commander`, `minimatch`, `glob`, one YAML parser (D4). **Model backbone:** `ai` + the `@ai-sdk/*` providers actually used (`@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/amazon-bedrock`, `@ai-sdk/openai-compatible`), each wired per-provider as an **optional peerDependency** with a `provider_adapter_missing` error (the packaging flip ships after P3; composite-action install matrix tested first). **Drop:** `diff`, `@openai/agents`, `@eggai/configurable-agent`, and — leaving the default install — `@anthropic-ai/claude-agent-sdk` (08). Net ≈ 450 fewer mandatory production packages. Hand-rolled stays hand-rolled (template, retry, concurrency, frontmatter): small, tested, dependency-free.
+
+**Transition (per the refactor-first sequencing):** the two ports are introduced *wrapping the current provider code* during the structure refactor, so no behavior changes then; the implementation behind the ports swaps to the AI SDK adapter in Phase 2 ([06-roadmap.md](06-roadmap.md)). The port boundary is exactly what bounds that later swap's blast radius.
 
 ## 8. Structural budget (CI-tracked)
 
-Cross-module import ratio < 40% (from 71%) · import cycles = 0 (from 2) · max dependency depth ≤ 6 (from 12) · classes only where stateful (~10–12, from 47) · singletons = 0. Regressions flag in CI alongside the eval gates.
+Cross-module import ratio < 40% (from 71%) · import cycles = 0 (from 2) · max dependency depth ≤ 6 (from 12) · classes only where stateful (~8–10, from 47 — the provider-client classes go to the AI SDK) · singletons = 0. Regressions flag in CI alongside the eval gates.

@@ -1,7 +1,9 @@
-# QualOps Concept — Specification
+# QualOps Concept — Reviewer Redesign
 
-**Date:** 2026-07-07 · **Status:** Draft for human review — nothing here is implemented until reviewed and approved.
+**Status:** Concept stage — for review and refinement, not yet agreed. **Nothing here is implemented.**
 **Goal:** QualOps reviews a pull request and delivers the most reliable feedback possible **without polluting the review**.
+
+> **Where this sits in the flow.** `concept/` is the staging ground: ideas collected, shared, and reviewed *before* they are agreed. The pipeline is **concept → spec → implementation → documentation**. When a concept here is approved, it is rewritten into a gap-free, aligned `spec` (in `specs/`), which is then implemented, and only shipped behavior is described in end-user `docs/`. So the documents below are proposals written in spec-like form for clarity — treat them as concepts under review, not as binding specs, until they graduate.
 
 ## The thesis
 
@@ -13,7 +15,7 @@ This spec realigns QualOps to that shape while keeping its genuine strengths (pr
 
 ## How to read
 
-**Normative spec** (defines the target; terminology is binding from 01):
+**Proposed spec** (concept stage — defines the target; terminology from 01 is used consistently across the set):
 
 | Doc | Contents |
 |---|---|
