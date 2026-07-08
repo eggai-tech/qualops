@@ -31,7 +31,7 @@ Rides **M2** (platform: env, config loading, logger, session-store; singletons �
 Rides **M3** (LLM boundary: merged JSON ladders, Model*Schemas, dialect seam — prose twins deleted) and **M4** (domains + stage registry).
 
 - Verifier per 02 §3.4: context asymmetry, evidence requirement, three-way verdict + promotion policy, confidence 0–100; port the spike's normalization/verdict contracts (D8). Replaces the legacy self-validation pass and per-file dedup.
-- **Harness port** (03 §4a, D12): `AgentRunPort` + conformance suite; adapters consolidated per [08-harness-decision.md](08-harness-decision.md) (pending that ADR's approval: @purista/harness as default — with its three conditions incl. the Node 24 bump — AI SDK as alternative, Claude Agent SDK opt-in, @openai/agents and configurable-agent retired). The backend decision can be taken — or deferred — without touching domains.
+- **Harness port** (03 §4a, D12): `AgentRunPort` + conformance suite + the **Vercel AI SDK adapter** (decided backbone, [08-harness-decision.md](08-harness-decision.md)); `@openai/agents` and `@eggai/configurable-agent` retired; the small compaction + USD-budget port wrappers (08 §4.2) land here. `@ai-sdk/*` providers wired per-provider (optional-peer). The port keeps the backend swappable without touching domains.
 - Admission per 02 §3.5, all thresholds from config. Sampling+voting as opt-in.
 - Cross-model verification option (D9).
 - **C1 (config, can start earlier in parallel):** the `reviewers/*.md` format + `config.yaml` + `REVIEW.md` as a translation layer onto the existing executor — the highest user-visible win per effort in the whole plan; includes `qualops migrate`, `validate`, `config --pr`. One transition release with old-schema warnings (D10).

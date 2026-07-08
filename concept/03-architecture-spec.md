@@ -34,9 +34,9 @@ src/
 │   ├── tools/        # QualOps-OWNED tool implementations: read/grep/glob/usages/git +
 │   │                 # bash sandbox (moves as-is) — harness-agnostic, defined against
 │   │                 # the port's ToolDefinition shape
-│   └── harness/      # the agent-loop PORT (§4a) + one adapter per backend:
-│                     # purista/ (recommended default), ai-sdk/ (alternative),
-│                     # claude-agent-sdk/ (opt-in), eve/ (candidate at GA) — see 08
+│   └── harness/      # the agent-loop PORT (§4a) + the ai-sdk/ adapter (decided
+│                     # backbone, 08). Port keeps other backends swappable
+│                     # (eve/ at GA; claude-agent-sdk/ only if a need appears)
 ├── domains/          # business logic; no cross-domain imports
 │   ├── intake/       # change detection, diff hygiene, tiering, import-graph clustering
 │   ├── review/       # candidate generation: reviewer execution, ONE traversal
@@ -75,7 +75,7 @@ Placement of [02-pipeline-spec.md](02-pipeline-spec.md) §4. One funnel: recover
 
 ## 4a. The harness port (business logic ⟂ agent loop)
 
-The agent-loop backend is an **open decision** ([08-harness-decision.md](08-harness-decision.md)); the architecture makes it swappable so the decision never leaks into business logic:
+The agent-loop backend is the **Vercel AI SDK** ([08-harness-decision.md](08-harness-decision.md)); the port keeps it swappable so the choice never leaks into business logic (and a future reversal — Eve at GA, or a rejected own-harness option — stays cheap):
 
 - Domains consume exactly two ports from `contracts/`: **`CompletionPort`** (single-shot, schema-constrained calls — checklist reviewers, verifier, judges) and **`AgentRunPort`** (tool-using runs). No domain code imports a harness adapter, a provider SDK, or an agent framework — enforced by the layer rules in §1.
 - **`AgentRunPort` contract** (normative shape):

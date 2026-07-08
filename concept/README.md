@@ -24,7 +24,7 @@ This spec realigns QualOps to that shape while keeping its genuine strengths (pr
 | [05-quality-spec.md](05-quality-spec.md) | Metrics, datasets, three-layer evaluation, cadence, statistical rules, improvement loop (integrates [PR #149](https://github.com/eggai-tech/qualops/pull/149)) |
 | [06-roadmap.md](06-roadmap.md) | Unified phases P0–P4 with migration steps, config track, eval track, exit criteria |
 | [07-backlog.md](07-backlog.md) | Deliberately deferred ideas with promotion triggers |
-| [08-harness-decision.md](08-harness-decision.md) | **ADR (open):** agent-loop backend — measured fact sheet (@purista/harness, Eve, AI SDK, Claude Agent SDK, @openai/agents, configurable-agent, custom loop), pro/cons, recommendation |
+| [08-harness-decision.md](08-harness-decision.md) | **ADR (decided → Vercel AI SDK):** agent-loop backend — measured fact sheet (AI SDK, @purista/harness, Eve, Claude Agent SDK, @openai/agents, configurable-agent, custom loop), pro/cons, decision + rationale (no own harness) |
 
 **Appendix** (evidence and analysis; terminology may predate the glossary):
 
