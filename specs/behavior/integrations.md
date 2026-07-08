@@ -14,7 +14,7 @@ The **dialect** is a property of the *model*, detected from a bundled capability
 - `openai-json-schema-strict` — `json_schema` response format (non-strict flag, then local Zod validation) for OpenAI-family models the catalog marks as supporting response schema.
 - `unstructured` (prose) — the safe fallback for any model not known to support schema output; routes the review stage to the prose pipeline ([`pipeline.md`](pipeline.md) §3).
 
-Array-rooted schemas are wrapped as `{ items: [...] }` and transparently unwrapped (providers require an object root). Model output always passes through the JSON-recovery + Zod-validation boundary; a failure throws a typed `StructuredOutputError`. Detail: ADR [`0003`](../adr/0003-unstructured-review-dialect.md).
+Array-rooted schemas are wrapped as `{ items: [...] }` and transparently unwrapped (providers require an object root). Model output always passes through the JSON-recovery + Zod-validation boundary; a failure throws a typed `StructuredOutputError`. Detail: [review-dialects.md](review-dialects.md).
 - ⚠ Post-refactor: the two JSON-recovery ladders are merged into one `llm/boundary`, and the loose→strict normalization is one path (`concept/03` §4). Behavior (what parses) is preserved; the code is unified.
 
 ### Cost & retries

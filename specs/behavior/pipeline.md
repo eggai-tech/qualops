@@ -50,7 +50,7 @@ Deterministic quality gate. Not an LLM.
 
 The review stage runs one of three paths, chosen by model capability and job mode:
 
-- **Dialect selection:** if the configured model cannot produce schema-constrained output (`isUnstructured()`), the **prose** path runs; otherwise the structured path runs. This is a property of the model (via the capabilities catalog), not the provider — see [`integrations.md`](integrations.md) §A.
+- **Dialect selection:** if the configured model cannot produce schema-constrained output (`isUnstructured()`), the **prose** path runs; otherwise the structured path runs. This is a property of the model, not the provider — specified in full in [`review-dialects.md`](review-dialects.md).
 - **Job mode (structured path):** each enabled pipeline job is `file-by-file` (default) or `agentic`.
 
 **Default out-of-the-box behavior:** the shipped config enables exactly one job — an **agentic security audit** (`maxTurns 30`; subagents `security-analyzer`, `dependency-tracer`, `breaking-change-detector`; job validation `minConfidence 8`). The `qualopsSelfReview` file-by-file job ships disabled.
@@ -68,7 +68,7 @@ A tool-using agent (QualOps-owned tools only) investigates the diff across files
 - ⚠ Correction (F-16): a structured-output parse failure triggers one repair retry and, if still failing, a **visible run notice** — never a silent empty result mistaken for "clean file."
 
 ### prose
-Free-text review per file → prose validation pass → prose cross-file dedup → a Markdown `prose-report.md`; **zero structured findings** are returned. The report stage surfaces the prose report and marks it not-gateable (§2 report/judge corrections). Behavioral detail: ADR [`0003`](../adr/0003-unstructured-review-dialect.md).
+Free-text review per file → prose validation pass → prose cross-file dedup → a Markdown `prose-report.md`; **zero structured findings** are returned. The report stage surfaces the prose report and marks it not-gateable (§2 report/judge corrections). Behavioral detail: [review-dialects.md](review-dialects.md).
 
 ## 4. Post-processing (all structured modes)
 

@@ -10,19 +10,47 @@ A spec here is binding **once approved**. Authoring is done with the `spec-archi
 
 They define the **baseline**: the codebase as it will be after the structure & cleanup refactor — the current functional behavior, restructured and cleaned, with the committed correctness fixes. This is deliberately **not** the functional redesign (verifier, fingerprint identity, folder-config, AI-SDK swap), which is still in `concept/` and will graduate spec-by-spec as it is built. Getting the baseline in sync with the code first is the point.
 
+## Structure
+
+Specs are organized by purpose/domain. Cross-cutting foundations at the top level; behavior and operational concerns in domain folders; the **why** in `decisions/` (each linking to the domain spec that holds the **what**).
+
+```mermaid
+flowchart TD
+  R[specs/] --> F[foundations]
+  R --> B[behavior/]
+  R --> S[surface & ops]
+  R --> D[decisions/]
+  R --> P[plans/]
+  F --> A[architecture.md]
+  F --> C[contracts.md]
+  F --> Q[quality.md]
+  F --> DOC[documentation.md]
+  B --> BP[pipeline.md]
+  B --> BD[review-dialects.md]
+  B --> BC[configuration.md]
+  B --> BI[integrations.md]
+  S --> OR[operations/release.md]
+  S --> EV[evaluation/eval-cases.md]
+  D --> DL[0001…0004 records → domain specs]
+  P --> PR[refactor.md]
+```
+
 ## Index
 
-| Spec | Scope |
-|---|---|
-| [architecture.md](architecture.md) | Post-refactor module structure, layering, ports, conventions, structural budget |
-| [contracts.md](contracts.md) | The unified type & validation system (Zod-first, one definition per concept) |
-| [behavior/pipeline.md](behavior/pipeline.md) | Pipeline behavior: stages, the three review dialects, gate; refactor acceptance list |
-| [behavior/configuration.md](behavior/configuration.md) | Config file, CLI, GitHub Action, env vars, custom-agent mechanism |
-| [behavior/integrations.md](behavior/integrations.md) | AI providers & dialects; GitHub/GitLab posting behavior |
-| [quality.md](quality.md) | Testing, coverage, error handling, logging, security, dependency standards |
-| [documentation.md](documentation.md) | Root README + `docs/` standard: crisp README with a TOC into `docs/`; concise, current, nested docs |
-| [plans/refactor.md](plans/refactor.md) | The structure & cleanup refactor plan (PR-stack order, defect buckets, exit criteria) |
-| [adr/](adr/README.md) | Decision records (0001–0004; 0004 superseded by the harness decision) |
+| Domain | Spec | Scope |
+|---|---|---|
+| Foundations | [architecture.md](architecture.md) | Module structure, layering, ports, conventions, structural budget |
+| Foundations | [contracts.md](contracts.md) | Unified type & validation system (Zod-first, one definition per concept) |
+| Foundations | [quality.md](quality.md) | Testing, coverage, error handling, logging, security, dependencies |
+| Foundations | [documentation.md](documentation.md) | Root README + `docs/` standard |
+| Behavior | [behavior/pipeline.md](behavior/pipeline.md) | Stages, review pipeline, gate; refactor acceptance list |
+| Behavior | [behavior/review-dialects.md](behavior/review-dialects.md) | Structured vs. prose dialect routing (the single dialect home) |
+| Behavior | [behavior/configuration.md](behavior/configuration.md) | Config file, CLI, GitHub Action, env vars, custom-agent mechanism |
+| Behavior | [behavior/integrations.md](behavior/integrations.md) | AI providers; GitHub/GitLab posting behavior |
+| Operations | [operations/release.md](operations/release.md) | Release channels, versioning, tag/dist-tag policy, promotion & hotfix |
+| Evaluation | [evaluation/eval-cases.md](evaluation/eval-cases.md) | Real-PR "slice" eval-case data contract |
+| Decisions | [decisions/](decisions/README.md) | Decision records 0001–0004 (rationale; link to domain specs) |
+| Plans | [plans/refactor.md](plans/refactor.md) | Structure & cleanup refactor plan |
 
 ## Reading order
 
