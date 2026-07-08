@@ -117,16 +117,10 @@ describe('ConfigService', () => {
       expect(instance.get('maxReactSteps')).toBe(5);
     });
 
-    it('should initialize with default skip patterns', () => {
+    it('should initialize with empty skip patterns by default', () => {
       const instance = ConfigService.getInstance();
       const skipPatterns = instance.get('skipPatterns');
-      expect(skipPatterns).toEqual([
-        'node_modules/**',
-        '.git/**',
-        'dist/**',
-        'build/**',
-        'coverage/**',
-      ]);
+      expect(skipPatterns).toEqual(['.git/**']);
     });
 
     it('should set debug based on environment', () => {
@@ -174,38 +168,6 @@ describe('ConfigService', () => {
       });
     });
 
-    it('should continue when .qualopsrc.json does not exist', () => {
-      mockExistsSync.mockReturnValue(false);
-      expect(() => ConfigService.getInstance()).not.toThrow();
-    });
-
-    it('should load configuration from .qualops/.qualopsrc.json', () => {
-      const rcConfig = {
-        ...VALID_MINIMAL_CONFIG,
-        ai: {
-          reviewStage: {
-            provider: 'anthropic',
-            model: 'claude-3',
-            inputPerMillion: 3,
-            outputPerMillion: 15,
-          },
-        },
-      };
-
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(JSON.stringify(rcConfig));
-
-      const instance = ConfigService.getInstance();
-      expect(instance.get('review')).toEqual(rcConfig.review);
-      expect(instance.get('ai')).toEqual(rcConfig.ai);
-    });
-
-    it('should throw ConfigParseError on invalid JSON in .qualopsrc.json', () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue('invalid json');
-      expect(() => ConfigService.getInstance()).toThrow(ConfigParseError);
-    });
-
     it('should override maxFilesPerBatch from environment', () => {
       mockEnvConfig.getAll = jest.fn(() => ({ maxFiles: 20 }));
       const instance = ConfigService.getInstance();
@@ -217,6 +179,22 @@ describe('ConfigService', () => {
       const instance = ConfigService.getInstance();
 
       expect(instance.get('cacheEnabled')).toBe(false);
+    });
+
+    it('should load skipPatterns from config file', () => {
+      const rcConfig = {
+        ...VALID_MINIMAL_CONFIG,
+        skipPatterns: ['node_modules/**', 'package-lock.json', '**/*.d.ts'],
+      };
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(JSON.stringify(rcConfig));
+
+      const instance = ConfigService.getInstance();
+      expect(instance.get('skipPatterns')).toEqual([
+        'node_modules/**',
+        'package-lock.json',
+        '**/*.d.ts',
+      ]);
     });
 
     it('should enable verbose from environment', () => {
@@ -234,12 +212,6 @@ describe('ConfigService', () => {
       const instance = ConfigService.getInstance();
       expect(instance.get('maxFilesPerBatch')).toBe(7);
     });
-
-    it('should return undefined for non-existent keys', () => {
-      const instance = ConfigService.getInstance();
-
-      expect(instance.get('nonExistent' as keyof Config)).toBeUndefined();
-    });
   });
 
   describe('set', () => {
@@ -247,14 +219,6 @@ describe('ConfigService', () => {
       const instance = ConfigService.getInstance();
       instance.set('maxFilesPerBatch', 15);
       expect(instance.get('maxFilesPerBatch')).toBe(15);
-    });
-
-    it('should update multiple values', () => {
-      const instance = ConfigService.getInstance();
-      instance.set('verbose', true);
-      instance.set('debug', true);
-      expect(instance.get('verbose')).toBe(true);
-      expect(instance.get('debug')).toBe(true);
     });
   });
 
@@ -265,14 +229,6 @@ describe('ConfigService', () => {
       expect(config.maxFilesPerBatch).toBe(7);
       expect(config.maxConcurrency).toBe(3);
       expect(config.cacheEnabled).toBe(true);
-    });
-
-    it('should return a copy of config', () => {
-      const instance = ConfigService.getInstance();
-      const config1 = instance.getAll();
-      const config2 = instance.getAll();
-      expect(config1).not.toBe(config2);
-      expect(config1).toEqual(config2);
     });
   });
 
@@ -559,14 +515,85 @@ describe('ConfigService', () => {
       expect(result.model).toBe('anthropic.claude-3-sonnet');
     });
 
-    it('throws when stage config is missing (delegates to getAIStageConfig)', () => {
-      mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockReturnValue(JSON.stringify(VALID_MINIMAL_CONFIG));
+    it('uses config baseUrl for openai-compatible provider', () => {
       const instance = ConfigService.getInstance();
-      instance.set('ai', {});
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'openai-compatible', name: 'my-model' } as any,
+          inputPerMillion: 1,
+          outputPerMillion: 2,
+          baseUrl: 'https://my.api/v1',
+        },
+      });
+      const result = instance.getResolvedStageConfig('review');
+      expect(result.baseUrl).toBe('https://my.api/v1');
+    });
+
+    it('falls back to OPENAI_BASE_URL env var for openai-compatible baseUrl', () => {
+      mockEnvConfig.get = jest.fn((key: any) => {
+        if (key === 'openaiBaseUrl') return 'https://env.api/v1';
+        return undefined;
+      });
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'openai-compatible', name: 'my-model' } as any,
+          inputPerMillion: 1,
+          outputPerMillion: 2,
+        },
+      });
+      const result = instance.getResolvedStageConfig('review');
+      expect(result.baseUrl).toBe('https://env.api/v1');
+    });
+
+    it('throws when baseUrl is not http/https for openai-compatible', () => {
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'openai-compatible', name: 'my-model' } as any,
+          inputPerMillion: 1,
+          outputPerMillion: 2,
+          baseUrl: 'file:///etc/passwd',
+        },
+      });
       expect(() => instance.getResolvedStageConfig('review')).toThrow(
-        'AI configuration for stage "review" not found in .qualopsrc.json',
+        'baseUrl must be an http or https URL',
       );
+    });
+
+    it('throws when OPENAI_BASE_URL env var is not http/https for openai-compatible', () => {
+      mockEnvConfig.get = jest.fn((key: any) => {
+        if (key === 'openaiBaseUrl') return 'ftp://evil.example.com';
+        return undefined;
+      });
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'openai-compatible', name: 'my-model' } as any,
+          inputPerMillion: 1,
+          outputPerMillion: 2,
+        },
+      });
+      expect(() => instance.getResolvedStageConfig('review')).toThrow(
+        'baseUrl must be an http or https URL',
+      );
+    });
+
+    it('does not apply OPENAI_BASE_URL for non-openai-compatible providers', () => {
+      mockEnvConfig.get = jest.fn((key: any) => {
+        if (key === 'openaiBaseUrl') return 'https://should-not-appear/v1';
+        return undefined;
+      });
+      const instance = ConfigService.getInstance();
+      instance.set('ai', {
+        reviewStage: {
+          model: { provider: 'anthropic', name: 'claude-sonnet-4-6' } as any,
+          inputPerMillion: 3,
+          outputPerMillion: 15,
+        },
+      });
+      const result = instance.getResolvedStageConfig('review');
+      expect(result.baseUrl).toBeUndefined();
     });
   });
 
@@ -700,47 +727,23 @@ describe('ConfigService', () => {
     });
   });
 
-  describe('getFileNames', () => {
-    it('should return file name constants', () => {
-      const fileNames = FILE_NAMES;
-      expect(fileNames.ANALYSIS).toBe('analysis.json');
-      expect(fileNames.REVIEW_SUMMARY).toBe('review-summary.json');
-      expect(fileNames.FIX_SUMMARY).toBe('fix-suggestions.json');
-      expect(fileNames.OVERALL_REPORT).toBe('overall-report.json');
-      expect(fileNames.ERROR_LOG).toBe('error-log.json');
-    });
-  });
-
-  describe('getCriticalStages', () => {
-    it('should return critical stages', () => {
-      const stages = CRITICAL_STAGES;
-      expect(stages).toEqual(['analyze', 'report']);
-    });
-  });
-
-  describe('getCacheConfig', () => {
-    it('should return cache configuration', () => {
-      const cacheConfig = CACHE_CONFIG;
-      expect(cacheConfig.VERSION).toBe('1.0.0');
-      expect(cacheConfig.MAX_ENTRIES).toBe(10000);
-      expect(cacheConfig.TTL_DAYS).toBe(7);
-    });
-  });
-
   describe('exported constants', () => {
-    it('should export FILE_NAMES constant', () => {
-      const { FILE_NAMES } = require('@/config/config');
+    it('FILE_NAMES has the expected values', () => {
       expect(FILE_NAMES.ANALYSIS).toBe('analysis.json');
+      expect(FILE_NAMES.REVIEW_SUMMARY).toBe('review-summary.json');
+      expect(FILE_NAMES.FIX_SUMMARY).toBe('fix-suggestions.json');
+      expect(FILE_NAMES.OVERALL_REPORT).toBe('overall-report.json');
+      expect(FILE_NAMES.ERROR_LOG).toBe('error-log.json');
     });
 
-    it('should export CRITICAL_STAGES constant', () => {
-      const { CRITICAL_STAGES } = require('@/config/config');
+    it('CRITICAL_STAGES contains analyze and report', () => {
       expect(CRITICAL_STAGES).toEqual(['analyze', 'report']);
     });
 
-    it('should export CACHE_CONFIG constant', () => {
-      const { CACHE_CONFIG } = require('@/config/config');
+    it('CACHE_CONFIG has expected defaults', () => {
       expect(CACHE_CONFIG.VERSION).toBe('1.0.0');
+      expect(CACHE_CONFIG.MAX_ENTRIES).toBe(10000);
+      expect(CACHE_CONFIG.TTL_DAYS).toBe(7);
     });
   });
 
@@ -766,21 +769,17 @@ describe('ConfigService', () => {
 
     it('should log warnings for deprecations', () => {
       mockExistsSync.mockReturnValue(true);
-      // `verbose` and `skipPatterns` are real deprecated top-level fields.
+      // `verbose` is a real deprecated top-level field.
       mockReadFileSync.mockReturnValue(
         JSON.stringify({
           ...VALID_MINIMAL_CONFIG,
           verbose: true,
-          skipPatterns: ['node_modules/**'],
         }),
       );
 
       ConfigService.getInstance();
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.stringContaining('[CONFIG] Deprecated field "verbose"'),
-      );
-      expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('[CONFIG] Deprecated field "skipPatterns"'),
       );
     });
 

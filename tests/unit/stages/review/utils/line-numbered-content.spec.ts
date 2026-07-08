@@ -1,10 +1,49 @@
 import {
   addLineNumbers,
+  buildDiffContext,
   extractLineNumber,
   findCodePatternLine,
   getLineRange,
   removeLineNumbers,
 } from '@/stages/review/utils/line-numbered-content';
+
+describe('buildDiffContext', () => {
+  it('returns empty string when file has no diff', () => {
+    const file = { path: 'a.ts', content: 'x' } as any;
+    expect(buildDiffContext(file)).toBe('');
+  });
+
+  it('returns empty string when diff has no changed lines', () => {
+    const file = {
+      path: 'a.ts',
+      content: 'x',
+      diff: { additions: new Set(), deletions: new Set() },
+    } as any;
+    expect(buildDiffContext(file)).toBe('');
+  });
+
+  it('includes added lines in output', () => {
+    const file = {
+      path: 'a.ts',
+      content: 'x',
+      diff: { additions: new Set([3, 5]), deletions: new Set() },
+    } as any;
+    const result = buildDiffContext(file);
+    expect(result).toContain('Lines added: 3, 5');
+    expect(result).toContain('Lines deleted: none');
+  });
+
+  it('includes deleted lines in output', () => {
+    const file = {
+      path: 'a.ts',
+      content: 'x',
+      diff: { additions: new Set(), deletions: new Set([2]) },
+    } as any;
+    const result = buildDiffContext(file);
+    expect(result).toContain('Lines added: none');
+    expect(result).toContain('Lines deleted: 2');
+  });
+});
 
 describe('addLineNumbers', () => {
   it('should add line numbers to single line', () => {

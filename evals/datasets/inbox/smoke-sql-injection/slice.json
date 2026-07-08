@@ -1,0 +1,20 @@
+{
+  "id": "smoke-sql-injection",
+  "language": "typescript",
+  "filePath": "src/api/users.ts",
+  "diff": "@@ -10,6 +10,12 @@\n import { db } from '../db';\n \n+export async function getUser(req: Request, res: Response) {\n+  const userId = req.params.id;\n+  const result = await db.query(`SELECT * FROM users WHERE id = '${userId}'`);\n+  res.json(result.rows[0]);\n+}\n+",
+  "purpose": "smoke",
+  "capturedAt": "2026-05-21",
+  "capturedBy": "provider-dialect-smoke-harness",
+  "note": "Synthetic input for the provider-dialect smoke harness. Not a captured real-world miss. Loosely follows TDR 0002 slice layout (slice.json + repo/ tree) so future smoke fixtures can be migrated to the full inbox eval format if the slice harness lands.",
+  "expected": [
+    {
+      "file": "src/api/users.ts",
+      "line": 6,
+      "lineEnd": 6,
+      "type": "security",
+      "severity": "critical",
+      "description": "SQL injection via string interpolation in query"
+    }
+  ]
+}

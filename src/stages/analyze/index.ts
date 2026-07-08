@@ -54,7 +54,7 @@ export async function analyzeProjects(
   }
 
   logger.summary('Analysis Summary:');
-  logger.info(`Changed TypeScript files: ${validFiles.length}`);
+  logger.info(`Changed files: ${validFiles.length}`);
 
   if (skippedCount > 0) {
     logger.info(`Skipped ${skippedCount} non-existent files`);
@@ -65,7 +65,7 @@ export async function analyzeProjects(
   await saveExtractLog(extractLog);
   logger.extract('Updated extract log');
 
-  logger.info(`Will analyze ${filesToProcess.length} TypeScript files`);
+  logger.info(`Will analyze ${filesToProcess.length} files`);
 
   return {
     timestamp: new Date().toISOString(),

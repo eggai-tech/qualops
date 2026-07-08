@@ -24,7 +24,7 @@ describe('OpenAIProvider', () => {
   function envGet(apiKey: string, baseURL?: string) {
     return (key: string) => {
       if (key === 'openaiApiKey') return apiKey;
-      if (key === 'openaiApiBase') return baseURL;
+      if (key === 'openaiBaseUrl') return baseURL;
       return undefined;
     };
   }
@@ -67,7 +67,7 @@ describe('OpenAIProvider', () => {
   it('should throw for invalid OPENAI_BASE_URL', () => {
     mockEnvConfig.get.mockImplementation(envGet('sk-test', 'not-a-url'));
     expect(() => new OpenAIProvider(validStageConfig)).toThrow(
-      'OPENAI_BASE_URL must be a valid http/https URL',
+      'OPENAI_BASE_URL must be an http or https URL',
     );
   });
 
@@ -76,5 +76,39 @@ describe('OpenAIProvider', () => {
       envGet('sk-test', 'https://my-resource.openai.azure.com/openai/deployments/gpt-4o'),
     );
     expect(() => new OpenAIProvider(validStageConfig)).not.toThrow();
+  });
+
+  it('should accept a non-sk- key when OPENAI_BASE_URL is set (Azure OpenAI)', () => {
+    mockEnvConfig.get.mockImplementation(
+      envGet(
+        'azure-api-key-abc123',
+        'https://my-resource.openai.azure.com/openai/deployments/gpt-4o',
+      ),
+    );
+    expect(() => new OpenAIProvider(validStageConfig)).not.toThrow();
+  });
+
+  it('should use stageConfig.baseUrl over OPENAI_BASE_URL from env', () => {
+    mockEnvConfig.get.mockImplementation(envGet('sk-test', 'https://env.example.com/v1'));
+    const stageConfigWithBase = { ...validStageConfig, baseUrl: 'https://config.example.com/v1' };
+    expect(() => new OpenAIProvider(stageConfigWithBase)).not.toThrow();
+  });
+
+  it('should reject invalid stageConfig.baseUrl', () => {
+    mockEnvConfig.get.mockImplementation(envGet('sk-test'));
+    const stageConfigWithBase = { ...validStageConfig, baseUrl: 'file:///etc/passwd' };
+    expect(() => new OpenAIProvider(stageConfigWithBase)).toThrow(
+      'OPENAI_BASE_URL must be an http or https URL',
+    );
+  });
+
+  it('should not require API key for openai-compatible provider', () => {
+    mockEnvConfig.get.mockImplementation(envGet(''));
+    const openAICompatibleConfig = {
+      ...validStageConfig,
+      provider: 'openai-compatible' as const,
+      baseUrl: 'http://localhost:11434/v1',
+    };
+    expect(() => new OpenAIProvider(openAICompatibleConfig)).not.toThrow();
   });
 });

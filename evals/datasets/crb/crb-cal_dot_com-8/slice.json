@@ -1,0 +1,31 @@
+{
+  "id": "crb-cal_dot_com-8",
+  "source": "crb",
+  "prUrl": "https://github.com/calcom/cal.com/pull/14943",
+  "prTitle": "SMS workflow reminder retry count tracking",
+  "sourceRepo": "cal_dot_com",
+  "language": "typescript",
+  "baseSha": "917c7b0764f4c6bfdca95db2c5f73dbfdbe11757",
+  "headSha": "c790227e0cda780e6fea9bb03af27948d9e286b9",
+  "baseRef": "main",
+  "headRef": "fix/add-retry-count-workflow-reminder",
+  "upstreamOwner": "calcom",
+  "upstreamRepo": "cal.com",
+  "diff": "diff --git a/packages/features/ee/workflows/api/scheduleSMSReminders.ts b/packages/features/ee/workflows/api/scheduleSMSReminders.ts\nindex 299d9bac639f18..a6d7f46740dca0 100644\n--- a/packages/features/ee/workflows/api/scheduleSMSReminders.ts\n+++ b/packages/features/ee/workflows/api/scheduleSMSReminders.ts\n@@ -28,10 +28,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {\n   //delete all scheduled sms reminders where scheduled date is past current date\n   await prisma.workflowReminder.deleteMany({\n     where: {\n-      method: WorkflowMethods.SMS,\n-      scheduledDate: {\n-        lte: dayjs().toISOString(),\n-      },\n+      OR: [\n+        {\n+          method: WorkflowMethods.SMS,\n+          scheduledDate: {\n+            lte: dayjs().toISOString(),\n+          },\n+        },\n+        {\n+          retryCount: {\n+            gt: 1,\n+          },\n+        },\n+      ],\n     },\n   });\n \n@@ -44,8 +53,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {\n         lte: dayjs().add(7, \"day\").toISOString(),\n       },\n     },\n-    select,\n-  })) as PartialWorkflowReminder[];\n+    select: {\n+      ...select,\n+      retryCount: true,\n+    },\n+  })) as (PartialWorkflowReminder & { retryCount: number })[];\n \n   if (!unscheduledReminders.length) {\n     res.json({ ok: true });\n@@ -163,9 +175,26 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {\n               referenceId: scheduledSMS.sid,\n             },\n           });\n+        } else {\n+          await prisma.workflowReminder.update({\n+            where: {\n+              id: reminder.id,\n+            },\n+            data: {\n+              retryCount: reminder.retryCount + 1,\n+            },\n+          });\n         }\n       }\n     } catch (error) {\n+      await prisma.workflowReminder.update({\n+        where: {\n+          id: reminder.id,\n+        },\n+        data: {\n+          retryCount: reminder.retryCount + 1,\n+        },\n+      });\n       console.log(`Error scheduling SMS with error ${error}`);\n     }\n   }\ndiff --git a/packages/prisma/migrations/20240508134359_add_retry_count_to_workflow_reminder/migration.sql b/packages/prisma/migrations/20240508134359_add_retry_count_to_workflow_reminder/migration.sql\nnew file mode 100644\nindex 00000000000000..58e4124a58d079\n--- /dev/null\n+++ b/packages/prisma/migrations/20240508134359_add_retry_count_to_workflow_reminder/migration.sql\n@@ -0,0 +1,2 @@\n+-- AlterTable\n+ALTER TABLE \"WorkflowReminder\" ADD COLUMN     \"retryCount\" INTEGER NOT NULL DEFAULT 0;\ndiff --git a/packages/prisma/schema.prisma b/packages/prisma/schema.prisma\nindex e2ab07595af4ee..1085d72dfb9e29 100644\n--- a/packages/prisma/schema.prisma\n+++ b/packages/prisma/schema.prisma\n@@ -997,6 +997,7 @@ model WorkflowReminder {\n   cancelled           Boolean?\n   seatReferenceId     String?\n   isMandatoryReminder Boolean?        @default(false)\n+  retryCount          Int             @default(0)\n \n   @@index([bookingUid])\n   @@index([workflowStepId])\n",
+  "expected": [
+    {
+      "line": null,
+      "lineEnd": null,
+      "type": "bug",
+      "severity": "high",
+      "description": "Using retryCount: reminder.retryCount + 1 reads a possibly stale value and can lose increments under concurrency; consider an atomic increment via Prisma (increment: 1) to avoid race conditions (also applies to the similar update in the catch block)."
+    },
+    {
+      "line": null,
+      "lineEnd": null,
+      "type": "bug",
+      "severity": "high",
+      "description": "The deletion logic in scheduleSMSReminders.ts incorrectly deletes non-SMS workflow reminders (e.g., Email, WhatsApp) that have retryCount > 1. This occurs because the retryCount condition within the OR clause for deletion lacks a method: WorkflowMethods.SMS filter, causing it to apply to all reminder types instead of only SMS reminders, which is the intended scope of this function."
+    }
+  ]
+}

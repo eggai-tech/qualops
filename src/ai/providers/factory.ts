@@ -11,6 +11,7 @@ export const AIProviderType = {
   BEDROCK: 'bedrock',
   OPENAI: 'openai',
   GITHUB: 'github',
+  OPENAI_COMPATIBLE: 'openai-compatible',
 } as const;
 
 export class AIFactory {
@@ -42,6 +43,9 @@ export class AIFactory {
         break;
       case AIProviderType.GITHUB:
         provider = new GitHubModelsProvider(stageConfig);
+        break;
+      case AIProviderType.OPENAI_COMPATIBLE:
+        provider = new OpenAIProvider(stageConfig);
         break;
       default: {
         const _exhaustiveCheck: never = stageConfig.provider;

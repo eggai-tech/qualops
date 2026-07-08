@@ -165,17 +165,29 @@ export interface ScrubResult {
   dropped: string[];
 }
 
-function injectGitSafetyOverrides(env: NodeJS.ProcessEnv, gitConfigPath?: string): void {
+function injectGitSafetyOverrides(
+  env: NodeJS.ProcessEnv,
+  gitConfigPath?: string,
+  workspaceRoot?: string,
+): void {
   env['GIT_CONFIG_NOSYSTEM'] = '1';
   env['GIT_TERMINAL_PROMPT'] = '0';
   env['GIT_ASKPASS'] = 'true'; // no-op credential helper — prevents interactive prompts
-  env['GIT_CEILING_DIRECTORIES'] = '/workspace';
+  // GIT_CEILING_DIRECTORIES stops git from traversing up past the workspace root
+  // looking for a .git directory. Must be the PARENT of workspaceRoot so that git
+  // can still find the .git dir inside the checkout itself.
+  const ceiling = workspaceRoot ? workspaceRoot.replace(/\/[^/]+\/?$/, '') || '/' : '/workspace';
+  env['GIT_CEILING_DIRECTORIES'] = ceiling;
   if (gitConfigPath) {
     env['GIT_CONFIG_GLOBAL'] = gitConfigPath;
   }
 }
 
-export function scrubEnv(src: NodeJS.ProcessEnv, gitConfigPath?: string): ScrubResult {
+export function scrubEnv(
+  src: NodeJS.ProcessEnv,
+  gitConfigPath?: string,
+  workspaceRoot?: string,
+): ScrubResult {
   const result: NodeJS.ProcessEnv = {};
   const dropped: string[] = [];
 
@@ -188,7 +200,7 @@ export function scrubEnv(src: NodeJS.ProcessEnv, gitConfigPath?: string): ScrubR
     result[key] = value;
   }
 
-  injectGitSafetyOverrides(result, gitConfigPath);
+  injectGitSafetyOverrides(result, gitConfigPath, workspaceRoot);
   result['QUALOPS_ENV_SCRUBBED'] = '1';
 
   return { env: result, dropped };
@@ -225,7 +237,8 @@ export function applyEnvScrub(gitConfigPath?: string): void {
 export function makeCleanEnv(
   gitConfigPath: string,
   extra: NodeJS.ProcessEnv = {},
+  workspaceRoot?: string,
 ): NodeJS.ProcessEnv {
-  const { env } = scrubEnv(process.env, gitConfigPath);
+  const { env } = scrubEnv(process.env, gitConfigPath, workspaceRoot);
   return { ...env, ...extra };
 }

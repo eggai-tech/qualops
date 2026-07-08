@@ -1,12 +1,13 @@
 jest.mock('node:child_process', () => ({ spawnSync: jest.fn() }));
 jest.mock('node:fs', () => ({ existsSync: jest.fn(), readFileSync: jest.fn() }));
+jest.mock('glob', () => ({ glob: jest.fn() }));
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 
+const mockGlob = jest.requireMock<{ glob: jest.Mock }>('glob').glob;
+
 import {
-  analyzeExports,
-  findInterfaceChanges,
   findUsages,
   gitDiffAnalysis,
   globFiles,
@@ -95,6 +96,16 @@ describe('findUsages', () => {
       expect.anything(),
     );
   });
+
+  it('appends --glob exclusions for each skipPattern', () => {
+    mockSpawnSync.mockReturnValue(spawnOk('') as any);
+    findUsages(CWD, 'myFn', undefined, undefined, ['node_modules/**', 'dist/**']);
+    expect(mockSpawnSync).toHaveBeenCalledWith(
+      'rg',
+      expect.arrayContaining(['--glob', '!node_modules/**', '--glob', '!dist/**']),
+      expect.anything(),
+    );
+  });
 });
 
 // ─── traceImports ─────────────────────────────────────────────────────────────
@@ -123,6 +134,18 @@ describe('traceImports', () => {
     const result = JSON.parse(traceImports(CWD, 'src/mod.ts'));
     expect(result.imports).toContain('./foo');
     expect(result.exports).toContain('bar');
+  });
+
+  it('returns "File excluded" when file matches a skipPattern', () => {
+    const result = traceImports(CWD, 'src/foo.spec.ts', ['**/*.spec.ts']);
+    expect(result).toBe('File excluded: matches skip pattern.');
+    expect(mockExistsSync).not.toHaveBeenCalled();
+  });
+
+  it('blocks skipPattern bypass via path traversal (src/../node_modules/secret.js)', () => {
+    const result = traceImports(CWD, 'src/../node_modules/secret.js', ['node_modules/**']);
+    expect(result).toBe('File excluded: matches skip pattern.');
+    expect(mockExistsSync).not.toHaveBeenCalled();
   });
 });
 
@@ -165,100 +188,26 @@ describe('gitDiffAnalysis', () => {
       expect.anything(),
     );
   });
-});
 
-// ─── analyzeExports ───────────────────────────────────────────────────────────
-
-describe('analyzeExports', () => {
-  it('rejects path traversal outside cwd', () => {
-    const result = analyzeExports(CWD, '../../etc/passwd');
-    expect(result).toMatch(/outside project directory/);
-    expect(mockExistsSync).not.toHaveBeenCalled();
-  });
-
-  it('rejects compareWithRef starting with -', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('export const foo = 1;' as any);
-    const result = analyzeExports(CWD, 'src/mod.ts', '--evil');
-    expect(result).toMatch(/invalid git ref/);
+  it('returns "File excluded" when file matches a skipPattern', () => {
+    const result = gitDiffAnalysis(CWD, 'main', undefined, 'src/foo.spec.ts', undefined, [
+      '**/*.spec.ts',
+    ]);
+    expect(result).toBe('File excluded: matches skip pattern.');
     expect(mockSpawnSync).not.toHaveBeenCalled();
   });
 
-  it('returns "File not found" when file does not exist', () => {
-    mockExistsSync.mockReturnValue(false);
-    expect(analyzeExports(CWD, 'src/missing.ts')).toBe('File not found: src/missing.ts');
-  });
-
-  it('returns exports JSON for existing file', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('export const foo = 1;\nexport default class Bar {}' as any);
-    const result = JSON.parse(analyzeExports(CWD, 'src/mod.ts'));
-    expect(result.exports).toContain('foo');
-    expect(result.exports).toContain('default');
-    expect(result.comparison).toBeNull();
-  });
-
-  it('includes comparison when compareWithRef is provided', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('export const foo = 1;' as any);
-    mockSpawnSync.mockReturnValue(spawnOk('export const oldFn = () => {};') as any);
-    const result = JSON.parse(analyzeExports(CWD, 'src/mod.ts', 'main'));
-    expect(result.comparison).toBeTruthy();
-    expect(result.comparison.added).toContain('foo');
-    expect(result.comparison.removed).toContain('oldFn');
-  });
-
-  it('uses added=currentExports when git show fails', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('export const foo = 1;' as any);
-    mockSpawnSync.mockReturnValue(spawnFail('git error') as any);
-    const result = JSON.parse(analyzeExports(CWD, 'src/mod.ts', 'main'));
-    expect(result.comparison.added).toContain('foo');
-    expect(result.comparison.removed).toEqual([]);
-  });
-});
-
-// ─── findInterfaceChanges ─────────────────────────────────────────────────────
-
-describe('findInterfaceChanges', () => {
-  it('rejects base ref starting with -', () => {
-    const result = findInterfaceChanges(CWD, '--evil');
-    expect(result).toMatch(/invalid git ref/);
-    expect(mockSpawnSync).not.toHaveBeenCalled();
-  });
-
-  it('escapes special regex chars in interfaceName to prevent ReDoS', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('') as any);
-    findInterfaceChanges(CWD, 'main', undefined, 'Foo(Bar)+');
-    const call = mockSpawnSync.mock.calls[0];
-    const gArg = (call[1] as string[]).find((a) => a.startsWith('-G'));
-    // Special chars should be escaped, not passed raw
-    expect(gArg).toContain('Foo\\(Bar\\)\\+');
-  });
-
-  it('returns diff output', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('interface Foo {}') as any);
-    expect(findInterfaceChanges(CWD, 'main')).toBe('interface Foo {}');
-  });
-
-  it('returns "No interface changes found" on empty output', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('') as any);
-    expect(findInterfaceChanges(CWD, 'main')).toBe('No interface changes found');
-  });
-
-  it('returns error string on failure', () => {
-    mockSpawnSync.mockReturnValue(spawnFail('git error') as any);
-    expect(findInterfaceChanges(CWD, 'main')).toBe('Error: git error');
-  });
-
-  it('scopes to specific interface when interfaceName is provided', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('interface Foo {}') as any);
-    findInterfaceChanges(CWD, 'main', undefined, 'Foo');
-    expect(mockSpawnSync).toHaveBeenCalledWith(
-      'git',
-      expect.arrayContaining([expect.stringContaining('Foo')]),
-      expect.anything(),
+  it('blocks skipPattern bypass via path traversal in file param', () => {
+    const result = gitDiffAnalysis(
+      CWD,
+      'main',
+      undefined,
+      'src/../node_modules/secret.js',
+      undefined,
+      ['node_modules/**'],
     );
+    expect(result).toBe('File excluded: matches skip pattern.');
+    expect(mockSpawnSync).not.toHaveBeenCalled();
   });
 });
 
@@ -323,6 +272,29 @@ describe('readFile', () => {
     expect(result).toBe('File not found: src/missing.ts');
   });
 
+  it('returns "File excluded" when file matches a skipPattern', () => {
+    const result = readFile(CWD, 'src/foo.spec.ts', ['**/*.spec.ts']);
+    expect(result).toBe('File excluded: matches skip pattern.');
+  });
+
+  it('blocks skipPattern bypass via ./ prefix (src/../node_modules/secret.js)', () => {
+    const result = readFile(CWD, 'src/../node_modules/secret.js', ['node_modules/**']);
+    expect(result).toBe('File excluded: matches skip pattern.');
+  });
+
+  it('blocks skipPattern bypass via ./ prefix (./node_modules/secret.js)', () => {
+    const result = readFile(CWD, './node_modules/secret.js', ['node_modules/**']);
+    expect(result).toBe('File excluded: matches skip pattern.');
+  });
+
+  it('does not exclude cwd itself (resolvedPath === cwd edge case)', () => {
+    // Passing the cwd as the file path resolves to exactly cwd — isSkipped should
+    // return '.' as the relative path and not match a file-targeting pattern.
+    mockExistsSync.mockReturnValue(false);
+    const result = readFile(CWD, CWD, ['**/*.ts']);
+    expect(result).not.toBe('File excluded: matches skip pattern.');
+  });
+
   it('returns error message when readFileSync throws', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockImplementation(() => {
@@ -374,18 +346,28 @@ describe('grepFiles', () => {
 // ─── globFiles ────────────────────────────────────────────────────────────────
 
 describe('globFiles', () => {
-  it('returns matched file paths', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('/project/repo/src/foo.ts\n') as any);
-    expect(globFiles(CWD, '**/*.ts')).toBe('/project/repo/src/foo.ts');
+  it('returns matched file paths', async () => {
+    mockGlob.mockResolvedValue(['src/foo.ts', 'src/bar.ts'] as any);
+    expect(await globFiles(CWD, '**/*.ts')).toBe('src/foo.ts\nsrc/bar.ts');
   });
 
-  it('returns "No files found" on empty output', () => {
-    mockSpawnSync.mockReturnValue(spawnOk('\n') as any);
-    expect(globFiles(CWD, '**/*.xyz')).toBe('No files found');
+  it('returns "No files found" on empty output', async () => {
+    mockGlob.mockResolvedValue([] as any);
+    expect(await globFiles(CWD, '**/*.xyz')).toBe('No files found');
   });
 
-  it('returns error string on failure', () => {
-    mockSpawnSync.mockReturnValue(spawnFail('find error') as any);
-    expect(globFiles(CWD, '**/*.ts')).toBe('Error: find error');
+  it('returns error string on failure', async () => {
+    mockGlob.mockRejectedValue(new Error('glob error'));
+    expect(await globFiles(CWD, '**/*.ts')).toBe('Error: glob error');
+  });
+
+  it('passes skipPatterns as ignore option', async () => {
+    mockGlob.mockResolvedValue(['src/app.ts'] as any);
+    await globFiles(CWD, '**/*.ts', ['node_modules/**', 'dist/**']);
+    expect(mockGlob).toHaveBeenCalledWith('**/*.ts', {
+      cwd: CWD,
+      dot: true,
+      ignore: ['node_modules/**', 'dist/**'],
+    });
   });
 });

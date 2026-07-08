@@ -1,0 +1,31 @@
+{
+  "id": "crb-discourse-9",
+  "source": "crb",
+  "prUrl": "https://github.com/ai-code-review-evaluation/discourse-graphite/pull/9",
+  "prTitle": "FEATURE: Localization fallbacks (server-side)",
+  "sourceRepo": "discourse",
+  "language": "ruby",
+  "baseSha": "728845d008f06828630a632e5c7d67e11bf15deb",
+  "headSha": "ecfa17b5a79dfdc91e7a4d50b42ae78a35d0a293",
+  "baseRef": "localization-system-pre",
+  "headRef": "localization-system-post",
+  "upstreamOwner": "ai-code-review-evaluation",
+  "upstreamRepo": "discourse-graphite",
+  "diff": "diff --git a/app/controllers/application_controller.rb b/app/controllers/application_controller.rb\nindex aa29468fb26..a643bfb5158 100644\n--- a/app/controllers/application_controller.rb\n+++ b/app/controllers/application_controller.rb\n@@ -155,6 +155,8 @@ def set_locale\n                   else\n                     SiteSetting.default_locale\n                   end\n+\n+    I18n.fallbacks.ensure_loaded!\n   end\n \n   def store_preloaded(key, json)\ndiff --git a/config/cloud/cloud66/files/production.rb b/config/cloud/cloud66/files/production.rb\nindex b7f03a09774..db662574bee 100644\n--- a/config/cloud/cloud66/files/production.rb\n+++ b/config/cloud/cloud66/files/production.rb\n@@ -23,11 +23,6 @@\n   # Specifies the header that your server uses for sending files\n   config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect' # for nginx\n \n-  # Enable locale fallbacks for I18n (makes lookups for any locale fall back to\n-  # the I18n.default_locale when a translation can not be found)\n-  config.i18n.fallbacks = true\n-\n-\n   # you may use other configuration here for mail eg: sendgrid\n \n   config.action_mailer.delivery_method = :smtp\ndiff --git a/config/environments/production.rb b/config/environments/production.rb\nindex 30263174ada..013e37f597f 100644\n--- a/config/environments/production.rb\n+++ b/config/environments/production.rb\n@@ -24,10 +24,6 @@\n \n   config.log_level = :info\n \n-  # Enable locale fallbacks for I18n (makes lookups for any locale fall back to\n-  # the I18n.default_locale when a translation can not be found)\n-  config.i18n.fallbacks = true\n-\n   if GlobalSetting.smtp_address\n     settings = {\n       address:              GlobalSetting.smtp_address,\ndiff --git a/config/environments/profile.rb b/config/environments/profile.rb\nindex 43531b0d5c1..1784a23528b 100644\n--- a/config/environments/profile.rb\n+++ b/config/environments/profile.rb\n@@ -27,10 +27,6 @@\n   # Specifies the header that your server uses for sending files\n   config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect' # for nginx\n \n-  # Enable locale fallbacks for I18n (makes lookups for any locale fall back to\n-  # the I18n.default_locale when a translation can not be found)\n-  config.i18n.fallbacks = true\n-\n   # we recommend you use mailcatcher https://github.com/sj26/mailcatcher\n   config.action_mailer.smtp_settings = { address: \"localhost\", port: 1025 }\n \ndiff --git a/config/initializers/i18n.rb b/config/initializers/i18n.rb\nnew file mode 100644\nindex 00000000000..685e6e29c43\n--- /dev/null\n+++ b/config/initializers/i18n.rb\n@@ -0,0 +1,24 @@\n+# order: after 02-freedom_patches.rb\n+\n+# Include pluralization module\n+require 'i18n/backend/pluralization'\n+I18n::Backend::Simple.send(:include, I18n::Backend::Pluralization)\n+\n+# Include fallbacks module\n+require 'i18n/backend/fallbacks'\n+I18n.backend.class.send(:include, I18n::Backend::Fallbacks)\n+\n+# Configure custom fallback order\n+class FallbackLocaleList < Hash\n+  def [](locale)\n+    # user locale, site locale, english\n+    # TODO - this can be extended to be per-language for a better user experience\n+    # (e.g. fallback zh_TW to zh_CN / vice versa)\n+    [locale, SiteSetting.default_locale.to_sym, :en].uniq.compact\n+  end\n+\n+  def ensure_loaded!\n+    self[I18n.locale].each { |l| I18n.ensure_loaded! l }\n+  end\n+end\n+I18n.fallbacks = FallbackLocaleList.new\ndiff --git a/config/initializers/pluralization.rb b/config/initializers/pluralization.rb\ndeleted file mode 100644\nindex 0a567d44515..00000000000\n--- a/config/initializers/pluralization.rb\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-require \"i18n/backend/pluralization\"\n-I18n::Backend::Simple.send(:include, I18n::Backend::Pluralization)\ndiff --git a/lib/freedom_patches/translate_accelerator.rb b/lib/freedom_patches/translate_accelerator.rb\nindex 95f9f9d0b12..7b3fc986a6c 100644\n--- a/lib/freedom_patches/translate_accelerator.rb\n+++ b/lib/freedom_patches/translate_accelerator.rb\n@@ -59,6 +59,11 @@ def load_locale(locale)\n       end\n     end\n \n+    def ensure_loaded!(locale)\n+      @loaded_locales ||= []\n+      load_locale locale unless @loaded_locales.include?(locale)\n+    end\n+\n     def translate(key, *args)\n       load_locale(config.locale) unless @loaded_locales.include?(config.locale)\n       return translate_no_cache(key, *args) if args.length > 0\n",
+  "expected": [
+    {
+      "line": null,
+      "lineEnd": null,
+      "type": "bug",
+      "severity": "low",
+      "description": "Thread-safety issue with lazy @loaded_locales"
+    },
+    {
+      "line": null,
+      "lineEnd": null,
+      "type": "bug",
+      "severity": "low",
+      "description": "Consider normalizing the input locale (e.g., to a symbol) when checking/loading here to avoid double-loading if the same locale is passed as a String vs Symbol (also applies to other locations in the PR)."
+    }
+  ]
+}

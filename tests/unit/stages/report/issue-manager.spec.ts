@@ -129,7 +129,7 @@ describe('IssueManager', () => {
       expect(result).toContain('## Reasoning');
       expect(result).toContain('This is the reasoning');
       expect(result).toContain('## Context');
-      expect(result).toContain('```typescript\nconst x = 1;\n```');
+      expect(result).toContain('```\nconst x = 1;\n```');
       expect(result).toContain('## Suggested Fix');
       expect(result).toContain('Fix it like this');
       expect(result).toContain('## Knowledge Source');

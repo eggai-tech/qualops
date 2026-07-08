@@ -1,19 +1,32 @@
 import { Agent, getGlobalTraceProvider, run, setDefaultOpenAIClient, tool } from '@openai/agents';
+import { z } from 'zod';
 
 import type { AgentAdapter, AgentAdapterParams, AgentAdapterResult } from './agent-adapter';
+import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
 import { envConfig } from '../../../../config/env';
 import { logger } from '../../../../shared/utils/logger';
 import { createToolSet, type ToolSet } from '../tools';
 
+const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
+
 export class OpenAIAdapter implements AgentAdapter {
   async run(params: AgentAdapterParams): Promise<AgentAdapterResult> {
-    const { systemPrompt, userPrompt, agents, model, cwd, maxTurns, onToolCall, toolConfig } =
-      params;
+    const {
+      systemPrompt,
+      userPrompt,
+      agents,
+      model,
+      cwd,
+      maxTurns,
+      onToolCall,
+      toolConfig,
+      skipPatterns,
+    } = params;
 
     await configureOpenAIClient();
     getGlobalTraceProvider().setDisabled(true);
 
-    const toolSet = await createToolSet(cwd, toolConfig);
+    const toolSet = await createToolSet(cwd, toolConfig, skipPatterns);
 
     try {
       const tools = buildOpenAITools(toolSet, onToolCall);
@@ -34,27 +47,29 @@ export class OpenAIAdapter implements AgentAdapter {
         instructions: systemPrompt,
         tools,
         handoffs,
+        outputType: ReviewOutputSchema,
       });
 
       logger.info(`[Agentic/OpenAI] Starting run with model=${model}, maxTurns=${maxTurns}`);
 
       const result = await run(orchestrator, userPrompt, { maxTurns });
 
-      const output =
-        typeof result.finalOutput === 'string'
-          ? result.finalOutput
-          : result.finalOutput != null
-            ? JSON.stringify(result.finalOutput)
-            : '';
-
       const usage = result.state.usage;
+      const structured = result.finalOutput as z.infer<typeof ReviewOutputSchema> | null;
 
       logger.info(
         `[Agentic/OpenAI] Run complete. inputTokens=${usage.inputTokens}, outputTokens=${usage.outputTokens}`,
       );
+      if (!structured?.issues) {
+        throw new Error(
+          `[Agentic/OpenAI] Run completed but finalOutput is missing — agent likely hit max turns (${maxTurns})`,
+        );
+      }
+      logger.info(`[Agentic/OpenAI] Structured output (${structured.issues.length} issues)`);
 
       return {
-        output,
+        output: '',
+        structuredOutput: structured.issues,
         inputTokens: usage.inputTokens,
         outputTokens: usage.outputTokens,
       };
@@ -66,7 +81,7 @@ export class OpenAIAdapter implements AgentAdapter {
 
 async function configureOpenAIClient(): Promise<void> {
   const apiKey = envConfig.get('openaiApiKey') || '';
-  const baseURL = envConfig.get('openaiApiBase');
+  const baseURL = envConfig.get('openaiBaseUrl');
 
   const { default: OpenAI, AzureOpenAI } = await import('openai');
 

@@ -3,16 +3,22 @@ import { detectCapabilities } from '@/ai/providers/capabilities';
 describe('detectCapabilities', () => {
   describe('openai provider', () => {
     it.each([
+      // gpt-5 family: in catalog with supportsResponseSchema=true; reasoning quirks apply
       ['gpt-5', 'openai-json-schema-strict', false, 'max_completion_tokens'],
       ['gpt-5-mini', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+      // gpt-4o family: strict json_schema, normal token/temperature params
       ['gpt-4o', 'openai-json-schema-strict', true, 'max_tokens'],
       ['gpt-4o-mini', 'openai-json-schema-strict', true, 'max_tokens'],
-      ['o1-preview', 'openai-json-schema-strict', false, 'max_completion_tokens'],
-      ['o1-mini', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+      // o1-preview, o1-mini: NOT in litellm catalog → unstructured; reasoning quirks apply
+      ['o1-preview', 'unstructured', false, 'max_completion_tokens'],
+      ['o1-mini', 'unstructured', false, 'max_completion_tokens'],
+      // o3-mini, o4-mini: in catalog with supportsResponseSchema=true; reasoning quirks apply
       ['o3-mini', 'openai-json-schema-strict', false, 'max_completion_tokens'],
       ['o4-mini', 'openai-json-schema-strict', false, 'max_completion_tokens'],
-      ['gpt-3.5-turbo', 'openai-json-object', true, 'max_tokens'],
-      ['some-custom-model', 'openai-json-object', true, 'max_tokens'],
+      // gpt-3.5-turbo: in catalog but supportsResponseSchema is falsy → unstructured
+      ['gpt-3.5-turbo', 'unstructured', true, 'max_tokens'],
+      // unknown models not in catalog → unstructured
+      ['some-custom-model', 'unstructured', true, 'max_tokens'],
     ])('routes %s to %s', (model, dialect, supportsTemperature, maxTokensField) => {
       const caps = detectCapabilities('openai', model);
       expect(caps.structuredDialect).toBe(dialect);
@@ -22,26 +28,39 @@ describe('detectCapabilities', () => {
   });
 
   describe('github provider', () => {
-    it('routes gpt-4o exact match to strict', () => {
-      expect(detectCapabilities('github', 'gpt-4o').structuredDialect).toBe(
-        'openai-json-schema-strict',
-      );
-      expect(detectCapabilities('github', 'openai/gpt-4o').structuredDialect).toBe(
+    it('routes gpt-4o to strict, supports temperature, max_tokens', () => {
+      const caps = detectCapabilities('github', 'gpt-4o');
+      expect(caps.structuredDialect).toBe('openai-json-schema-strict');
+      expect(caps.supportsTemperature).toBe(true);
+      expect(caps.maxTokensField).toBe('max_tokens');
+    });
+
+    it('routes gpt-4o-mini to strict (in catalog with supportsResponseSchema=true)', () => {
+      expect(detectCapabilities('github', 'gpt-4o-mini').structuredDialect).toBe(
         'openai-json-schema-strict',
       );
     });
 
-    it('routes gpt-4o-mini and other models to json_object (not strict on GitHub)', () => {
-      expect(detectCapabilities('github', 'gpt-4o-mini').structuredDialect).toBe(
-        'openai-json-object',
-      );
-      expect(detectCapabilities('github', 'phi-3-medium').structuredDialect).toBe(
-        'openai-json-object',
-      );
+    it('routes unknown GitHub models to unstructured (not in catalog)', () => {
+      expect(detectCapabilities('github', 'phi-3-medium').structuredDialect).toBe('unstructured');
       expect(detectCapabilities('github', 'meta-llama/llama-3-70b').structuredDialect).toBe(
-        'openai-json-object',
+        'unstructured',
       );
     });
+
+    it.each([
+      ['o1', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+      ['o3', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+      ['gpt-5', 'openai-json-schema-strict', false, 'max_completion_tokens'],
+    ])(
+      'routes reasoning model %s: no temperature, max_completion_tokens',
+      (model, dialect, supportsTemperature, maxTokensField) => {
+        const caps = detectCapabilities('github', model);
+        expect(caps.structuredDialect).toBe(dialect);
+        expect(caps.supportsTemperature).toBe(supportsTemperature);
+        expect(caps.maxTokensField).toBe(maxTokensField);
+      },
+    );
   });
 
   describe('anthropic provider', () => {

@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": ["../src/*"],
+      "@tests/*": ["../tests/*"]
+    },
+    "types": ["jest", "node"],
+    "ignoreDeprecations": "6.0"
+  },
+  "include": ["src/**/*", "scripts/**/*"],
+  "exclude": ["datasets/"]
+}

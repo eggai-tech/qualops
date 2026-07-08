@@ -71,6 +71,16 @@ export function hasValidUrlScheme(urlString: string): boolean {
 }
 
 /**
+ * Asserts that a URL uses http or https scheme.
+ * Throws a descriptive error if the scheme is invalid or unparseable.
+ */
+export function assertHttpUrl(url: string, label = 'baseUrl'): void {
+  if (!hasValidUrlScheme(url)) {
+    throw new Error(`${label} must be an http or https URL, got: ${url}`);
+  }
+}
+
+/**
  * Escapes HTML special characters for safe embedding in HTML reports
  */
 export function escapeHtml(text: string): string {

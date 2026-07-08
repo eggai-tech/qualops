@@ -16,7 +16,7 @@ export class StructuredOutputError extends Error {
 /**
  * Parse a raw model response into a typed object validated by the given zod schema.
  * Used both as the post-validation step on native structured-output paths and as the
- * primary parser on the prompt-fallback path.
+ * primary parser on the structured-output path.
  */
 export function parseAndValidate<S extends z.ZodType>(raw: string, schema: S): z.infer<S> {
   const extracted = extractJsonText(raw);

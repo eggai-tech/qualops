@@ -48,9 +48,9 @@ function makeParams(overrides: Partial<AgentAdapterParams> = {}): AgentAdapterPa
   };
 }
 
-function makeRunResult(finalOutput: string, inputTokens = 0, outputTokens = 0) {
+function makeRunResult(inputTokens = 0, outputTokens = 0) {
   return {
-    finalOutput,
+    finalOutput: { issues: [] },
     state: { usage: { inputTokens, outputTokens } },
   };
 }
@@ -71,51 +71,46 @@ describe('OpenAIAdapter — run()', () => {
     MockAgentCtor.mockImplementation(() => ({}) as InstanceType<typeof MockAgent>);
   });
 
-  it('returns output from run() finalOutput', async () => {
-    mockRunFn.mockResolvedValue(makeRunResult('["issue1"]') as any);
+  it('returns structuredOutput from run() finalOutput.issues', async () => {
+    const issues = [{ description: 'issue1', confidence: 9 }];
+    mockRunFn.mockResolvedValue({
+      finalOutput: { issues },
+      state: { usage: { inputTokens: 0, outputTokens: 0 } },
+    } as any);
     const result = await new OpenAIAdapter().run(makeParams());
-    expect(result.output).toBe('["issue1"]');
+    expect(result.structuredOutput).toEqual(issues);
+    expect(result.output).toBe('');
   });
 
   it('extracts token counts from state.usage', async () => {
-    mockRunFn.mockResolvedValue(makeRunResult('[]', 120, 60) as any);
+    mockRunFn.mockResolvedValue(makeRunResult(120, 60) as any);
     const result = await new OpenAIAdapter().run(makeParams());
     expect(result.inputTokens).toBe(120);
     expect(result.outputTokens).toBe(60);
   });
 
-  it('returns empty string when finalOutput is null', async () => {
+  it('throws when finalOutput is null', async () => {
     mockRunFn.mockResolvedValue({
       finalOutput: null,
       state: { usage: { inputTokens: 0, outputTokens: 0 } },
     } as any);
-    const result = await new OpenAIAdapter().run(makeParams());
-    expect(result.output).toBe('');
-  });
-
-  it('serialises non-string finalOutput to JSON', async () => {
-    mockRunFn.mockResolvedValue({
-      finalOutput: { key: 'val' },
-      state: { usage: { inputTokens: 0, outputTokens: 0 } },
-    } as any);
-    const result = await new OpenAIAdapter().run(makeParams());
-    expect(result.output).toBe('{"key":"val"}');
+    await expect(new OpenAIAdapter().run(makeParams())).rejects.toThrow('finalOutput is missing');
   });
 
   it('passes maxTurns to run()', async () => {
-    mockRunFn.mockResolvedValue(makeRunResult('[]') as any);
+    mockRunFn.mockResolvedValue(makeRunResult() as any);
     await new OpenAIAdapter().run(makeParams({ maxTurns: 42 }));
     expect((mockRunFn.mock.calls[0][2] as { maxTurns: number }).maxTurns).toBe(42);
   });
 
   it('creates one orchestrator when agents is empty', async () => {
-    mockRunFn.mockResolvedValue(makeRunResult('[]') as any);
+    mockRunFn.mockResolvedValue(makeRunResult() as any);
     await new OpenAIAdapter().run(makeParams());
     expect(MockAgentCtor).toHaveBeenCalledTimes(1);
   });
 
   it('creates orchestrator + handoff agent for each entry in agents', async () => {
-    mockRunFn.mockResolvedValue(makeRunResult('[]') as any);
+    mockRunFn.mockResolvedValue(makeRunResult() as any);
     await new OpenAIAdapter().run(
       makeParams({
         agents: {
@@ -140,7 +135,7 @@ describe('OpenAIAdapter — tools', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     MockAgentCtor.mockImplementation((opts: any) => opts as InstanceType<typeof MockAgent>);
-    mockRunFn.mockResolvedValue(makeRunResult('[]') as any);
+    mockRunFn.mockResolvedValue(makeRunResult() as any);
   });
 
   async function getToolExecute(name: string) {
@@ -154,7 +149,7 @@ describe('OpenAIAdapter — tools', () => {
     h.readFile.mockReturnValue('file contents');
     const execute = await getToolExecute('read_file');
     const result = await execute({ filePath: 'src/foo.ts' });
-    expect(h.readFile).toHaveBeenCalledWith(CWD, 'src/foo.ts');
+    expect(h.readFile).toHaveBeenCalledWith(CWD, 'src/foo.ts', undefined);
     expect(result).toBe('file contents');
   });
 
@@ -162,15 +157,15 @@ describe('OpenAIAdapter — tools', () => {
     h.grepFiles.mockReturnValue('match');
     const execute = await getToolExecute('grep_files');
     const result = await execute({ pattern: 'foo', glob: '*.ts', ignoreCase: true });
-    expect(h.grepFiles).toHaveBeenCalledWith(CWD, 'foo', '*.ts', true);
+    expect(h.grepFiles).toHaveBeenCalledWith(CWD, 'foo', '*.ts', true, undefined);
     expect(result).toBe('match');
   });
 
   it('glob_files tool calls globFiles handler', async () => {
-    h.globFiles.mockReturnValue('/project/repo/src/foo.ts');
+    h.globFiles.mockResolvedValue('/project/repo/src/foo.ts');
     const execute = await getToolExecute('glob_files');
     const result = await execute({ pattern: '**/*.ts' });
-    expect(h.globFiles).toHaveBeenCalledWith(CWD, '**/*.ts');
+    expect(h.globFiles).toHaveBeenCalledWith(CWD, '**/*.ts', undefined);
     expect(result).toBe('/project/repo/src/foo.ts');
   });
 
@@ -178,7 +173,7 @@ describe('OpenAIAdapter — tools', () => {
     h.findUsages.mockReturnValue('usages');
     const execute = await getToolExecute('find_usages');
     const result = await execute({ symbol: 'myFn' });
-    expect(h.findUsages).toHaveBeenCalledWith(CWD, 'myFn', undefined, undefined);
+    expect(h.findUsages).toHaveBeenCalledWith(CWD, 'myFn', undefined, undefined, undefined);
     expect(result).toBe('usages');
   });
 
@@ -186,7 +181,7 @@ describe('OpenAIAdapter — tools', () => {
     h.traceImports.mockReturnValue('{}');
     const execute = await getToolExecute('trace_imports');
     const result = await execute({ filePath: 'src/foo.ts' });
-    expect(h.traceImports).toHaveBeenCalledWith(CWD, 'src/foo.ts');
+    expect(h.traceImports).toHaveBeenCalledWith(CWD, 'src/foo.ts', undefined);
     expect(result).toBe('{}');
   });
 
@@ -194,24 +189,15 @@ describe('OpenAIAdapter — tools', () => {
     h.gitDiffAnalysis.mockReturnValue('diff output');
     const execute = await getToolExecute('git_diff_analysis');
     const result = await execute({ base: 'main' });
-    expect(h.gitDiffAnalysis).toHaveBeenCalledWith(CWD, 'main', undefined, undefined, undefined);
+    expect(h.gitDiffAnalysis).toHaveBeenCalledWith(
+      CWD,
+      'main',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    );
     expect(result).toBe('diff output');
-  });
-
-  it('analyze_exports tool calls analyzeExports handler', async () => {
-    h.analyzeExports.mockReturnValue('{}');
-    const execute = await getToolExecute('analyze_exports');
-    const result = await execute({ filePath: 'src/foo.ts' });
-    expect(h.analyzeExports).toHaveBeenCalledWith(CWD, 'src/foo.ts', undefined);
-    expect(result).toBe('{}');
-  });
-
-  it('find_interface_changes tool calls findInterfaceChanges handler', async () => {
-    h.findInterfaceChanges.mockReturnValue('changes');
-    const execute = await getToolExecute('find_interface_changes');
-    const result = await execute({ base: 'main' });
-    expect(h.findInterfaceChanges).toHaveBeenCalledWith(CWD, 'main', undefined, undefined);
-    expect(result).toBe('changes');
   });
 
   it('list_changed_files tool calls listChangedFiles handler', async () => {
@@ -231,11 +217,15 @@ describe('OpenAIAdapter — tools', () => {
     expect(onToolCall).toHaveBeenCalledWith(1, 'read_file', { filePath: 'src/foo.ts' });
   });
 
-  it('continues without bash tool when startBashSession throws', async () => {
+  it('continues and returns structuredOutput when startBashSession throws', async () => {
+    const issues = [{ description: 'issue', confidence: 8 }];
     mockStartBashSession.mockRejectedValueOnce(new Error('spawn failed'));
-    mockRunFn.mockResolvedValue(makeRunResult('[]') as never);
+    mockRunFn.mockResolvedValue({
+      finalOutput: { issues },
+      state: { usage: { inputTokens: 0, outputTokens: 0 } },
+    } as never);
     const result = await new OpenAIAdapter().run(makeParams());
-    expect(result.output).toBe('[]');
+    expect(result.structuredOutput).toEqual(issues);
   });
 
   it('calls dispose in finally even when run throws', async () => {

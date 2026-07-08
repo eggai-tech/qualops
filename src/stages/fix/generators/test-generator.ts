@@ -87,12 +87,12 @@ function createTestPrompt(
 **Framework**: ${framework}
 
 **Original Code**:
-\`\`\`typescript
+\`\`\`
 ${originalCode}
 \`\`\`
 
 **Fixed Code**:
-\`\`\`typescript
+\`\`\`
 ${fixedCode}
 \`\`\`
 
@@ -234,12 +234,12 @@ export async function generateRegressionTest(
 **Framework**: ${framework}
 
 **Original Buggy Code**:
-\`\`\`typescript
+\`\`\`
 ${suggestion.originalCode}
 \`\`\`
 
 **Fixed Code**:
-\`\`\`typescript
+\`\`\`
 ${suggestion.suggestedCode || ''}
 \`\`\`
 

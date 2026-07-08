@@ -14,16 +14,29 @@ export interface AgentAdapterParams {
   cwd: string;
   maxTurns: number;
   maxBudgetUsd?: number;
+  skipPatterns?: string[];
   toolConfig: ToolConfig;
   onToolCall?: (turn: number, name: string, input: unknown) => void;
+  baseUrl?: string;
 }
+
+export type AgentErrorSubtype =
+  | 'error_max_turns'
+  | 'error_provider_unavailable'
+  | 'error_rate_limit_tokens'
+  | 'error_max_tokens'
+  | 'error_content_filter'
+  | 'error_parse_failed'
+  | 'error_unexpected';
 
 export interface AgentAdapterResult {
   output: string;
+  /** Pre-parsed issues array from SDK structured output. Bypasses text parsing when set. */
+  structuredOutput?: unknown;
   inputTokens?: number;
   outputTokens?: number;
-  /** Set when the agent run did not complete successfully (e.g. 'error_max_turns'). */
-  errorSubtype?: string;
+  /** Set when the agent run did not complete successfully. */
+  errorSubtype?: AgentErrorSubtype;
 }
 
 export interface AgentAdapter {

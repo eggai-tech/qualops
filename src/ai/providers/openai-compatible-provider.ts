@@ -1,5 +1,4 @@
 import type OpenAI from 'openai';
-import { zodResponseFormat } from 'openai/helpers/zod';
 import type {
   ChatCompletionCreateParamsNonStreaming,
   ChatCompletionMessageParam,
@@ -11,6 +10,8 @@ import {
   resolveSchemaName,
   schemaToJsonSchema,
   StructuredOutputError,
+  wrapArrayRootSchema,
+  unwrapArrayRootResult,
 } from '@/ai/shared/structured';
 import { estimateTokens } from '@/ai/shared/token-utils';
 import type { ResolvedStageConfig } from '@/shared/types';
@@ -24,11 +25,13 @@ interface OpenAICompatibleProviderConfig {
   friendlyName: 'GitHub Models' | 'OpenAI' | (string & {});
   apiKey?: string;
   baseURL?: string;
+  skipKeyFormatValidation?: boolean;
 }
 
 export abstract class OpenAICompatibleProvider extends BaseAIProvider {
   readonly name: OpenAICompatibleProviderConfig['name'];
   protected readonly apiKey: string;
+  protected readonly skipKeyFormatValidation: boolean;
   private readonly friendlyName: OpenAICompatibleProviderConfig['friendlyName'];
   private readonly baseURL: string | undefined;
   private client: OpenAI | null = null;
@@ -40,6 +43,7 @@ export abstract class OpenAICompatibleProvider extends BaseAIProvider {
     this.friendlyName = providerConfig.friendlyName;
     this.apiKey = providerConfig.apiKey ?? '';
     this.baseURL = providerConfig.baseURL;
+    this.skipKeyFormatValidation = providerConfig.skipKeyFormatValidation ?? false;
 
     this.validateApiKey();
     this.validateConfiguration();
@@ -109,23 +113,36 @@ export abstract class OpenAICompatibleProvider extends BaseAIProvider {
     const baseParams = this.buildBaseParams(options);
     const schemaName = resolveSchemaName(options.schema, options.schemaName);
 
+    // OpenAI's structured-output dialects require an object at the schema root, but
+    // several qualops review schemas are array-rooted. Wrap those into { items: [...] }
+    // for the request and unwrap the parsed payload, transparently to the caller.
+    const { schema: requestSchema, wrapped } = wrapArrayRootSchema(options.schema);
+    const unwrap = (value: unknown): z.infer<S> =>
+      (wrapped ? unwrapArrayRootResult(value) : value) as z.infer<S>;
+
     if (this.capabilities.structuredDialect === 'openai-json-schema-strict') {
       try {
-        const completion = await client.chat.completions.parse({
+        // Use a non-strict `json_schema` response_format rather than the strict
+        // `zodResponseFormat` helper. Strict mode forbids `.optional()` fields unless
+        // they are also `.nullable()`, which several review schemas rely on; non-strict
+        // json_schema still constrains the model to the shape, and we validate the
+        // result with zod ourselves.
+        const jsonSchema = schemaToJsonSchema(requestSchema);
+        const response = await client.chat.completions.create({
           ...baseParams,
-          response_format: zodResponseFormat(options.schema, schemaName),
+          response_format: {
+            type: 'json_schema',
+            json_schema: { name: schemaName, schema: jsonSchema, strict: false },
+          },
         });
-        const message = completion.choices[0]?.message;
-        const raw = message?.content ?? '';
-        if (!message?.parsed) {
-          throw new StructuredOutputError('OpenAI strict parser returned no parsed payload', raw);
-        }
-        this.recordResponseUsage(completion, baseParams, raw);
+        const raw = response.choices[0]?.message?.content ?? '';
+        const parsed = parseAndValidate(raw, requestSchema);
+        this.recordResponseUsage(response, baseParams, raw);
         return {
-          content: message.parsed as z.infer<S>,
+          content: unwrap(parsed),
           raw,
-          usage: this.toTokenUsage(completion.usage),
-          model: completion.model,
+          usage: this.toTokenUsage(response.usage),
+          model: response.model,
         };
       } catch (error) {
         if (error instanceof StructuredOutputError) throw error;
@@ -134,7 +151,7 @@ export abstract class OpenAICompatibleProvider extends BaseAIProvider {
     }
 
     // json_object dialect: ask for JSON, validate with zod ourselves.
-    const jsonSchema = schemaToJsonSchema(options.schema);
+    const jsonSchema = schemaToJsonSchema(requestSchema);
     const schemaInstruction =
       `Respond with a single JSON value that conforms to this JSON Schema. Do not wrap in markdown.\n\n` +
       `Schema (${schemaName}):\n${JSON.stringify(jsonSchema, null, 2)}`;
@@ -151,10 +168,10 @@ export abstract class OpenAICompatibleProvider extends BaseAIProvider {
         response_format: { type: 'json_object' },
       });
       const raw = response.choices[0]?.message?.content ?? '';
-      const parsed = parseAndValidate(raw, options.schema);
+      const parsed = parseAndValidate(raw, requestSchema);
       this.recordResponseUsage(response, baseParams, raw);
       return {
-        content: parsed,
+        content: unwrap(parsed),
         raw,
         usage: this.toTokenUsage(response.usage),
         model: response.model,

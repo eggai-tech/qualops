@@ -102,6 +102,76 @@ describe('AgenticExecutor — execute()', () => {
     expect(result).toEqual([]);
   });
 
+  it('parses issues from structuredOutput when adapter returns it', async () => {
+    const issue = {
+      type: 'security',
+      severity: 'high',
+      description: 'SQL injection',
+      location: 'src/db.ts:10',
+      confidence: 9,
+    };
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: '', structuredOutput: [issue] })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    const result = await executor.execute([{ path: 'src/db.ts', content: 'query(input)' }]);
+    expect(result).toHaveLength(1);
+    expect(result[0].description).toBe('SQL injection');
+  });
+
+  it('passes onToolCall to adapter and tracks turn index', async () => {
+    let capturedOnToolCall: AgentAdapterParams['onToolCall'];
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async (params: AgentAdapterParams) => {
+        capturedOnToolCall = params.onToolCall;
+        params.onToolCall?.(3, 'read_file', { filePath: 'src/foo.ts' });
+        return { output: '[]' };
+      }),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
+    expect(capturedOnToolCall).toBeDefined();
+  });
+
+  it('throws on hard failure error subtypes', async () => {
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: '', errorSubtype: 'error_rate_limit_tokens' as const })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    await expect(executor.execute([{ path: 'src/foo.ts', content: 'x' }])).rejects.toThrow(
+      'error_rate_limit_tokens',
+    );
+  });
+
+  it('returns empty and does not throw on soft error subtypes', async () => {
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: '', errorSubtype: 'error_max_turns' as const })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    const result = await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
+    expect(result).toEqual([]);
+  });
+
+  it('throws when structuredOutput is not an array', async () => {
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: '', structuredOutput: { unexpected: 'object' } })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    await expect(executor.execute([{ path: 'src/foo.ts', content: 'x' }])).rejects.toThrow(
+      'structured output is not an array',
+    );
+  });
+
+  it('throws when non-empty text output contains no JSON', async () => {
+    mockCreateAgentAdapter.mockReturnValue({
+      run: jest.fn(async () => ({ output: 'No issues found in this code.' })),
+    });
+    const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
+    await expect(executor.execute([{ path: 'src/foo.ts', content: 'x' }])).rejects.toThrow(
+      'no parseable JSON issues',
+    );
+  });
+
   it('rethrows when adapter throws', async () => {
     mockCreateAgentAdapter.mockReturnValue({
       run: jest.fn(async () => {
@@ -114,11 +184,13 @@ describe('AgenticExecutor — execute()', () => {
     );
   });
 
-  it('passes resolved provider to createAgentAdapter', async () => {
+  it('passes the provider from ConfigService to createAgentAdapter', async () => {
     setupMockAdapter();
     const executor = new AgenticExecutor(makeJob(), undefined, 'test-model');
     await executor.execute([{ path: 'src/foo.ts', content: 'x' }]);
-    expect(mockCreateAgentAdapter).toHaveBeenCalledWith(expect.any(String));
+    // ConfigService reads from .qualopsrc.json; provider must be a known AIProviderName
+    const calledWith = mockCreateAgentAdapter.mock.calls[0][0];
+    expect(['anthropic', 'openai', 'openai-compatible', 'github', 'bedrock']).toContain(calledWith);
   });
 });
 
@@ -127,9 +199,9 @@ describe('AgenticExecutor — systemPrompt / prompt composition', () => {
     mockCreateAgentAdapter.mockReset();
   });
 
-  it('uses default prompt when neither systemPrompt nor prompt is set', async () => {
+  it('passes empty system prompt when neither systemPrompt nor prompt is set', async () => {
     await runExecutor(makeJob());
-    expect(capturedParams?.systemPrompt).toContain('You are a code reviewer');
+    expect(capturedParams?.systemPrompt).toBe('');
   });
 
   it('injects inline systemPrompt into the system message', async () => {

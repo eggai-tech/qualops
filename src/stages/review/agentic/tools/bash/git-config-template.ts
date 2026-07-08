@@ -9,8 +9,27 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-const GIT_CONFIG_CONTENT = `
-[core]
+function buildGitConfigContent(workspaceRoot: string): string {
+  // Guard against config injection: a newline or null byte in the value would
+  // break out of the [safe] section and allow overriding keys like hooksPath.
+  // All other characters (UTF-8, spaces, punctuation) are valid in a path and
+  // safe to interpolate into a git config value.
+  if (/[\n\r\0]/.test(workspaceRoot)) {
+    throw new Error(
+      `[git-config-template] Invalid workspaceRoot — contains newline or null byte: ${JSON.stringify(workspaceRoot)}`,
+    );
+  }
+  const root = workspaceRoot.replace(/\/+$/, '') || '/workspace/pr';
+  // Always allow both the PR checkout and the base-branch checkout that CI
+  // places alongside it (e.g. /workspace/pr + /workspace/base). In local
+  // environments workspaceRoot is the actual checkout path and there is no
+  // separate base dir, so we only add the root itself.
+  const safeDirectories =
+    root === '/workspace/pr'
+      ? '\tdirectory = /workspace/pr\n\tdirectory = /workspace/base'
+      : `\tdirectory = ${root}`;
+
+  return `[core]
 \tfsmonitor = false
 \thooksPath = /dev/null
 \tgitProxy = none
@@ -48,39 +67,44 @@ const GIT_CONFIG_CONTENT = `
 \thelper = /bin/false
 
 [safe]
-\tdirectory = /workspace/pr
-\tdirectory = /workspace/base
+${safeDirectories}
 
 [advice]
 \tdetachedHead = false
 
 [alias]
-`.trimStart();
+`;
+}
 
 let cachedPath: string | null = null;
+let cachedRoot: string | null = null;
 
 /**
  * Writes a hardened gitconfig to a stable tmpdir path and returns that path.
  * Idempotent: returns the same path on subsequent calls within the same process.
+ * The safe.directory entry is derived from workspaceRoot so git commands work
+ * in both CI (/workspace/pr) and local checkout environments.
  */
-export function getGitConfigPath(): string {
-  if (cachedPath !== null) return cachedPath;
+export function getGitConfigPath(workspaceRoot = '/workspace/pr'): string {
+  if (cachedPath !== null && cachedRoot === workspaceRoot) return cachedPath;
 
+  const content = buildGitConfigContent(workspaceRoot);
   const dir = path.join(os.tmpdir(), `qualops-git-${process.pid}`);
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
 
   const configPath = path.join(dir, 'gitconfig');
-  fs.writeFileSync(configPath, GIT_CONFIG_CONTENT, { encoding: 'utf8', mode: 0o600 });
+  fs.writeFileSync(configPath, content, { encoding: 'utf8', mode: 0o600 });
 
   cachedPath = configPath;
+  cachedRoot = workspaceRoot;
   return configPath;
 }
 
 /**
- * Returns the contents of the synthesised gitconfig (useful for tests).
+ * Returns the contents of the synthesised gitconfig for the given workspace root (useful for tests).
  */
-export function getGitConfigContent(): string {
-  return GIT_CONFIG_CONTENT;
+export function getGitConfigContent(workspaceRoot = '/workspace/pr'): string {
+  return buildGitConfigContent(workspaceRoot);
 }
 
 /**

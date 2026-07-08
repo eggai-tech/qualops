@@ -114,11 +114,12 @@ export class BashShellSession {
   }
 
   private async spawn(): Promise<void> {
-    const gitConfigPath = getGitConfigPath();
-    const env = makeCleanEnv(gitConfigPath, {
-      TERM: 'dumb',
-      QUALOPS_WORKSPACE: this.cwd,
-    });
+    const gitConfigPath = getGitConfigPath(this.cwd);
+    const env = makeCleanEnv(
+      gitConfigPath,
+      { TERM: 'dumb', QUALOPS_WORKSPACE: this.cwd },
+      this.cwd,
+    );
 
     const baseOpts: SpawnOptions = {
       cwd: this.cwd,
@@ -196,7 +197,7 @@ export class BashShellSession {
     return result;
   }
 
-  async exec(command: string, workspaceRoot: string = '/workspace'): Promise<SessionExecResult> {
+  async exec(command: string, workspaceRoot: string = '/workspace/pr'): Promise<SessionExecResult> {
     if (!this.proc || this.closed) {
       throw new Error('[bash/session] Shell session has been disposed');
     }

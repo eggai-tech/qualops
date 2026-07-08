@@ -45,7 +45,7 @@ export class BashSession {
     // Falls back to a fresh UUID if absent or malformed.
     const reviewId =
       rawReviewId && /^[a-zA-Z0-9_-]+$/.test(rawReviewId) ? rawReviewId : crypto.randomUUID();
-    const workspaceRoot = config.workspaceRoot ?? '/workspace';
+    const workspaceRoot = config.workspaceRoot ?? '/workspace/pr';
 
     const resolvedConfig: Required<BashConfig> = {
       mode: config.mode ?? 'auto',

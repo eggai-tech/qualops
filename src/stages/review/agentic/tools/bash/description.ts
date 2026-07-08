@@ -1,7 +1,19 @@
-export const BASH_TOOL_DESCRIPTION = `
+/**
+ * Builds the bash tool description for the given workspace root.
+ *
+ * The model constructs commands using the path in this description verbatim
+ * (e.g. `cat <root>/src/auth.ts`), and the policy then enforces that those paths
+ * stay within `workspaceRoot`. So the description must be derived from the SAME
+ * root the policy uses — otherwise the model targets a path the policy denies
+ * with `path-outside-workspace`, which is the bug this replaces.
+ */
+export function buildBashToolDescription(workspaceRoot: string): string {
+  const root = workspaceRoot.replace(/\/+$/, '') || '/';
+
+  return `
 Execute a shell command to interrogate the codebase under review.
 
-The workspace is at /workspace/pr (the pull request code) and /workspace/base (the base branch).
+The code under review is at ${root}. File paths in the review are relative to it.
 Use this tool to run linters, grep for patterns, inspect file contents, run tests, or compute diffs.
 
 REQUIRED FIELDS:
@@ -20,16 +32,16 @@ CONSTRAINTS (hard-enforced — commands violating these are rejected before exec
 - No LD_PRELOAD or DYLD_INSERT_LIBRARIES
 
 ALLOWED examples:
-- grep -r "TODO" /workspace/pr/src --include="*.ts"
-- rg "password" /workspace/pr -l
+- grep -r "TODO" ${root}/src --include="*.ts"
+- rg "password" ${root} -l
 - git log --oneline -20
 - git diff HEAD~1 HEAD -- src/
 - tsc --noEmit
 - eslint src/ --format json
 - python3 -c "import ast; print(ast.dump(ast.parse(open('file.py').read())))"
-- cat /workspace/pr/src/auth.ts | head -100
-- find /workspace/pr -name "*.env*" -not -path "*/node_modules/*"
-- jq '.dependencies' /workspace/pr/package.json
+- cat ${root}/src/auth.ts | head -100
+- find ${root} -name "*.env*" -not -path "*/node_modules/*"
+- jq '.dependencies' ${root}/package.json
 
 OUTPUT:
 - stdout/stderr are truncated at 64 KiB / 1500 lines (tail-keep strategy)
@@ -37,3 +49,4 @@ OUTPUT:
 - Secrets matching known patterns are redacted to [REDACTED]
 - exit_code 1 from grep/rg means "no matches" (not an error); check semantic_hint
 `.trim();
+}

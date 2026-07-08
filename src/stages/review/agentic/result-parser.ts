@@ -1,4 +1,4 @@
-import { normalize, isAbsolute, relative } from 'node:path';
+import { isAbsolute, normalize, relative } from 'node:path';
 
 import { escapeUnescapedControlChars, extractJsonText } from '../../../ai/shared/structured';
 import type { ReviewIssue } from '../../../shared/types';
@@ -20,6 +20,20 @@ type RawAgentIssue = {
   threat_model?: string;
 };
 
+function recoverAndNormalize(
+  text: string,
+  files: FileInfo[],
+  jobName: string,
+  cwd: string,
+): ReviewIssue[] | null {
+  const recovered = recoverPartialJsonArray(text);
+  if (recovered.length === 0) return null;
+  logger.warn(`[Agentic] Recovered ${recovered.length} partial issues from truncated response`);
+  return (recovered as RawAgentIssue[])
+    .filter((issue) => (issue?.confidence ?? 0) >= 7)
+    .map((issue, index) => normalizeIssue(issue, index, files, jobName, cwd));
+}
+
 export function parseIssuesFromResult(
   result: string,
   files: FileInfo[],
@@ -28,6 +42,8 @@ export function parseIssuesFromResult(
 ): ReviewIssue[] {
   const extracted = extractJsonText(result);
   if (!extracted) {
+    const recovered = recoverAndNormalize(result, files, jobName, cwd);
+    if (recovered) return recovered;
     logger.warn('[Agentic] No JSON found in result');
     return [];
   }
@@ -37,15 +53,19 @@ export function parseIssuesFromResult(
     parsed = JSON.parse(extracted.text);
   } catch {
     try {
-      parsed = JSON.parse(escapeUnescapedControlChars(extracted.text));
+      parsed = JSON.parse(
+        escapeUnescapedControlChars(extracted.text.replace(/,(\s*[}\]])/g, '$1')),
+      );
     } catch (error) {
       logger.warn(`[Agentic] Failed to parse JSON: ${(error as Error).message}`);
       logger.warn(`[Agentic] JSON preview: ${extracted.text.slice(0, 300)}...`);
-      return [];
+      return recoverAndNormalize(result, files, jobName, cwd) ?? [];
     }
   }
 
   if (!Array.isArray(parsed)) {
+    const recovered = recoverAndNormalize(result, files, jobName, cwd);
+    if (recovered) return recovered;
     logger.warn('[Agentic] Parsed result is not an array');
     return [];
   }
@@ -117,4 +137,37 @@ export function calculatePriority(severity: string): number {
     low: 4,
   };
   return priorities[severity] || 3;
+}
+
+/**
+ * Attempts to recover complete JSON objects from a truncated JSON array string.
+ * Extracts each top-level `{...}` block and parses them individually, returning
+ * only those that parse successfully.
+ */
+export function recoverPartialJsonArray(text: string): unknown[] {
+  const results: unknown[] = [];
+  let depth = 0;
+  let start = -1;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        try {
+          const chunk = text.slice(start, i + 1);
+          const fixed = escapeUnescapedControlChars(chunk.replace(/,(\s*[}\]])/g, '$1'));
+          results.push(JSON.parse(fixed));
+        } catch {
+          // skip malformed object
+        }
+        start = -1;
+      }
+    }
+  }
+
+  return results;
 }

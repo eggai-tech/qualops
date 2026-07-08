@@ -12,7 +12,7 @@ import type { ReviewIssue } from '../../../shared/types';
 import type { FileInfo } from '../../../shared/types/config';
 import { logger } from '../../../shared/utils/logger';
 import { getGlobalRateLimiter } from '../utils/global-rate-limiter';
-import { addLineNumbers } from '../utils/line-numbered-content';
+import { addLineNumbers, buildDiffContext } from '../utils/line-numbered-content';
 
 export class FileReviewer {
   private aiProvider: AIProvider;
@@ -79,7 +79,7 @@ export class FileReviewer {
   }
 
   private buildUserMessage(file: FileInfo): string {
-    const diffContext = this.buildDiffContext(file);
+    const diffContext = buildDiffContext(file);
 
     return `Please review the following file:
 
@@ -91,23 +91,6 @@ ${addLineNumbers(file.content)}
 \`\`\`
 
 If no issues are found, respond with an empty array: []`;
-  }
-
-  private buildDiffContext(file: FileInfo): string {
-    if (!file.diff) return '';
-
-    const addedLines = Array.from(file.diff.additions).sort((a, b) => a - b);
-    const deletedLines = Array.from(file.diff.deletions).sort((a, b) => a - b);
-    if (addedLines.length === 0 && deletedLines.length === 0) return '';
-
-    return `
-**THIS IS A MERGE REQUEST REVIEW**
-Changes in this MR:
-- Lines added: ${addedLines.length > 0 ? addedLines.join(', ') : 'none'}
-- Lines deleted: ${deletedLines.length > 0 ? deletedLines.join(', ') : 'none'}
-
-IMPORTANT: Focus your review ONLY on the changed lines above. The rest of the file is shown for context.
-Do NOT report issues in unchanged code unless they are directly related to the changes in this MR.`;
   }
 
   private toReviewIssue(item: ReviewIssueItem, filePath: string): ReviewIssue {

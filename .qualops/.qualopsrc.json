@@ -251,7 +251,7 @@
         "enabled": true,
         "mode": "agentic",
         "agentic": {
-          "maxTurns": 15,
+          "maxTurns": 30,
           "contextMode": "auto",
           "maxTokensPerFile": 8000,
           "maxTotalTokens": 50000,
@@ -315,6 +315,8 @@
     "*.bundle.js",
     "examples/**",
     "docs/**",
-    "evals/datasets/**"
+    "evals/datasets/**",
+    "**/*.d.ts",
+    "package-lock.json"
   ]
 }

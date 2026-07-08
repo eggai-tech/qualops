@@ -1,22 +1,35 @@
 import { query, tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
+import { z } from 'zod';
 
+import { ReviewIssuesSchema } from '../../../../ai/shared/schemas/review-issue';
+import { schemaToJsonSchema } from '../../../../ai/shared/structured';
 import { createToolSet, type ToolSet } from '../tools';
-import type { AgentAdapter, AgentAdapterParams, AgentAdapterResult } from './agent-adapter';
+import type {
+  AgentAdapter,
+  AgentAdapterParams,
+  AgentAdapterResult,
+  AgentErrorSubtype,
+} from './agent-adapter';
 import { logger } from '../../../../shared/utils/logger';
+
+// SDK requires a root object schema — wrap the array in { issues: [...] }.
+// stripUnsupportedConstraints removes minimum/maximum/minLength etc. which are
+// not supported by Anthropic's structured output constrained decoding.
+// The $schema field (draft-2020-12 URI) must be omitted — the CLI rejects
+// structured output when it is present and falls back to plain text.
+const ReviewOutputSchema = z.object({ issues: ReviewIssuesSchema });
+const { $schema: _dropped, ...REVIEW_ISSUES_JSON_SCHEMA } = schemaToJsonSchema(ReviewOutputSchema, {
+  stripUnsupportedConstraints: true,
+});
 
 type QueryOptions = Parameters<typeof query>[0]['options'];
 
-// These are covered by Claude's built-in tools (Read, Grep, Glob) and do not need MCP duplicates.
-const BUILTIN_COVERED_TOOLS = new Set(['read_file', 'grep_files', 'glob_files']);
-
 function toMcpServer(toolSet: ToolSet): ReturnType<typeof createSdkMcpServer> {
-  const sdkTools = toolSet.tools
-    .filter((def) => !BUILTIN_COVERED_TOOLS.has(def.name))
-    .map((def) =>
-      tool(def.name, def.description, def.schema.shape, async (args) => ({
-        content: [{ type: 'text', text: await def.execute(args as Record<string, unknown>) }],
-      })),
-    );
+  const sdkTools = toolSet.tools.map((def) =>
+    tool(def.name, def.description, def.schema.shape, async (args) => ({
+      content: [{ type: 'text', text: await def.execute(args as Record<string, unknown>) }],
+    })),
+  );
   return createSdkMcpServer({
     name: 'qualops-agentic-tools',
     version: '1.0.0',
@@ -34,14 +47,14 @@ function buildQueryOptions(
   return {
     systemPrompt,
     ...(executablePath && { pathToClaudeCodeExecutable: executablePath }),
-    // Explicitly enumerate the safe built-in tools. This prevents the SDK's
-    // built-in Bash tool from being available — all shell access must go
-    // through our MCP bash tool so policy enforcement is guaranteed.
-    tools: ['Read', 'Grep', 'Glob'],
+    // Restrict to MCP tools only — no SDK built-ins. This ensures skipPatterns
+    // enforcement in handlers.ts applies uniformly (SDK built-ins bypass handlers).
+    // Shell access still goes through our MCP bash tool for policy enforcement.
+    tools: [],
     allowedTools: [
-      'Read',
-      'Grep',
-      'Glob',
+      'mcp__qualops-agentic-tools__read_file',
+      'mcp__qualops-agentic-tools__grep_files',
+      'mcp__qualops-agentic-tools__glob_files',
       'mcp__qualops-agentic-tools__bash',
       'mcp__qualops-agentic-tools__find_usages',
       'mcp__qualops-agentic-tools__git_diff_analysis',
@@ -54,6 +67,7 @@ function buildQueryOptions(
     ...(model && { model }),
     cwd,
     permissionMode: 'bypassPermissions',
+    outputFormat: { type: 'json_schema' as const, schema: REVIEW_ISSUES_JSON_SCHEMA },
   };
 }
 
@@ -119,31 +133,66 @@ function handleUserMessage(message: SDKMessage): void {
   }
 }
 
+// Maps Anthropic SDK result subtypes to qualops error subtypes.
+// SDK error subtypes: error_during_execution | error_max_turns | error_max_budget_usd | error_max_structured_output_retries
+// Unknown subtypes fall back to 'error_unexpected'.
+const ANTHROPIC_ERROR_SUBTYPE_MAP: Partial<Record<string, AgentErrorSubtype>> = {
+  error_max_turns: 'error_max_turns',
+  error_during_execution: 'error_provider_unavailable',
+  error_max_budget_usd: 'error_rate_limit_tokens',
+  error_max_structured_output_retries: 'error_content_filter',
+};
+
 function handleResultMessage(
   message: SDKMessage,
-  state: { output: string; inputTokens?: number; outputTokens?: number; errorSubtype?: string },
+  state: {
+    output: string;
+    structuredOutput?: unknown;
+    inputTokens?: number;
+    outputTokens?: number;
+    errorSubtype?: AgentErrorSubtype;
+  },
 ): void {
   const msg = message as {
     subtype: string;
     result?: string;
+    structured_output?: unknown;
     usage?: { input_tokens?: number; output_tokens?: number };
   };
-  if (msg.subtype === 'success' && msg.result) {
-    logger.info(
-      `[Agentic/Anthropic] Success result (first 500 chars): ${msg.result.substring(0, 500)}`,
-    );
-    state.output = msg.result;
+  if (msg.subtype === 'success') {
     state.inputTokens = msg.usage?.input_tokens;
     state.outputTokens = msg.usage?.output_tokens;
+    const issues = (msg.structured_output as { issues?: unknown } | undefined)?.issues;
+    if (Array.isArray(issues)) {
+      logger.info(
+        `[Agentic/Anthropic] Structured output (first 500 chars): ${JSON.stringify(issues).substring(0, 500)}`,
+      );
+      state.structuredOutput = issues;
+    } else if (msg.result) {
+      if (msg.structured_output !== undefined) {
+        logger.warn(
+          `[Agentic/Anthropic] Unexpected structured_output shape — falling back to text result. Got: ${JSON.stringify(msg.structured_output).substring(0, 200)}`,
+        );
+      } else {
+        logger.info(
+          `[Agentic/Anthropic] Success result (first 500 chars): ${msg.result.substring(0, 500)}`,
+        );
+      }
+      state.output = msg.result;
+    }
   } else if (msg.subtype !== 'success') {
-    state.errorSubtype = msg.subtype;
-    logger.error(`[Agentic/Anthropic] Agent error: ${msg.subtype}`);
+    const mapped = ANTHROPIC_ERROR_SUBTYPE_MAP[msg.subtype] ?? 'error_unexpected';
+    if (mapped === 'error_unexpected') {
+      logger.warn(`[Agentic/Anthropic] Unrecognized result subtype: ${msg.subtype}`);
+    }
+    state.errorSubtype = mapped;
+    logger.error(`[Agentic/Anthropic] Agent error: ${msg.subtype} → ${mapped}`);
   }
 }
 
 export class AnthropicAdapter implements AgentAdapter {
   async run(params: AgentAdapterParams): Promise<AgentAdapterResult> {
-    const toolSet = await createToolSet(params.cwd, params.toolConfig);
+    const toolSet = await createToolSet(params.cwd, params.toolConfig, params.skipPatterns);
 
     try {
       const toolServer = toMcpServer(toolSet);
@@ -154,9 +203,10 @@ export class AnthropicAdapter implements AgentAdapter {
 
       const state = {
         output: '',
+        structuredOutput: undefined as unknown,
         inputTokens: undefined as number | undefined,
         outputTokens: undefined as number | undefined,
-        errorSubtype: undefined as string | undefined,
+        errorSubtype: undefined as AgentErrorSubtype | undefined,
       };
       let turnIndex = 0;
 

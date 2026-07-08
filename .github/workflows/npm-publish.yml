@@ -4,6 +4,11 @@ on:
   pull_request:
     types: [closed]
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.2.3 or 0.2.3-beta.1)'
+        required: true
 
 concurrency:
   group: release-${{ github.repository }}
@@ -12,8 +17,9 @@ concurrency:
 jobs:
   prepare:
     if: >
-      github.event.pull_request.merged == true &&
-      startsWith(github.event.pull_request.head.ref, 'release/v')
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/v'))
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
@@ -22,7 +28,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
 
@@ -30,14 +36,20 @@ jobs:
         id: version
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          VERSION=${HEAD_REF#release/v}
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="$DISPATCH_VERSION"
+          else
+            VERSION=${HEAD_REF#release/v}
+          fi
           # Validate the same allow-list as create-release-pr.yml. A hand-
           # created release branch with an unrecognised prerelease label
           # (e.g., `release/v0.3.0-preview.1`) would otherwise be classified
           # as stable and clobber npm's `latest` dist-tag.
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-(rc|alpha|beta)\.[0-9]+)?$'; then
-            echo "::error::Branch '$HEAD_REF' implies version '$VERSION', which is not a permitted format. Allowed: X.Y.Z, X.Y.Z-rc.N, X.Y.Z-alpha.N, X.Y.Z-beta.N."
+            echo "::error::Version '$VERSION' is not a permitted format. Allowed: X.Y.Z, X.Y.Z-rc.N, X.Y.Z-alpha.N, X.Y.Z-beta.N."
             exit 1
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
@@ -54,7 +66,7 @@ jobs:
         run: |
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
           if [ "$VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "::error::Version mismatch: branch=$VERSION, package.json=$PACKAGE_VERSION"
+            echo "::error::Version mismatch: input=$VERSION, package.json=$PACKAGE_VERSION"
             exit 1
           fi
 
@@ -80,12 +92,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
-          node-version: 22.x
+          node-version: 24.x
           cache: npm
 
       - name: Install dependencies
@@ -115,28 +127,30 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Create and push tag
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           TAG="v$VERSION"
+          git fetch origin "+refs/tags/$TAG:refs/tags/$TAG" 2>/dev/null || true
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists, skipping."
             exit 0
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+            echo "Created and pushed tag: $TAG"
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "Release $TAG"
-          git push origin "$TAG"
-          echo "Created and pushed tag: $TAG"
 
   publish-npm:
     needs: [prepare, build-and-test, create-tag]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
     environment:
       name: npm
@@ -153,18 +167,18 @@ jobs:
 
       - name: Checkout repository
         if: steps.check.outputs.exists == 'false'
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         if: steps.check.outputs.exists == 'false'
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
-          node-version: 22.x
+          node-version: 24.x
           registry-url: https://registry.npmjs.org
-
-      - name: Upgrade npm
-        if: steps.check.outputs.exists == 'false'
-        run: npm install -g npm@latest
+        env:
+          NODE_AUTH_TOKEN: ""
 
       - name: Install dependencies
         if: steps.check.outputs.exists == 'false'
@@ -194,6 +208,64 @@ jobs:
           npm view @eggai/qualops@$VERSION version
           echo "Successfully published @eggai/qualops@$VERSION"
 
+      - name: Move beta ref forward if stable is newer
+        if: steps.check.outputs.exists == 'false' && needs.prepare.outputs.prerelease == 'false'
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          # --- resolve current beta from git (single source of truth) ---
+          git fetch origin "+refs/tags/beta:refs/tags/beta" 2>/dev/null || true
+          OLD_BETA_SHA=$(git rev-parse --verify "refs/tags/beta^{}" 2>/dev/null \
+                         || git rev-parse --verify "refs/tags/beta" 2>/dev/null \
+                         || echo "")
+          # Derive beta's version from the vX.Y.Z tag on the beta commit.
+          # Release flow always tags vX.Y.Z alongside moving beta, so this holds.
+          if [ -n "$OLD_BETA_SHA" ]; then
+            BETA_VER=$(git tag --points-at "$OLD_BETA_SHA" \
+                       | grep -E '^v[0-9]' | sed 's/^v//' \
+                       | sort -V | tail -n1)
+          else
+            BETA_VER=""
+          fi
+          # --- version guard ---
+          if [ -z "$BETA_VER" ]; then
+            echo "No beta git tag found; moving beta to stable."
+          else
+            SHOULD_MOVE=$(BETA_VER="$BETA_VER" node -e '
+              function cmp(a, b) {
+                const pa = a.replace(/-.*/, "").split(".").map(Number);
+                const pb = b.replace(/-.*/, "").split(".").map(Number);
+                for (let i = 0; i < 3; i++) {
+                  if (pa[i] !== pb[i]) return pa[i] - pb[i];
+                }
+                const aHasPre = a.includes("-"), bHasPre = b.includes("-");
+                if (!aHasPre && bHasPre) return 1;
+                if (aHasPre && !bHasPre) return -1;
+                return a < b ? -1 : a > b ? 1 : 0;
+              }
+              process.stdout.write(cmp(process.env.VERSION, process.env.BETA_VER) >= 0 ? "yes" : "no");
+            ')
+            if [ "$SHOULD_MOVE" != "yes" ]; then
+              echo "Beta ($BETA_VER) is ahead of new stable ($VERSION); leaving beta unchanged."
+              exit 0
+            fi
+            echo "New stable ($VERSION) >= current beta ($BETA_VER); moving beta forward."
+          fi
+          # --- npm dist-tag ---
+          npm dist-tag add "@eggai/qualops@$VERSION" beta
+          echo "npm dist-tag beta → $VERSION"
+          # --- git tag ---
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          TARGET_SHA=$(git rev-list -n 1 "v$VERSION")
+          git tag -f beta "$TARGET_SHA"
+          if [ -n "$OLD_BETA_SHA" ]; then
+            git push origin "refs/tags/beta" --force-with-lease="refs/tags/beta:$OLD_BETA_SHA"
+          else
+            git push origin "refs/tags/beta"
+          fi
+          echo "git tag beta → $TARGET_SHA (v$VERSION)"
+
   github-release:
     needs: [prepare, build-and-test, create-tag]
     runs-on: ubuntu-latest
@@ -202,7 +274,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Download build artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -242,7 +314,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
 
@@ -279,7 +351,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0
 

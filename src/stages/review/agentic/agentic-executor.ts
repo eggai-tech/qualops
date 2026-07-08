@@ -1,14 +1,16 @@
 import { context } from '@opentelemetry/api';
 
 import { createAgentAdapter } from './adapters';
+import type { AgentErrorSubtype } from './adapters/agent-adapter';
 import { AgentLoader } from './loaders/agent-loader';
 import { buildUserPrompt } from './prompt-builder';
-import { parseIssuesFromResult } from './result-parser';
+import { normalizeIssue, parseIssuesFromResult } from './result-parser';
 import {
   createSubagentDefinitions,
   type AgentDefinition,
   type ResolvedAgentDefinition,
 } from './subagents/definitions';
+import { extractJsonText } from '../../../ai/shared/structured';
 import { ConfigService } from '../../../config/config';
 import {
   getTracer,
@@ -103,12 +105,14 @@ export class AgenticExecutor {
         cwd: this.cwd,
         maxTurns: this.config.maxTurns || 100,
         maxBudgetUsd: this.config.maxBudgetUsd,
+        skipPatterns: ConfigService.getInstance().get('skipPatterns') ?? [],
         toolConfig: {
           bash: {
             ...this.config.bash,
             workspaceRoot: this.config.bash?.workspaceRoot ?? this.cwd,
           },
         },
+        baseUrl: stageConfig.baseUrl,
         onToolCall: (turn, name, input) => {
           turnIndex = turn;
           allToolCalls.push({ turn, name, input });
@@ -125,13 +129,55 @@ export class AgenticExecutor {
         output: result.errorSubtype ? { error: result.errorSubtype } : result.output,
       });
 
-      if (result.output) {
-        logger.info(
-          `[Agentic] Success result (first 500 chars): ${result.output.substring(0, 500)}`,
+      // Hard failures: errors where the response cannot be trusted even partially.
+      // Add new unrecoverable error subtypes here.
+      const HARD_FAILURES = new Set<AgentErrorSubtype>([
+        'error_rate_limit_tokens',
+        'error_max_tokens',
+      ]);
+
+      if (result.errorSubtype && HARD_FAILURES.has(result.errorSubtype)) {
+        throw new Error(
+          `[Agentic] Job "${this.job.name}" failed: ${result.errorSubtype}. ` +
+            `Reduce the number of files reviewed per job or check your model configuration.`,
         );
+      }
+
+      if (result.errorSubtype) {
+        logger.warn(
+          `[Agentic] Job "${this.job.name}" completed with error: ${result.errorSubtype}`,
+        );
+      }
+
+      if (result.structuredOutput !== undefined) {
+        if (!Array.isArray(result.structuredOutput)) {
+          throw new Error(
+            `[Agentic] Job "${this.job.name}" structured output is not an array. Got: ${JSON.stringify(result.structuredOutput).substring(0, 200)}`,
+          );
+        }
+        const parsed = (result.structuredOutput as Record<string, unknown>[])
+          .filter((i) => ((i?.confidence as number) ?? 0) >= 7)
+          .map((i, idx) => normalizeIssue(i, idx, files, this.job.name, this.cwd));
+        issues.push(...parsed);
+        logger.info(`[Agentic] Parsed ${parsed.length} issues from structured output`);
+      } else if (result.output) {
+        logger.info(`[Agentic] Result (first 500 chars): ${result.output.substring(0, 500)}`);
         const parsed = parseIssuesFromResult(result.output, files, this.job.name, this.cwd);
+        // Only throw when the output contains no JSON-like structure at all.
+        // parsed.length === 0 is valid when the model returns [] (no issues found).
+        const hasJsonContent = extractJsonText(result.output) !== null;
+        if (parsed.length === 0 && result.output.trim().length > 0 && !hasJsonContent) {
+          logger.warn(
+            `[Agentic] No parseable issues from text output. Raw output preview:\n${result.output.substring(0, 2000)}`,
+          );
+          throw new Error(
+            `[Agentic] Job "${this.job.name}" returned non-empty output but no parseable JSON issues (${result.output.length} chars).`,
+          );
+        }
         issues.push(...parsed);
         logger.info(`[Agentic] Parsed ${parsed.length} issues from result`);
+      } else if (result.errorSubtype) {
+        logger.warn(`[Agentic] Job "${this.job.name}" returned no output — review incomplete`);
       }
     } catch (error) {
       logger.error(
@@ -178,40 +224,6 @@ export class AgenticExecutor {
       parts.push(content);
     }
 
-    const customPrompt = parts.join('\n\n');
-
-    return `You are a code reviewer. File contents and diffs are provided below.
-
-${customPrompt}
-
-## Process
-
-1. Analyze the provided code/diffs
-2. Use Grep/Glob ONLY if checking external dependencies
-3. Output JSON findings
-
-## Output Format
-
-\`\`\`json
-[
-  {
-    "type": "security|bug|performance|maintainability",
-    "severity": "critical|high|medium|low",
-    "description": "What the issue is",
-    "location": "src/file.ts:42",
-    "reasoning": "Why this is a problem",
-    "suggestion": "How to fix it",
-    "confidence": 8
-  }
-]
-\`\`\`
-
-If no issues found, output: \`\`\`json\n[]\n\`\`\`
-
-## Rules
-
-- confidence >= 7
-- Focus on changed code
-- Max 10 tool calls`;
+    return parts.join('\n\n');
   }
 }

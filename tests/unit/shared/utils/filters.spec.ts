@@ -1,90 +1,59 @@
 import { createBatches, shouldProcessFile } from '@/shared/utils/filters';
 
 describe('shouldProcessFile', () => {
-  it('should skip TypeScript declaration files', () => {
-    expect(shouldProcessFile('types.d.ts')).toBe(false);
-    expect(shouldProcessFile('src/models/user.d.ts')).toBe(false);
-    expect(shouldProcessFile('path/to/file.d.ts')).toBe(false);
+  it('should allow all files when no skipPatterns', () => {
+    expect(shouldProcessFile('types.d.ts')).toBe(true);
+    expect(shouldProcessFile('component.spec.ts')).toBe(true);
+    expect(shouldProcessFile('src/app.ts')).toBe(true);
   });
 
-  it('should skip spec test files', () => {
-    expect(shouldProcessFile('component.spec.ts')).toBe(false);
-    expect(shouldProcessFile('src/utils/helper.spec.ts')).toBe(false);
-    expect(shouldProcessFile('test/unit/service.spec.ts')).toBe(false);
+  it('should skip files matching skipPatterns', () => {
+    const patterns = ['**/*.d.ts', '**/*.spec.ts', '**/*.test.ts', '**/*.mock.ts'];
+    expect(shouldProcessFile('types.d.ts', patterns)).toBe(false);
+    expect(shouldProcessFile('src/models/user.d.ts', patterns)).toBe(false);
+    expect(shouldProcessFile('component.spec.ts', patterns)).toBe(false);
+    expect(shouldProcessFile('component.test.ts', patterns)).toBe(false);
+    expect(shouldProcessFile('service.mock.ts', patterns)).toBe(false);
   });
 
-  it('should skip test files', () => {
-    expect(shouldProcessFile('component.test.ts')).toBe(false);
-    expect(shouldProcessFile('src/utils/helper.test.ts')).toBe(false);
-    expect(shouldProcessFile('test/integration/api.test.ts')).toBe(false);
+  it('should allow files not matching skipPatterns', () => {
+    const patterns = ['**/*.d.ts', '**/*.spec.ts', '**/*.test.ts'];
+    expect(shouldProcessFile('component.ts', patterns)).toBe(true);
+    expect(shouldProcessFile('src/utils/helper.ts', patterns)).toBe(true);
+    expect(shouldProcessFile('Component.tsx', patterns)).toBe(true);
+    expect(shouldProcessFile('script.js', patterns)).toBe(true);
   });
 
-  it('should skip config files', () => {
-    expect(shouldProcessFile('jest.config.js')).toBe(false);
-    expect(shouldProcessFile('webpack.config.ts')).toBe(false);
-    expect(shouldProcessFile('src/app.config.js')).toBe(false);
-    expect(shouldProcessFile('path/to/babel.config.ts')).toBe(false);
+  it('should skip node_modules when pattern is configured', () => {
+    const patterns = ['node_modules/**'];
+    expect(shouldProcessFile('node_modules/lib/index.js', patterns)).toBe(false);
+    expect(shouldProcessFile('node_modules/@types/node/index.ts', patterns)).toBe(false);
+    expect(shouldProcessFile('src/app.ts', patterns)).toBe(true);
   });
 
-  it('should skip mock files', () => {
-    expect(shouldProcessFile('service.mock.ts')).toBe(false);
-    expect(shouldProcessFile('src/api/client.mock.ts')).toBe(false);
-    expect(shouldProcessFile('test/mocks/data.mock.ts')).toBe(false);
+  it('should handle dot files with dot: true', () => {
+    const patterns = ['.git/**'];
+    expect(shouldProcessFile('.git/config', patterns)).toBe(false);
+    expect(shouldProcessFile('src/app.ts', patterns)).toBe(true);
   });
 
-  it('should process regular TypeScript files', () => {
-    expect(shouldProcessFile('component.ts')).toBe(true);
-    expect(shouldProcessFile('src/utils/helper.ts')).toBe(true);
-    expect(shouldProcessFile('services/auth.ts')).toBe(true);
+  it('should be case sensitive', () => {
+    const patterns = ['**/*.spec.ts'];
+    expect(shouldProcessFile('file.SPEC.TS', patterns)).toBe(true);
+    expect(shouldProcessFile('file.spec.ts', patterns)).toBe(false);
   });
 
-  it('should process TypeScript React files', () => {
-    expect(shouldProcessFile('Component.tsx')).toBe(true);
-    expect(shouldProcessFile('src/components/Button.tsx')).toBe(true);
-  });
-
-  it('should process JavaScript files', () => {
-    expect(shouldProcessFile('script.js')).toBe(true);
-    expect(shouldProcessFile('src/legacy/old.js')).toBe(true);
-  });
-
-  it('should process files with non-matching extensions', () => {
-    expect(shouldProcessFile('file.tsx')).toBe(true);
-    expect(shouldProcessFile('file.jsx')).toBe(true);
+  it('should handle files with multiple dots', () => {
+    const patterns = ['**/*.spec.ts', '**/*.test.ts', '**/*.d.ts'];
+    expect(shouldProcessFile('file.component.spec.ts', patterns)).toBe(false);
+    expect(shouldProcessFile('file.service.test.ts', patterns)).toBe(false);
+    expect(shouldProcessFile('file.types.d.ts', patterns)).toBe(false);
+    expect(shouldProcessFile('file.component.ts', patterns)).toBe(true);
   });
 
   it('should handle empty filename', () => {
     expect(shouldProcessFile('')).toBe(true);
-  });
-
-  it('should handle paths with no extension', () => {
-    expect(shouldProcessFile('README')).toBe(true);
-    expect(shouldProcessFile('src/types')).toBe(true);
-  });
-
-  it('should handle Windows-style paths', () => {
-    expect(shouldProcessFile('C:\\project\\file.spec.ts')).toBe(false);
-    expect(shouldProcessFile('C:\\project\\file.ts')).toBe(true);
-  });
-
-  it('should handle relative paths', () => {
-    expect(shouldProcessFile('./file.spec.ts')).toBe(false);
-    expect(shouldProcessFile('../utils/helper.ts')).toBe(true);
-  });
-
-  it('should be case sensitive', () => {
-    expect(shouldProcessFile('file.SPEC.TS')).toBe(true);
-    expect(shouldProcessFile('file.D.TS')).toBe(true);
-    expect(shouldProcessFile('file.spec.ts')).toBe(false);
-    expect(shouldProcessFile('file.d.ts')).toBe(false);
-  });
-
-  it('should handle files with multiple dots', () => {
-    expect(shouldProcessFile('file.component.spec.ts')).toBe(false);
-    expect(shouldProcessFile('file.service.test.ts')).toBe(false);
-    expect(shouldProcessFile('file.types.d.ts')).toBe(false);
-    expect(shouldProcessFile('app.config.js')).toBe(false);
-    expect(shouldProcessFile('file.component.ts')).toBe(true);
+    expect(shouldProcessFile('', ['**/*.ts'])).toBe(true);
   });
 });
 

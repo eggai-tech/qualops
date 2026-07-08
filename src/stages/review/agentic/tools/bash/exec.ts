@@ -22,7 +22,7 @@ export async function execBashCommand(
   opts: ExecOptions,
 ): Promise<BashOutput> {
   const timeoutMs = input.timeout_ms ?? 60000;
-  const { reviewId, callId, workspaceRoot = '/workspace', knownTokens = [] } = opts;
+  const { reviewId, callId, workspaceRoot = '/workspace/pr', knownTokens = [] } = opts;
 
   let result: SessionExecResult;
   let exitReason: BashExitReason = 'exited';

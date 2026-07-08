@@ -39,7 +39,7 @@ describe('AnthropicAdapter', () => {
     mockCreateToolSet.mockResolvedValue({ tools: [], dispose: jest.fn() });
   });
 
-  it('returns output from a successful result message', async () => {
+  it('falls back to text output when structured_output is absent from result', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
         yield { type: 'result', subtype: 'success', result: '["issue1"]' };
@@ -48,6 +48,7 @@ describe('AnthropicAdapter', () => {
     const adapter = new AnthropicAdapter();
     const result = await adapter.run(makeParams());
     expect(result.output).toBe('["issue1"]');
+    expect(result.structuredOutput).toBeUndefined();
   });
 
   it('extracts token counts from usage in result message', async () => {
@@ -67,16 +68,35 @@ describe('AnthropicAdapter', () => {
     expect(result.outputTokens).toBe(50);
   });
 
-  it('returns empty output and errorSubtype when result subtype is not success', async () => {
+  it.each([
+    ['error_max_turns', 'error_max_turns'],
+    ['error_during_execution', 'error_provider_unavailable'],
+    ['error_max_budget_usd', 'error_rate_limit_tokens'],
+    ['error_max_structured_output_retries', 'error_content_filter'],
+  ] as const)(
+    'maps SDK subtype "%s" to qualops subtype "%s" and returns empty output',
+    async (sdkSubtype, expectedSubtype) => {
+      mockQuery.mockReturnValue(
+        (async function* () {
+          yield { type: 'result', subtype: sdkSubtype };
+        })(),
+      );
+      const adapter = new AnthropicAdapter();
+      const result = await adapter.run(makeParams());
+      expect(result.errorSubtype).toBe(expectedSubtype);
+      expect(result.output).toBe('');
+    },
+  );
+
+  it('maps unknown SDK result subtype to error_unexpected', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
-        yield { type: 'result', subtype: 'error_max_turns' };
+        yield { type: 'result', subtype: 'error_billing_hard_limit' };
       })(),
     );
     const adapter = new AnthropicAdapter();
     const result = await adapter.run(makeParams());
-    expect(result.output).toBe('');
-    expect(result.errorSubtype).toBe('error_max_turns');
+    expect(result.errorSubtype).toBe('error_unexpected');
   });
 
   it('invokes onToolCall for each tool_use block', async () => {
@@ -108,6 +128,49 @@ describe('AnthropicAdapter', () => {
     const callOptions = (mockQuery.mock.calls[0][0] as { options: { maxBudgetUsd?: number } })
       .options;
     expect(callOptions.maxBudgetUsd).toBe(2.5);
+  });
+
+  it('returns structuredOutput when result contains structured_output wrapper', async () => {
+    const issues = [{ description: 'sql injection', confidence: 9 }];
+    mockQuery.mockReturnValue(
+      (async function* () {
+        // SDK returns the root object wrapper { issues: [...] } matching our schema
+        yield { type: 'result', subtype: 'success', structured_output: { issues } };
+      })(),
+    );
+    const adapter = new AnthropicAdapter();
+    const result = await adapter.run(makeParams());
+    expect(result.structuredOutput).toEqual(issues);
+    expect(result.output).toBe('');
+  });
+
+  it('falls back to result text when structured_output has unexpected shape', async () => {
+    mockQuery.mockReturnValue(
+      (async function* () {
+        yield {
+          type: 'result',
+          subtype: 'success',
+          structured_output: { unexpected: 'shape' },
+          result: '[{"description":"fallback issue"}]',
+        };
+      })(),
+    );
+    const adapter = new AnthropicAdapter();
+    const result = await adapter.run(makeParams());
+    expect(result.structuredOutput).toBeUndefined();
+    expect(result.output).toBe('[{"description":"fallback issue"}]');
+  });
+
+  it('returns empty output when structured_output is malformed and no result text', async () => {
+    mockQuery.mockReturnValue(
+      (async function* () {
+        yield { type: 'result', subtype: 'success', structured_output: { unexpected: 'shape' } };
+      })(),
+    );
+    const adapter = new AnthropicAdapter();
+    const result = await adapter.run(makeParams());
+    expect(result.structuredOutput).toBeUndefined();
+    expect(result.output).toBe('');
   });
 
   it('rethrows when query async generator throws', async () => {
@@ -142,13 +205,13 @@ describe('AnthropicAdapter', () => {
     expect(callOptions.allowedTools).toContain('mcp__qualops-agentic-tools__bash');
     expect(callOptions.allowedTools).not.toContain('Bash');
     expect(callOptions.canUseTool).toBeUndefined();
-    // Only safe read-only built-ins are enabled. SDK Bash must NOT be present
-    // so the agent cannot bypass our policy engine by calling it directly.
-    expect(callOptions.tools).toEqual(['Read', 'Grep', 'Glob']);
+    // No SDK built-ins — all file access goes through MCP tools so skipPatterns
+    // enforcement in handlers.ts applies uniformly. SDK Bash must NOT be present.
+    expect(callOptions.tools).toEqual([]);
     expect((callOptions.tools as string[]).includes('Bash')).toBe(false);
   });
 
-  it('logs mcp bash tool_use and tool_result output', async () => {
+  it('invokes onToolCall for mcp bash tool_use blocks', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
         yield {
@@ -191,7 +254,7 @@ describe('AnthropicAdapter', () => {
     });
   });
 
-  it('logs assistant text blocks', async () => {
+  it('processes assistant text blocks without affecting output', async () => {
     mockQuery.mockReturnValue(
       (async function* () {
         yield {
@@ -230,6 +293,6 @@ describe('AnthropicAdapter', () => {
     const adapter = new AnthropicAdapter();
     const toolConfig = { bash: { workspaceRoot: '/workspace/pr' } };
     await adapter.run(makeParams({ toolConfig }));
-    expect(mockCreateToolSet).toHaveBeenCalledWith(expect.any(String), toolConfig);
+    expect(mockCreateToolSet).toHaveBeenCalledWith(expect.any(String), toolConfig, undefined);
   });
 });

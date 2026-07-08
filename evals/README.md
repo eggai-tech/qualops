@@ -10,10 +10,9 @@ Evaluates QualOps review quality against annotated code samples using [Langfuse]
    - `LANGFUSE_BASE_URL` (optional, defaults to `https://cloud.langfuse.com`)
    - `OPENAI_API_KEY` (optional, for dual-judge scoring)
 
-2. Fetch and upload datasets:
+2. Upload datasets to Langfuse:
    ```bash
-   npm run eval:fetch:crb          # fetch CRB golden comments + clone source repos
-   npm run eval:upload:all          # upload all datasets to Langfuse
+   npm run eval:upload:all
    ```
 
 ## Running evals
@@ -33,17 +32,17 @@ npm run eval:run:crb:discourse
 npm run eval:run:crb:keycloak
 
 # With presets
-node evals/src/run-eval.js --preset=thorough --source=crb
-node evals/src/run-eval.js --preset=fast --dataset=qualops/crb-sentry
-node evals/src/run-eval.js --preset=security --source=crb --no-judge
+npx tsx evals/src/run-eval.ts --preset=thorough --source=crb
+npx tsx evals/src/run-eval.ts --preset=fast --dataset=qualops/crb-sentry
+npx tsx evals/src/run-eval.ts --preset=security --source=crb --no-judge
 
 # Direct invocation with options (override preset values)
-node evals/src/run-eval.js --source=all --limit=5
-node evals/src/run-eval.js --dataset=qualops/crb-sentry --mode=agentic --no-judge
-node evals/src/run-eval.js --model=claude-opus-4-20250514 --concurrency=2
+npx tsx evals/src/run-eval.ts --source=all --limit=5
+npx tsx evals/src/run-eval.ts --dataset=qualops/crb-sentry --mode=agentic --no-judge
+npx tsx evals/src/run-eval.ts --model=claude-opus-4-20250514 --concurrency=2
 
 # List available presets
-node evals/src/run-eval.js --list-presets
+npx tsx evals/src/run-eval.ts --list-presets
 ```
 
 ### Options
@@ -125,7 +124,7 @@ CLI flags override preset values: `--preset=fast --model=claude-opus-4-20250514`
 
 3. Run it:
    ```bash
-   node evals/src/run-eval.js --preset=my-experiment --source=crb
+   npx tsx evals/src/run-eval.ts --preset=my-experiment --source=crb
    ```
 
 ### Comparing configurations
@@ -134,8 +133,8 @@ Each preset run creates a separate Langfuse experiment with the preset name in i
 
 1. Run both against the same dataset:
    ```bash
-   node evals/src/run-eval.js --preset=fast --source=crb
-   node evals/src/run-eval.js --preset=thorough --source=crb
+   npx tsx evals/src/run-eval.ts --preset=fast --source=crb
+   npx tsx evals/src/run-eval.ts --preset=thorough --source=crb
    ```
 
 2. Compare in Langfuse: open the dataset, select both runs, and compare scores side-by-side. Key metrics:
@@ -164,7 +163,7 @@ Typical comparisons:
 | `agentic` | Multi-turn Claude Agent SDK with tools (Read, Grep, Glob, find_usages) | Cross-file analysis with full repo context |
 | `pipeline` | Full PipelineExecutor: multi-pass, validation, dedup | End-to-end pipeline quality |
 
-Agentic mode checks out the target repo at the PR's head commit so tools read the right codebase. If the repo isn't cloned, it falls back to the qualops root and logs a `REPO_NOT_CLONED` warning.
+Agentic mode uses the pre-extracted slice under `evals/datasets/crb/<id>/repo/` as the working directory so tools read the right files. If the slice path is missing it falls back to the qualops root and logs a `REPO_NOT_FOUND` warning.
 
 ## Datasets
 
@@ -197,11 +196,14 @@ Hand-annotated code samples with known issues. Each line:
 | discourse | Ruby | 10 |
 | keycloak | Java | 10 |
 
-Each repo has a `.jsonl` file with PR diffs, golden comments, and git metadata. Source repos are shallow-cloned to `evals/datasets/crb/repos/` for agentic tool access.
+Each eval is a self-contained slice directory at `evals/datasets/crb/<id>/` containing:
+- `slice.json` — metadata, diff, and expected findings
+- `repo/` — the source files at the PR's head commit, for agentic tool access
 
-Fetch with: `npm run eval:fetch:crb`
-
-Options: `--repo=sentry`, `--limit=3`, `--skip-repos`
+To check whether upstream CRB has added new benchmark PRs:
+```bash
+npm run eval:crb:check-staleness
+```
 
 ## Scoring
 
@@ -235,14 +237,14 @@ Each eval run writes a structured JSON log to `evals/logs/`:
   "experiment": "claude-sonnet-4-20250514:agentic:2026-03-24T15:31",
   "totals": { "items": 10, "successes": 8, "errors": 1, "warnings": 1 },
   "errorBreakdown": { "TIMEOUT": 1 },
-  "warningBreakdown": { "REPO_NOT_CLONED": 1 },
+  "warningBreakdown": { "REPO_NOT_FOUND": 1 },
   "entries": [ ... ]
 }
 ```
 
 Error codes: `RATE_LIMITED`, `AUTH_FAILED`, `TIMEOUT`, `BUDGET_EXHAUSTED`, `PARSE_ERROR`, `NETWORK_ERROR`, `API_ERROR`
 
-Warning codes: `NO_REPO_PATH`, `REPO_NOT_CLONED`, `CHECKOUT_FAILED`
+Warning codes: `NO_REPO_PATH`, `REPO_NOT_FOUND`, `CHECKOUT_FAILED`
 
 ## Tests
 
@@ -257,7 +259,7 @@ npm run test:evals    # run eval unit tests (scorers, dataset builders, helpers)
 | `eval:run:qualops` | Run qualops dataset (file-by-file) |
 | `eval:run:crb:all` | Run all CRB repos (agentic) |
 | `eval:run:crb:<repo>` | Run single CRB repo (agentic) |
-| `eval:fetch:crb` | Fetch CRB golden comments + clone source repos |
+| `eval:crb:check-staleness` | Check if upstream CRB has new benchmark PRs |
 | `eval:upload:all` | Upload all datasets to Langfuse |
 | `eval:upload:qualops` | Upload qualops dataset only |
 | `eval:upload:crb:all` | Upload all CRB per-repo datasets |

@@ -8,8 +8,6 @@ jest.mock('@/stages/review/agentic/tools/handlers', () => ({
   findUsages: jest.fn(),
   traceImports: jest.fn(),
   gitDiffAnalysis: jest.fn(),
-  analyzeExports: jest.fn(),
-  findInterfaceChanges: jest.fn(),
   listChangedFiles: jest.fn(),
 }));
 jest.mock('@/shared/utils/logger');
@@ -86,5 +84,32 @@ describe('createToolSet', () => {
       expect(tool.schema).toBeDefined();
       expect(typeof tool.execute).toBe('function');
     }
+  });
+
+  it('bash tool description uses cwd when workspaceRoot is absent (local environment)', async () => {
+    mockStartBashSession.mockResolvedValue({
+      session: { exec: jest.fn(), dispose: jest.fn() } as never,
+      dispose: jest.fn().mockResolvedValue(undefined),
+    });
+
+    const localCwd = '/home/runner/work/my-repo';
+    const { tools } = await createToolSet(localCwd, { bash: {} });
+
+    const bashTool = tools.find((t) => t.name === 'bash');
+    expect(bashTool?.description).toContain(localCwd);
+    expect(bashTool?.description).not.toContain('/workspace/pr');
+  });
+
+  it('bash tool description uses workspaceRoot when set (CI environment)', async () => {
+    mockStartBashSession.mockResolvedValue({
+      session: { exec: jest.fn(), dispose: jest.fn() } as never,
+      dispose: jest.fn().mockResolvedValue(undefined),
+    });
+
+    const { tools } = await createToolSet(cwd, { bash: { workspaceRoot: '/workspace/pr' } });
+
+    const bashTool = tools.find((t) => t.name === 'bash');
+    expect(bashTool?.description).toContain('/workspace/pr');
+    expect(bashTool?.description).not.toContain(cwd);
   });
 });

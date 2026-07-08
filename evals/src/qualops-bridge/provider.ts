@@ -9,7 +9,7 @@ import { FileReviewer } from '@/stages/review/processors/file-reviewer';
 import { PipelineExecutor } from '@/stages/review/processors/pipeline-executor';
 import { setCurrentSession } from '@/shared/runtime/session-context';
 import { ConfigLoader } from '@/stages/review/loaders/config-loader';
-import { ConfigService } from '@/config/config';
+import { ConfigService, defaultModelForProvider } from '@/config/config';
 import type { ReviewIssue } from '@/shared/types';
 import type { FileInfo, PipelineJob } from '@/shared/types/config';
 
@@ -128,6 +128,7 @@ async function runFileByFileReview(
   config: EvalConfig,
 ): Promise<ReviewIssue[]> {
   const provider = await createProvider(config);
+  assertStructuredProvider(provider, config.model);
   const systemPrompt = loadSystemPrompt();
   const reviewer = new FileReviewer(provider, systemPrompt, 'eval');
   return reviewer.reviewFile(fileInfo);
@@ -146,6 +147,7 @@ async function runPipelineReview(
   ConfigLoader.getInstance().reset();
 
   const provider = await createProvider(config);
+  assertStructuredProvider(provider, config.model);
   const executor = new PipelineExecutor(provider);
   return executor.execute(files);
 }
@@ -174,7 +176,7 @@ async function runAgenticReview(
   const cwd = resolveSafeCwd(config.cwd);
   const allIssues: ReviewIssue[] = [];
   for (const job of jobsToRun) {
-    const executor = new AgenticExecutor(job, cwd, config.model);
+    const executor = new AgenticExecutor(job, cwd, config.model || defaultModelForProvider(config.provider));
     const issues = await executor.execute(files);
     allIssues.push(...issues);
   }
@@ -257,6 +259,16 @@ async function createProvider(config: EvalConfig): Promise<AIProvider> {
   }
 
   return AIFactory.createForStage('review');
+}
+
+function assertStructuredProvider(provider: AIProvider, model: string | undefined): void {
+  if (provider.isUnstructured()) {
+    throw new Error(
+      `Model "${model ?? 'default'}" uses the unstructured (prose) pipeline and is not ` +
+        `compatible with structured evals. Use a model that supports JSON schema output ` +
+        `(e.g. gpt-4o, claude-sonnet-4-6, mistral-large).`,
+    );
+  }
 }
 
 function loadSystemPrompt(): string {

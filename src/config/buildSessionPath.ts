@@ -38,5 +38,6 @@ export function buildSessionPath(sessionName: string, reportRoot: string) {
     mainReport: () => join(rootDir, 'index.html'),
     errorLog: (stage: string) => join(sessionBase, `error-${stage}.json`),
     timingStats: () => join(sessionBase, 'timing-stats.json'),
+    proseReport: () => join(sessionBase, 'prose-report.md'),
   };
 }

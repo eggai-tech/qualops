@@ -1,4 +1,5 @@
 import { prepareFilesForProcessing } from './file-processor';
+import { ConfigService } from '../../../config/config';
 import { shouldProcessFile } from '../../../shared/utils/filters';
 import { logger } from '../../../shared/utils/logger';
 import type { ExtractLog } from '../utils/extract-log';
@@ -11,19 +12,21 @@ export async function processBatchForAnalysis(
   let filteredFiles: string[];
 
   switch (mode) {
-    case 'files':
-      filteredFiles = files.filter(shouldProcessFile);
+    case 'files': {
+      const skipPatterns = ConfigService.getInstance().get('skipPatterns') ?? [];
+      filteredFiles = files.filter((f) => shouldProcessFile(f, skipPatterns));
       logger.info(`Analyzing ${filteredFiles.length} files`);
       break;
+    }
 
     case 'projects':
       filteredFiles = files;
-      logger.info(`Found ${filteredFiles.length} TypeScript files in specified projects`);
+      logger.info(`Found ${filteredFiles.length} files in specified projects`);
       break;
 
     case 'git':
       filteredFiles = files;
-      logger.git(`Found ${filteredFiles.length} changed TypeScript files`);
+      logger.git(`Found ${filteredFiles.length} changed files`);
       break;
 
     default:
