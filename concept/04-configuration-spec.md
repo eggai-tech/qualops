@@ -78,7 +78,8 @@ Do NOT flag: theoretical DoS, rate limiting, defense-in-depth suggestions
 when primary defenses are adequate.
 ```
 
-- **Two modes replace five legacy nouns** (D6): `checklist` (one structured pass over assembled context) and `agent` (tool-using investigation).
+- **Two modes replace five legacy nouns** (D6): `checklist` (one structured pass over assembled context) and `agent` (tool-using investigation — the escalation tier per D13, invoked for `full`-tier units and `sensitivePaths`).
+- **`paths` is the only reviewer-authored selector.** Tier and change-class gating happen automatically per change-unit in the pipeline (02 §3.2) — deliberate: users scope *where* a reviewer applies; the pipeline decides *when* it's worth running.
 - **Built-in reviewers ship in this exact format**; `qualops init` can materialize them into `reviewers/` — customizing starts with copying, and the default pipeline documents itself. Same-named user file overrides a built-in; `enabled: false` or `reviewers.disable` turns one off.
 - Platform-owned prompt parts (output schema, response format, verification wiring) are invisible and non-overridable — the legacy `<response_format>` footgun ceases to exist.
 - Only the body is required; every frontmatter key has a default.

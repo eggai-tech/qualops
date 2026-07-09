@@ -32,7 +32,8 @@ Rides **M2** (platform: env, config loading, logger, session-store; singletons �
 
 Rides **M3** (LLM boundary: merged JSON ladders, Model*Schemas, dialect seam — prose twins deleted) and **M4** (domains + stage registry).
 
-- Verifier per 02 §3.4: context asymmetry, evidence requirement, three-way verdict + promotion policy, confidence 0–100; port the spike's normalization/verdict contracts (D8). Replaces the legacy self-validation pass and per-file dedup.
+- Verifier per 02 §3.4: context asymmetry, evidence requirement, three-way verdict + promotion policy, confidence 0–100; port the spike's normalization/verdict contracts (D8). Replaces the legacy self-validation pass and per-file dedup. The verifier's evidence slice is assembled deterministically (enclosing declaration + one def-use hop) — the first consumer of the intake impact machinery below.
+- **Intake destructure v1** (02 §3.1, D13/D14): hunk classification (AST edit-script; format/comment-only units skip review), change-unit grouping at **file granularity**, per-unit tiering, impact sets (references + callers), context packs (PageRank ranking, bounded digests, priority-ladder budget, cache-aware layout). The **D13 default flip** (single-shot holistic per unit; agentic → escalation tier) ships **only** with paired before/after eval proof (05 §7) — until then agentic remains the default and destructure feeds it context.
 - **Harness port** (03 §4a, D12): `AgentRunPort` + conformance suite + the **Vercel AI SDK adapter** (decided backbone, [08-harness-decision.md](08-harness-decision.md)); `@openai/agents` and `@eggai/configurable-agent` retired; the small compaction + USD-budget port wrappers (08 §4.2) land here. `@ai-sdk/*` providers wired per-provider (optional-peer). The port keeps the backend swappable without touching domains.
 - Admission per 02 §3.5, all thresholds from config. Sampling+voting as opt-in.
 - Cross-model verification option (D9).

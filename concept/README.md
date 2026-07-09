@@ -19,8 +19,8 @@ This spec realigns QualOps to that shape while keeping its genuine strengths (pr
 
 | Doc | Contents |
 |---|---|
-| [01-goals-and-glossary.md](01-goals-and-glossary.md) | Product goal, non-goals, design principles, **glossary**, decision log D1–D11 |
-| [02-pipeline-spec.md](02-pipeline-spec.md) | Finding contract & fingerprint, stages (Intake→Generate→Filter→Verify→Admit→Publish→Learn), LLM boundary, publishing protocol, fixes, gate, auditability |
+| [01-goals-and-glossary.md](01-goals-and-glossary.md) | Product goal, non-goals, design principles, **glossary**, decision log D1–D14 |
+| [02-pipeline-spec.md](02-pipeline-spec.md) | Finding contract & fingerprint, stages (Intake→Generate→Filter→Verify→Admit→Publish→Learn) incl. deterministic PR destructuring (change-units, impact sets, context packs — 02 §3.1), LLM boundary, publishing protocol, fixes, gate, auditability |
 | [03-architecture-spec.md](03-architecture-spec.md) | Layered code structure, centralization map, conventions, runtime model, structural budget |
 | [04-configuration-spec.md](04-configuration-spec.md) | Config UX: `config.yaml` + `reviewers/*.md` + `REVIEW.md` + `rules/`, tooling commands, settled decisions |
 | [05-quality-spec.md](05-quality-spec.md) | Metrics, datasets, three-layer evaluation, cadence, statistical rules, improvement loop (integrates [PR #149](https://github.com/eggai-tech/qualops/pull/149)) |
@@ -38,6 +38,7 @@ This spec realigns QualOps to that shape while keeping its genuine strengths (pr
 | [appendix/B-industry-research.md](appendix/B-industry-research.md) | State-of-the-art research: product techniques, literature 2024–2026, metrics — with sources |
 | [appendix/C-gap-analysis.md](appendix/C-gap-analysis.md) | QualOps vs. state of the art, root causes, prioritization logic |
 | [appendix/D-spike-analysis.md](appendix/D-spike-analysis.md) | Analysis of the author's `codereviewer` spike; what was adopted (now folded into the specs) vs. kept from QualOps |
+| [appendix/E-destructure-context-research.md](appendix/E-destructure-context-research.md) | Destructure/context/cost research (2026-07-09): decomposition & impact SOTA, hybrid deterministic+LLM evidence, cost mechanics, spike machinery code-read — evidence for 02 §3.1, D13, D14 |
 
 Additional evidence not duplicated here: the config UX audit (summarized in 04 §6 and appendix C) and the agent-evaluation research in [PR #149](https://github.com/eggai-tech/qualops/pull/149) (distilled into 05, conflicts resolved in 05 §8).
 

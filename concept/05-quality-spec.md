@@ -17,6 +17,7 @@ Principle: **you cannot ship a "reliable, non-polluting" reviewer on recall metr
 - `precision` — on one consistent contingency table (bipartite golden↔candidate assignment; fixes the current tp/fp denominator mismatch, F-29)
 - `spurious_rate` — findings on clean-PR negatives
 - `unchanged_line_rate` — findings outside the diff (→ ~0 once the scope filter lands; kept to catch regressions)
+- `context_miss_rate` — refuted or missed findings the context ledger attributes to missing/mis-scoped context (change-unit grouping or pack selection, 02 §3.1c/f); the metric that drives the 07-backlog promotion triggers (hunk-level grouping, cluster adjudication, semantic grouping v2)
 - `duplicate_rate` — fingerprint collisions in published output (must be 0)
 - `findings_per_kloc_changed` — volume as cost
 - **Recall, tiered**: headline `productRecall` counts runtime-critical/security/logic findings only — correctly ignoring nits is not punished (spike adoption)

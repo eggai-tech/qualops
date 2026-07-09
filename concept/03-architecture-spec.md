@@ -39,7 +39,9 @@ src/
 │                     # compaction + USD-budget wrappers (08 §4.2). Sole shipped backend;
 │                     # the port keeps it swappable (eve/ at GA; others only if a need appears)
 ├── domains/          # business logic; no cross-domain imports
-│   ├── intake/       # change detection, diff hygiene, tiering, import-graph clustering
+│   ├── intake/       # change detection, diff hygiene, hunk classification (AST edit-script),
+│   │                 # change-unit grouping, tiering, impact sets (references + callers),
+│   │                 # context packing (PageRank ranking + bounded digests) — 02 §3.1, all deterministic
 │   ├── review/       # candidate generation: reviewer execution, ONE traversal
 │   │                 # parameterized by dialect (kills the prose/structured twin trees)
 │   ├── verification/ # verifier, evidence collection
@@ -141,6 +143,8 @@ interface AgentRunResult {
 ## 7. Dependency policy
 
 Keep: `zod`, OTel + `@langfuse/otel`, `commander`, `minimatch`, `glob`, one YAML parser (D4). **Model backbone:** `ai` + the `@ai-sdk/*` providers actually used (`@ai-sdk/anthropic`, `@ai-sdk/openai`, `@ai-sdk/amazon-bedrock`, `@ai-sdk/openai-compatible`), each wired per-provider as an **optional peerDependency** with a `provider_adapter_missing` error (the packaging flip ships after P3; composite-action install matrix tested first). **Drop:** `diff`, `@openai/agents`, `@eggai/configurable-agent`, and — leaving the default install — `@anthropic-ai/claude-agent-sdk` (08). Net ≈ 450 fewer mandatory production packages. Hand-rolled stays hand-rolled (template, retry, concurrency, frontmatter): small, tested, dependency-free.
+
+**Add for intake destructuring (02 §3.1, justified per CLAUDE.md §9):** `@ast-grep/napi` + per-language grammars for hunk classification and the polyglot symbol graph (spike-proven, MIT); the TypeScript compiler is already a dependency (LanguageService `findReferences` for TS/JS impact sets); language-specific impact analyzers (PyCG, `go/callgraph`) are invoked only when the target toolchain is present — never bundled. Ranking (personalized PageRank) is hand-rolled in `kernel/` (~50 lines, no graph library). Explicitly rejected: CodeQL/SCIP/Joern-class index builds (minutes of setup, license constraints) and the archived stack-graphs (appendix E §2).
 
 **Transition (per the refactor-first sequencing):** the two ports are introduced *wrapping the current provider code* during the structure refactor, so no behavior changes then; the implementation behind the ports swaps to the AI SDK adapter in Phase 2 ([06-roadmap.md](06-roadmap.md)). The port boundary is exactly what bounds that later swap's blast radius.
 

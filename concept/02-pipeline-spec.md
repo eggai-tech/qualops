@@ -1,6 +1,6 @@
 # 02 — Pipeline Specification
 
-**Status:** Draft spec for human review · Terms per [01-goals-and-glossary.md](01-goals-and-glossary.md). Evidence for every mechanism: appendix B (industry/research), appendix A (defects this design fixes, cited as F-nn).
+**Status:** Draft spec for human review · Terms per [01-goals-and-glossary.md](01-goals-and-glossary.md). Evidence for every mechanism: appendix B (industry/research), appendix A (defects this design fixes, cited as F-nn), appendix E (destructure/context/cost research, 2026-07-09).
 
 ## 1. The Finding (core data contract)
 
@@ -59,15 +59,21 @@ INTAKE → GENERATE → FILTER → VERIFY → ADMIT → PUBLISH → LEARN
 
 Fix proposals, reporting, and the gate consume the pipeline's output (§8–§10). Legacy stage mapping for migration: analyze→Intake; review→Generate+Filter+Verify+Admit; fix→Fix proposals; report→Reporting; judge→Gate.
 
-### 3.1 Intake
+### 3.1 Intake (deterministic end to end — zero tokens)
 
-- Changed-file detection from git refs; **diff hygiene**: lockfiles, minified, generated, and source-map files are excluded by default; **database migrations are never excluded**. Exclusions are configurable and always reported.
-- **Tiering**: `trivial` (≈ ≤10 changed lines) → one generalist checklist reviewer on a budget model; `normal` → the configured reviewer set; `full` (large diffs or sensitive paths) → all reviewers incl. agent mode on the strongest configured model. `sensitivePaths` (auth, crypto, CI config…) always force `full`.
-- **Context assembly** is byte-budgeted: optional context is dropped before source; any truncation is recorded in the context ledger (§11), never silent. For checklist reviewers, related files are clustered by import graph so cross-file context exists even without agent tools.
+Intake **destructures** the PR into tiered **change-units**, each carrying a pre-assembled **context pack** (terms: 01 §4). Evidence for every mechanism: appendix E. Destructuring scopes *context and reviewer selection only* — it is never a generation plan (D14; the deterministic lane TDR 0005 left open).
+
+- **a) Diff hygiene**: lockfiles, minified, generated, and source-map files are excluded by default; **database migrations are never excluded**. Exclusions are configurable and always reported.
+- **b) Hunk classification** via AST edit-script (tree-sitter before/after parse): `format-only | comment-only | rename | signature-change | logic-change`. Ambiguous/unparseable hunks conservatively default to `logic-change` — never silently down-classified. `format-only`/`comment-only` hunks are ledger-recorded and **never reach an LLM** — silence on no-op changes costs zero tokens (serves `spurious_rate`, 05 §2). Move-vs-rewrite is known-unreliable in AST diffing; unclear = `logic-change` (heuristic upgrades: backlog).
+- **c) Change-unit grouping**: connected components over deterministic edges — def-use/symbol references (tree-sitter symbol table), import relations, same-file affinity; commit metadata adds *soft* edge weights only (commit hygiene is unreliable — never hard boundaries). Component size capped (~8 files, spike-validated); ungroupable leftovers form one **residual unit**, so no hunk is ever unreviewed. Known accuracy bound: pure-graph grouping ≈70–85% in the commit-level literature, and PR-level composition is our own hypothesis to validate on eval slices (appendix E §2, §6) — acceptable because a grouping error only mis-scopes context, never drops work. **v1 groups at file granularity** (= the previously specified import-graph clustering); hunk-level grouping is promoted by eval evidence (07-backlog).
+- **d) Tiering — per change-unit**: `trivial` (≈ ≤10 changed lines, or only `rename`/low-risk classes) → one generalist checklist reviewer on a budget model; `normal` → the configured reviewer set; `full` (large units or sensitive paths) → all matching reviewers incl. agent-mode escalation (D13) on the strongest configured model. `sensitivePaths` (auth, crypto, CI config…) always force `full`. PR-level tier (for reporting) = max over units.
+- **e) Impact set — per change-unit**: the changed symbols plus their relations in **both directions** — dependencies (imports/callees) *and* callers/references of changed exported symbols (the direction breaking-change FPs come from) — via language-native analysis: TS LanguageService `findReferences` + dependency-cruiser (TS/JS), PyCG (Python), `go/callgraph` (Go), tree-sitter symbol graph as the polyglot floor. Heavy index builds (CodeQL, SCIP, Joern) are excluded by the minutes-budget and zero-infrastructure (01 §2) constraints.
+- **f) Context pack — per change-unit, byte-budgeted**: candidates ranked by personalized PageRank over the symbol graph, **seeded from the unit's changed symbols**, 1–2 hops (aider repo-map method); selected unchanged files enter as bounded **anchor-window digests** (initial caps: ≤6 files, ~4KB each — spike-validated), explicitly labeled *context only, never a review target*. Overflow follows a **priority ladder**: named optional items dropped one at a time in fixed order, each drop ledger-recorded; **source and diff are never silently truncated** — a unit that cannot fit is split, or the run errors loudly (principle #6). Prompt layout is cache-aware: stable repo-level preamble first, per-unit material last (cache-read ≈0.1× input price; appendix E §4).
 
 ### 3.2 Generate (recall stage)
 
-- All reviewers matching the tier and their `paths:` globs run **in parallel**. Reviewer definition and selection: [04-configuration-spec.md](04-configuration-spec.md). Execution: `checklist` reviewers via the `CompletionPort`, `agent` reviewers via the `AgentRunPort` ([03-architecture-spec.md](03-architecture-spec.md) §4a) — business logic never touches the harness backend.
+- Reviewers are selected **per change-unit**: tier + `paths:` globs + the unit's change classes (e.g. the security reviewer runs only on units touching auth/input paths; no reviewer sees `format-only`/`comment-only` units). Matching reviewers run **in parallel** across units. Reviewer definition and selection: [04-configuration-spec.md](04-configuration-spec.md). Execution: `checklist` reviewers via the `CompletionPort`, `agent` reviewers via the `AgentRunPort` ([03-architecture-spec.md](03-architecture-spec.md) §4a) — business logic never touches the harness backend.
+- **Default execution is a single-shot holistic call per change-unit** (D13): line-numbered changed source + diff + the unit's context pack — whole-unit reasoning, one pass (the spike's probes: holistic out-recalled multi-step decomposition; a second pass hurt precision and was reverted — appendix E §5). **Agent-mode review is the escalation tier**, not the default: `full`-tier units, `sensitivePaths`, and languages where the impact analysis has known recall gaps (dynamic dispatch, reflection). Evidence: fixed retrieval-grounded pipelines beat agentic scaffolds on accuracy *and* cost, and improve with model swaps at zero architecture cost (appendix E §3).
 - Generation prompts are deliberately **aggressive** ("investigate every suspicious pattern") — precision is downstream's job (D1).
 - Output schemas enforce **reasoning-before-conclusion** field order (−51% FP evidence, appendix B).
 - Optional **sampling**: N passes with shuffled input order; per-finding vote counts recorded. Off by default (cost); recommended for `strict` profile.
@@ -78,7 +84,7 @@ Fix proposals, reporting, and the gate consume the pipeline's output (§8–§10
 
 Order matters; each drop records its RejectReason:
 
-1. **Scope**: anchor must overlap the PR's changed lines (hard filter; was prose-only — F-11).
+1. **Scope**: the anchor must lie in a changed file and overlap the changed lines (hunk range ± small tolerance) — hard filter; was prose-only (F-11). **Cause-anchoring rule**: a defect *caused* by the change but manifesting in unchanged code (e.g. a changed signature breaking an unchanged caller) must be anchored to the causing changed line — reviewers anchor to cause, not symptom (prompt-enforced, filter-checked). Findings that cannot be re-anchored into the diff become `artifact-only`, never published.
 2. **Citation check**: `anchor.snippet` must exist at/near the cited line; findings citing nonexistent code are dropped.
 3. **Exact dedup**: fingerprint hash-set across all reviewers/samples/files (F-12).
 4. **Category excludes**: configured hard list (e.g. style-owned-by-linter, theoretical DoS) — the prompt "NOT to flag" lists made enforceable.
@@ -89,7 +95,7 @@ Order matters; each drop records its RejectReason:
 
 One verifier invocation per surviving candidate:
 
-- **Context asymmetry**: input = the claim + freshly retrieved code slice (+ read-only tool access); the generator's reasoning is withheld.
+- **Context asymmetry**: input = the claim + a freshly retrieved code slice (+ read-only tool access); the generator's reasoning is withheld. **The slice is assembled deterministically**: the anchor's enclosing declaration plus one def-use hop from the intake impact set (§3.1e) — the dependency-sliced-context pattern with the strongest published FP-mitigation evidence (appendix E §3). Verification calls share the cached repo preamble and may run via batch API (latency is cheap here; cache-read × batch ≈ 0.05× list price — appendix E §4).
 - The verifier must attach at least one `Evidence` item and state the concrete failure scenario, or refute. Optional executed checks run in the existing bash sandbox.
 - Output: verdict + confidence 0–100 (D1). Verdict aliases (`false-positive` → `refuted`, etc.) are normalized at the LLM boundary.
 - **Cross-model option**: verifier from a different provider family (D9), configurable.
