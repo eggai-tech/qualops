@@ -14,6 +14,7 @@ import { logger } from '@/shared/utils/logger';
 
 import { BaseAIProvider, type PricingMultipliers } from './base';
 import { AIProviderType } from './factory';
+import { TOKENS_PER_MILLION } from './pricing-constants';
 import type {
   AICompletionOptions,
   AICompletionOptionsWithSchema,
@@ -135,7 +136,7 @@ export class BedrockProvider extends BaseAIProvider {
     if (counters.reads > 0 || counters.writes > 0) {
       const hitRate = ((counters.hits / stats.invocationCount) * 100).toFixed(1);
       const cacheReadSavings =
-        (counters.reads / 1_000_000) * (this.stageConfig.inputPerMillion * 0.9);
+        (counters.reads / TOKENS_PER_MILLION) * (this.stageConfig.inputPerMillion * 0.9);
       msg += `, CacheWrite=${counters.writes.toLocaleString()}`;
       msg += `, CacheRead=${counters.reads.toLocaleString()} (${hitRate}% hit rate)`;
       msg += `, CacheSavings=$${cacheReadSavings.toFixed(4)}`;
