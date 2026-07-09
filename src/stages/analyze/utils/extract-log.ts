@@ -2,23 +2,11 @@ import { readFile } from 'node:fs/promises';
 
 import { calculateFileHash } from './hash-calculator';
 import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
+import type { ExtractLog } from '../../../shared/types';
 import { writeMetadataFile } from '../../../shared/utils/file-utils';
 import { logger } from '../../../shared/utils/logger';
 
-export interface ExtractLog {
-  timestamp: string;
-  files: Record<
-    string,
-    {
-      hash: string;
-      size: number;
-      lastModified: string;
-      processed: boolean;
-    }
-  >;
-  [key: string]: unknown;
-}
-
+export type { ExtractLog } from '../../../shared/types';
 export { calculateFileHash } from './hash-calculator';
 
 export async function loadExtractLog(): Promise<ExtractLog> {

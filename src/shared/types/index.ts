@@ -173,6 +173,7 @@ export interface ExtractLog {
       processed: boolean;
     }
   >;
+  [key: string]: unknown;
 }
 
 // Review stage types

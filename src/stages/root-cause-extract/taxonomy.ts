@@ -1,9 +1,6 @@
-export interface RootCauseTaxonomy {
-  key: string;
-  label: string;
-  description: string;
-  patterns: string[];
-}
+import type { RootCauseTaxonomy } from '../../shared/types';
+
+export type { RootCauseTaxonomy } from '../../shared/types';
 
 export const ROOT_CAUSE_TAXONOMY: RootCauseTaxonomy[] = [
   {
