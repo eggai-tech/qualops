@@ -41,7 +41,7 @@ Parsing note: the model boundary (`llm/boundary`) accepts loose model output (en
 - **Stage metadata** — `AnalysisMetadata`, `ReviewMetadata`, `FixMetadata`, `ReportMetadata`, `JudgeMetadata` (shapes per [`behavior/pipeline/`](behavior/pipeline/README.md)), each carrying `schemaVersion`.
 - **Config** — types inferred from the config schema (`contracts/config`); see [`behavior/configuration/`](behavior/configuration/config-file.md).
 - **`RejectReason`, gate thresholds, token usage/stats, report summary** — one definition each.
-- **Forge result** — one `PublishInput`/`QualOpsResult` in `contracts`, consumed by `forges/core` (kills the github/gitlab duplicate).
+- **Integration result** — one `PublishInput`/`QualOpsResult` in `contracts`, consumed by `integrations/core` (kills the github/gitlab duplicate).
 
 ## 4. Ports (interfaces)
 
@@ -53,6 +53,6 @@ Declared in `contracts/ports`, implemented in `llm/backend` ([`architecture.md`]
 
 ## 5. Validation rules
 
-- Validate at every boundary with these schemas: model output (only in `llm/boundary`), config load, tool I/O, forge payloads.
+- Validate at every boundary with these schemas: model output (only in `llm/boundary`), config load, tool I/O, integration payloads.
 - Schemas use `strictObject` and `readonly` where applicable; a schema owns its own `.describe()`/`.meta()` documentation.
 - **Drift tests** are colocated with the schemas: they pin enum values, ID formats, and any field the pipeline maps by position, so a schema change that breaks a downstream contract fails CI (prevents the class of prompt↔schema drift in F-21/F-22).

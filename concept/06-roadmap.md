@@ -44,7 +44,7 @@ Rides **M3** (LLM boundary: merged JSON ladders, Model*Schemas, dialect seam —
 
 ## Phase 3 — Publishing protocol (2–3 weeks)
 
-Rides **M5** (`forges/core` extracted).
+Rides **M5** (`integrations/core` extracted).
 
 - Review state, incremental re-review, auto-resolution, human-resolution respect (02 §7); GitHub PR-review surface with suggestion blocks (F-28); GitLab auto-resolve (F-27 complete).
 - Baseline suppression + `qualops baseline` (02 §10).

@@ -126,7 +126,7 @@ All model output — structured, prose, tool results, agent results — passes t
 - Non-critical stage failures record an error artifact and continue; critical ones abort after flush.
 - Default logging is redaction-safe by construction (key-pattern drop of prompt/secret-like fields); content capture exists only as explicit observability opt-in (D11).
 
-## 7. Publishing protocol (per forge)
+## 7. Publishing protocol (per integration)
 
 Per PR, QualOps maintains **review state** (published fingerprints, thread IDs, resolution status), embedded as JSON in the summary comment and mirrored as an artifact.
 
@@ -143,7 +143,7 @@ Surfaces: **GitHub** — findings as a PR review with resolvable inline comments
 ## 8. Fix proposals
 
 - Generated only for **admitted** findings where a mechanical fix exists; validated (parse/lint where available) before delivery.
-- Delivery: forge ```suggestion blocks (one-click, author-facing). Larger fixes: on-demand via `@qualops fix <fingerprint>` (backlog) or local CLI `qualops fix` which retains apply/rollback machinery.
+- Delivery: integration ```suggestion blocks (one-click, author-facing). Larger fixes: on-demand via `@qualops fix <fingerprint>` (backlog) or local CLI `qualops fix` which retains apply/rollback machinery.
 - Fix proposals never gate and are never counted as findings.
 
 ## 9. Learning loop
@@ -154,7 +154,7 @@ Surfaces: **GitHub** — findings as a PR review with resolvable inline comments
 
 ## 10. Gate and reporting
 
-- **Gate**: deterministic evaluation of admitted findings against `gate` config (maxCritical/maxHigh/…, severity floors, `baseline: true` → only fingerprints absent from the base-branch baseline count). Result drives the exit code and the forge check conclusion. Prose-dialect runs that cannot produce gateable findings report **"not gateable"** explicitly (fixes F-5) — never a silent pass.
+- **Gate**: deterministic evaluation of admitted findings against `gate` config (maxCritical/maxHigh/…, severity floors, `baseline: true` → only fingerprints absent from the base-branch baseline count). Result drives the exit code and the integration check conclusion. Prose-dialect runs that cannot produce gateable findings report **"not gateable"** explicitly (fixes F-5) — never a silent pass.
 - **Reporting**: renderers over the run record — markdown, HTML, JSON, **SARIF** (for code-scanning consumers). Root-cause extraction remains an optional report feature (config-gated — fixes the inert flags). Reports include cost, latency, tier, and the RejectReason funnel.
 
 ## 11. Auditability

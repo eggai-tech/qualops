@@ -43,7 +43,7 @@ These terms replace all earlier vocabulary. Legacy terms (jobs, passes, subagent
 | **Admission** | The deterministic decision that a verified finding may be published: confidence threshold, severity floor, volume budget, memory suppression, baseline. Every rejection records a **RejectReason** (`out-of-scope`, `citation-failed`, `duplicate-fingerprint`, `category-excluded`, `below-vote-threshold`, `linter-owned`, `refuted`, `needs-more-evidence`, `below-confidence`, `below-severity-floor`, `volume-budget`, `feedback-suppressed`, `baseline-suppressed`). |
 | **Gate** | The CI pass/fail decision computed from admitted findings vs. configured thresholds, honestly reflected in the process exit code. Replaces the legacy "judge" stage. Deterministic; never an LLM. |
 | **Baseline** | The fingerprint set of findings pre-existing on the base branch. With `gate.baseline: true`, only findings the PR introduces can fail the gate. Managed via `qualops baseline`. |
-| **Publish** | Posting to a forge: one summary comment updated in place + fingerprint-marked resolvable inline threads, under the incremental re-review protocol. |
+| **Publish** | Posting to an integration: one summary comment updated in place + fingerprint-marked resolvable inline threads, under the incremental re-review protocol. |
 | **Review state** | Per-PR persisted record of published fingerprints, thread IDs, and resolution status; the substrate for incremental re-review, auto-resolution, and addressed-rate. |
 | **Profile** | One-word preset (`chill` \| `balanced` \| `strict`) mapping to gate thresholds, severity floors, and volume budgets. |
 | **Change-unit** | A deterministically grouped set of related hunks (connected components over def-use, import, and file-affinity edges; size-capped; ungroupable leftovers form one residual unit). The unit of tiering, reviewer selection, and context packing — **never** a generation plan (D14). v1 granularity: file-level. |
@@ -55,7 +55,7 @@ These terms replace all earlier vocabulary. Legacy terms (jobs, passes, subagent
 | **Contracts** | The single Zod-first source of truth for all shared shapes; TypeScript types are inferred from schemas, never written in parallel. |
 | **RunContext** | The per-run object carrying config, session paths, logger, provider factory; passed explicitly. There are no singletons. |
 | **Harness** | The agent-loop backend behind the `AgentRunPort` that drives multi-turn tool-using model runs. A transport, never a parser; tools are always QualOps-owned. **Decided: the Vercel AI SDK** ([08-harness-decision.md](08-harness-decision.md)); the port keeps it swappable. |
-| **Forge** | A code-hosting platform integration (GitHub, GitLab). |
+| **Integration** | A supported code-hosting platform QualOps posts reviews to (GitHub, GitLab), and the QualOps code that talks to it. Replaces the earlier "forge" term. |
 | **Slice** | A self-contained captured eval case (minimal repo subset + expected findings), per TDR 0002. |
 
 ## 5. Decision log (settled questions)
@@ -71,7 +71,7 @@ Resolved during concept work; re-open only with new evidence.
 | D5 | Pricing is derived from the capabilities catalog; never hand-typed (optional override only) | #1 documented footgun; the data is already bundled |
 | D6 | One noun — reviewer — replaces jobs/passes/subagents/customAgents | Five overlapping nouns was the top config-comprehension failure |
 | D7 | Repo-only state; learned rules arrive as PRs to `.qualops/rules/learned/` | Greptile/Sourcery document the dashboard/file split-brain cost |
-| D8 | Keep QualOps' agentic tool-using review, fix stage, Anthropic support, and forge publishing; adopt the spike's contracts/boundary/verdict machinery around them | Spike's own benchmarks show tool-less review caps recall; QualOps' publishing is the product (appendix D) |
+| D8 | Keep QualOps' agentic tool-using review, fix stage, Anthropic support, and integration publishing; adopt the spike's contracts/boundary/verdict machinery around them | Spike's own benchmarks show tool-less review caps recall; QualOps' publishing is the product (appendix D) |
 | D9 | Multi-provider support is retained and exploited: cross-model verification is a first-class option | Decorrelated model families beat same-model sampling (appendix B: CodeX-Verify, Refute-or-Promote) |
 | D10 | Breaking config change with `qualops migrate` + one transition release; the 38 deprecated fields are removed, not carried | The current surface's non-validating docs and contradicting init leave little continuity worth preserving |
 | D11 | Content-capturing tracing (Langfuse) stays available but the default log path is redaction-safe by construction | Prompt iteration needs content; logs must never leak it accidentally |

@@ -27,7 +27,7 @@ Composite action (Node 20).
 | Quality-gate thresholds | `QUALOPS_MAX_CRITICAL/HIGH/MEDIUM/LOW`, `QUALOPS_FAIL_ON_MEDIUM/LOW`, `QUALOPS_MIN_QUALITY_SCORE` |
 | Feature flags | `QUALOPS_ENABLE_REACT`, `QUALOPS_SKIP_CACHE`, `DEBUG`, `VERBOSE`/`QUALOPS_VERBOSE`, `USE_CONSOLIDATED_REVIEW` |
 | Perf / paths | `QUALOPS_MAX_FILES*`, `QUALOPS_TIMEOUT_SECONDS`, `QUALOPS_SESSIONS_DIR`, `QUALOPS_CACHE_DIR`; misc `NODE_ENV`, `QUALOPS_AI_TEMPERATURE`, `QUALOPS_BASE_BRANCH` |
-| CI / forge | the `GITHUB_*` and GitLab `CI_*` / `GITLAB_*` families (read in integrations) |
+| CI / integration | the `GITHUB_*` and GitLab `CI_*` / `GITLAB_*` families (read in integrations) |
 | Observability | `LANGFUSE_*`, `OTEL_EXPORTER_OTLP_ENDPOINT` |
 
 - ⚠ Correction (F-4): the quality-gate thresholds also become expressible in the config file; env remains an override. Gate logic: [`../pipeline/gate.md`](../pipeline/gate.md).

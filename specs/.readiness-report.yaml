@@ -52,7 +52,7 @@ resolved_decisions:
   - id: DEC-2
     topic: Config-file location
     decision: >
-      Both forges read .qualops/.qualopsrc.json (GitLab aligns from repo-root).
+      Both integrations read .qualops/.qualopsrc.json (GitLab aligns from repo-root).
       Migration + release note required.
     spec: behavior/integrations/{github,gitlab}.md
   - id: DEC-3

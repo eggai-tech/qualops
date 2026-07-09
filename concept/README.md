@@ -11,7 +11,7 @@ QualOps has a solid multi-provider foundation and measures recall well — but "
 
 > **Generate wide → verify adversarially → filter hard → publish little.**
 
-This spec realigns QualOps to that shape while keeping its genuine strengths (provider abstraction and dialect handling, sandboxed agentic tooling, fix stage, forge publishing, eval harness), rebuilds the codebase on a contracts-first layered structure, and replaces the config with a "review team is a folder" model.
+This spec realigns QualOps to that shape while keeping its genuine strengths (provider abstraction and dialect handling, sandboxed agentic tooling, fix stage, integration publishing, eval harness), rebuilds the codebase on a contracts-first layered structure, and replaces the config with a "review team is a folder" model.
 
 ## How to read
 
@@ -58,7 +58,7 @@ Plus two cross-cutting rebuilds: the **code structure** (71% cross-module import
 P0 Correctness & trust      days     exit codes, thresholds, prompt drift, scorer fixes  + M1 contracts/kernel
 P1 Identity & filters       1–2 wk   fingerprints, scope/dedup filters, fast eval gate   + M2 platform/RunContext
 P2 Verification             2–3 wk   verifier+admission, config rework C1 (reviewers/*.md) + M3/M4 boundary+domains
-P3 Publishing               2–3 wk   incremental re-review, auto-resolve, baseline, init  + M5 forges
+P3 Publishing               2–3 wk   incremental re-review, auto-resolve, baseline, init  + M5 integrations
 P4 Learning & tiering       ongoing  memory, learned rules, tiering, cleanup M6
 ```
 

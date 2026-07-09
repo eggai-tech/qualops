@@ -51,5 +51,5 @@ Every intended difference from today's code, with its bucket ([`../../plans/refa
 | Injection filter, `projectsReviewed` | vestigial | removed | A |
 | Rollback metadata | dead (commented out) | restored or removed cleanly | A |
 | Fix selection vs config | hardcoded `high`+`>=7`, `critical` never fixed | honors `fix.severities`/`minConfidence` + `--include-medium` | C |
-| Config location (forges) | GitHub `.qualops/`, GitLab repo-root | both `.qualops/.qualopsrc.json` (migration note) | B |
-| Report source (forges) | GitHub latest, GitLab all sessions | latest session only | B |
+| Config location (integrations) | GitHub `.qualops/`, GitLab repo-root | both `.qualops/.qualopsrc.json` (migration note) | B |
+| Report source (integrations) | GitHub latest, GitLab all sessions | latest session only | B |

@@ -5,13 +5,13 @@
 ## 1. Layering (normative)
 
 ```
-contracts ← kernel ← platform ← llm ← domains/forges ← app
+contracts ← kernel ← platform ← llm ← domains/integrations ← app
 ```
 
 Imports flow one direction only. Enforced in CI (dependency-cruiser / ESLint restricted paths / `.sentrux/rules.toml`); a violation fails the build.
 
 - `contracts` imports nothing internal (only `zod`). `kernel` imports nothing internal at all.
-- Domains never import another domain's internals, `forges`, or `app`. Cross-domain data flows through `contracts` types, wired by `app/run`.
+- Domains never import another domain's internals, `integrations`, or `app`. Cross-domain data flows through `contracts` types, wired by `app/run`.
 - **Four exclusivity rules:** only `llm/backend` imports a model SDK; only `llm/boundary` parses model output; only `platform/env` reads `process.env`; only `platform/session-store` writes run artifacts.
 
 ## 2. Module map
@@ -41,7 +41,7 @@ src/
 │   ├── fix/          # fix generation / application / rollback  (was: fix)
 │   ├── reporting/    # report renderers + root-cause extraction  (was: report + root-cause-extract)
 │   └── gate/         # deterministic quality-gate verdict → exit code  (was: judge)
-├── forges/
+├── integrations/
 │   ├── core/     # shared comment markdown, markers, posting (kills github/gitlab dup)
 │   ├── github/   # API client, checks, comments
 │   └── gitlab/   # API client, discussions, comments
@@ -79,7 +79,7 @@ This refactor relocates **today's five stages** into the five domains above (map
 
 ## 6. Centralization (one home per concept)
 
-The refactor removes today's duplication (evidence: `concept/appendix/A-current-state.md`). Canonical homes: `escapeHtml`/line-numbering → `kernel/text`; location parsing → `kernel/location`; retry → `kernel/retry`; JSON recovery → `llm/boundary`; frontmatter → `kernel/markdown`; glob → `kernel/glob`; error handling → `kernel/error` + `app/run` policy; `process.env` → `platform/env`; forge comment formatting → `forges/core`; the 4 `Finding` shapes + duplicate `FixSuggestion`/`FileDiff`/`ReportSummary`/etc. → `contracts/`; the hand-rolled provider layer collapses into `llm/model` + `llm/backend` (the SDK owns provider clients); the 8 singletons → `RunContext`.
+The refactor removes today's duplication (evidence: `concept/appendix/A-current-state.md`). Canonical homes: `escapeHtml`/line-numbering → `kernel/text`; location parsing → `kernel/location`; retry → `kernel/retry`; JSON recovery → `llm/boundary`; frontmatter → `kernel/markdown`; glob → `kernel/glob`; error handling → `kernel/error` + `app/run` policy; `process.env` → `platform/env`; integration comment formatting → `integrations/core`; the 4 `Finding` shapes + duplicate `FixSuggestion`/`FileDiff`/`ReportSummary`/etc. → `contracts/`; the hand-rolled provider layer collapses into `llm/model` + `llm/backend` (the SDK owns provider clients); the 8 singletons → `RunContext`.
 
 ## 7. Structural budget (CI-tracked exit criteria)
 

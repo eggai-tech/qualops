@@ -2,7 +2,7 @@
 
 **Status:** Approved — EggAI, 2026-07-08 · Domain: integrations · Overview: [README.md](README.md)
 
-Posting behavior is preserved by the refactor; shared code moves to `forges/core`.
+Posting behavior is preserved by the refactor; shared code moves to `integrations/core`.
 
 ## Behavior
 
@@ -19,4 +19,4 @@ The dedup key is content-agnostic `file:line`: two distinct findings on one line
 
 - ⚠ **Config location (bucket B):** GitLab **aligns to `.qualops/.qualopsrc.json`** (it reads `.qualopsrc.json` at the repo root today). **Migration/release note required:** GitLab users with a root `.qualopsrc.json` must move it under `.qualops/`; call this out in the release notes and provide a one-line migration hint.
 - ⚠ **Report source (bucket B):** GitLab uses the **latest session's** `review-summary.json` (it aggregates all sessions today).
-- ⚠ Shared comment formatting and the `QualOpsResult` shape are duplicated with GitHub → single home in `forges/core` ([`../../architecture.md`](../../architecture.md) §6).
+- ⚠ Shared comment formatting and the `QualOpsResult` shape are duplicated with GitHub → single home in `integrations/core` ([`../../architecture.md`](../../architecture.md) §6).

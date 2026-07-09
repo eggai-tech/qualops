@@ -6,7 +6,7 @@ The first implementation phase. It moves the codebase to the target structure, r
 
 ## 1. Objectives
 
-1. Establish the layered structure `contracts ← kernel ← platform ← llm ← domains/forges ← app` (`concept/03` §1–2).
+1. Establish the layered structure `contracts ← kernel ← platform ← llm ← domains/integrations ← app` (`concept/03` §1–2).
 2. One definition per concept: unify the 4 `Finding` shapes and 2 severity vocabularies, and the duplicated `FixSuggestion`/`FileDiff`/`ReportSummary`/`ExtractLog`/`RootCauseTaxonomy`/`QualOpsResult`, into Zod-first `contracts/` with inferred types (`concept/03` §5).
 3. Centralize every duplicated utility to one home (`concept/03` §5), including the model-output parsing wall (`llm/boundary`) — the "JSON/non-JSON handling not centralized" problem.
 4. Remove code smells: collapse the prose/structured twin trees, convert static-only classes to functions, retire the 8 singletons behind `RunContext`.
@@ -21,7 +21,7 @@ The first implementation phase. It moves the codebase to the target structure, r
 
 ## 3. Scope
 
-**In:** `contracts/` (unified types + validation schemas + drift tests); `kernel/` (all dedup'd utilities); `platform/` (env, current config loading relocated, logger, git, session-store); `llm/boundary` (merged parse/normalize), `llm/model` (capabilities/pricing/accounting extracted), `llm/prompts`, `llm/tools` (moved as-is), `llm/backend` (the two ports **wrapping the current provider code** — see §5); `domains/` (current stages relocated + twin-tree collapse); `forges/core` (shared comment formatting); `app/run` (stage registry, `RunContext`, single exit point).
+**In:** `contracts/` (unified types + validation schemas + drift tests); `kernel/` (all dedup'd utilities); `platform/` (env, current config loading relocated, logger, git, session-store); `llm/boundary` (merged parse/normalize), `llm/model` (capabilities/pricing/accounting extracted), `llm/prompts`, `llm/tools` (moved as-is), `llm/backend` (the two ports **wrapping the current provider code** — see §5); `domains/` (current stages relocated + twin-tree collapse); `integrations/core` (shared comment formatting); `app/run` (stage registry, `RunContext`, single exit point).
 
 **Out (later phases, `concept/06`):** the verifier and `domains/verification` · `domains/admission` and fingerprint-driven dedup/identity/baseline · the config folder-model (`reviewers/*.md`, `REVIEW.md`, profiles) · the **AI SDK swap** (ports wrap current providers now; the `ai-sdk` backend replaces them in Phase 2) · incremental re-review, auto-resolution, suggestion blocks, SARIF, transparency panel · feedback memory, learned rules, tiering.
 
@@ -58,12 +58,14 @@ Every PR obeys these so a human can answer "does this change behavior?" without 
 6. **llm/model + ports + backend(current)** — extract capabilities/pricing/accounting; introduce `CompletionPort`/`AgentRunPort`; wrap current providers; add the port conformance suite. Behavior-neutral.
 7. **llm/tools** — move tools + bash sandbox as-is; unify the two frontmatter parsers into `kernel/markdown`.
 8. **domains** — relocate stages → domains; collapse the review twin trees (characterization tests first); static-classes→functions; `gate` domain (F-5). Per-domain PRs.
-9. **forges/core** — extract shared comment formatting from the github/gitlab duplication.
+9. **integrations/core** — extract shared comment formatting from the github/gitlab duplication.
 10. **app/run** — stage registry replacing the switch; `RunContext` replacing singletons (one at a time); single exit point + error policy (F-1/F-2/F-3); `--resume` gating (F-6).
 11. **Behavior-fix reconciliation** — land any remaining bucket B/C fixes (F-4/F-13 into config+gate; F-21/F-22 prompts) with changelog entries.
 12. **Shim removal** — delete re-export aliases and the old `src/ai`, `src/shared`, `src/stages` trees. Deletion-only.
 
 Bucket-A internal fixes and duplication removals fold into whichever stack PR touches that module. Steps are a stack (each green, merged in order); a stacked-PR tool helps but a plain ordered series suffices.
+
+**Divergent-"duplicate" caveat (verified in the first phase).** Several entries in the centralization map ([`../../concept/03-architecture-spec.md`](../../concept/03-architecture-spec.md) §5) are behaviorally *divergent*, not byte-identical, and must be **parameterized or preserved** — not blindly merged — to hold the no-behavior-change invariant: `escapeHtml` (`/`-escaping/entity differences), `estimateTokens` (÷3.5 vs ÷4 — keep an explicit divisor), the four distinct location parsers (only shared primitives merge; `normalizeLocation`'s F-14 fix is separate), retry (GitHub rethrows vs GitLab swallows — separate policies), and glob (the `dot` option differs — require it explicitly). `concurrency` is not stdlib-pure (imports `logger`), so it stays out of `kernel/` until decoupled. Treat a map row as "one home," not "one implementation."
 
 ## 6. Exit criteria
 

@@ -5,11 +5,11 @@
 ## 1. Layering (normative)
 
 ```
-contracts ← kernel ← platform ← llm ← domains/forges ← app
+contracts ← kernel ← platform ← llm ← domains/integrations ← app
 ```
 
 - **`contracts`** imports nothing internal (only `zod`). **`kernel`** imports nothing internal at all.
-- Domains never import other domains' internals, `forges`, or `app`; cross-domain data flows through `contracts` types, wired by `app/run`.
+- Domains never import other domains' internals, `integrations`, or `app`; cross-domain data flows through `contracts` types, wired by `app/run`.
 - Four exclusivity rules: only `llm/backend` imports a model SDK (`ai`/`@ai-sdk/*`); only `llm/boundary` parses model output; only `platform/env` reads `process.env`; only `platform/session-store` writes run artifacts. Domains import port *interfaces* from `contracts/ports`, never an SDK.
 - Enforced in CI (dependency-cruiser / ESLint restricted paths / `.sentrux/rules.toml`); violations fail the build.
 
@@ -51,7 +51,7 @@ src/
 │   ├── reporting/    # markdown/html/json/sarif renderers, root-cause extraction (optional)
 │   ├── gate/         # deterministic CI verdict from admitted findings (was "judge")
 │   └── memory/       # feedback embeddings, learned-rules lifecycle
-├── forges/
+├── integrations/
 │   ├── core/         # shared: comment markdown, fingerprint markers, review state,
 │   │                 # publishing protocol (kills the github/gitlab duplication)
 │   ├── github/       # API client, checks, PR reviews, suggestion blocks
@@ -63,7 +63,7 @@ src/
     └── action/       # GitHub-Action entry
 ```
 
-Tests are colocated (`foo.ts` + `foo.test.ts`) for new/moved code; the `tests/` tree shrinks to integration/e2e (incl. the recorded forge fixtures of [05-quality-spec.md](05-quality-spec.md) §5).
+Tests are colocated (`foo.ts` + `foo.test.ts`) for new/moved code; the `tests/` tree shrinks to integration/e2e (incl. the recorded integration fixtures of [05-quality-spec.md](05-quality-spec.md) §5).
 
 ## 3. Code conventions (normative)
 
@@ -124,13 +124,24 @@ interface AgentRunResult {
 | 2× frontmatter parsers (one silently failing) | `kernel/markdown` (real YAML, schema-validated, loud errors) |
 | 6 prose/structured twin classes + mirror methods | one traversal in `domains/review` + `llm/boundary/dialects` |
 | 4 Finding shapes, 2 severity vocabularies; 2× FixSuggestion/FileDiff/ReportSummary/ExtractLog/RootCauseTaxonomy/QualOpsResult | `contracts/` (delete `issue.model.ts`, `pattern.model.ts`, `session.model.ts`) |
-| forge comment formatting duplicated | `forges/core` |
+| integration comment formatting duplicated | `integrations/core` |
 | scattered `process.env` | `platform/env` |
 | 2 unrelated `withErrorHandling` | `kernel/error` + one policy in `app/run` |
 | 3× minimatch wrappers | `kernel/glob` |
 | `diff` npm package (single call site) + in-house diff | `domains/fix` in-house; drop the dependency |
 | static classes (`TemplateEngine`, `FilterMatcher`, `DocDiscovery`, `PromptLoader`, `IssueValidator`, `AgentLoader`) | plain function modules |
 | 8 singletons, 16+ `getInstance()` sites | `RunContext` |
+
+**Not all "duplicates" collapse cleanly (verified in the first structure phase).** Several rows above are behaviorally *divergent*, not byte-identical, so under a no-behavior-change refactor they must be **parameterized or preserved**, never blindly merged:
+
+- `escapeHtml` — variants differ in `/`-escaping and entity form (`&#39;` vs `&#x27;`); keep one canonical behavior + explicit variants where a call site relies on the difference.
+- `estimateTokens` — ÷3.5 (cost accounting) vs ÷4 (context budgeting); centralize with an explicit divisor param, do not unify the constant.
+- location parsing — the "4×" are four *different* functions (string→`{file,line}`, bare-number extraction, `ReviewIssue`→0-based index); only the genuinely shared primitives merge, and `normalizeLocation`'s bug (F-14) is a separate, declared fix.
+- retry — GitHub rethrows on exhaustion, GitLab *swallows* (a separate §5 concern); extract the clean generic one, refactor GitLab's business-logic-entangled loop separately.
+- glob — the `dot` option differs across call sites; the shared wrapper must require `dot` explicitly rather than pick a default.
+- `concurrency` is **not** stdlib-pure (it imports `logger`), so it cannot move to `kernel/` until that dependency is decoupled — it stays in `platform/`/`shared` for now.
+
+Rule: a row here means "one home," not "one implementation" — collapse only where behavior is provably identical; otherwise centralize the shape and keep the divergent behavior explicit.
 
 **Provider-layer collapse (a deletion, not a dedup).** The AI SDK decision (08) removes most of today's hand-rolled `src/ai/providers/` — `base.ts`, `anthropic.ts`, `bedrock.ts`, `openai-compatible-provider.ts`, `openai.ts`, `github.ts`, `factory.ts`, and the `token-stats` global — all replaced by `@ai-sdk/*`. Only the genuinely QualOps-specific parts survive, into `llm/model`: the capabilities catalog (dialect routing), the pricing catalog, and the token/cost accounting policy. The two provider singletons (global provider, global token stats) die with the rest. This is the single largest code reduction in the refactor and removes ~7 bespoke files from the critical path.
 
