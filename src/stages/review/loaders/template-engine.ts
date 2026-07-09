@@ -59,6 +59,7 @@ export class TemplateEngine {
 
     for (const part of parts) {
       if (current && typeof current === 'object' && part in current) {
+        // nosemgrep: prototype-pollution-loop -- read-only object walk (no write), path from operator-authored templates
         current = current[part];
       } else {
         return undefined;

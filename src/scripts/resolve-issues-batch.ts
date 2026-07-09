@@ -21,16 +21,20 @@ async function getIssueFiles(issuesDir: string, category?: string): Promise<stri
   const issues: string[] = [];
 
   if (category) {
+    // nosemgrep: path-join-resolve-traversal -- dev-only script; category is a local CLI arg
     const categoryPath = join(issuesDir, category);
     const files = await readdir(categoryPath);
+    // nosemgrep: path-join-resolve-traversal -- dev-only script; f is a readdir .md filename
     return files.filter((f) => f.endsWith('.md')).map((f) => join(categoryPath, f));
   }
 
   const categories = await readdir(issuesDir);
   for (const cat of categories) {
+    // nosemgrep: path-join-resolve-traversal -- dev-only script; cat is a readdir subdir entry
     const catPath = join(issuesDir, cat);
     try {
       const files = await readdir(catPath);
+      // nosemgrep: path-join-resolve-traversal -- dev-only script; f is a locally-read .md filename
       const mdFiles = files.filter((f) => f.endsWith('.md')).map((f) => join(catPath, f));
       issues.push(...mdFiles);
     } catch {

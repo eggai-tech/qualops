@@ -28,6 +28,7 @@ export class DocDiscovery {
   }
 
   private static async findSplits(docRef: string): Promise<string[]> {
+    // nosemgrep: detect-non-literal-regexp -- docRef escaped via escapeRegex and anchored
     const splitPattern = new RegExp(`^${this.escapeRegex(docRef)}-(\\d+)\\.md$`);
 
     let files: string[];

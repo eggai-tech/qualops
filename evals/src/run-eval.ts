@@ -441,6 +441,7 @@ function crbSliceToItem(slice: CrbSlice): NormalizedItem {
       language: slice.language,
       diff: slice.diff,
       git: {
+        // nosemgrep: path-join-resolve-traversal -- slice.id from local CRB dataset dir names read off disk
         repo_path: path.join(CRB_DATASETS_DIR, slice.id, 'repo'),
         head_sha: '', // empty = use repo_path directly (no worktree)
         base_sha: slice.baseSha,

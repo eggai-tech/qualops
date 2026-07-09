@@ -77,6 +77,7 @@ export function findContextInFile(fileContent: string, context: string): Context
 
   for (const pattern of patterns) {
     try {
+      // nosemgrep: detect-non-literal-regexp -- context escaped via escapeRegExp before RegExp
       const regex = new RegExp(pattern.regex, 'g');
       const match = regex.exec(fileContent);
       if (match) {

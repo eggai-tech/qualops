@@ -17,11 +17,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0  # Full history for accurate git diff
 
       - name: Run QualOps
+        # nosemgrep: github-actions-mutable-action-tag -- example intentionally shows the readable @stable release tag, not a pinned SHA
         uses: eggai-tech/qualops@stable
         with:
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

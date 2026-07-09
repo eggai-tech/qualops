@@ -671,6 +671,7 @@ function checkSingleCommand(cmd: ParsedCommand, config: PolicyConfig): PolicyOut
 
   if (config.extraDenyPatterns) {
     for (const pattern of config.extraDenyPatterns) {
+      // nosemgrep: detect-non-literal-regexp -- pattern from internal PolicyConfig, not attacker input
       if (new RegExp(pattern).test(analysis)) {
         return deny('extra-deny-pattern', `Command matched extra deny pattern: ${pattern}`);
       }

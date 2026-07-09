@@ -38,6 +38,7 @@ export class FilterMatcher {
     if (filters.detectionTriggers && filters.detectionTriggers.length > 0) {
       const matchesTrigger = filters.detectionTriggers.some((pattern) => {
         try {
+          // nosemgrep: detect-non-literal-regexp -- pattern from operator's own .qualopsrc config, not attacker input
           const regex = new RegExp(pattern);
           return regex.test(file.content);
         } catch {
