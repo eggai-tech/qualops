@@ -35,6 +35,7 @@ function snapshotHooks(hooksDir: string): HookSnapshot {
   if (!fs.existsSync(hooksDir)) return snapshot;
 
   for (const entry of fs.readdirSync(hooksDir)) {
+    // nosemgrep: path-join-resolve-traversal -- entry from readdirSync of operator-configured hooks dir
     const fullPath = path.join(hooksDir, entry);
     try {
       const stat = fs.statSync(fullPath);

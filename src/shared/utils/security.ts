@@ -117,6 +117,7 @@ export function redactTokens(text: string, knownTokens: string[] = []): string {
   for (const token of knownTokens) {
     if (token && token.length > 0) {
       const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // nosemgrep: detect-non-literal-regexp -- pattern escaped via metacharacter replace before RegExp
       redacted = redacted.replace(new RegExp(escaped, 'g'), REDACTED);
     }
   }

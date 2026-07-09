@@ -25,8 +25,10 @@ function spillToFile(
   callId: string,
   stream: 'stdout' | 'stderr',
 ): string {
+  // nosemgrep: path-join-resolve-traversal -- reviewId charset-validated /^[a-zA-Z0-9_-]+$/
   const dir = path.join(process.env['SANDBOX_TMP'] ?? os.tmpdir(), 'tool-output', reviewId);
   fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  // nosemgrep: path-join-resolve-traversal -- callId is `${reviewId}-${count}`, both non-traversal
   const filePath = path.join(dir, `${callId}.${stream}`);
   fs.writeFileSync(filePath, content, { encoding: 'utf8', mode: 0o600 });
   return filePath;

@@ -113,6 +113,7 @@ export function getMostRecentSession(): string | null {
         return false;
       }
       try {
+        // nosemgrep: path-join-resolve-traversal -- dir is charset-validated /^[a-zA-Z0-9_-]+$/ before the join
         const fullPath = path.join(reportsDir, dir);
         return fs.statSync(fullPath).isDirectory();
       } catch {
