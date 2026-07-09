@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
-import { calculateFileHash, calculateFileHashes } from '@/stages/analyze/utils/hash-calculator';
+import { calculateFileHash, calculateFileHashes } from '@/kernel/hash';
 
 jest.mock('node:crypto');
 jest.mock('node:fs/promises');

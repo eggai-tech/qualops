@@ -1,13 +1,14 @@
 import { readFile } from 'node:fs/promises';
 
-import { calculateFileHash } from './hash-calculator';
+import { calculateFileHash } from '@/kernel/hash';
+
 import { getCurrentSessionPaths } from '../../../shared/runtime/session-context';
 import type { ExtractLog } from '../../../shared/types';
 import { writeMetadataFile } from '../../../shared/utils/file-utils';
 import { logger } from '../../../shared/utils/logger';
 
 export type { ExtractLog } from '../../../shared/types';
-export { calculateFileHash } from './hash-calculator';
+export { calculateFileHash } from '@/kernel/hash';
 
 export async function loadExtractLog(): Promise<ExtractLog> {
   try {
