@@ -6,7 +6,9 @@
  * shared types to the appropriate domain file, not here.
  */
 
-export * from './primitives';
+export * from './metrics';
+export * from './source-code';
+export * from './session';
 export * from './ai-config';
 export * from './framework-context';
 export * from './finding';
