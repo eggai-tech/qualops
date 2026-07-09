@@ -3,7 +3,11 @@ import { join } from 'path';
 
 import { GitHubAPIClient } from './github-api-client';
 import { GitHubChecksService } from './github-checks';
-import { QUALOPS_COMMENT_MARKER, type ForgeReviewIssue, type QualOpsResult } from '../forges/core';
+import {
+  QUALOPS_COMMENT_MARKER,
+  type IntegrationReviewIssue,
+  type QualOpsResult,
+} from '../integrations/shared';
 import { logger } from '../shared/utils/logger';
 
 interface GitHubConfig {
@@ -212,7 +216,7 @@ export class GitHubIntegration {
     try {
       const reviewSummary = JSON.parse(readFileSync(reviewSummaryPath, 'utf8'));
       const summary = reviewSummary.summary || {};
-      const issues: ForgeReviewIssue[] = reviewSummary.issues || [];
+      const issues: IntegrationReviewIssue[] = reviewSummary.issues || [];
 
       return {
         summary: {

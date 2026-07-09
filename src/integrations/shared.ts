@@ -19,7 +19,7 @@ export interface QualOpsResult {
   }>;
 }
 
-export interface ForgeReviewIssue {
+export interface IntegrationReviewIssue {
   file: string;
   location: string;
   severity: string;

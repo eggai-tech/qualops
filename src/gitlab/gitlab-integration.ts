@@ -3,7 +3,11 @@
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
-import { QUALOPS_COMMENT_MARKER, type ForgeReviewIssue, type QualOpsResult } from '../forges/core';
+import {
+  QUALOPS_COMMENT_MARKER,
+  type IntegrationReviewIssue,
+  type QualOpsResult,
+} from '../integrations/shared';
 import { logger } from '../shared/utils/logger';
 import { hasValidUrlScheme, isValidGitSha } from '../shared/utils/security';
 
@@ -569,7 +573,7 @@ class GitLabIntegration {
 
           if (reviewReport.issues && Array.isArray(reviewReport.issues)) {
             // Transform issues to match expected format
-            const transformedIssues = reviewReport.issues.map((issue: ForgeReviewIssue) => {
+            const transformedIssues = reviewReport.issues.map((issue: IntegrationReviewIssue) => {
               // Parse location field - handle both "42" and "line:42" formats
               const locationStr = issue.location.replace(/^line:?/i, '').trim();
               const lineNumber = parseInt(locationStr, 10) || 0;
