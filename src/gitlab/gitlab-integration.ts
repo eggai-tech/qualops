@@ -498,6 +498,7 @@ class GitLabIntegration {
   }
 
   private findSessionsDir(reportsDir: string): string | null {
+    // nosemgrep: path-join-resolve-traversal -- reportsDir is a local constant, 'sessions' is a literal
     let sessionsDir = join(reportsDir, 'sessions');
     if (existsSync(sessionsDir)) return sessionsDir;
 
@@ -510,6 +511,7 @@ class GitLabIntegration {
         .reverse()[0];
 
       if (latestReport) {
+        // nosemgrep: path-join-resolve-traversal -- latestReport from readdirSync, regex-validated /^qualops-report-\d{8}$/
         sessionsDir = join(reportsDir, latestReport, 'sessions');
         if (existsSync(sessionsDir)) {
           logger.info(`Using report directory: ${latestReport}`);
@@ -561,8 +563,11 @@ class GitLabIntegration {
 
     for (const sessionFolder of sessionFolders) {
       // Read overall report for summary statistics
+      // nosemgrep: path-join-resolve-traversal -- sessionFolder from readdirSync of tool-created sessions dir
       const overallReportPath = join(sessionsDir, sessionFolder, 'overall-report.json');
+      // nosemgrep: path-join-resolve-traversal -- sessionFolder from readdirSync of tool-created sessions dir
       const reviewSummaryPath = join(sessionsDir, sessionFolder, 'review-summary.json');
+      // nosemgrep: path-join-resolve-traversal -- sessionFolder from readdirSync of tool-created sessions dir
       const analysisPath = join(sessionsDir, sessionFolder, 'analysis.json');
 
       if (!existsSync(overallReportPath)) {
@@ -649,6 +654,7 @@ class GitLabIntegration {
         .map((d) => d.name);
 
       for (const session of sessions) {
+        // nosemgrep: path-join-resolve-traversal -- session from readdirSync of local sessions dir
         const judgePath = join(sessionsDir, session, 'judge-decision.json');
         if (existsSync(judgePath)) {
           const data = JSON.parse(readFileSync(judgePath, 'utf8'));

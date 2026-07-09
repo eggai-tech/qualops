@@ -219,6 +219,7 @@ export class GitHubIntegration {
     }
 
     const sessionDirs = readdirSync(reportsDir).filter((name) => {
+      // nosemgrep: path-join-resolve-traversal -- reportsDir from process.cwd(), name from readdirSync of tool-created dir
       const fullPath = join(reportsDir, name);
       return existsSync(fullPath) && readdirSync(fullPath).length > 0;
     });

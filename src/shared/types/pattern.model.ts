@@ -102,6 +102,7 @@ export class Pattern {
       name: data.name as string,
       type: data.type as PatternType,
       cleanupRequirement: data.cleanupRequirement as CleanupRequirement,
+      // nosemgrep: detect-non-literal-regexp -- pattern from operator's own stored config model, not attacker input
       regex: data.regex ? new RegExp(data.regex as string) : undefined,
       evidence: data.evidence as string | undefined,
       confidence: data.confidence as number | undefined,

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - Reduced dependency vulnerabilities: website advisories fully resolved (8→0); remaining root advisories trace to `@eggai/configurable-agent@0.2.1` (no upstream fix; slated for retirement). Note: the majority of GitHub's Dependabot alerts are frozen third-party eval fixtures under `evals/datasets/`, not shipped dependencies.
+- Cleared the Semgrep scan: fixed the real findings (shell-injection in the shipped `qualops-npm.yml` example, unpinned GitHub Actions, missing dependabot cooldown) and suppressed the verified false positives with inline `nosemgrep`.
 
 ### Fixed
 - Hardened the eval A/B tooling's CLI-path handling: filesystem access is confined to the repo/`evals/logs/` (run-log write path, `--eval-log` reads, and `--config`/`--experiment` values), and `--config`/`--repeats` are validated up front so a bad arg fails immediately rather than after a costly run.
