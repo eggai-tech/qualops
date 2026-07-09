@@ -1,5 +1,3 @@
-/** AI provider, model, and per-stage/overall configuration shapes. */
-
 import type { z } from 'zod';
 
 import type { aiProvider, modelConfigSchema } from '@/config/config-schema';

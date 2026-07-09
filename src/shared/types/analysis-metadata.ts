@@ -1,5 +1,3 @@
-/** Persisted metadata written by the analyze stage. */
-
 export interface AnalysisMetadata {
   timestamp: string;
   filePaths: string[];
@@ -11,7 +9,6 @@ export interface AnalysisMetadata {
   };
 }
 
-/** File-hash log tracking which files have been processed. */
 export interface ExtractLog {
   timestamp: string;
   files: Record<

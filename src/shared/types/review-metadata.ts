@@ -1,5 +1,3 @@
-/** Persisted metadata written by the review and filter stages. */
-
 import type { ReviewIssue } from './finding';
 
 export interface ReviewMetadata {

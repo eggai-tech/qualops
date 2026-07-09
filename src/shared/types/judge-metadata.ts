@@ -1,5 +1,3 @@
-/** Quality thresholds and the verdict metadata written by the judge stage. */
-
 export interface QualityThresholds {
   minQualityScore?: number;
   maxCriticalIssues: number;

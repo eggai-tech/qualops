@@ -1,5 +1,3 @@
-/** The core review finding and fix-suggestion shapes used across stages. */
-
 export interface ReviewIssue {
   id: string;
   file: string;

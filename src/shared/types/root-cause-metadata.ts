@@ -1,5 +1,3 @@
-/** Taxonomy and classification shapes for the root-cause-extract stage. */
-
 export interface RootCauseTaxonomy {
   key: string;
   label: string;

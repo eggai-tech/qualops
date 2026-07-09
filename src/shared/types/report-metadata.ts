@@ -1,5 +1,3 @@
-/** Persisted metadata and section shapes written by the report stage. */
-
 export interface ReportSection {
   title: string;
   content: string;

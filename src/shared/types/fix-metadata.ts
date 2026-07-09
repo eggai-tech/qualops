@@ -1,5 +1,3 @@
-/** Persisted metadata written by the fix stage. */
-
 import type { FixSuggestion } from './finding';
 
 export interface FixMetadata {
