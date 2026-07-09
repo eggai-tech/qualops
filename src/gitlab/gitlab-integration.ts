@@ -7,7 +7,7 @@ import {
   QUALOPS_COMMENT_MARKER,
   type IntegrationReviewIssue,
   type QualOpsResult,
-} from '../integrations/shared';
+} from '../shared/integrations';
 import { logger } from '../shared/utils/logger';
 import { hasValidUrlScheme, isValidGitSha } from '../shared/utils/security';
 
