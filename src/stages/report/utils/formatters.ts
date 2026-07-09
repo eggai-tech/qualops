@@ -1,4 +1,5 @@
 import type { ReviewIssue } from '../../../shared/types';
+import { CONFIDENCE_DISPLAY_THRESHOLDS } from '../constants';
 
 export function getConfidenceBadge(confidence: number | undefined): string {
   if (confidence === undefined) return '';
@@ -6,10 +7,10 @@ export function getConfidenceBadge(confidence: number | undefined): string {
   let _level: string;
   let className: string;
 
-  if (confidence >= 8) {
+  if (confidence >= CONFIDENCE_DISPLAY_THRESHOLDS.HIGH) {
     _level = 'high';
     className = 'confidence-high';
-  } else if (confidence >= 6) {
+  } else if (confidence >= CONFIDENCE_DISPLAY_THRESHOLDS.MEDIUM) {
     _level = 'medium';
     className = 'confidence-medium';
   } else {
