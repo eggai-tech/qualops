@@ -7,7 +7,7 @@ import {
   QUALOPS_COMMENT_MARKER,
   type IntegrationReviewIssue,
   type QualOpsResult,
-} from '../shared/integrations';
+} from '../shared/types/integrations';
 import { logger } from '../shared/utils/logger';
 
 interface GitHubConfig {
