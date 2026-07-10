@@ -1,6 +1,6 @@
 # 11 — Configurable-Agent Backbone (Proposal)
 
-**Status:** Concept-stage proposal (2026-07-10) — **exploratory, challenges parts of [08-harness-decision.md](08-harness-decision.md) (D12)**; nothing here is decided. Terms per [01-goals-and-glossary.md](01-goals-and-glossary.md). Evidence: measured on 2026-07-10 against `@eggai/configurable-agent` branch `chore/deps-refactor-2026-07` (spec 014 of that repo) and the QualOps working tree; unverified items in §13.
+**Status:** Concept-stage proposal (2026-07-10) — **exploratory, challenges parts of [08-harness-decision.md](08-harness-decision.md) (D12)**; nothing here is decided. Terms per [01-goals-and-glossary.md](01-goals-and-glossary.md). Evidence: measured on 2026-07-10 against `@eggai/configurable-agent` branch `chore/deps-refactor-2026-07` (spec 014 of that repo) and the QualOps working tree; unverified items in §14.
 **Conflict-of-interest note:** `@eggai/configurable-agent` is a same-org (EggAI) package, and this document was drafted from that repo's side. The measured facts stand on their own; the decision belongs to the human reviewers, exactly as in 08 §3.
 
 ## 1. Thesis
@@ -151,10 +151,42 @@ Every configurable-agent item is a generic feature — nothing QualOps-specific 
 
 **Combined: ~2 months for one engineer; ~1 month with one engineer per repo** (independent until integration; the configurable-agent release is the hard gate and goes first).
 
-## 13. Unverified / open items (do not treat as facts)
+## 13. Head-to-head: 08 baseline (AI SDK direct) vs. this proposal
+
+Both options exit the Claude Agent SDK on the Anthropic agentic path and both move to strict schema-native structured output — **the accuracy risk profile of §11 is identical for A and B**; the same eval gate applies either way. They differ in glue ownership, features beyond the port, and timeline shape:
+
+| Capability | A — AI SDK direct (08 §4) | B — configurable-agent backbone |
+|---|---|---|
+| Agent loop | SDK built-in; thin adapter **QualOps writes** | Same SDK loop; adapter **exists in production** |
+| Providers (incl. Bedrock, openai-compatible) | `@ai-sdk/*` first-party — equal | Equal; Bedrock gated on CA-R9 |
+| Structured output (repair layer deleted) | `Output.object` — equal | Equal (already wired) |
+| Single-shot completions (D13 majority) | `generateText` direct | Gated on CA-R3 |
+| Retry/backoff | SDK `maxRetries` — equal | Equal |
+| Context compaction | **QualOps builds & owns** (08 §4.2 wrapper) | Built-in, config-surfaced |
+| Tool-output summarization | **QualOps builds or loses it** | Built-in |
+| USD/tool-call budgets | **QualOps builds & owns** (08 §4.2) | CA-R4 — enforced inside the loop (strictly better than a wrapper) |
+| Prompt templating | Keep the hand-rolled engine | Handlebars built-in; engine deleted |
+| Approval / pause-resume (future gated fixes) | Not planned | Built-in (`run_paused` contract) |
+| Trajectory/event contract | QualOps defines from stream parts | Exists + CA-R7 versioning |
+| OTel + trace-correlated logs | QualOps wires itself | Built-in; Langfuse = exporter config |
+| Config artifact | Call params in code | Compiled `AgentConfig` — auditable, eval-replayable |
+| Isolation shapes | In-process only | In-process or one-shot CLI subprocess |
+
+| Dimension | A | B |
+|---|---|---|
+| Effort / timeline | **~4–5 wk, one repo, no external gate** | ~3–4 wk runtime + ~4–6 wk QualOps, release-gated; ~5–6 wk calendar with one engineer per repo |
+| Dependencies | ~20 pkgs (floor) | ~35–45 pkgs core (projected); two-repo chain |
+| Glue QualOps owns forever | ~600–900 LoC (adapter, compaction, budget, summarization, templating, telemetry) | ~200–300 LoC (the compiler); rest lives in the shared runtime |
+| Blockers | none | CA-R1 (licensing decision), CA-R2, CA-R3, CA-R9 minimum |
+| Org leverage | zero (QualOps-private glue) | shared runtime — **iff** the §9.4 ownership question gets a yes |
+| Reversibility | baseline | one conformance-suite run back to A, by port design |
+
+**Break-even, stated plainly:** B wins when a second product consumes configurable-agent or when approval/compaction/summarization become product requirements; A wins if QualOps stays the only consumer. Because both sit behind the same port, choosing A now re-prices B as "one adapter later" rather than killing it.
+
+## 14. Unverified / open items (do not treat as facts)
 
 Published-artifact numbers for the core package (all §8 figures are projections from the source tree) · configurable-agent under QualOps' concurrency profile (10s–100s of parallel runs in one process — the runtime is built for it in serve mode, but not measured from `/lib`) · prompt-caching control (Anthropic cache TTLs) through the runtime · whether the Handlebars surface covers all template-engine call sites (comparison operators in `{{#if}}`) · Bedrock parity (CA-R9) including auth modes QualOps users rely on · the eval-scoreboard parity claim in §10.2 (must be measured, not asserted) · GitHub Models endpoint behavior via `openai-compatible`.
 
-## 14. Revisit / rejection triggers
+## 15. Revisit / rejection triggers
 
 Adopt only if: CA-R1+CA-R2 ship and re-measure clean · the port conformance suite passes · eval parity holds on the scoreboard · the cross-team ownership question (§9.4) gets an explicit yes. Reject/park if any fails — and note 08's own revisit list already contains the standing alternative (Eve at GA) and the fallback (AI SDK direct) that this proposal keeps one suite-run away.
