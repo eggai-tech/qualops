@@ -1,6 +1,6 @@
 # 11 — Configurable-Agent Backbone (Proposal)
 
-**Status:** Concept-stage proposal (2026-07-10) — **exploratory, challenges parts of [08-harness-decision.md](08-harness-decision.md) (D12)**; nothing here is decided. Terms per [01-goals-and-glossary.md](01-goals-and-glossary.md). Evidence: measured on 2026-07-10 against `@eggai/configurable-agent` branch `chore/deps-refactor-2026-07` (spec 014 of that repo) and the QualOps working tree; unverified items in §10.
+**Status:** Concept-stage proposal (2026-07-10) — **exploratory, challenges parts of [08-harness-decision.md](08-harness-decision.md) (D12)**; nothing here is decided. Terms per [01-goals-and-glossary.md](01-goals-and-glossary.md). Evidence: measured on 2026-07-10 against `@eggai/configurable-agent` branch `chore/deps-refactor-2026-07` (spec 014 of that repo) and the QualOps working tree; unverified items in §13.
 **Conflict-of-interest note:** `@eggai/configurable-agent` is a same-org (EggAI) package, and this document was drafted from that repo's side. The measured facts stand on their own; the decision belongs to the human reviewers, exactly as in 08 §3.
 
 ## 1. Thesis
@@ -97,12 +97,23 @@ Per the ground rule of this proposal, changes to configurable-agent are in scope
 | **CA-R8** | **Dialect degradation** (TDR 0003): a defined behavior for models without reliable `json_schema` support — either a capability probe (the runtime already has an active model probe) with a typed `unstructured_dialect` outcome QualOps can route to its prose pipeline, or documented pass-through of provider errors | Open. Without this, QualOps keeps the litellm capability snapshot for routing only. |
 | **CA-R9** | **Bedrock provider** (`@ai-sdk/amazon-bedrock`) — QualOps supports Bedrock today; the runtime does not | Open. First-party AI SDK provider; additive. |
 | **CA-R10** | **Node floor reconciliation**: runtime engines are `>=22.12`; the QualOps action pins Node 20 (`action.yml`) | Open — but note 08 §6 recorded "no Node-24 constraint" as an AI-SDK-choice benefit; Node 22 LTS is a smaller ask than the purista harness' 24.15, and the action controls its own runtime. Decide: bump action to Node 22 (likely fine — GitHub-hosted runners ship it) or lower the runtime floor. |
+| **CA-R11** | **Modular tool packs / stacked options**: batteries (e.g. a Playwright MCP pack) ship as separate opt-in packages, never in core — see §7 | Open. Design requirement, not just packaging: keeps CA-R2's slim core honest as the runtime grows batteries for other use cases. |
 
-## 7. Supply-chain math (projected, to be re-measured on release)
+## 7. Modularity: tool packs and stacked options (CA-R11 design)
+
+There is a standing idea that configurable-agent should *ship with* useful MCP tools (Playwright browser automation, filesystem, git, …). Batteries-included and the slim core of CA-R2 are in direct tension — a bundled Playwright pack alone would re-add browser binaries and a large dependency subtree to every consumer, recreating exactly the footprint 08 penalized. The resolution is a **stacked, opt-in package architecture**:
+
+- **`configurable-agent-core`** — `runAgent`/`complete`, config schema, events, safety policies. Providers become **optional peers** (`@ai-sdk/anthropic`, `@ai-sdk/openai`, …, installed per-provider — the pattern 08 praised in the purista adapters), putting the core near the AI SDK's own ~20-package baseline.
+- **`configurable-agent-service`** — Hono server + OTel Node-SDK bootstrap + Docker. This split alone removes 144 of the 162 currently-measured packages from every library consumer.
+- **`configurable-agent-tools-<name>` packs** — each exports a ready ToolSet/MCP wiring **plus** a declared security profile (network egress, fs write, subprocess spawn), **plus** default approval rules (e.g. Playwright navigation gated via `safety.approval` out of the box), **plus** a config-schema fragment. Core resolves `toolPacks: [playwright]` only when the package is installed; unknown pack names are hard errors (same philosophy as 04's unknown-key rule). Docker ships `slim` and `-full` variants.
+
+Security consequence: supply-chain review happens per pack, not per monolith; the default install carries zero pack code. **QualOps installs zero packs** — its sandboxed bash tool and tool policy stay QualOps-owned and injected per D12 — which doubles as the proof that packs are genuinely optional.
+
+## 8. Supply-chain math (projected, to be re-measured on release)
 
 Today QualOps ships `@anthropic-ai/sdk` + `openai` + `@aws-sdk/client-bedrock-runtime` + `@anthropic-ai/claude-agent-sdk` (109 pkgs / 281 MB incl. the proprietary binary) + `@openai/agents` (102 pkgs) + `@eggai/configurable-agent@0.2.1` (258 pkgs as measured by 08). The 08 plan replaces all of that with `ai` + 4 providers (20 pkgs / 27 MB). This proposal replaces it with **configurable-agent-core** = the same `ai` + providers + {zod, pino, handlebars, yaml, ajv, `@opentelemetry/api`, `@ai-sdk/otel`, `@ai-sdk/mcp`} ≈ **~35–45 packages, zero native binaries, all permissive** (projected from the measured per-dep transitive counts; must be re-measured on the published core package per 08's standard). Delta vs the 08 plan: ~+20 packages; in exchange QualOps deletes the loop-adjacent code it would otherwise own (08 §4.2's wrappers, the template engine, the repair layer, provider clients) and stops carrying three SDKs.
 
-## 8. The maintenance-ownership question, argued honestly
+## 9. The maintenance-ownership question, argued honestly
 
 08's decider was not technical: *"the team will not take on harness maintenance in a TypeScript codebase that has little leverage for a primarily-Python organization."* Three things are genuinely different for configurable-agent vs. the rejected `@purista/harness`-as-company-package — and one thing is not:
 
@@ -111,7 +122,7 @@ Today QualOps ships `@anthropic-ai/sdk` + `openai` + `@aws-sdk/client-bedrock-ru
 3. **The integration is already maintained.** QualOps carries a production `configurable-agent-adapter.ts` today. The marginal new maintenance is the compiler (§4) — code QualOps would write against *any* backend — minus the two adapters and five clients it deletes.
 4. **Unchanged:** bus factor, release history, external adoption ≈ zero. If the org's answer to "will we staff this package across teams?" is no, 08's decision stands and this document should be rejected on the same grounds — a smaller better package does not by itself reopen a maintenance-ownership decision (08 is explicit about that).
 
-## 9. Migration sketch (fits 06 P2 unchanged in shape)
+## 10. Migration sketch (fits 06 P2 unchanged in shape)
 
 1. **Gate zero:** configurable-agent release with CA-R1 (license/provenance) + CA-R2 (core split) shipped and re-measured. No release, no further steps.
 2. **P2 step (replaces "AI SDK adapter" with "configurable-agent adapter"):** implement `AgentRunPort` over `runAgent`; pass the port conformance suite (trajectory, budgets, typed termination). Delete `anthropic-adapter`/`openai-adapter` + their SDKs once parity is shown on the eval scoreboard (05: paired before/after, McNemar).
@@ -119,10 +130,31 @@ Today QualOps ships `@anthropic-ai/sdk` + `openai` + `@aws-sdk/client-bedrock-ru
 4. **Config compiler** (§4): reviewer folder → AgentConfig; surface compaction/tool-trim policy in `config.yaml`; delete the template engine.
 5. Each step independently shippable with paired eval results, per 06's rule; the port keeps the AI-SDK-direct adapter one conformance suite away as the standing fallback.
 
-## 10. Unverified / open items (do not treat as facts)
+## 11. Accuracy & feature risk assessment
 
-Published-artifact numbers for the core package (all §7 figures are projections from the source tree) · configurable-agent under QualOps' concurrency profile (10s–100s of parallel runs in one process — the runtime is built for it in serve mode, but not measured from `/lib`) · prompt-caching control (Anthropic cache TTLs) through the runtime · whether the Handlebars surface covers all template-engine call sites (comparison operators in `{{#if}}`) · Bedrock parity (CA-R9) including auth modes QualOps users rely on · the eval-scoreboard parity claim in §9.2 (must be measured, not asserted) · GitHub Models endpoint behavior via `openai-compatible`.
+Most of the pipeline carries **zero regression risk by construction**: prompts, context packs, intake, filters, validation/dedup prompt content, the Finding contract, and the openai-compatible agentic path (already on configurable-agent in production) are unchanged. The risk is concentrated in exactly two migrations, both eval-measurable:
 
-## 11. Revisit / rejection triggers
+| Risk | What changes | Direction | Mitigation |
+|---|---|---|---|
+| **Anthropic agentic path** | Claude Agent SDK (Claude-Code-grade harness behavior) → plain AI-SDK loop via configurable-agent | Unknown; plausibly negative on Anthropic agentic reviews | Paired scoreboard evals (05 §7) gate the deletion; 08 §4.5's opt-in Claude-Agent-SDK adapter behind the port remains the documented fallback if parity fails |
+| **Structured-output dialect** | Tolerant hand-rolled repair layer (recovers malformed JSON) → strict schema-native `Output.object` | Likely neutral-to-positive (the repair layer also masked garbage — QualOps CHANGELOG 0.2.7 documents silent-zero-findings bugs in that class), but tolerant→strict can shift recall on weaker models | Eval-gated; CA-R8 routes json_schema-less models to the prose pipeline instead of failing |
 
-Adopt only if: CA-R1+CA-R2 ship and re-measure clean · the port conformance suite passes · eval parity holds on the scoreboard · the cross-team ownership question (§8.4) gets an explicit yes. Reject/park if any fails — and note 08's own revisit list already contains the standing alternative (Eve at GA) and the fallback (AI SDK direct) that this proposal keeps one suite-run away.
+Feature direction is net-positive for the intended pipeline: compaction on long agentic runs and tool-output summarization for oversized grep/bash output are gains QualOps lacks today; the approval/`run_paused` flow maps onto future human-gated fix application; the typed event stream is the trajectory 05 §4 wants; the Verifier is naturally "one more compiled agent config with read-only tools." The generate-wide→verify→filter→publish shape is N configurable-agent invocations with different compiled configs — the backend fits the future behavior, not just the current one.
+
+## 12. Effort estimate
+
+Every configurable-agent item is a generic feature — nothing QualOps-specific enters the runtime; findings schemas, tools, prompts, pipeline stay QualOps-side. Estimates include specs, tests, docs (both repos run spec-first workflows).
+
+**configurable-agent — ≈ 3–4 engineer-weeks:** CA-R1 0.5 d (+ licensing decision) · CA-R2 split 3–5 d · CA-R11 pack mechanism 3–5 d (+1–2 d per pack) · CA-R3 `complete()` 1–2 d · CA-R4 budgets 2–3 d · CA-R5 layering 1–2 d · CA-R6 lifecycle 1 d · CA-R7 contract versioning 1 d · CA-R8 dialect degradation 2–4 d · CA-R9 Bedrock 2–3 d · CA-R10 0.5 d.
+
+**QualOps — ≈ 4–6 engineer-weeks (eval cycles dominate):** port formalization + conformance suite + adapter (extends the existing production adapter) 3–5 d · retire anthropic/openai adapters + parity evals 3–5 d · `CompletionPort` migration of file-review/validation/dedup/fix/root-cause call sites 5–8 d · delete providers/repair layer/template engine 3–5 d · config compiler + surfacing safety policy 3–5 d · observability rewiring (Langfuse over events/traces) 2–3 d · regression-triage buffer ~1 wk.
+
+**Combined: ~2 months for one engineer; ~1 month with one engineer per repo** (independent until integration; the configurable-agent release is the hard gate and goes first).
+
+## 13. Unverified / open items (do not treat as facts)
+
+Published-artifact numbers for the core package (all §8 figures are projections from the source tree) · configurable-agent under QualOps' concurrency profile (10s–100s of parallel runs in one process — the runtime is built for it in serve mode, but not measured from `/lib`) · prompt-caching control (Anthropic cache TTLs) through the runtime · whether the Handlebars surface covers all template-engine call sites (comparison operators in `{{#if}}`) · Bedrock parity (CA-R9) including auth modes QualOps users rely on · the eval-scoreboard parity claim in §10.2 (must be measured, not asserted) · GitHub Models endpoint behavior via `openai-compatible`.
+
+## 14. Revisit / rejection triggers
+
+Adopt only if: CA-R1+CA-R2 ship and re-measure clean · the port conformance suite passes · eval parity holds on the scoreboard · the cross-team ownership question (§9.4) gets an explicit yes. Reject/park if any fails — and note 08's own revisit list already contains the standing alternative (Eve at GA) and the fallback (AI SDK direct) that this proposal keeps one suite-run away.
