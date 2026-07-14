@@ -31,7 +31,7 @@ export async function setupTracing(): Promise<void> {
 
   const secretKey = process.env.QUALOPS_LANGFUSE_SECRET_KEY;
   const publicKey = process.env.QUALOPS_LANGFUSE_PUBLIC_KEY;
-  const baseUrl = process.env.QUALOPS_LANGFUSE_BASE_URL;
+  const baseUrl = process.env.QUALOPS_LANGFUSE_BASE_URL || undefined;
   const hasLangfuse = !!(secretKey && publicKey);
   const hasOtlp = !!process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
