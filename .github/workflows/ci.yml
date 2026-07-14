@@ -194,9 +194,9 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           CLAUDE_CODE_EXECUTABLE: ${{ github.workspace }}/node_modules/@anthropic-ai/claude-agent-sdk-linux-x64/claude
-          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
-          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
-          LANGFUSE_BASE_URL: ${{ vars.LANGFUSE_BASE_URL }}
+          QUALOPS_LANGFUSE_PUBLIC_KEY: ${{ secrets.QUALOPS_LANGFUSE_PUBLIC_KEY }}
+          QUALOPS_LANGFUSE_SECRET_KEY: ${{ secrets.QUALOPS_LANGFUSE_SECRET_KEY }}
+          QUALOPS_LANGFUSE_BASE_URL: ${{ vars.QUALOPS_LANGFUSE_BASE_URL }}
         run: |
           node dist/cli.js all \
             --base "origin/$BASE_REF" \

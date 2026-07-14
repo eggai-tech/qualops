@@ -544,11 +544,13 @@ async function runDataset(langfuse: LangfuseClient, datasetName: string, tracer:
 }
 
 function createLangfuseClient(): { langfuse: LangfuseClient; host: string } {
-  const secretKey = process.env.LANGFUSE_SECRET_KEY;
-  const publicKey = process.env.LANGFUSE_PUBLIC_KEY;
-  const host = process.env.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
+  const secretKey = process.env.QUALOPS_LANGFUSE_SECRET_KEY;
+  const publicKey = process.env.QUALOPS_LANGFUSE_PUBLIC_KEY;
+  const host = process.env.QUALOPS_LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
   if (!secretKey || !publicKey) {
-    console.error('Error: LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY must be set in .env');
+    console.error(
+      'Error: QUALOPS_LANGFUSE_SECRET_KEY and QUALOPS_LANGFUSE_PUBLIC_KEY must be set in .env'
+    );
     process.exit(1);
   }
   const langfuse = new LangfuseClient({ secretKey, publicKey, baseUrl: host });

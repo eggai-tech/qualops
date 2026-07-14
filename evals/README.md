@@ -6,8 +6,8 @@ Evaluates QualOps review quality against annotated code samples using [Langfuse]
 
 1. `.env` in the qualops root with:
    - `ANTHROPIC_API_KEY` (required)
-   - `LANGFUSE_SECRET_KEY`, `LANGFUSE_PUBLIC_KEY` (required)
-   - `LANGFUSE_BASE_URL` (optional, defaults to `https://cloud.langfuse.com`)
+   - `QUALOPS_LANGFUSE_SECRET_KEY`, `QUALOPS_LANGFUSE_PUBLIC_KEY` (required)
+   - `QUALOPS_LANGFUSE_BASE_URL` (optional, defaults to `https://cloud.langfuse.com`)
    - `OPENAI_API_KEY` (optional, for dual-judge scoring)
 
 2. Upload datasets to Langfuse:
