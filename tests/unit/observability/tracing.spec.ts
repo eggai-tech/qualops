@@ -5,9 +5,9 @@ import { setupTracing, getTracer, shutdownTracing, forceFlushTracing } from '@/o
 describe('tracing', () => {
   afterEach(async () => {
     await shutdownTracing();
-    delete process.env.LANGFUSE_SECRET_KEY;
-    delete process.env.LANGFUSE_PUBLIC_KEY;
-    delete process.env.LANGFUSE_BASE_URL;
+    delete process.env.QUALOPS_LANGFUSE_SECRET_KEY;
+    delete process.env.QUALOPS_LANGFUSE_PUBLIC_KEY;
+    delete process.env.QUALOPS_LANGFUSE_BASE_URL;
     delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
   });
 
@@ -21,9 +21,9 @@ describe('tracing', () => {
     });
 
     it('registers a real TracerProvider when Langfuse keys are set', async () => {
-      process.env.LANGFUSE_SECRET_KEY = 'sk-test';
-      process.env.LANGFUSE_PUBLIC_KEY = 'pk-test';
-      process.env.LANGFUSE_BASE_URL = 'http://localhost:3000';
+      process.env.QUALOPS_LANGFUSE_SECRET_KEY = 'sk-test';
+      process.env.QUALOPS_LANGFUSE_PUBLIC_KEY = 'pk-test';
+      process.env.QUALOPS_LANGFUSE_BASE_URL = 'http://localhost:3000';
 
       await setupTracing();
 
@@ -36,9 +36,9 @@ describe('tracing', () => {
     });
 
     it('is idempotent — calling twice does not register a second provider', async () => {
-      process.env.LANGFUSE_SECRET_KEY = 'sk-test';
-      process.env.LANGFUSE_PUBLIC_KEY = 'pk-test';
-      process.env.LANGFUSE_BASE_URL = 'http://localhost:3000';
+      process.env.QUALOPS_LANGFUSE_SECRET_KEY = 'sk-test';
+      process.env.QUALOPS_LANGFUSE_PUBLIC_KEY = 'pk-test';
+      process.env.QUALOPS_LANGFUSE_BASE_URL = 'http://localhost:3000';
 
       await setupTracing();
       const providerAfterFirst = (trace.getTracerProvider() as any).getDelegate();
@@ -53,9 +53,9 @@ describe('tracing', () => {
 
   describe('shutdownTracing', () => {
     it('clears state so a subsequent call is a no-op', async () => {
-      process.env.LANGFUSE_SECRET_KEY = 'sk-test';
-      process.env.LANGFUSE_PUBLIC_KEY = 'pk-test';
-      process.env.LANGFUSE_BASE_URL = 'http://localhost:3000';
+      process.env.QUALOPS_LANGFUSE_SECRET_KEY = 'sk-test';
+      process.env.QUALOPS_LANGFUSE_PUBLIC_KEY = 'pk-test';
+      process.env.QUALOPS_LANGFUSE_BASE_URL = 'http://localhost:3000';
 
       await setupTracing();
       await shutdownTracing();

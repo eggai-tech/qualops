@@ -14,7 +14,7 @@ let _state: TracingState | null = null;
  * Initialize OpenTelemetry tracing.
  *
  * Auto-detection:
- * 1. LANGFUSE_SECRET_KEY + LANGFUSE_PUBLIC_KEY → LangfuseSpanProcessor
+ * 1. QUALOPS_LANGFUSE_SECRET_KEY + QUALOPS_LANGFUSE_PUBLIC_KEY → LangfuseSpanProcessor
  * 2. OTEL_EXPORTER_OTLP_ENDPOINT → raw OTLPTraceExporter
  * 3. Neither → no-op (OTel default)
  */
@@ -29,7 +29,10 @@ export async function setupTracing(): Promise<void> {
     return;
   }
 
-  const hasLangfuse = !!(process.env.LANGFUSE_SECRET_KEY && process.env.LANGFUSE_PUBLIC_KEY);
+  const secretKey = process.env.QUALOPS_LANGFUSE_SECRET_KEY;
+  const publicKey = process.env.QUALOPS_LANGFUSE_PUBLIC_KEY;
+  const baseUrl = process.env.QUALOPS_LANGFUSE_BASE_URL || undefined;
+  const hasLangfuse = !!(secretKey && publicKey);
   const hasOtlp = !!process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
   if (!hasLangfuse && !hasOtlp) return;
@@ -38,7 +41,7 @@ export async function setupTracing(): Promise<void> {
 
   if (hasLangfuse) {
     const { LangfuseSpanProcessor } = await import('@langfuse/otel');
-    const processor = new LangfuseSpanProcessor();
+    const processor = new LangfuseSpanProcessor({ secretKey, publicKey, baseUrl });
     const sdk = new NodeSDK({ spanProcessors: [processor] });
     sdk.start();
     _state = { sdk, processor };

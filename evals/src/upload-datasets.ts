@@ -265,12 +265,14 @@ function resolveCrbRepos(repoArg: string): string[] {
 }
 
 async function main(): Promise<void> {
-  const langfuseSecretKey = process.env.LANGFUSE_SECRET_KEY;
-  const langfusePublicKey = process.env.LANGFUSE_PUBLIC_KEY;
-  const langfuseHost = process.env.LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
+  const langfuseSecretKey = process.env.QUALOPS_LANGFUSE_SECRET_KEY;
+  const langfusePublicKey = process.env.QUALOPS_LANGFUSE_PUBLIC_KEY;
+  const langfuseHost = process.env.QUALOPS_LANGFUSE_BASE_URL || 'https://cloud.langfuse.com';
 
   if (!langfuseSecretKey || !langfusePublicKey) {
-    console.error('Error: LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY must be set in .env');
+    console.error(
+      'Error: QUALOPS_LANGFUSE_SECRET_KEY and QUALOPS_LANGFUSE_PUBLIC_KEY must be set in .env'
+    );
     process.exit(1);
   }
 
