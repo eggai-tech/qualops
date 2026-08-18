@@ -101,7 +101,7 @@
     "diff": "^9.0.0",
     "dotenv": "^17.4.2",
     "glob": "^13.0.6",
-    "openai": "^6.45.0",
+    "openai": "^7.4.0",
     "zod": "^4.4.3"
   },
   "optionalDependencies": {
