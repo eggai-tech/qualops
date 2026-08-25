@@ -91,7 +91,7 @@
     "@langfuse/otel": "^5.9.1",
     "@octokit/rest": "^22.0.1",
     "@octokit/webhooks-types": "^7.6.1",
-    "@openai/agents": "^0.14.2",
+    "@openai/agents": "^0.16.1",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
     "@opentelemetry/sdk-node": "^0.221.0",
