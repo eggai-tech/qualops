@@ -1,4 +1,7 @@
-# GitHub Integration Setup Guide
+---
+title: GitHub Action setup
+description: Configure secrets, permissions, and the QualOps GitHub Action workflow for your repository.
+---
 
 QualOps provides native GitHub Actions integration for automated code quality analysis on pull requests. This guide shows you how to set up QualOps in your GitHub repository.
 
