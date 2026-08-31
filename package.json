@@ -106,7 +106,7 @@
   },
   "optionalDependencies": {
     "@anthropic-ai/claude-agent-sdk-linux-arm64": "0.3.243",
-    "@anthropic-ai/claude-agent-sdk-linux-x64": "0.3.234"
+    "@anthropic-ai/claude-agent-sdk-linux-x64": "0.3.243"
   },
   "overrides": {
     "uuid": "^11.1.1"
