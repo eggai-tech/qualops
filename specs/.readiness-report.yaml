@@ -1,0 +1,104 @@
+# Spec Readiness Review — QualOps specs/
+# Produced by spec-readiness-review.
+language: en
+status: approved
+reviewed_at: "2026-07-08"
+scope: >
+  All specs under specs/ (architecture, contracts, documentation, quality/,
+  behavior/{pipeline,configuration,integrations}/, operations/release,
+  evaluation/eval-cases, decisions/, plans/refactor). Baseline set:
+  current behavior + committed correctness fixes; functional redesign
+  stays in concept/.
+
+human_approval:
+  status: approved
+  by: EggAI
+  date: "2026-07-08"
+  basis: >
+    EggAI approved the baseline set: the codebase already implements this
+    behavior, and all open decisions are resolved (below). The framework's
+    canonical scaffolding artifacts (capability inventory, e2e matrix,
+    registry/provenance, vision/stack) are intentionally NOT adopted for
+    this baseline — the domain-structured specs are the agreed form.
+    Deterministic template gates are therefore waived by human decision.
+
+verdict: >
+  Approved for use as the implementation baseline. Specs are internally
+  consistent (zero broken links, no contradictions), domain-structured, and
+  match existing behavior plus the committed corrections. Approval is
+  pragmatic (implementation exists), not a claim that every framework
+  scaffolding artifact is present.
+
+deterministic_checks:
+  broken_links: 0
+  contradictions: 0
+  template_conformance: waived
+  note: >
+    The skill's check_specs.mjs expects a fixed canonical layout (00-vision,
+    capability-inventory, registry/provenance, 03-flows/03-contracts) and
+    flags Owner/TBD and a Public-API-inventory section. These are template
+    conformance, not defects in the domain specs; waived by human approval.
+    Owner set to EggAI across all specs (no TBD markers remain).
+
+# ── Resolved (EggAI, 2026-07-08) ──
+open_decisions: []
+resolved_decisions:
+  - id: DEC-1
+    topic: Fix-stage selection scope
+    decision: >
+      Fix selection honors configured fix.severities / fix.minConfidence and
+      --include-medium; critical is eligible. Bucket C behavior change.
+    spec: behavior/pipeline/fix.md
+  - id: DEC-2
+    topic: Config-file location
+    decision: >
+      Both integrations read .qualops/.qualopsrc.json (GitLab aligns from repo-root).
+      Migration + release note required.
+    spec: behavior/integrations/{github,gitlab}.md
+  - id: DEC-3
+    topic: Report source
+    decision: latest session only (GitLab aligns from all-sessions aggregation).
+    spec: behavior/integrations/{github,gitlab}.md
+  - id: DEC-4
+    topic: Spec owners
+    decision: EggAI owns all specs.
+  - id: DEC-5
+    topic: Gate-thresholds config section
+    decision: named `gate`; keys mirror the env var names.
+    spec: behavior/pipeline/gate.md, behavior/configuration/config-file.md
+  - id: DEC-6
+    topic: User-docs home
+    decision: >
+      Website-only. No repo docs/ folder; user docs live in website/ (Astro).
+    spec: documentation.md
+  - id: DEC-7
+    topic: README length budget
+    decision: no fixed limit; short, crisp, precise.
+    spec: documentation.md
+  - id: DEC-8
+    topic: Timing of CI doc-checks
+    decision: documentation phase (they touch CI config, not src/).
+    spec: documentation.md
+
+# ── Accepted residual gaps (consciously deferred, not blockers) ──
+accepted_residual_gaps:
+  - "No framework scaffolding artifacts (capability-inventory, e2e-coverage,
+     registry, provenance, vision/stack/glossary). Accepted: the domain specs
+     + specs/README index serve as the map; the implementation already exists."
+  - "Machine-readable contract artifacts not centralized under 03-contracts/
+     (qualops-config.schema.json exists; Finding is prose). Revisit if a
+     contract-generation workflow is later adopted."
+  - "Per-requirement IDs are present in some specs (documentation, release,
+     dialects, eval) but not all behavior specs. Accepted for the baseline."
+
+strengths:
+  - "Zero broken links; no contradictions."
+  - "Clean domain/responsibility nesting; each file single-purpose."
+  - "Every intended behavior change bucketed (A/B/C) and traceable to F-nn."
+  - "Contract-only; rationale separated into decisions/."
+
+next_step: >
+  Baseline approved. Implementation proceeds via the structure & cleanup
+  refactor (plans/refactor.md) using the reviewable PR-stack method. New
+  functional work (concept/) graduates spec-by-spec through
+  spec-architect → spec-readiness-review before implementation.

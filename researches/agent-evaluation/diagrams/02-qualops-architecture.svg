@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 720" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif">
+<defs>
+<marker id="arrow" viewBox="0 -5 10 10" refX="9" refY="0" markerWidth="6" markerHeight="6" orient="auto">
+<path d="M0,-5L10,0L0,5" fill="#5b9eff"/>
+</marker>
+<marker id="arrow-dim" viewBox="0 -5 10 10" refX="9" refY="0" markerWidth="6" markerHeight="6" orient="auto">
+<path d="M0,-5L10,0L0,5" fill="#9aa6b2"/>
+</marker>
+<marker id="arrow-feedback" viewBox="0 -5 10 10" refX="9" refY="0" markerWidth="6" markerHeight="6" orient="auto">
+<path d="M0,-5L10,0L0,5" fill="#ffb454"/>
+</marker>
+</defs>
+
+<rect width="1100" height="720" fill="#0e1116"/>
+
+<text x="550" y="36" text-anchor="middle" fill="#e6edf3" font-size="22" font-weight="700">QualOps eval architecture</text>
+<text x="550" y="58" text-anchor="middle" fill="#9aa6b2" font-size="13">Pipeline + eval layer + offline improvement loop, all linked through the trace store.</text>
+
+<!-- Pipeline group -->
+<rect x="40" y="100" width="1020" height="120" rx="8" fill="#161b22" stroke="#5b9eff" stroke-width="1.5" stroke-opacity="0.6"/>
+<text x="60" y="124" fill="#5b9eff" font-size="13" font-weight="600">QUALOPS PIPELINE (per PR)</text>
+
+<!-- pipeline boxes -->
+<g font-size="13" fill="#e6edf3">
+<rect x="80" y="140" width="100" height="56" rx="6" fill="#1c232c" stroke="#5b9eff"/>
+<text x="130" y="172" text-anchor="middle">PR diff</text>
+
+<rect x="220" y="140" width="100" height="56" rx="6" fill="#1c232c" stroke="#5b9eff"/>
+<text x="270" y="166" text-anchor="middle">Analyze</text>
+<text x="270" y="184" text-anchor="middle" fill="#9aa6b2" font-size="11">detect changed</text>
+
+<rect x="360" y="140" width="100" height="56" rx="6" fill="#1c232c" stroke="#5b9eff"/>
+<text x="410" y="166" text-anchor="middle">Review</text>
+<text x="410" y="184" text-anchor="middle" fill="#9aa6b2" font-size="11">findings</text>
+
+<rect x="500" y="140" width="100" height="56" rx="6" fill="#1c232c" stroke="#5b9eff"/>
+<text x="550" y="166" text-anchor="middle">Fix</text>
+<text x="550" y="184" text-anchor="middle" fill="#9aa6b2" font-size="11">suggest patch</text>
+
+<rect x="640" y="140" width="100" height="56" rx="6" fill="#1c232c" stroke="#5b9eff"/>
+<text x="690" y="166" text-anchor="middle">Report</text>
+<text x="690" y="184" text-anchor="middle" fill="#9aa6b2" font-size="11">aggregate</text>
+
+<rect x="780" y="140" width="100" height="56" rx="6" fill="#1c232c" stroke="#5b9eff"/>
+<text x="830" y="166" text-anchor="middle">Judge</text>
+<text x="830" y="184" text-anchor="middle" fill="#9aa6b2" font-size="11">quality gate</text>
+
+<rect x="920" y="140" width="120" height="56" rx="6" fill="#1c232c" stroke="#5b9eff"/>
+<text x="980" y="172" text-anchor="middle">CI status</text>
+</g>
+
+<!-- arrows pipeline -->
+<g fill="none" stroke="#5b9eff" stroke-width="2" marker-end="url(#arrow)">
+<line x1="180" y1="168" x2="218" y2="168"/>
+<line x1="320" y1="168" x2="358" y2="168"/>
+<line x1="460" y1="168" x2="498" y2="168"/>
+<line x1="600" y1="168" x2="638" y2="168"/>
+<line x1="740" y1="168" x2="778" y2="168"/>
+<line x1="880" y1="168" x2="918" y2="168"/>
+</g>
+
+<!-- Trace store -->
+<rect x="380" y="270" width="340" height="60" rx="30" fill="#1a1f26" stroke="#ff7b72" stroke-width="2"/>
+<text x="550" y="296" text-anchor="middle" fill="#e6edf3" font-size="14" font-weight="600">Langfuse</text>
+<text x="550" y="316" text-anchor="middle" fill="#9aa6b2" font-size="12">traces · datasets · experiments · scores</text>
+
+<!-- pipeline span dotted lines into store -->
+<g fill="none" stroke="#9aa6b2" stroke-width="1" stroke-dasharray="3,3">
+<line x1="270" y1="196" x2="430" y2="270"/>
+<line x1="410" y1="196" x2="490" y2="270"/>
+<line x1="550" y1="196" x2="550" y2="270"/>
+<line x1="690" y1="196" x2="600" y2="270"/>
+<line x1="830" y1="196" x2="640" y2="270"/>
+</g>
+<text x="240" y="240" fill="#9aa6b2" font-size="11" font-style="italic">spans</text>
+
+<!-- Eval layer -->
+<rect x="40" y="380" width="490" height="220" rx="8" fill="#161b22" stroke="#7ee787" stroke-width="1.5" stroke-opacity="0.6"/>
+<text x="60" y="404" fill="#7ee787" font-size="13" font-weight="600">EVAL LAYER (CI-gated)</text>
+
+<g font-size="12.5" fill="#e6edf3">
+<rect x="62" y="420" width="200" height="48" rx="6" fill="#1c232c" stroke="#7ee787"/>
+<text x="162" y="440" text-anchor="middle" font-weight="600">Tool-call F1</text>
+<text x="162" y="458" text-anchor="middle" fill="#9aa6b2" font-size="11">per stage (BFCL-style)</text>
+
+<rect x="282" y="420" width="220" height="48" rx="6" fill="#1c232c" stroke="#7ee787"/>
+<text x="392" y="440" text-anchor="middle" font-weight="600">Schema + guardrails</text>
+<text x="392" y="458" text-anchor="middle" fill="#9aa6b2" font-size="11">deterministic asserts</text>
+
+<rect x="62" y="480" width="200" height="48" rx="6" fill="#1c232c" stroke="#7ee787"/>
+<text x="162" y="500" text-anchor="middle" font-weight="600">SWE-bench harness</text>
+<text x="162" y="518" text-anchor="middle" fill="#9aa6b2" font-size="11">apply patch + tests</text>
+
+<rect x="282" y="480" width="220" height="48" rx="6" fill="#1c232c" stroke="#7ee787"/>
+<text x="392" y="500" text-anchor="middle" font-weight="600">Agent-as-judge</text>
+<text x="392" y="518" text-anchor="middle" fill="#9aa6b2" font-size="11">on Review/Report</text>
+
+<rect x="62" y="540" width="440" height="48" rx="6" fill="#1c232c" stroke="#7ee787"/>
+<text x="282" y="560" text-anchor="middle" font-weight="600">pass^k reliability + 95% CI (paired comparison)</text>
+<text x="282" y="578" text-anchor="middle" fill="#9aa6b2" font-size="11">5+ runs per task; McNemar / paired bootstrap</text>
+</g>
+
+<!-- Improvement loop -->
+<rect x="570" y="380" width="490" height="220" rx="8" fill="#161b22" stroke="#ffb454" stroke-width="1.5" stroke-opacity="0.6"/>
+<text x="590" y="404" fill="#ffb454" font-size="13" font-weight="600">OFFLINE IMPROVEMENT LOOP (between releases)</text>
+
+<g font-size="12.5" fill="#e6edf3">
+<rect x="592" y="420" width="200" height="48" rx="6" fill="#1c232c" stroke="#ffb454"/>
+<text x="692" y="440" text-anchor="middle" font-weight="600">Sample + open-code</text>
+<text x="692" y="458" text-anchor="middle" fill="#9aa6b2" font-size="11">30-50 failed traces</text>
+
+<rect x="812" y="420" width="220" height="48" rx="6" fill="#1c232c" stroke="#ffb454"/>
+<text x="922" y="440" text-anchor="middle" font-weight="600">Axial-code → taxonomy</text>
+<text x="922" y="458" text-anchor="middle" fill="#9aa6b2" font-size="11">5-15 buckets, prioritized</text>
+
+<rect x="592" y="480" width="200" height="48" rx="6" fill="#1c232c" stroke="#ffb454"/>
+<text x="692" y="500" text-anchor="middle" font-weight="600">Pick top bucket</text>
+<text x="692" y="518" text-anchor="middle" fill="#9aa6b2" font-size="11">freq × severity × fix</text>
+
+<rect x="812" y="480" width="220" height="48" rx="6" fill="#1c232c" stroke="#ffb454"/>
+<text x="922" y="500" text-anchor="middle" font-weight="600">Apply smallest fix</text>
+<text x="922" y="518" text-anchor="middle" fill="#9aa6b2" font-size="11">prompt → tool → SFT</text>
+
+<rect x="592" y="540" width="440" height="48" rx="6" fill="#1c232c" stroke="#ffb454"/>
+<text x="812" y="560" text-anchor="middle" font-weight="600">Re-run eval, gate, promote prompt version, ship</text>
+<text x="812" y="578" text-anchor="middle" fill="#9aa6b2" font-size="11">stat-sig improvement, no regression</text>
+</g>
+
+<!-- Connections -->
+<g fill="none" stroke="#9aa6b2" stroke-width="1.5" marker-end="url(#arrow-dim)">
+<path d="M 380 300 Q 250 340 200 380"/>
+<path d="M 720 300 Q 850 340 870 380"/>
+</g>
+
+<!-- Feedback loop arrow -->
+<g fill="none" stroke="#ffb454" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-feedback)">
+<path d="M 1050 488 Q 1080 488 1080 240 Q 1080 168 1040 168"/>
+</g>
+<text x="1080" y="365" text-anchor="middle" fill="#ffb454" font-size="11" font-style="italic" transform="rotate(90 1080 365)">new prompt version</text>
+
+<!-- Legend -->
+<g font-size="11" fill="#9aa6b2">
+<rect x="40" y="650" width="14" height="14" fill="#1c232c" stroke="#5b9eff"/>
+<text x="62" y="662">Pipeline (production)</text>
+
+<rect x="220" y="650" width="14" height="14" fill="#1c232c" stroke="#7ee787"/>
+<text x="242" y="662">Eval layer (scoring)</text>
+
+<rect x="400" y="650" width="14" height="14" fill="#1c232c" stroke="#ffb454"/>
+<text x="422" y="662">Improvement (offline)</text>
+
+<rect x="600" y="650" width="14" height="14" fill="#1a1f26" stroke="#ff7b72"/>
+<text x="622" y="662">Trace store (Langfuse)</text>
+</g>
+
+<text x="40" y="700" fill="#9aa6b2" font-size="11" font-style="italic">Three concerns kept structurally separate. The trace store is the single source of truth.</text>
+
+</svg>

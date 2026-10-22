@@ -1,0 +1,21 @@
+# 07 — Backlog (deliberately not in the spec)
+
+**Status:** Ideas judged worthwhile but explicitly **out of the normative spec**, so the spec stays lean. Each entry states why it waits and what would promote it. Features that made it into the spec (tiering, baseline, memory, learned rules, suggestion blocks, transparency, SARIF, addressed-rate) live in [02-pipeline-spec.md](02-pipeline-spec.md) and are scheduled in [06-roadmap.md](06-roadmap.md).
+
+| Item | What | Why it waits | Promotion trigger |
+|---|---|---|---|
+| Ticket compliance | Verify the diff matches the linked issue/Jira ticket; flag unrelated changes | Useful but orthogonal to the reliability core; needs ticket-provider plumbing | User demand after Phase 3; the intake stage already has the diff inventory |
+| Review-effort label | Qodo-style 1–5 "how carefully should a human read this" score in the summary | Cheap, but a new claim surface that itself needs calibration before it earns trust | After addressed-rate data exists to calibrate it against |
+| `@qualops explain / fix / re-review` verbs | Conversational commands beyond the spec'd `remember`/`dismiss` | `remember`/`dismiss` are required by the learning loop; the rest is convenience | Phase 4 stability; `fix` additionally needs the fix-proposal validation harness mature |
+| Linter/SAST orchestration | Running ESLint/ruff/tsc *for* the user (beyond consuming existing linter output for suppression, which IS in the spec, 02 §3.3) | Zero-config tool detection across ecosystems is a large surface; CodeRabbit ships 40+ — that's a product in itself | Evidence that linter-owned noise is still leaking through suppression |
+| Drift reviewers | Docs/spec/generated-artifact drift as gateable categories (spike concept) | Novel category; unproven demand; fits cleanly as a future built-in reviewer file | A concrete team asking for it — it's one reviewer file away once the platform exists |
+| Semantic grouping v2 | Semantic (embedding) clustering beyond the deterministic change-unit grouping (def-use + import + file-affinity edges) | Deterministic grouping (in spec, 02 §3.1c) must prove insufficient first | Refutation analysis showing context misses dominate |
+| Hunk-level change-unit grouping | Split mixed-concern *files* into per-hunk change-units via def-use edges (02 §3.1c ships file-level v1) | Commit-level literature caps pure-graph grouping at ~70–85%; PR-level accuracy is unvalidated (appendix E §2, §6) — file-level is the safe start | Eval slices showing mixed-concern files polluting context packs |
+| LLM cluster adjudication | An LLM adjudicates ambiguous/low-confidence change-unit groupings (the 2025–26 LLM-on-top-of-graph pattern) | Deterministic grouping + residual unit must prove insufficient first; adds tokens to a zero-token stage | Refutation analysis attributing FPs/misses to wrong grouping specifically |
+| Move-vs-rewrite detection | Upgrade the conservative "unclear = rewrite" default with containment heuristics or a targeted LLM check | AST-diff move/update detection is documented-unreliable; conservative default is safe, just noisier | FP analysis showing moved-code findings as a recurring reject class |
+| Codebase indexing service | CodeRabbit-style hosted code graph / embeddings index | Conflicts with the zero-infrastructure non-goal (01 §2) | Addressed-rate data showing context misses as the dominant refutation cause AND willingness to run infrastructure |
+| Automated prompt optimization | DSPy/MIPROv2 on narrow scorable stages (05 §9 lists it in the hierarchy) | Only pays off once eval gates are trustworthy and stable | Two quarters of stable eval baselines |
+| Streaming responses | Reduce latency/truncation on very large structured outputs | Truncation-tolerant parsing already mitigates; async review makes latency cheap | Truncation-recovery rate trending up in boundary telemetry |
+| Web dashboard / org analytics | Cross-repo addressed-rate, rule effectiveness, cost trends | Repo-only principle (D7) covers config; *read-only* analytics don't violate it but are a separate product | Multiple orgs adopting; data model exists via artifacts |
+
+**Standing non-goals** (01 §2, restated so this list isn't mistaken for "everything eventually"): IDE integration, hosted config dashboards, fine-tuning, online self-improvement in production.

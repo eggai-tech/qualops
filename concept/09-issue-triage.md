@@ -1,0 +1,39 @@
+# 09 — Issue-Tracker Triage vs. Concept
+
+**Status:** Concept-stage recommendation (2026-07-08) — verdicts proposed, pending EggAI confirmation. Method: every open issue read in full (incl. comments), compared against the concept set (01–08), the approved baseline specs, and the **current code** (claims verified against source, not assumed).
+
+## Verdict table
+
+| Issue | Ask | Verdict | Why |
+|---|---|---|---|
+| #83 | Jira (etc.) as review context | **Adopt, reshaped** | The generic mechanism belongs in the concept: **user-configured MCP context sources** (merged with #71.3). Bespoke Jira/Confluence/Trello/Notion connectors: **reject** — MCP servers for these already exist; N first-party integrations is a maintenance surface with no differentiation. The stronger form (ticket **compliance**) is already in [07-backlog](07-backlog.md); #83 counts as its first demand signal. |
+| #71.1 | `qualops agent init` scaffold | **Already covered** | [04-configuration-spec](04-configuration-spec.md): `qualops init` + reviewers-as-markdown-files supersede the agent-frontmatter format this would scaffold. Add "scaffold a reviewer file" to init's scope note. |
+| #71.2 | Agent chaining (`passOutputTo`) | **Reject** | Empirically contradicted in this repo: the intent-based agentic experiment (TDR 0005, recorded in the changelog) A/B-tested orchestrated multi-step review vs. flat agentic — **worse recall (0.348 vs 0.412) and F1 at ~4× cost**. The concept's generate→verify pipeline ([02](02-pipeline-spec.md)) is the principled sequencing; a user-facing chaining primitive adds config complexity for unproven value. |
+| #71.3 | User-defined MCP servers | **Adopt into concept** | The right extensibility primitive: users wire their own context/tools (incl. Jira via #83) without QualOps building integrations; the AI SDK backbone supports MCP clients. **Constraint to spec:** must reconcile with D12 ("tools are QualOps-owned") — the rule bans *backend built-ins*, not explicit user-configured servers; requires allowlisting in reviewer frontmatter, sandbox/audit posture, and a security note (external MCP = third-party code execution). |
+| #71.4 | Agentic fix stage | **Backlog** | Real but big; the concept's fix path (admitted findings → validated proposals → suggestion blocks) comes first. Add as a backlog row with promotion trigger "fix-proposal acceptance data shows single-file context is the limiter". |
+| #71.5 | Agent marketplace/registry | **Reject the registry; adopt two lightweight substitutes** | What the issue proposes — a hosted registry + `qualops agent install` — violates the zero-infrastructure non-goal (01 §2). But two adjacent things are worth doing instead: **(a) publish QualOps to the GitHub Actions Marketplace** — verified 2026-07-08: not listed at all (zero search results). Nearly free distribution: `action.yml` already has the required name/description/branding; it's a checkbox on the next stable GitHub Release. Best timed with the README/docs polish, since the Marketplace listing surfaces the README. **(b) Community reviewer sharing without a registry:** `extends` org-presets (`github>org/qualops-preset`) + a curated `examples/reviewers/` folder in-repo — a "marketplace" that is just git. |
+| #70 must-have | Remove `.ts`-only filter | **Already fixed in code** | Verified: `changed-files.ts` filters only by `skipPatterns` (`shouldProcessFile`); no language gate exists. The intake spec should state this explicitly ("no language filter; skipPatterns only") so it can't regress silently. |
+| #70 comment | Skill-based language support (SKILL.md) | **Already absorbed** | The proposal is the direct ancestor of [04](04-configuration-spec.md)'s reviewers-as-markdown-files — generalized beyond languages. Adopt the language-packaging details as frontmatter enrichment: `language.extensions`, `code-block-language`, per-reviewer `references/`. |
+| #70 nice-to-have | Fix-stage language awareness | **Fold into refactor** | Verified residue: `test-generator` hardcodes `.test.ts` + TS/JS code-fence regex; one "TypeScript files" log string. Small bucket-A/B cleanup items. |
+| #69 | Agentic metrics in reports, transcripts, progress | **Mostly superseded** | The concept is stronger: the **trajectory is part of the `AgentRunPort` contract** (03 §4a), consumed by trajectory evals (05 §4) + context ledger (02 §11) — that *is* transcript saving, principled. Reports already spec cost/latency/funnel; add one line: per-reviewer breakdown. CLI progress streaming = implementation nicety, not concept material. |
+| #68 | Unit tests for agentic executor/adapters | **Superseded — do not do** | ~15h of tests against code the harness decision **replaces** (executor/adapters → AI SDK backend behind the port). The successor is the port conformance suite + quality/testing spec (≥80 %, colocated). Writing tests for dying code is waste. |
+| #121 | Action tags lack `dist/` | **Resolved (stale)** | Verified: `action.yml` builds at runtime (`npm ci && npm run build` at action_path) — tags don't need `dist/`. Residual idea worth a backlog line: **prebuilt dist in release tags** to cut Action cold-start (build-per-CI-run is slow). |
+| #20 | PR template | **Accept — repo hygiene** | Not concept material, just do it. The author's framing is aligned with the product: the PR body is intent-context the reviewer consumes (and ticket-compliance will check against). |
+| #19 | Issue templates | **Accept — repo hygiene** | Trivial; also reduces future triage cost. |
+| #18 | Documentation site | **Done — close** | Website exists and deploys to Pages; single-source-of-truth structure is [specs/documentation.md](../specs/documentation.md). |
+| #167–#213 (15×) | Auto release-failure reports | **Close all — stale** | Verified: every referenced release (v0.2.2, v0.2.3, betas) exists as a tag and npm `latest` = 0.2.7 — all failures were retried successfully. |
+
+## Cross-cutting findings (honest notes)
+
+1. **The tracker's noise problem mirrors the product's thesis.** 15 of 24 open issues are automated failure reports, with **three duplicate issues per failure event** — the failure-issue mechanism files one issue per failed job instead of per run, and nothing auto-closes them on a later success. Fix in the release pipeline: dedupe per run + auto-close on subsequent success. Small ops item; add to the release spec's acceptance.
+2. **Demand signal is thin.** Only #83 is a user-side feature request; #68–71 are internal roadmap notes (pontino), #18–20 contributor hygiene. The concept was shaped by stronger evidence (industry research, evals, the spike) — the tracker mostly *confirms* directions already taken (notably: Sebastian's #70 comment prefigured the reviewer-file model).
+3. **Spec accuracy gap found:** the intake behavior spec is silent on file filtering semantics; #70's history shows that silence is exactly where regressions hide. One sentence fixes it.
+4. **What actually changes in the concept if these verdicts are accepted:** 04 gains MCP context sources (with security constraints) + language-packaging frontmatter fields; 07-backlog gains agentic-fix and prebuilt-action-dist rows and marks ticket-compliance's first demand signal; the release spec gains failure-issue dedupe/auto-close; everything else is close/hygiene.
+
+## Recommended issue actions (once confirmed)
+
+- Close as stale/resolved: #167–#213 (15×), #121, #18, #70 (must-have done; link the concept for the skill part).
+- Close as superseded with pointer: #68 (→ specs/quality + port conformance), #69 (→ concept 02/03/05).
+- Keep open, re-scope: #83 + #71 → one consolidated "MCP context sources" issue referencing this triage; #71's rejected items noted with reasons.
+- New issue: "Publish QualOps to the GitHub Actions Marketplace" (from the #71.5 discussion — verified not listed; near-free distribution; time with the README/docs polish and the next stable release).
+- Keep open as hygiene tasks: #19, #20.

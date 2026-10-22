@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evaluating and Improving LLM Agents — QualOps Research Report</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+:root {
+    --bg: #0e1116;
+    --surface: #161b22;
+    --surface-2: #1c232c;
+    --border: #2d3744;
+    --text: #e6edf3;
+    --text-dim: #9aa6b2;
+    --accent: #5b9eff;
+    --accent-2: #7ee787;
+    --warn: #ffb454;
+    --danger: #ff7b72;
+    --code-bg: #1a1f26;
+    --max-width: 920px;
+    --sidebar-width: 280px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    scroll-behavior: smooth;
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    min-height: 100vh;
+}
+
+aside.sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 18px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+aside.sidebar .brand {
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+    color: var(--accent);
+}
+
+aside.sidebar .subtitle {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin-bottom: 18px;
+    line-height: 1.4;
+}
+
+aside.sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+aside.sidebar nav a {
+    display: block;
+    padding: 6px 10px;
+    border-radius: 4px;
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: background 0.15s, color 0.15s;
+    border-left: 2px solid transparent;
+}
+
+aside.sidebar nav a:hover {
+    color: var(--text);
+    background: var(--surface-2);
+}
+
+aside.sidebar nav a.section {
+    color: var(--text);
+    font-weight: 600;
+    margin-top: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+}
+
+aside.sidebar nav a.sub {
+    padding-left: 18px;
+    font-size: 0.8rem;
+}
+
+main {
+    padding: 48px 56px 96px;
+    max-width: calc(var(--max-width) + 80px);
+}
+
+.hero {
+    border-left: 4px solid var(--accent);
+    padding: 4px 0 4px 20px;
+    margin-bottom: 32px;
+}
+
+h1 {
+    font-size: 2.2rem;
+    line-height: 1.2;
+    margin: 0 0 8px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.hero p.lead {
+    color: var(--text-dim);
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.hero p.meta {
+    color: var(--text-dim);
+    margin: 6px 0 0;
+    font-size: 0.875rem;
+    font-style: italic;
+}
+
+h2 {
+    font-size: 1.6rem;
+    margin: 56px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+    letter-spacing: -0.005em;
+}
+
+h3 {
+    font-size: 1.2rem;
+    margin: 36px 0 12px;
+    color: var(--text);
+    font-weight: 600;
+}
+
+h4 {
+    font-size: 1.05rem;
+    margin: 24px 0 8px;
+    color: var(--text);
+    font-weight: 600;
+}
+
+p { margin: 0 0 16px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+ul, ol { margin: 0 0 16px; padding-left: 24px; }
+li { margin-bottom: 6px; }
+
+code {
+    font-family: var(--mono);
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.88em;
+    border: 1px solid var(--border);
+}
+
+pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin: 16px 0;
+}
+
+pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 16px 0 24px;
+    font-size: 0.9rem;
+    background: var(--surface);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+th, td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+th {
+    background: var(--surface-2);
+    font-weight: 600;
+    color: var(--text);
+}
+
+td { color: var(--text-dim); }
+td:first-child { color: var(--text); font-weight: 500; }
+
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface-2); }
+
+blockquote {
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    padding: 12px 18px;
+    margin: 16px 0;
+    color: var(--text-dim);
+    border-radius: 0 6px 6px 0;
+}
+
+.callout {
+    background: linear-gradient(135deg, rgba(91,158,255,0.06), rgba(126,231,135,0.04));
+    border: 1px solid rgba(91,158,255,0.25);
+    padding: 14px 18px;
+    margin: 18px 0;
+    border-radius: 6px;
+}
+
+.callout.warn {
+    background: linear-gradient(135deg, rgba(255,180,84,0.07), rgba(255,123,114,0.04));
+    border-color: rgba(255,180,84,0.25);
+}
+
+.callout strong { color: var(--accent); }
+.callout.warn strong { color: var(--warn); }
+
+.tag {
+    display: inline-block;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 1px 8px;
+    border-radius: 99px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    margin-right: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.tag.eng { border-color: rgba(91,158,255,0.4); color: var(--accent); }
+.tag.lead { border-color: rgba(126,231,135,0.4); color: var(--accent-2); }
+
+.mermaid {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 22px;
+    margin: 18px 0;
+    text-align: center;
+}
+
+.compare-table { font-size: 0.82rem; }
+.compare-table td { padding: 8px 10px; }
+.compare-table .yes { color: var(--accent-2); font-weight: 600; }
+.compare-table .partial { color: var(--warn); font-weight: 600; }
+.compare-table .no { color: var(--danger); font-weight: 600; }
+
+.three-layer {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 20px 0 28px;
+}
+
+.three-layer .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    border-top: 3px solid var(--accent);
+}
+
+.three-layer .card.l2 { border-top-color: var(--accent-2); }
+.three-layer .card.l3 { border-top-color: var(--warn); }
+
+.three-layer h4 {
+    margin: 0 0 8px;
+    font-size: 1rem;
+    color: var(--text);
+}
+
+.three-layer p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 18px 0;
+}
+
+.kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.kpi .label {
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.kpi .value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.kpi .desc {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.toc-collapse summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.muted { color: var(--text-dim); }
+
+@media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+    aside.sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+    main { padding: 24px 20px 64px; }
+    .three-layer { grid-template-columns: 1fr; }
+}
+
+footer {
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+}
+
+.print-hint {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-top: 12px;
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+<div class="brand">QualOps Eval Research</div>
+<div class="subtitle">A state-of-the-art report on agent accuracy, evaluations, and improvement.</div>
+<nav>
+<a class="section" href="#exec">0 · Executive summary</a>
+<a class="section" href="#why">1 · Why this matters</a>
+<a class="section" href="#foundations">2 · Foundations</a>
+<a class="sub" href="#three-layers">2.2 Three layers</a>
+<a class="sub" href="#dimensions">2.3 Dimensions of quality</a>
+<a class="sub" href="#lifecycle">2.4 Eval lifecycle</a>
+<a class="sub" href="#judge">2.5 LLM-as-judge</a>
+<a class="sub" href="#stats">2.7 Statistical rigor</a>
+<a class="section" href="#tool-calling">3 · Tool-calling agents</a>
+<a class="sub" href="#tool-call-accuracy">3.1 Tool-call accuracy</a>
+<a class="sub" href="#trajectory">3.2 Trajectory eval</a>
+<a class="sub" href="#benchmarks">3.4 Benchmarks</a>
+<a class="sub" href="#agent-as-judge">3.6 Agent-as-judge</a>
+<a class="section" href="#frameworks">4 · Framework landscape</a>
+<a class="sub" href="#shortlist">4.1 Shortlist</a>
+<a class="sub" href="#matrix">4.2 Comparison matrix</a>
+<a class="sub" href="#fit">4.3 Fit by team profile</a>
+<a class="section" href="#improvement">5 · Improvement</a>
+<a class="sub" href="#error-analysis">5.2 Error analysis</a>
+<a class="sub" href="#hierarchy">5.3 Hierarchy of fixes</a>
+<a class="sub" href="#tool-design">5.7 Tool design</a>
+<a class="sub" href="#context">5.8 Context engineering</a>
+<a class="section" href="#approach">6 · The QualOps Approach</a>
+<a class="sub" href="#architecture">6.1 Architecture</a>
+<a class="sub" href="#stages">6.2 Per-stage matrix</a>
+<a class="sub" href="#stack">6.3 Stack</a>
+<a class="sub" href="#cadence">6.4 Eval cadence</a>
+<a class="section" href="#prereqs">7 · Prerequisites + roadmap</a>
+<a class="section" href="#risks">8 · Risks &amp; open questions</a>
+<a class="section" href="#appendix">9 · Appendix</a>
+</nav>
+<div style="margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 0.75rem; color: var(--text-dim);">
+Companion files:
+<ul style="padding-left: 18px; margin-top: 6px;">
+<li><a href="REPORT.md">REPORT.md</a></li>
+<li><a href="sources/01-foundations.md">01 · Foundations</a></li>
+<li><a href="sources/02-frameworks.md">02 · Frameworks</a></li>
+<li><a href="sources/03-toolcalling-and-trajectory.md">03 · Tool-calling</a></li>
+<li><a href="sources/04-improvement.md">04 · Improvement</a></li>
+</ul>
+</div>
+</aside>
+
+<main>
+
+<div class="hero">
+<h1>Evaluating and Improving LLM Agents</h1>
+<p class="lead">A state-of-the-art report on agent accuracy, evaluations, and offline improvement — with a generalized approach for QualOps and similar projects.</p>
+<p class="meta">QualOps Research · May 8, 2026 · <span class="tag eng">Engineering</span><span class="tag lead">Leadership</span></p>
+</div>
+
+<details class="toc-collapse" open>
+<summary>Document map (click to collapse)</summary>
+<table style="font-size: 0.85rem;">
+<thead><tr><th>Part</th><th>Title</th><th>Audience</th></tr></thead>
+<tbody>
+<tr><td>0</td><td>Executive summary</td><td>Leadership + engineering</td></tr>
+<tr><td>1</td><td>Why this matters for QualOps</td><td>Leadership</td></tr>
+<tr><td>2</td><td>Foundations of agent evaluation</td><td>Engineering</td></tr>
+<tr><td>3</td><td>Evaluating tool-calling and workflow agents</td><td>Engineering</td></tr>
+<tr><td>4</td><td>The framework landscape</td><td>Engineering</td></tr>
+<tr><td>5</td><td>Systematically improving agents (offline)</td><td>Engineering</td></tr>
+<tr><td>6</td><td><strong>The QualOps Approach</strong> — generalized concept</td><td>Both</td></tr>
+<tr><td>7</td><td>Prerequisites and adoption roadmap</td><td>Both</td></tr>
+<tr><td>8</td><td>Risks, open questions, what we left out</td><td>Both</td></tr>
+<tr><td>9</td><td>Appendix: glossary, references, dossier links</td><td>Engineering</td></tr>
+</tbody>
+</table>
+</details>
+
+<h2 id="exec">0 · Executive summary</h2>
+
+<p>LLM agent quality is not a property of the model alone — it is a property of the <em>system</em>: the model, the prompts, the tools, the context routing, and the harness, all together. As QualOps has matured into a multi-stage agentic pipeline (Analyze → Review → Fix → Report → Judge), the unit that matters has become the <strong>trajectory</strong> the agent takes through tool calls, not just the final PR comment.</p>
+
+<div class="callout">
+<strong>The shape of the recommendation</strong> &nbsp;<br>
+1. Score the agent on three layers, every release.<br>
+2. Use a small, curated golden set (50–200 PRs), not a giant crawl.<br>
+3. Apply the right tool to the right stage (deterministic tests for Fix; tool-call F1 for Analyze; LLM-judge for Review/Report; agent-as-judge for Judge).<br>
+4. Run a two-tier eval cadence: per-PR fast gate + nightly capability eval.<br>
+5. Improve through structured error analysis (open coding → axial coding → frequency-weighted prioritization).<br>
+6. Keep Langfuse, add Promptfoo (per-PR CI gate) and Inspect AI (nightly capability eval).
+</div>
+
+<div class="kpi-grid">
+<div class="kpi"><div class="label">Golden set size</div><div class="value">50–200</div><div class="desc">curated real PRs, refreshed quarterly</div></div>
+<div class="kpi"><div class="label">Per-PR gate</div><div class="value">3–5 min</div><div class="desc">Promptfoo YAML asserts, blocking</div></div>
+<div class="kpi"><div class="label">Nightly cadence</div><div class="value">~30–60 min</div><div class="desc">Langfuse experiments, full pipeline + LLM judges</div></div>
+<div class="kpi"><div class="label">Reliability metric</div><div class="value">pass^5</div><div class="desc">probability of passing 5 runs in a row</div></div>
+</div>
+
+<h2 id="why">1 · Why this matters for QualOps</h2>
+
+<h3>1.1 The QualOps pipeline</h3>
+
+<p>QualOps is an AI-powered code review tool built on the Claude Agent SDK. It runs in CI on every pull request and produces structured findings — comments, GitHub Checks annotations, severity-ranked reports, and (in agentic mode) suggested fixes.</p>
+
+<div class="mermaid">
+flowchart LR
+    P0[PR diff] --> P1[Analyze]
+    P1 --> P2[Review]
+    P2 --> P3[Fix]
+    P3 --> P4[Report]
+    P4 --> P5[Judge]
+    P5 --> P6[CI status]
+    classDef stage fill:#1c232c,stroke:#5b9eff,color:#e6edf3
+    class P1,P2,P3,P4,P5 stage
+</div>
+
+<h3>1.2 What is at stake</h3>
+
+<p>A code review is a <strong>trust artifact</strong>. A false positive wastes developer time and erodes confidence in every subsequent finding. A false negative defeats the purpose of the tool. A confidently miscalibrated severity label routes attention away from the issues that actually matter. None of these failures are catastrophic individually, but they compound across thousands of PRs.</p>
+
+<p>Without disciplined evaluation: customer churn (reviewers turn the bot off), hidden regressions (a prompt change fixes one issue and silently regresses three), cost overruns (model upgrades produce big bills with unclear value), and audit risk for enterprise customers.</p>
+
+<h3>1.3 What we already have</h3>
+
+<p>QualOps ships with a working evaluation suite: Langfuse-backed dataset runs, multiple presets (<code>fast</code>, <code>default</code>, <code>sonnet-agentic</code>, <code>thorough</code>), CRB-derived golden datasets across five real repos (Sentry, Grafana, Cal.com, Discourse, Keycloak), and a configurable LLM-as-judge scoring stage. This puts QualOps ahead of most teams shipping agentic products today. The gaps identified here are deliberate next steps, not foundations.</p>
+
+<h2 id="foundations">2 · Foundations of agent evaluation</h2>
+
+<h3>2.1 An agent is not a function</h3>
+
+<p>A classical LLM eval treats the model as a function <code>f(prompt) → completion</code>. An agent eval treats the agent as a <strong>stateful policy</strong> π that interacts with an environment via tools. The unit of evaluation is a <strong>trajectory</strong>:</p>
+
+<pre><code>τ = (s₀, a₀, o₀, s₁, a₁, o₁, …, sₙ)</code></pre>
+
+<p>Every benchmark surveyed for this report agrees: agent evaluation requires assessing not just the terminal answer but the <em>path</em> taken to reach it.</p>
+
+<h3 id="three-layers">2.2 The three layers of agent evaluation</h3>
+
+<div class="three-layer">
+<div class="card">
+<h4>Component-level</h4>
+<p><strong>Q</strong>: Does each sub-skill (single tool call, retriever, sub-agent) work in isolation?</p>
+<p style="margin-top:8px"><strong>Metrics</strong>: Tool-match rate, parameter F1, retrieval recall@k</p>
+</div>
+<div class="card l2">
+<h4>Trajectory-level</h4>
+<p><strong>Q</strong>: Is the path of reasoning + actions valid, efficient, and faithful?</p>
+<p style="margin-top:8px"><strong>Metrics</strong>: Plan correctness, edit distance, tool-call F1 over sequence</p>
+</div>
+<div class="card l3">
+<h4>Outcome-level</h4>
+<p><strong>Q</strong>: Did the agent achieve the user goal?</p>
+<p style="margin-top:8px"><strong>Metrics</strong>: Task success, unit-test pass rate, human rating</p>
+</div>
+</div>
+
+<p>For QualOps all three layers exist naturally:</p>
+<ul>
+<li><strong>Component</strong>: did the Analyze stage <code>read_file</code> with the right path?</li>
+<li><strong>Trajectory</strong>: did the Review stage's parallel sub-agents converge without redundant tool calls?</li>
+<li><strong>Outcome</strong>: did the suggested fix actually fix the bug?</li>
+</ul>
+
+<h3 id="dimensions">2.3 Dimensions of agent quality</h3>
+
+<table>
+<thead><tr><th>Dimension</th><th>Why it matters for QualOps</th><th>How to measure</th></tr></thead>
+<tbody>
+<tr><td>Accuracy / task success</td><td>The headline number</td><td>Exact match, unit-test pass, human rating</td></tr>
+<tr><td><strong>Faithfulness / groundedness</strong></td><td><strong>Dominant for code review.</strong> A hallucinated finding is worse than a missed one</td><td>Atomic-claim NLI; citations as guardrail</td></tr>
+<tr><td>Completeness</td><td>Did the agent find all the issues a human would?</td><td>Recall against an annotated PR review</td></tr>
+<tr><td>Calibration</td><td>Severity labels must be trustworthy for triage</td><td>ECE, Brier score</td></tr>
+<tr><td>Robustness</td><td>Stable under prompt perturbation, weird diffs</td><td>Performance under paraphrase / typo suites</td></tr>
+<tr><td>Determinism / consistency</td><td>Same PR → same review</td><td>Output variance across N samples; pass^k</td></tr>
+<tr><td>Latency</td><td>CI gates have time budgets</td><td>p50/p95/p99 wall-clock per stage</td></tr>
+<tr><td>Cost</td><td>$ per PR</td><td>Tokens × price + tool-call costs</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+<strong>Faithfulness is dominant for code review.</strong> A hallucinated finding is more damaging than a missed one. Every claim in the report must cite a file:line; if it cannot, drop the claim. This is the "citations as guardrail" pattern.
+</div>
+
+<h3 id="lifecycle">2.4 The evaluation lifecycle</h3>
+
+<div class="mermaid">
+flowchart LR
+    A[1. Error analysis<br/>on real traces] --> B[2. Codify failure<br/>modes as rubric]
+    B --> C[3. Add to golden set<br/>+ regression suite]
+    C --> D[4. Run evals in CI;<br/>block on regression]
+    D --> E[5. Ship + monitor<br/>in production]
+    E --> F[6. Sample drift,<br/>online judge]
+    F --> A
+    classDef step fill:#1c232c,stroke:#5b9eff,color:#e6edf3
+    class A,B,C,D,E,F step
+</div>
+
+<p>Tactics endorsed across primary sources: start small (Anthropic: "20–50 simple tasks drawn from real failures is a great start"); treat evals like unit tests; route failures back to the eval set; gate on stat-sig regression.</p>
+
+<h3 id="judge">2.5 LLM-as-judge — the workhorse, with caveats</h3>
+
+<p>Zheng et al.'s <em>Judging LLM-as-a-Judge</em> (NeurIPS 2023) showed that GPT-4 acting as a judge agreed with human preference at over 80% — roughly the same as inter-human agreement. This legitimized LLM-as-judge as a primary evaluation method.</p>
+
+<table>
+<thead><tr><th>Bias</th><th>What happens</th><th>Mitigation</th></tr></thead>
+<tbody>
+<tr><td>Position bias</td><td>Judge prefers whichever appears first</td><td>Swap order, score both, average</td></tr>
+<tr><td>Verbosity bias</td><td>Longer answers rated higher</td><td>Length constraint in rubric</td></tr>
+<tr><td>Self-preference</td><td>Judge prefers outputs from its own family</td><td>Cross-model judge ensemble</td></tr>
+<tr><td>Familiarity bias</td><td>Judge favors text it would have generated</td><td>Down-weight low-perplexity samples</td></tr>
+<tr><td>Sycophancy</td><td>Judge follows hints in the prompt</td><td>Blind the judge to source</td></tr>
+<tr><td>Fallacy oversight</td><td>Judge accepts confident-sounding wrong reasoning</td><td>Step-by-step grading; process supervision</td></tr>
+</tbody>
+</table>
+
+<h3>2.6 Trajectory and process evaluation</h3>
+
+<p>Process evaluation asks: <em>was every intermediate step justified?</em> Three families: step-wise correctness, plan-level precision/recall, and edit distance. OpenAI's <em>Let's Verify Step by Step</em> (Lightman et al. 2023) showed that <strong>process supervision</strong> beats outcome supervision for training reward models.</p>
+
+<h3 id="stats">2.7 Statistical rigor — why "vibes" fail</h3>
+
+<p>With N=10 examples and a stochastic model, a swing of ±20% in pass rate is normal noise. The minimum statistical discipline:</p>
+<ul>
+<li><strong>Paired comparisons.</strong> Run model A and B on the same examples; per-example difference cancels per-example variance.</li>
+<li><strong>Confidence intervals.</strong> 95% CI half-width ≈ <code>1.96 × √(p(1-p)/N)</code>. To distinguish 80% from 85% at 95% confidence you need ~1000 samples.</li>
+<li><strong>Multiple runs per task.</strong> Even at temperature 0, modern serving stacks are non-deterministic. Plan for ≥5 runs per task.</li>
+<li><strong>pass^k reporting.</strong> Sierra's τ-bench: probability of succeeding k times in a row.</li>
+<li><strong>Bradley-Terry / Elo</strong> for pairwise rankings (what Chatbot Arena does).</li>
+</ul>
+
+<h2 id="tool-calling">3 · Evaluating tool-calling and workflow agents</h2>
+
+<p>QualOps is a tool-calling workflow agent, not a chatbot. What matters is whether the agent picks the right tools, in the right order, with the right arguments, and produces the right final artifact.</p>
+
+<h3 id="tool-call-accuracy">3.1 What "tool-call accuracy" actually means</h3>
+
+<p>"Tool-call accuracy" is a deceptively flat label. It decomposes into a stack of sub-metrics:</p>
+
+<table>
+<thead><tr><th>Metric</th><th>What it measures</th></tr></thead>
+<tbody>
+<tr><td>Exact match</td><td>Predicted call equals gold byte-for-byte. Brittle.</td></tr>
+<tr><td>AST match</td><td>Parse into name + (arg-name, arg-value); structural equality</td></tr>
+<tr><td>Semantic match</td><td>LLM-judge or custom equality on argument values</td></tr>
+<tr><td>Argument F1</td><td>Per-call precision/recall on argument names + values</td></tr>
+<tr><td>Tool-call F1</td><td>Set-level over multiset of (tool, args) pairs</td></tr>
+<tr><td>Multi-call ordering</td><td>Exact / in-order / any-order / edit distance</td></tr>
+<tr><td>Hallucinated tools</td><td>Agent invents a tool that doesn't exist</td></tr>
+<tr><td>Missed tools</td><td>Agent answered from knowledge instead of calling tool</td></tr>
+<tr><td>Idempotency / collateral damage</td><td>Side-effecting call repeated; unintended state change</td></tr>
+<tr><td>Parallel calls</td><td>Bag of tool calls per turn (not list)</td></tr>
+</tbody>
+</table>
+
+<h3 id="trajectory">3.2 Trajectory evaluation</h3>
+
+<p>Two orthogonal questions:</p>
+<ul>
+<li><strong>Q1 — Did the agent get to the goal?</strong> (outcome)</li>
+<li><strong>Q2 — Did it follow a sensible path?</strong> (process)</li>
+</ul>
+
+<p>An agent can stumble to the right answer through a 47-step random walk, or take an optimal 3-step path that ends in the wrong final state. Scoring rules in increasing leniency: <strong>trajectory exact match → in-order match → any-order match → edit distance</strong>.</p>
+
+<h3>3.3 Outcome vs. process — when to use each</h3>
+
+<table>
+<thead><tr><th>Aspect</th><th>Outcome eval</th><th>Process eval</th></tr></thead>
+<tbody>
+<tr><td>Data needed</td><td>Goal-state checker (test, schema, regex)</td><td>Reference trajectories or judge model</td></tr>
+<tr><td>Cost</td><td>Cheap, deterministic</td><td>Expensive or noisy</td></tr>
+<tr><td>Catches lucky shortcuts</td><td>No — agent can game it</td><td>Yes</td></tr>
+<tr><td>Catches plan inefficiency</td><td>No</td><td>Yes</td></tr>
+<tr><td>Penalizes equivalent paths</td><td>No (good)</td><td>Yes (bad — risks rewarding mimicry)</td></tr>
+</tbody>
+</table>
+
+<h3 id="benchmarks">3.4 Major benchmarks worth knowing for QualOps</h3>
+
+<table>
+<thead><tr><th>Benchmark</th><th>Year</th><th>Why it matters for QualOps</th></tr></thead>
+<tbody>
+<tr><td><strong>BFCL v3</strong></td><td>2024</td><td>AST match + executable accuracy methodology; right framework for per-stage tool calls</td></tr>
+<tr><td><strong>τ-bench</strong></td><td>2024</td><td>pass^k metric for reliability under non-determinism. Directly transferable</td></tr>
+<tr><td><strong>SWE-bench Verified</strong> †</td><td>2024</td><td>Apply patch + FAIL_TO_PASS + PASS_TO_PASS. The methodology template for QualOps's Fix stage</td></tr>
+<tr><td><strong>SWE-bench Live</strong></td><td>2025</td><td>50 freshly verified GitHub issues per month. <strong>Now the recommended SWE-bench variant</strong></td></tr>
+<tr><td><strong>SWE-bench Pro</strong></td><td>2025</td><td>Long-horizon, enterprise-scale. GPT-5 23.3% / Claude Opus 4.1 23.1%</td></tr>
+<tr><td><strong>AppWorld</strong></td><td>2024</td><td>State-based eval with collateral-damage check</td></tr>
+<tr><td><strong>DevAI / Agent-as-a-Judge</strong></td><td>2024</td><td>Methodology for using an agent (with tools) as the judge</td></tr>
+<tr><td><strong>HAL</strong></td><td>2025</td><td>Variance-decomposed reporting</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>The single most influential idea for QualOps</strong> is SWE-bench's "tests as oracle": apply the agent's patch, run FAIL_TO_PASS + PASS_TO_PASS, classify. Fully deterministic, fully outcome-based, ignores how the agent got there, resists most reward hacking. We adopt the methodology directly for the Fix stage.
+</div>
+
+<div class="callout warn">
+<strong>† Note on SWE-bench Verified status (May 2026):</strong> OpenAI publicly deprecated SWE-bench Verified on Feb 23, 2026, citing flawed test patches and contamination concerns. The benchmark's <em>methodology</em> remains the gold standard, but for a fresh, contamination-free dataset prefer <strong>SWE-bench Live</strong> (50 newly-verified issues per month) or <strong>SWE-bench Pro</strong>. Internal harnesses built on the methodology are unaffected.
+</div>
+
+<h3>3.5 Code-agent specific evaluation</h3>
+
+<p>For QualOps's Review stage (no patch, just a comment), the analog of SWE-bench's pattern is:</p>
+<ol>
+<li><strong>Finding location precision/recall</strong> — did the agent flag the right line and file?</li>
+<li><strong>Finding-class match</strong> — did it categorize correctly (security vs perf vs style)?</li>
+<li><strong>Finding–PR alignment</strong> — does the finding correspond to something the human reviewer also flagged?</li>
+</ol>
+
+<p>Tests don't catch every flavor of bad fix: style/readability regressions, performance regressions, security regressions. These need additional graders.</p>
+
+<h3 id="agent-as-judge">3.6 Agent-as-judge</h3>
+
+<p>Zhuge et al.'s <em>Agent-as-a-Judge</em> (Oct 2024; ICML 2025) replaces the LLM judge with an <em>agent</em> judge that can read code, run tools, and verify intermediate steps:</p>
+
+<div class="kpi-grid">
+<div class="kpi"><div class="label">Human agreement</div><div class="value">~90%</div><div class="desc">vs ~70% for plain LLM-judge</div></div>
+<div class="kpi"><div class="label">Cost reduction</div><div class="value">~97%</div><div class="desc">86 h / $1,297 → ~2 h / $31</div></div>
+</div>
+
+<p>For QualOps: an external agent-as-judge is well suited to grading "was this PR review good?" — give it the diff, the agent's findings, the human-merged PR, and a rubric, and let it use grep/file-read tools to verify each finding against the code. Run the judge on a <strong>different model family</strong> than the Review stage to avoid self-preference.</p>
+
+<h3>3.7 Replay testing and recorded traces</h3>
+
+<p>Pattern (used by Braintrust, LangSmith, Phoenix, Anthropic, Cognition):</p>
+<ol>
+<li>Capture every production run as a trace.</li>
+<li>Tag failures, edge cases, customer escalations into a regression set.</li>
+<li>On every prompt/model/harness change, replay each trace with stubbed tool outputs.</li>
+<li>Diff: were tool-call sequences equivalent? Did the final artifact differ?</li>
+</ol>
+
+<h3>3.8 Decision guide: situation → technique</h3>
+
+<table>
+<thead><tr><th>Situation</th><th>Technique</th></tr></thead>
+<tbody>
+<tr><td>Single-call function selection</td><td>BFCL-style AST match + argument F1</td></tr>
+<tr><td>Multi-step deterministic workflow</td><td>Trajectory in-order match + state-based eval</td></tr>
+<tr><td>Parallel tool calls in one turn</td><td>Set-equality match (bag of calls)</td></tr>
+<tr><td>Tool arguments are free-form text</td><td>Action similarity (embedding or LLM-judge)</td></tr>
+<tr><td>Side-effecting tools</td><td>State-based eval with collateral-damage check</td></tr>
+<tr><td>Output is a code patch</td><td>SWE-bench harness: apply + FAIL_TO_PASS + PASS_TO_PASS</td></tr>
+<tr><td>Output is open-ended text</td><td>Agent-as-judge with structured rubric</td></tr>
+<tr><td>Detect hallucinated tools</td><td>Schema validation + tool-name whitelist</td></tr>
+<tr><td>Detect missed tools</td><td>Recall against reference trajectory</td></tr>
+<tr><td>Variance/reliability</td><td>pass^k with k≥5; mean + 95% CI</td></tr>
+<tr><td>Catching prompt/model regressions</td><td>Recorded-trace replay with tool stubs</td></tr>
+<tr><td>Long-horizon multi-stage agent (QualOps)</td><td>Hybrid: per-stage F1 + per-stage state checks + outcome + agent-as-judge</td></tr>
+</tbody>
+</table>
+
+<h2 id="frameworks">4 · The framework landscape</h2>
+
+<p>The eval / observability tooling ecosystem moved fast through 2025–2026. The major shifts since early 2025: <strong>OpenAI acquired Promptfoo in March 2026</strong> (MIT license preserved), <strong>Langfuse landed observation-level LLM-as-judge</strong> in February 2026, <strong>Inspect AI</strong> reached production-grade adoption inside frontier labs.</p>
+
+<h3 id="shortlist">4.1 The shortlist for QualOps</h3>
+
+<ol>
+<li><strong>Langfuse</strong> <em>(incumbent — keep)</em>. MIT, self-host, observation-level LLM-as-judge, boolean/categorical scoring. Production references include Canva. TS + Python parity.</li>
+<li><strong>Promptfoo</strong> <em>(add as CI gate)</em>. MIT, OpenAI-acquired but license preserved, first-class GitHub Action with PR-comment diffs, Claude Agent SDK provider.</li>
+<li><strong>Inspect AI</strong> <em>(add for nightly capability evals)</em>. MIT, used by Anthropic/DeepMind/Grok. Agent Bridge wraps the QualOps agent without modification.</li>
+<li><strong>LangSmith</strong> <em>(only if a wall is hit)</em>. Best out-of-the-box trajectory primitives via <code>agentevals</code>. Closed-source.</li>
+<li><strong>Braintrust</strong> <em>(only if non-engineers must contribute test cases)</em>. Notion's reference deployment is real. Closed-source; hybrid-only self-host.</li>
+</ol>
+
+<h3 id="matrix">4.2 Comparison matrix</h3>
+
+<p class="muted" style="font-size:0.85rem;">Legend: <span class="yes">✓</span> yes/strong &nbsp; <span class="partial">≈</span> partial/caveat &nbsp; <span class="no">✗</span> no/weak</p>
+
+<table class="compare-table">
+<thead><tr><th>Framework</th><th>OSS</th><th>Self-host</th><th>Trajectory</th><th>Tool-call</th><th>LLM judge</th><th>Online</th><th>CI</th><th>TS</th><th>Py</th><th>Free tier</th></tr></thead>
+<tbody>
+<tr><td><strong>Langfuse</strong></td><td class="yes">✓ MIT</td><td class="yes">✓</td><td class="partial">≈</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">50k/mo</td></tr>
+<tr><td>LangSmith</td><td class="no">✗</td><td class="yes">✓ Plus+</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">5k/mo</td></tr>
+<tr><td>DeepEval</td><td class="yes">✓</td><td class="partial">≈</td><td class="yes">✓ Py</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓ pytest</td><td class="partial">≈</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td>Braintrust</td><td class="no">✗</td><td class="partial">≈</td><td class="partial">≈</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">1M spans</td></tr>
+<tr><td>Phoenix / Arize</td><td class="yes">✓</td><td class="yes">✓</td><td class="partial">≈</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td><strong>Promptfoo</strong></td><td class="yes">✓ MIT</td><td class="yes">✓</td><td class="partial">≈</td><td class="partial">≈</td><td class="yes">✓</td><td class="no">✗</td><td class="yes">✓ best</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td><strong>Inspect AI</strong></td><td class="yes">✓ MIT</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td class="partial">≈</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td>OpenAI Evals API</td><td class="yes">✓ repo</td><td class="partial">≈</td><td class="partial">≈</td><td class="partial">≈</td><td class="yes">✓</td><td class="partial">≈</td><td class="partial">≈</td><td class="partial">≈</td><td class="yes">✓</td><td class="partial">paid API</td></tr>
+<tr><td>W&B Weave</td><td class="yes">✓ SDK</td><td class="partial">≈</td><td class="partial">≈</td><td class="partial">≈</td><td class="yes">✓</td><td class="partial">≈</td><td class="yes">✓</td><td class="partial">≈</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td>MLflow GenAI</td><td class="yes">✓</td><td class="yes">✓</td><td class="partial">≈</td><td class="partial">≈</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td>RAGAS</td><td class="yes">✓</td><td class="yes">✓</td><td class="partial">≈</td><td class="partial">≈</td><td class="yes">✓</td><td class="no">✗</td><td class="partial">≈</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td>Patronus</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗</td><td class="partial">≈</td><td class="yes">✓</td><td class="yes">✓</td><td class="partial">≈</td><td class="yes">✓</td><td class="yes">✓</td><td class="partial">sales</td></tr>
+</tbody>
+</table>
+
+<h3 id="fit">4.3 Fit by team profile</h3>
+
+<table>
+<thead><tr><th>Team profile</th><th>Recommended primary</th><th>Add-ons</th></tr></thead>
+<tbody>
+<tr><td><strong>Small team, CI-gated, Node/TS, Claude (= QualOps)</strong></td><td><strong>Langfuse</strong></td><td>+ Promptfoo (CI) + Inspect AI (nightly)</td></tr>
+<tr><td>Small/mid team, Python-only, RAG-heavy</td><td>DeepEval + RAGAS</td><td>+ Phoenix or Langfuse</td></tr>
+<tr><td>Large org, many agents, dedicated SREs</td><td>Braintrust (product) + Phoenix/Arize AX (platform)</td><td>—</td></tr>
+<tr><td>LangChain / LangGraph shop</td><td>LangSmith</td><td>—</td></tr>
+<tr><td>Frontier-lab / safety org</td><td>Inspect AI</td><td>+ custom storage</td></tr>
+<tr><td>OpenAI-only shop</td><td>OpenAI Evals API + Promptfoo</td><td>—</td></tr>
+<tr><td>Already on W&B for ML</td><td>W&B Weave</td><td>+ RAGAS / DeepEval metrics</td></tr>
+</tbody>
+</table>
+
+<h3>4.4 CI integration patterns</h3>
+
+<p>The cleanest CI pattern for QualOps is <strong>two-tier</strong>:</p>
+<ol>
+<li><strong>Per-PR (3–5 min)</strong> — Promptfoo YAML with ~30 small assertions on the output of each pipeline stage; required GitHub check; PR-comment diff vs. main.</li>
+<li><strong>Nightly / weekly (~30–60 min)</strong> — Langfuse experiment over a 100–200 item dataset, full pipeline, LLM-as-judge scorers + tool-call F1 scorers per stage. Plus quarterly Inspect AI capability eval against held-out fixture repos.</li>
+</ol>
+
+<h2 id="improvement">5 · Systematically improving agents (offline)</h2>
+
+<h3>5.1 The eval-driven improvement loop</h3>
+
+<div class="mermaid">
+flowchart TD
+    A[Production / staging traces] --> B[Sample failures + passes]
+    B --> C[Open coding<br/>free-text notes]
+    C --> D[Axial coding<br/>cluster into taxonomy]
+    D --> E[Prioritize by<br/>frequency × severity × fixability]
+    E --> F{Pick top<br/>bucket}
+    F --> G[Hypothesize fix:<br/>prompt / context / tool /<br/>sub-agent / model / SFT]
+    G --> H[Implement smallest<br/>change that could fix it]
+    H --> I[Run eval set<br/>regression + targeted]
+    I --> J{Delta positive?<br/>No regression?}
+    J -- No --> K[Discard or refine]
+    K --> G
+    J -- Yes --> L[Promote prompt version]
+    L --> M[Ship behind gate]
+    M --> N[Collect new traces]
+    N --> A
+    classDef step fill:#1c232c,stroke:#5b9eff,color:#e6edf3
+    classDef decision fill:#1a1f26,stroke:#ffb454,color:#e6edf3
+    class A,B,C,D,E,G,H,I,K,L,M,N step
+    class F,J decision
+</div>
+
+<h3 id="error-analysis">5.2 Error analysis: open coding → axial coding → frequency</h3>
+
+<p>The single most cited improvement technique. Borrowed from grounded-theory qualitative research:</p>
+
+<ul>
+<li><strong>Pass 1 — Open coding (bottom-up).</strong> Sit with raw traces. Free-text notes describing what went wrong. Critically, <em>do not</em> pre-define categories. Bottom-up coding at NurtureBoss surfaced "date handling" as the dominant failure class and lifted that subtask from 33% → 95% accuracy.</li>
+<li><strong>Pass 2 — Axial coding.</strong> Group notes into 5–15 categories. LLM-assisted clustering pass + human review.</li>
+<li><strong>Frequency-weighted prioritization.</strong> Rank by <code>frequency × business cost × fixability</code>. Spend engineering effort top-down.</li>
+</ul>
+
+<table>
+<thead><tr><th>ID</th><th>Category</th><th>Stage</th><th>Frequency</th><th>Severity</th><th>Fixability</th><th>Priority</th></tr></thead>
+<tbody>
+<tr><td>E1</td><td>False positive on idiomatic style</td><td>Review</td><td>32%</td><td>Low</td><td>High</td><td>P1</td></tr>
+<tr><td>E2</td><td>Missed null-deref across files</td><td>Analyze</td><td>18%</td><td>High</td><td>Medium</td><td>P1</td></tr>
+<tr><td>E3</td><td>Fix proposed wrong import</td><td>Fix</td><td>11%</td><td>Medium</td><td>High</td><td>P2</td></tr>
+<tr><td>E4</td><td>Judge rated harmless nit as "blocker"</td><td>Judge</td><td>9%</td><td>Medium</td><td>High</td><td>P2</td></tr>
+<tr><td>E5</td><td>Refused on large diff</td><td>Analyze</td><td>4%</td><td>High</td><td>Low</td><td>P3</td></tr>
+</tbody>
+</table>
+
+<h3 id="hierarchy">5.3 The hierarchy of fixes (decision tree)</h3>
+
+<div class="mermaid">
+flowchart TD
+    Start([Eval reveals failure]) --> Q1{What's the<br/>error type?}
+
+    Q1 -->|Format / schema<br/>violation| F1[Tighten output format<br/>in prompt; add example]
+    Q1 -->|Misunderstood<br/>instruction| F2[Restructure prompt:<br/>role/task/format/guardrails]
+    Q1 -->|Missing domain<br/>knowledge| F3[Add Skill or<br/>retrieval tool]
+    Q1 -->|Hallucinated<br/>fact / API| F4[Citation requirement<br/>+ retrieval tool]
+    Q1 -->|Wrong tool used| F5[Tool design: names,<br/>descriptions, consolidate]
+    Q1 -->|Tool result ignored| F6[Tool description +<br/>output summarization]
+    Q1 -->|Reasoning chain broke| F7[Extended thinking<br/>or sub-agent split]
+    Q1 -->|Style / over-flagging| F8[Few-shot mining:<br/>contrastive don't-flag]
+    Q1 -->|Cross-file blindness| F9[Code-graph tool;<br/>orchestrator-worker]
+    Q1 -->|Long-context recall| F10[Context engineering:<br/>prune, dynamic load]
+    Q1 -->|Judge miscalibrated| F11[Refresh calibration;<br/>verifier model]
+    Q1 -->|Plateau across types| F12[Prompt optimizer<br/>DSPy / AdalFlow]
+    Q1 -->|Latency/cost plateau| F13[Routing or<br/>distillation SFT]
+    Q1 -->|Persistent + structured| F14[DPO from preference<br/>pairs; otherwise SFT]
+
+    F1 --> R[Re-run eval, gate, ship]
+    F2 --> R
+    F3 --> R
+    F4 --> R
+    F5 --> R
+    F6 --> R
+    F7 --> R
+    F8 --> R
+    F9 --> R
+    F10 --> R
+    F11 --> R
+    F12 --> R
+    F13 --> R
+    F14 --> R
+    classDef step fill:#1c232c,stroke:#5b9eff,color:#e6edf3
+    classDef decision fill:#1a1f26,stroke:#ffb454,color:#e6edf3
+    classDef start fill:#1a1f26,stroke:#7ee787,color:#e6edf3
+    class Start start
+    class Q1 decision
+    class F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,R step
+</div>
+
+<p>The order of operations in 2026, cheapest to most expensive: prompts → few-shot → tools → context → sub-agents → optimizers → routing → distillation/DPO. Fine-tuning is the long-game once the prompt surface is exhausted.</p>
+
+<h3>5.4 Prompt engineering as iteration discipline</h3>
+
+<p>The prompt skeleton convergence between Anthropic's Claude 4.x guides and OpenAI's GPT-5 cookbook:</p>
+
+<pre><code>[Role]      You are &lt;persona, scope&gt;.
+[Task]      Goal in 1–2 sentences.
+[Context]   Static background, dynamic retrieval, tool surface.
+[Examples]  Few-shot, ideally diverse and including hard cases.
+[Format]    Output schema (XML / JSON / markdown sections).
+[Guardrails] Out-of-scope behaviors, refusal triggers, escalation.</code></pre>
+
+<p>For Claude specifically: XML-tag structuring (<code>&lt;example&gt;</code>, <code>&lt;context&gt;</code>, <code>&lt;task&gt;</code>), tool definitions in system message, instructions in user turn, "think step by step" or extended thinking for multi-stage tasks.</p>
+
+<h3>5.5 Automated prompt optimization</h3>
+
+<table>
+<thead><tr><th>Tool</th><th>Mechanism</th><th>Best for</th></tr></thead>
+<tbody>
+<tr><td><strong>DSPy / MIPROv2</strong></td><td>Programs not prompts; joint Bayesian opt of instructions + few-shot</td><td><strong>Multi-stage pipelines</strong> (perfect for QualOps)</td></tr>
+<tr><td>TextGrad</td><td>Backpropagation through text via LLM-generated feedback</td><td>Composable systems with critic-able output</td></tr>
+<tr><td>AdalFlow</td><td>PyTorch-style auto-diff combining TextGrad + DSPy bootstrapping</td><td>Single library covering both directions</td></tr>
+<tr><td>SAMMO</td><td>Structural mutation operators over function-graph prompts</td><td>Long structured prompts (manuals, policies)</td></tr>
+<tr><td>OPRO / Promptbreeder / APE</td><td>Earlier generations</td><td>Mostly historical; folded into DSPy/AdalFlow</td></tr>
+</tbody>
+</table>
+
+<h3>5.6 Few-shot mining</h3>
+
+<p>Three lessons from 2024–25 literature:</p>
+<ol>
+<li>Quality dominates quantity. A handful beat dozens.</li>
+<li>Diversity matters more than similarity.</li>
+<li>Dynamic retrieval &gt; static set for heterogeneous inputs.</li>
+</ol>
+
+<p>For QualOps: build a vector index over canonical good examples keyed by diff features; retrieve top-k at inference. <strong>Add contrastive examples</strong>: pairs of <code>(borderline diff, correct minimal review)</code> so the agent learns where to <em>not</em> comment. Code-review agents over-flag by default; contrastive negatives are the cure.</p>
+
+<h3 id="tool-design">5.7 Tool design — the most under-appreciated lever</h3>
+
+<p>From Anthropic's <em>Writing tools for agents</em>:</p>
+
+<ul>
+<li><strong>Naming</strong>: namespace by service; verb_object form.</li>
+<li><strong>Description is a prompt.</strong> Read on every call. Be explicit about <em>when</em> to use, what inputs are valid, what the tool will NOT do.</li>
+<li><strong>Schema with examples.</strong></li>
+<li><strong>Consolidate, don't proliferate.</strong> Fewer, more capable tools beat many narrow ones.</li>
+<li><strong>Return high-signal text.</strong> Stable identifiers; pruned/summarized output.</li>
+<li><strong>Error messages are pedagogy.</strong> "Error: file path must be relative to repo root; you passed an absolute path; try <code>src/foo.py</code>" enables self-correction.</li>
+<li><strong>Observable side effects.</strong> If a tool mutates state, return the new state.</li>
+</ul>
+
+<h3 id="context">5.8 Context engineering — curate, don't accumulate</h3>
+
+<blockquote>"Context engineering is the delicate art and science of filling the context window with just the right information for the next step." — Andrej Karpathy</blockquote>
+
+<ul>
+<li><strong>Context rot.</strong> Recall and reasoning degrade as token count grows, well before the nominal limit.</li>
+<li><strong>Lost-in-the-middle</strong> (Liu et al., Stanford). Performance is U-shaped: instructions at the very start or end win; buried middle loses.</li>
+<li><strong>Instruction hierarchy.</strong> When system, user, and tool instructions conflict, models follow the most recent and most concretely worded.</li>
+</ul>
+
+<p>For QualOps: never feed the entire repo. Feed (a) the diff, (b) the immediate symbol context (callers/callees of touched symbols), (c) project conventions for the relevant language, and nothing else. Add a tool the agent can call when it needs more.</p>
+
+<h3>5.9 Sub-agent decomposition and Skills</h3>
+
+<p>Anthropic's <em>Building Effective Agents</em> patterns: <strong>prompt chaining, routing, parallelization, orchestrator-workers, evaluator-optimizer</strong>. Reach for sub-agent decomposition when one prompt is doing two qualitatively different jobs, required tools differ across phases, one phase needs a stronger model, or the prompt has crossed ~3–5K tokens. Caveat: orchestrator-worker uses <strong>10–15× more tokens</strong> than a single agent.</p>
+
+<h3>5.10 Routing and model selection</h3>
+
+<p>Industry routers report 30–85% cost reduction with quality flat or slightly improved. For QualOps, a reasonable default cascade:</p>
+
+<ol>
+<li><strong>Diff size / language detector</strong> (no LLM) — small CSS/text → Haiku-tier; backend logic → Sonnet; cross-cutting refactors → Opus.</li>
+<li><strong>Confidence escape hatch</strong> — if Judge rejects with "ambiguous", upgrade and re-run Review.</li>
+<li><strong>Per-stage routing</strong> — Analyze and Report can be smaller; Review and Fix usually want strong; Judge wants strong (or at least <em>different</em>).</li>
+</ol>
+
+<h3>5.11 Reflection patterns</h3>
+
+<div class="callout warn">
+<strong>Reflection is a trap when</strong> the error mode is "confidently wrong with no internal signal" (the critic agrees with the bad output), per-call latency matters more than quality, or the critic is the same model with the same context as the actor (same blind spots).
+</div>
+
+<p>The <strong>verifier model trick</strong>: run Fix with Sonnet, Judge with Opus. Different models reduce shared blindspots — empirically the cheap win.</p>
+
+<h3>5.12 Fine-tuning, distillation, DPO</h3>
+
+<p>The order of operations: prompts → few-shot → tools → context → sub-agents → optimizers → <em>then</em> fine-tuning. Two relevant offline techniques:</p>
+<ul>
+<li><strong>Distillation from agent traces.</strong> Run the strong agent on a curated set, record traces, SFT a smaller model. Recent work preserves &gt;90% of teacher quality at &lt;20% the cost.</li>
+<li><strong>DPO / KTO from preference pairs.</strong> From the eval set you have <code>(input, accepted, rejected)</code> triples — exactly the DPO format.</li>
+</ul>
+
+<h2 id="approach">6 · The QualOps Approach — generalized concept</h2>
+
+<p>This is the synthesis: a concrete, opinionated approach for QualOps and other tool-calling agentic projects with similar shape.</p>
+
+<h3 id="architecture">6.1 Architecture: evals integrated into the QualOps pipeline</h3>
+
+<div class="mermaid">
+flowchart LR
+    subgraph Pipeline["QualOps pipeline (per PR)"]
+        P0[PR diff] --> P1[Analyze]
+        P1 --> P2[Review]
+        P2 --> P3[Fix]
+        P3 --> P4[Report]
+        P4 --> P5[Judge]
+        P5 --> P6[CI status]
+    end
+
+    subgraph EvalLayer["Eval layer (CI-gated)"]
+        E1[Tool-call F1<br/>per stage]
+        E2[Schema validation<br/>+ guardrails]
+        E3[SWE-bench-style<br/>test harness]
+        E4[Agent-as-judge<br/>on Review/Report]
+        E5[pass^k reliability]
+    end
+
+    subgraph Storage["Trace + dataset storage"]
+        S1[(Langfuse<br/>traces, datasets,<br/>experiments)]
+    end
+
+    subgraph Improve["Offline improvement loop"]
+        I1[Sample + open-code<br/>failures]
+        I2[Axial code into<br/>taxonomy]
+        I3[Pick top bucket]
+        I4[Apply smallest fix]
+        I5[Re-run eval, gate]
+        I6[Promote prompt<br/>version + ship]
+    end
+
+    P1 -.spans.-> S1
+    P2 -.spans.-> S1
+    P3 -.spans.-> S1
+    P4 -.spans.-> S1
+    P5 -.spans.-> S1
+
+    S1 --> E1
+    S1 --> E2
+    S1 --> E3
+    S1 --> E4
+    S1 --> E5
+
+    E1 --> I1
+    E2 --> I1
+    E3 --> I1
+    E4 --> I1
+    E5 --> I1
+
+    I1 --> I2 --> I3 --> I4 --> I5 --> I6
+    I6 -.new prompt version.-> Pipeline
+    classDef stage fill:#1c232c,stroke:#5b9eff,color:#e6edf3
+    classDef eval fill:#1a1f26,stroke:#7ee787,color:#e6edf3
+    classDef improve fill:#1a1f26,stroke:#ffb454,color:#e6edf3
+    classDef store fill:#1a1f26,stroke:#ff7b72,color:#e6edf3
+    class P1,P2,P3,P4,P5 stage
+    class E1,E2,E3,E4,E5 eval
+    class I1,I2,I3,I4,I5,I6 improve
+    class S1 store
+</div>
+
+<p>Three concerns kept structurally separate: the <strong>pipeline</strong> (production), the <strong>eval layer</strong> (scoring), and the <strong>improvement loop</strong> (between releases).</p>
+
+<h3 id="stages">6.2 Stage-by-stage eval matrix</h3>
+
+<table>
+<thead><tr><th>Stage</th><th>Primary eval technique</th><th>Secondary</th><th>Reliability metric</th></tr></thead>
+<tbody>
+<tr><td><strong>Analyze</strong></td><td>Tool-call F1 against expected <code>read_file</code>/<code>grep</code> set</td><td>Under-tooling rate; hallucinated-tool detection</td><td>pass^5</td></tr>
+<tr><td><strong>Review</strong></td><td>Location precision/recall + finding-class accuracy</td><td>Agent-as-judge on textual quality</td><td>pass^5</td></tr>
+<tr><td><strong>Fix</strong></td><td>SWE-bench-style harness: apply patch, FAIL_TO_PASS + PASS_TO_PASS</td><td>Linter / formatter delta; perf benchmark</td><td>pass^3</td></tr>
+<tr><td><strong>Report</strong></td><td>Schema validation</td><td>LLM-judge on coherence; faithfulness check</td><td>pass^5</td></tr>
+<tr><td><strong>Judge</strong></td><td>Agreement rate vs. held-out human labels</td><td>Calibration error (ECE) on severity</td><td>pass^5</td></tr>
+<tr><td><strong>End-to-end</strong></td><td>Composite weighted score + human-rated hold-out</td><td>Cross-model agent-as-judge</td><td>pass^5 + 95% CI</td></tr>
+</tbody>
+</table>
+
+<h3 id="stack">6.3 Tooling stack</h3>
+
+<table>
+<thead><tr><th>Layer</th><th>Choice</th><th>Rationale</th></tr></thead>
+<tbody>
+<tr><td>Trace + dataset store</td><td><strong>Langfuse</strong> <em>(keep)</em></td><td>MIT, self-host, observation-level evals, already wired in</td></tr>
+<tr><td>Per-PR CI gate</td><td><strong>Promptfoo</strong> <em>(add)</em></td><td>Best-in-class GitHub Action, YAML config, Claude Agent SDK provider</td></tr>
+<tr><td>Nightly capability eval</td><td><strong>Inspect AI</strong> <em>(add)</em></td><td>Used by Anthropic/DeepMind/Grok; Agent Bridge wraps QualOps unmodified</td></tr>
+<tr><td>LLM judge</td><td>Claude Opus + GPT-5 cross-judge for Review/Report; Sonnet for cheaper paths</td><td>Cross-model judging mitigates self-preference bias</td></tr>
+<tr><td>Statistics</td><td>Custom (numpy/scipy) — bootstrap CIs, McNemar</td><td>Anthropic's Statistical Approach methodology</td></tr>
+</tbody>
+</table>
+
+<div class="callout">
+<strong>We deliberately do not migrate away from Langfuse</strong> to LangSmith or Braintrust. The marginal UX wins do not justify a closed-source migration for a small team given Langfuse's current feature set.
+</div>
+
+<h3 id="cadence">6.4 Two-tier eval cadence</h3>
+
+<div class="kpi-grid">
+<div class="kpi"><div class="label">Per-PR (fast)</div><div class="value">3–5 min</div><div class="desc">Promptfoo YAML, ~30 asserts, blocking PR check, comment with diff</div></div>
+<div class="kpi"><div class="label">Nightly (slow)</div><div class="value">~30–60 min</div><div class="desc">Langfuse experiment, 100–200 dataset items, LLM-as-judge, pass^5</div></div>
+<div class="kpi"><div class="label">Weekly (capability)</div><div class="value">~2 hours</div><div class="desc">Inspect AI on held-out fixtures, SWE-bench-style on Fix, drift report</div></div>
+</div>
+
+<h3>6.5 Statistical discipline</h3>
+
+<p>Every release the eval layer must produce: mean ± 95% CI on the headline metric; per-stage mean ± std across pass^5; paired-comparison delta vs. previous release (McNemar / paired bootstrap); variance decomposition (sampling, prompt, judge, data).</p>
+
+<p>Releases ship only if: all deterministic regression assertions pass; composite score within 3% of baseline (or stat-sig improved); no individual stage regresses by more than 5% with stat-sig.</p>
+
+<h3>6.6 Improvement cadence</h3>
+
+<table>
+<thead><tr><th>Cadence</th><th>Activity</th></tr></thead>
+<tbody>
+<tr><td><strong>Continuous</strong></td><td>Trace every production PR; LLM pre-label; human review of low-confidence and dismissed-by-reviewer cases</td></tr>
+<tr><td><strong>Weekly (1 day)</strong></td><td>Pick the top error bucket; implement smallest fix; gate eval; ship if green</td></tr>
+<tr><td><strong>Monthly</strong></td><td>Re-cluster the error taxonomy from the last month's traces; refresh the few-shot index</td></tr>
+<tr><td><strong>Quarterly</strong></td><td>Refresh judge calibration set against a fresh human-rated sample (50–100 traces); refresh hold-out fixture repos</td></tr>
+<tr><td><strong>Per major version</strong></td><td>Re-run end-to-end against the entire historical eval set; publish a release report with score deltas</td></tr>
+</tbody>
+</table>
+
+<h3>6.7 Generalizing to other projects</h3>
+
+<p>The same approach generalizes to other tool-calling / workflow agentic projects. The pattern, abstracted from QualOps:</p>
+<ol>
+<li>Define stages and the artifact each produces.</li>
+<li>Pick a primary eval technique per stage based on artifact shape.</li>
+<li>Build a 50–200 item curated golden set from real production traces.</li>
+<li>Wire a per-stage tracing layer with consistent span semantics (OpenInference is the OTEL standard).</li>
+<li>Build a two-tier eval: fast deterministic gate per change; slow LLM-judge / capability eval per night or week.</li>
+<li>Run the error analysis loop weekly. Maintain the taxonomy as a living document.</li>
+<li>Promote prompts and skills as versioned code; gate releases on paired statistical comparison.</li>
+</ol>
+
+<h2 id="prereqs">7 · Prerequisites and adoption roadmap</h2>
+
+<h3>7.1 Prerequisites</h3>
+
+<table>
+<thead><tr><th>Prerequisite</th><th>Status today</th><th>Action</th></tr></thead>
+<tbody>
+<tr><td>Trace storage with span / observation primitives</td><td><strong>Have</strong> (Langfuse)</td><td>None</td></tr>
+<tr><td>Per-stage tracing in code (Analyze/Review/Fix/Report/Judge as distinct spans)</td><td><strong>Mostly have</strong></td><td>Audit; ensure consistent span names + attributes</td></tr>
+<tr><td>Versioned prompts in repo</td><td><strong>Have</strong> (<code>evals/qualopsrc/</code>)</td><td>None</td></tr>
+<tr><td>Prompt-as-code promotion infra (content hashes, dev → staging → prod gates)</td><td><strong>Partial</strong></td><td>Add explicit promotion workflow + version pinning</td></tr>
+<tr><td>A starter golden set of real PRs with labels</td><td><strong>Partial</strong> (CRB datasets exist, internal labels TBD)</td><td>Label 50 internal PRs</td></tr>
+<tr><td><strong>Held-out / contamination control</strong> (split mgmt, fresh fixtures)</td><td><strong>Don't have</strong></td><td>Stand up split policy; rotate fixtures via SWE-bench Live monthly drops</td></tr>
+<tr><td>LLM-as-judge wiring with binary rubrics</td><td><strong>Have</strong> (Judge stage)</td><td>Add cross-model judge variant</td></tr>
+<tr><td><strong>Cross-model judge access (GPT-5 + Claude Opus)</strong></td><td><strong>Don't have</strong></td><td>Procure GPT-5 API credentials + budget headroom (~$500/mo)</td></tr>
+<tr><td><strong>Ongoing human calibration label capacity</strong> (50–100 traces/quarter)</td><td><strong>Don't have</strong></td><td>Designate annotators; lightweight labeling tooling</td></tr>
+<tr><td>CI runner with secrets for LLM API calls</td><td><strong>Have</strong></td><td>None</td></tr>
+<tr><td>Per-stage tool-call F1 scorer</td><td><strong>Don't have</strong></td><td>Implement (~1 week)</td></tr>
+<tr><td>SWE-bench-style harness for Fix stage</td><td><strong>Don't have</strong></td><td>Implement (~2 weeks); seed from SWE-bench Live + internal PRs</td></tr>
+<tr><td>Agent-as-judge on Report stage</td><td><strong>Don't have</strong></td><td>Implement (~1 week)</td></tr>
+<tr><td>Promptfoo per-PR gate</td><td><strong>Don't have</strong></td><td>Add Promptfoo + GitHub Action (~3 days)</td></tr>
+<tr><td>Inspect AI nightly / weekly</td><td><strong>Don't have</strong></td><td>Add Inspect AI + Agent Bridge (~1 week)</td></tr>
+<tr><td>Statistical comparison framework</td><td><strong>Don't have</strong></td><td>Adopt Anthropic's recipe (~3 days)</td></tr>
+<tr><td>Ownership: who runs the eval loop?</td><td>TBD</td><td>Designate a part-time eval lead</td></tr>
+</tbody>
+</table>
+
+<h3>7.2 Adoption roadmap (~3 months)</h3>
+
+<div class="mermaid">
+gantt
+    title QualOps eval program — phased rollout
+    dateFormat YYYY-MM-DD
+    axisFormat %b %d
+
+    section Phase 1 Foundations
+    Audit per-stage tracing            :p1a, 2026-05-12, 5d
+    Label 50 internal PRs              :p1b, after p1a, 10d
+    Implement tool-call F1 scorer      :p1c, after p1a, 7d
+    Schema validators                  :p1d, after p1c, 3d
+    Stat comparison helpers            :p1e, after p1d, 3d
+
+    section Phase 2 CI gate
+    Promptfoo + GitHub Action          :p2a, after p1e, 5d
+    30 per-stage assertions            :p2b, after p2a, 5d
+    PR-comment diff                    :p2c, after p2b, 2d
+    Soft-gate dry run, then enforce    :p2d, after p2c, 5d
+
+    section Phase 3 Fix + judge
+    SWE-bench-style harness for Fix    :p3a, after p2d, 10d
+    Mine SWE-bench Verified            :p3b, after p3a, 5d
+    Agent-as-judge on Report           :p3c, after p3b, 7d
+    Cross-model judge wiring           :p3d, after p3c, 3d
+
+    section Phase 4 Capability eval
+    Inspect AI + Agent Bridge          :p4a, after p3d, 5d
+    Held-out fixture repo set          :p4b, after p4a, 5d
+    Weekly drift dashboard             :p4c, after p4b, 2d
+
+    section Phase 5 Improvement
+    First error-analysis pass          :p5a, after p4c, 5d
+    First taxonomy + priorities        :p5b, after p5a, 3d
+    Weekly improvement loop            :p5c, after p5b, 30d
+</div>
+
+<h3>7.3 Effort and cost estimate</h3>
+
+<table>
+<thead><tr><th>Phase</th><th>Engineering effort</th><th>Recurring cost (LLM tokens / month)</th></tr></thead>
+<tbody>
+<tr><td>1 — Foundations</td><td>~3 weeks</td><td>~$200</td></tr>
+<tr><td>2 — CI gate</td><td>~2 weeks</td><td>~$300</td></tr>
+<tr><td>3 — Fix harness + judge</td><td>~3.5 weeks</td><td>~$1,500</td></tr>
+<tr><td>4 — Capability eval</td><td>~1.5 weeks</td><td>~$2,000</td></tr>
+<tr><td>5 — Improvement loop</td><td>~1 day/week ongoing</td><td>~$500</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>~10 weeks</strong></td><td><strong>~$4,500/mo steady-state</strong></td></tr>
+</tbody>
+</table>
+
+<h2 id="risks">8 · Risks, open questions, and what we left out</h2>
+
+<h3>8.1 Risks</h3>
+
+<ul>
+<li><strong>Eval set leakage.</strong> If the same PRs feed both eval and SFT, the score is meaningless. Mitigation: strict held-out splits; SWE-bench Live for fresh data.</li>
+<li><strong>Judge drift.</strong> As both judge and judged models update, judge scores drift. Mitigation: refresh human-labeled calibration set quarterly.</li>
+<li><strong>Reward hacking on the Fix harness.</strong> A patch that monkey-patches <code>pytest</code> to skip tests. Mitigation: PASS_TO_PASS check; code-quality grader on the diff itself.</li>
+<li><strong>Overfitting prompts to the eval set.</strong> Especially with prompt optimizers. Mitigation: held-out validation set; rotate eval set periodically.</li>
+<li><strong>Cost overruns.</strong> Weekly capability evals over 100+ fixtures add up. Mitigation: routing — Haiku for broad eval, escalate to Sonnet/Opus for low-confidence cases; cap turn budgets.</li>
+<li><strong>Self-preference in same-model judge.</strong> Mitigation: cross-model judge, ideally on a different family.</li>
+</ul>
+
+<h3>8.2 Open questions</h3>
+
+<ul>
+<li><strong>Are LLM judges good enough as the only signal?</strong> Production teams hedge by combining judges with periodic human review.</li>
+<li><strong>Process supervision vs outcome supervision</strong> for training data. Process wins for math; how to label process at scale for fuzzy domains like code review remains open.</li>
+<li><strong>Benchmark validity.</strong> Recent audits show many published benchmarks have leakage, mis-graded items, or task-validity problems.</li>
+<li><strong>Calibration for tool-using agents specifically.</strong> Most calibration work targets factual QA. QualOps may need to invent its own severity-calibration methodology.</li>
+</ul>
+
+<h3>8.3 What we deliberately left out</h3>
+
+<ul>
+<li><strong>Online RLHF / continuous self-tuning in production.</strong> Out of scope; we deploy fixed versions.</li>
+<li><strong>Human evaluation infrastructure beyond a calibration set.</strong> A separate project.</li>
+<li><strong>Compliance / regulatory eval.</strong> If QualOps targets regulated industries, an additional eval layer will be needed.</li>
+<li><strong>Prompt-injection / jailbreak red-teaming at scale.</strong> Promptfoo includes a basic suite; full adversarial robustness is its own program.</li>
+</ul>
+
+<h2 id="appendix">9 · Appendix</h2>
+
+<h3>9.1 Glossary</h3>
+
+<table>
+<thead><tr><th>Term</th><th>Definition</th></tr></thead>
+<tbody>
+<tr><td>Agent-as-judge</td><td>Using an LLM with tool access to evaluate another agent's output</td></tr>
+<tr><td>AST match</td><td>Comparing tool calls structurally as parsed trees</td></tr>
+<tr><td>BFCL</td><td>Berkeley Function-Calling Leaderboard</td></tr>
+<tr><td>Calibration / ECE</td><td>How well a model's confidence matches empirical accuracy</td></tr>
+<tr><td>DPO / KTO</td><td>Direct Preference Optimization / Kahneman-Tversky Optimization</td></tr>
+<tr><td>DSPy</td><td>Stanford NLP framework treating LLM workflows as programs</td></tr>
+<tr><td>FAIL_TO_PASS / PASS_TO_PASS</td><td>SWE-bench's two test sets</td></tr>
+<tr><td>G-Eval</td><td>LLM-judge with chain-of-thought rubric prompting</td></tr>
+<tr><td>Golden trace / golden set</td><td>Curated reference traces used as the eval baseline</td></tr>
+<tr><td>HELM</td><td>Stanford's holistic evaluation framework</td></tr>
+<tr><td>Inspect AI</td><td>UK AISI's research-grade Python eval framework</td></tr>
+<tr><td>LLM-as-judge</td><td>Using an LLM to score another LLM's output</td></tr>
+<tr><td>MIPROv2</td><td>DSPy's joint instruction + few-shot optimizer</td></tr>
+<tr><td>Open / axial coding</td><td>Qualitative-research method for building error taxonomies</td></tr>
+<tr><td>OpenInference</td><td>OTEL-based semantic conventions for LLM/agent traces</td></tr>
+<tr><td>pass@k vs pass^k</td><td>Succeed at least once in k trials vs. succeed every time</td></tr>
+<tr><td>Process Reward Model (PRM)</td><td>Model that scores each reasoning step</td></tr>
+<tr><td>Promptfoo</td><td>MIT-licensed CLI/library for prompt and agent eval</td></tr>
+<tr><td>ReAct</td><td>Reason + Act loop pattern for agents</td></tr>
+<tr><td>SWE-bench</td><td>Code-agent benchmark based on real GitHub issues + unit tests</td></tr>
+<tr><td>τ-bench</td><td>Sierra's tool-agent-user multi-turn benchmark; introduced pass^k</td></tr>
+<tr><td>Trajectory</td><td>Ordered record of (state, action, observation) for an agent run</td></tr>
+</tbody>
+</table>
+
+<h3>9.2 Top recommended reads</h3>
+
+<ol>
+<li><a href="https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents">Anthropic — Demystifying evals for AI agents</a></li>
+<li><a href="https://hamel.dev/blog/posts/evals-faq/">Hamel Husain &amp; Shreya Shankar — LLM Evals: Everything You Need to Know</a></li>
+<li><a href="https://hamel.dev/blog/posts/field-guide/">Hamel Husain — A Field Guide to Rapidly Improving AI Products</a></li>
+<li><a href="https://arxiv.org/abs/2306.05685">Zheng et al. 2023 — Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena</a></li>
+<li><a href="https://arxiv.org/abs/2406.12045">Yao et al. 2024 — τ-bench</a></li>
+<li><a href="https://arxiv.org/abs/2310.06770">Jimenez et al. 2023 — SWE-bench</a></li>
+<li><a href="https://arxiv.org/abs/2410.10934">Zhuge et al. 2024 — Agent-as-a-Judge</a></li>
+<li><a href="https://www.anthropic.com/research/building-effective-agents">Anthropic — Building Effective Agents</a></li>
+<li><a href="https://www.anthropic.com/engineering/writing-tools-for-agents">Anthropic — Writing tools for agents</a></li>
+<li><a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Anthropic — Effective context engineering for AI agents</a></li>
+</ol>
+
+<h3>9.3 Companion files</h3>
+
+<ul>
+<li><a href="REPORT.md">REPORT.md</a> — the markdown version of this report</li>
+<li><a href="sources/01-foundations.md">sources/01-foundations.md</a> — foundations dossier (~5,000 words)</li>
+<li><a href="sources/02-frameworks.md">sources/02-frameworks.md</a> — frameworks dossier (~5,800 words)</li>
+<li><a href="sources/03-toolcalling-and-trajectory.md">sources/03-toolcalling-and-trajectory.md</a> — tool-calling dossier (~5,200 words)</li>
+<li><a href="sources/04-improvement.md">sources/04-improvement.md</a> — improvement dossier (~5,500 words)</li>
+</ul>
+
+<footer>
+QualOps Research · May 8, 2026 · Synthesised from four primary-source dossiers totaling ~21,500 words. Built with mermaid for diagrams. Print-friendly: use your browser's print-to-PDF.
+</footer>
+
+</main>
+</div>
+
+<script>
+mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+        primaryColor: '#1c232c',
+        primaryBorderColor: '#5b9eff',
+        primaryTextColor: '#e6edf3',
+        lineColor: '#5b9eff',
+        secondaryColor: '#1a1f26',
+        tertiaryColor: '#161b22',
+        background: '#0e1116',
+        mainBkg: '#1c232c',
+        secondBkg: '#1a1f26',
+        tertiaryBkg: '#161b22',
+        nodeTextColor: '#e6edf3',
+        textColor: '#e6edf3',
+        noteBkgColor: '#1a1f26',
+        noteTextColor: '#e6edf3',
+        noteBorderColor: '#5b9eff'
+    },
+    flowchart: {
+        curve: 'basis',
+        padding: 16
+    },
+    gantt: {
+        barHeight: 22,
+        barGap: 4,
+        topPadding: 50,
+        leftPadding: 140,
+        gridLineStartPadding: 20,
+        fontSize: 12
+    }
+});
+</script>
+</body>
+</html>

@@ -91,7 +91,7 @@ permissions:
 
 ## Documentation
 
-For detailed setup instructions, see [docs/github-setup.md](../../docs/github-setup.md).
+For detailed setup instructions, see [the GitHub Action setup guide](https://github.com/eggai-tech/qualops/blob/main/website/src/content/docs/github-action/setup.md).
 
 ## Support
 

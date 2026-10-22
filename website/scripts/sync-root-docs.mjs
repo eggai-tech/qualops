@@ -33,14 +33,6 @@ const SOURCES = [
       'How to contribute to QualOps. Synced from CONTRIBUTING.md in the repository root.',
   },
   {
-    from: 'docs/github-setup.md',
-    to: 'github-action/setup.md',
-    title: 'GitHub Action setup',
-    description:
-      'Configure secrets, permissions, and the QualOps GitHub Action workflow for your repository.',
-    stripFirstH1: true,
-  },
-  {
     from: 'examples/agents/comment-rewriter.md',
     to: 'examples/agents/comment-rewriter.md',
     title: 'Comment rewriter agent',
