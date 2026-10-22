@@ -1,0 +1,1 @@
+export const TOKENS_PER_MILLION = 1_000_000;

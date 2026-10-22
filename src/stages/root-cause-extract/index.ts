@@ -6,7 +6,7 @@ import { AIFactory } from '../../ai/providers';
 import { RootCauseClassificationsSchema } from '../../ai/shared/schemas/root-cause-classification';
 import { StructuredOutputError } from '../../ai/shared/structured';
 import { addStageTokenStats, getCurrentSessionPaths } from '../../shared/runtime/session-context';
-import type { RootCauseMetadata } from '../../shared/types';
+import type { RootCauseClassification, RootCauseMetadata } from '../../shared/types';
 import { logger } from '../../shared/utils/logger';
 import { isPathTraversalSafe } from '../../shared/utils/security';
 
@@ -17,12 +17,6 @@ interface IssueForClassification {
   category: string;
   reasoning: string;
   filePath: string;
-}
-
-interface ClassificationResult {
-  issueId: string;
-  rootCause: string;
-  confidence: number;
 }
 
 async function readIssuesFromFolder(issuesPath: string): Promise<IssueForClassification[]> {
@@ -66,7 +60,7 @@ async function readIssuesFromFolder(issuesPath: string): Promise<IssueForClassif
 async function classifyIssuesInBatch(
   issues: IssueForClassification[],
   aiProvider: ReturnType<typeof AIFactory.createForStage> extends Promise<infer T> ? T : never,
-): Promise<ClassificationResult[]> {
+): Promise<RootCauseClassification[]> {
   const taxonomyDescription = ROOT_CAUSE_TAXONOMY.map((rc) => {
     const patterns = rc.patterns.length > 0 ? `\n  Patterns: ${rc.patterns.join(', ')}` : '';
     return `- ${rc.key}: ${rc.label}${patterns}`;
@@ -126,7 +120,7 @@ ${issuesForPrompt}`;
 }
 
 async function moveIssuesToRootCauseFolders(
-  classifications: Map<string, ClassificationResult>,
+  classifications: Map<string, RootCauseClassification>,
   issuesBasePath: string,
 ): Promise<void> {
   // First, create all root cause folders
@@ -194,7 +188,7 @@ export async function extractRootCauses(): Promise<RootCauseMetadata> {
   logger.ai(`Using AI provider: ${aiProvider.name}`);
 
   const BATCH_SIZE = 10;
-  const classifications = new Map<string, ClassificationResult>();
+  const classifications = new Map<string, RootCauseClassification>();
 
   for (let i = 0; i < issues.length; i += BATCH_SIZE) {
     const batch = issues.slice(i, i + BATCH_SIZE);

@@ -3,6 +3,11 @@
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 
+import {
+  QUALOPS_COMMENT_MARKER,
+  type IntegrationReviewIssue,
+  type QualOpsResult,
+} from '../shared/types/integrations';
 import { logger } from '../shared/utils/logger';
 import { hasValidUrlScheme, isValidGitSha } from '../shared/utils/security';
 
@@ -12,8 +17,6 @@ const SEVERITY_EMOJI = {
   medium: '🟡',
   low: '🟢',
 } as const;
-
-const QUALOPS_COMMENT_MARKER = '<!-- qualops-analysis-comment -->';
 
 interface GitLabConfig {
   enabled?: boolean;
@@ -43,25 +46,6 @@ interface GitLabEnv {
   CI_PROJECT_URL?: string;
 }
 
-interface QualOpsResult {
-  summary: {
-    totalIssues: number;
-    criticalSeverity: number;
-    highSeverity: number;
-    mediumSeverity: number;
-    lowSeverity: number;
-    filesAnalyzed: number;
-  };
-  reportPath: string;
-  issues: Array<{
-    file: string;
-    line: number;
-    severity: string;
-    message: string;
-    category: string;
-  }>;
-}
-
 interface GitLabJob {
   id: number;
   name: string;
@@ -73,14 +57,6 @@ interface GitLabNote {
   author: {
     username: string;
   };
-}
-
-interface ReviewIssue {
-  file: string;
-  location: string;
-  severity: string;
-  description: string;
-  type: string;
 }
 
 class GitLabIntegration {
@@ -602,7 +578,7 @@ class GitLabIntegration {
 
           if (reviewReport.issues && Array.isArray(reviewReport.issues)) {
             // Transform issues to match expected format
-            const transformedIssues = reviewReport.issues.map((issue: ReviewIssue) => {
+            const transformedIssues = reviewReport.issues.map((issue: IntegrationReviewIssue) => {
               // Parse location field - handle both "42" and "line:42" formats
               const locationStr = issue.location.replace(/^line:?/i, '').trim();
               const lineNumber = parseInt(locationStr, 10) || 0;

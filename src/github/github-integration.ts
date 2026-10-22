@@ -3,9 +3,12 @@ import { join } from 'path';
 
 import { GitHubAPIClient } from './github-api-client';
 import { GitHubChecksService } from './github-checks';
+import {
+  QUALOPS_COMMENT_MARKER,
+  type IntegrationReviewIssue,
+  type QualOpsResult,
+} from '../shared/types/integrations';
 import { logger } from '../shared/utils/logger';
-
-const QUALOPS_COMMENT_MARKER = '<!-- qualops-analysis-comment -->';
 
 interface GitHubConfig {
   enabled?: boolean;
@@ -29,33 +32,6 @@ interface GitHubEnv {
   GITHUB_BASE_REF?: string;
   GITHUB_RUN_ID?: string;
   GITHUB_SERVER_URL?: string;
-}
-
-interface QualOpsResult {
-  summary: {
-    totalIssues: number;
-    criticalSeverity: number;
-    highSeverity: number;
-    mediumSeverity: number;
-    lowSeverity: number;
-    filesAnalyzed: number;
-  };
-  reportPath: string;
-  issues: Array<{
-    file: string;
-    line: number;
-    severity: string;
-    message: string;
-    category: string;
-  }>;
-}
-
-interface ReviewIssue {
-  file: string;
-  location: string;
-  severity: string;
-  description: string;
-  type: string;
 }
 
 interface PullRequestEvent {
@@ -241,7 +217,7 @@ export class GitHubIntegration {
     try {
       const reviewSummary = JSON.parse(readFileSync(reviewSummaryPath, 'utf8'));
       const summary = reviewSummary.summary || {};
-      const issues: ReviewIssue[] = reviewSummary.issues || [];
+      const issues: IntegrationReviewIssue[] = reviewSummary.issues || [];
 
       return {
         summary: {

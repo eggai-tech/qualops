@@ -4,6 +4,7 @@ import type { Span, Tracer } from '@opentelemetry/api';
 
 import { executeAnalyzeStage } from './analyze-command';
 import { executeFixStage } from './fix-command';
+import { TOKENS_PER_MILLION } from '../../ai/providers/pricing-constants';
 import { ConfigService, DEFAULT_CONFIG_PATH } from '../../config/config';
 import {
   setupTracing,
@@ -71,7 +72,7 @@ export async function executeAllStages(options: QualOpsOptions): Promise<void> {
     logger.info(`Output Tokens: ${totalStats.totalOutputTokens.toLocaleString()}`);
     if (totalStats.totalCachedTokens > 0) {
       logger.info(`Cached Tokens: ${totalStats.totalCachedTokens.toLocaleString()}`);
-      const savings = (totalStats.totalCachedTokens / 1_000_000) * 1.25;
+      const savings = (totalStats.totalCachedTokens / TOKENS_PER_MILLION) * 1.25;
       logger.info(`Cache Savings: $${savings.toFixed(4)}`);
     }
     logger.info('\nBy Stage:');

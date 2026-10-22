@@ -6,6 +6,7 @@ import { logger } from '@/shared/utils/logger';
 
 import type { ProviderCapabilities } from './capabilities';
 import { detectCapabilities } from './capabilities';
+import { TOKENS_PER_MILLION } from './pricing-constants';
 import type {
   AICompletionOptions,
   AICompletionOptionsWithSchema,
@@ -139,11 +140,12 @@ export abstract class BaseAIProvider implements AIProvider {
     const { inputPerMillion, outputPerMillion } = this.stageConfig;
     const { cacheWriteMultiplier, cacheReadMultiplier } = this.pricingMultipliers(use1HourCache);
 
-    const inputCost = (fullPriceInput / 1_000_000) * inputPerMillion;
-    const cacheReadCost = (cachedReadTokens / 1_000_000) * (inputPerMillion * cacheReadMultiplier);
+    const inputCost = (fullPriceInput / TOKENS_PER_MILLION) * inputPerMillion;
+    const cacheReadCost =
+      (cachedReadTokens / TOKENS_PER_MILLION) * (inputPerMillion * cacheReadMultiplier);
     const cacheWriteCost =
-      (cacheCreationTokens / 1_000_000) * (inputPerMillion * cacheWriteMultiplier);
-    const outputCost = (output / 1_000_000) * outputPerMillion;
+      (cacheCreationTokens / TOKENS_PER_MILLION) * (inputPerMillion * cacheWriteMultiplier);
+    const outputCost = (output / TOKENS_PER_MILLION) * outputPerMillion;
     this.tokenStats.estimatedCost += inputCost + cacheReadCost + cacheWriteCost + outputCost;
 
     this.logUsageIfDue();

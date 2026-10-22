@@ -1,4 +1,5 @@
 import type { ReviewIssue } from '../../../shared/types';
+import { CONFIDENCE_DISPLAY_THRESHOLDS } from '../constants';
 import { calculateIssueCounts, generateSafeId } from '../utils/data-transformer';
 import { getConfidenceBadge } from '../utils/formatters';
 
@@ -241,11 +242,11 @@ function generateConfidenceSection(issue: ReviewIssue): string {
   let confidenceColor: string;
   let explanation: string;
 
-  if (confidence >= 8) {
+  if (confidence >= CONFIDENCE_DISPLAY_THRESHOLDS.HIGH) {
     confidenceLevel = 'High';
     confidenceColor = 'var(--color-success)';
     explanation = 'This finding is highly reliable with strong evidence and clear reasoning.';
-  } else if (confidence >= 6) {
+  } else if (confidence >= CONFIDENCE_DISPLAY_THRESHOLDS.MEDIUM) {
     confidenceLevel = 'Medium';
     confidenceColor = 'var(--color-warning)';
     explanation = 'This finding has reasonable evidence but may need additional verification.';
